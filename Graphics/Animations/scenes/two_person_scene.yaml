@@ -1,0 +1,57 @@
+
+version: 1
+palette: db16
+
+# Define the sprite using the small assets we generated
+sprites:
+  anchor:
+    path: assets/anchor_small
+    tags: [neutral, blink, talk_a, talk_o]
+    pattern: "anchor_{tag}_*.png"
+
+# Define the layers of the scene
+layers:
+  # --- Diplomat (Left Side) ---
+  - id: diplomat_char
+    type: character
+    sprite: anchor
+    pos: {x: 2, y: 4} # Position on the left
+    timeline:
+      # Starts neutral, then talks, then goes back to neutral
+      - { seq: neutral, frames: 10 }
+      - { seq: blink,   frames: 2 }
+      - { seq: neutral, frames: 28 }
+      - { seq: talk_a,  frames: 10 }
+      - { seq: talk_o,  frames: 10 }
+      - { seq: neutral, frames: 100 } # Listens while player talks
+
+  - id: diplomat_text
+    type: text
+    text: "Mr. Prime Minister, we must de-escalate. My government sees this as a provocation."
+    row: 5
+    col: 38
+
+  # --- Player (Right Side) ---
+  - id: player_char
+    type: character
+    sprite: anchor
+    pos: {x: 85, y: 4} # Position on the right
+    timeline:
+      # Stays neutral while diplomat talks, then speaks
+      - { seq: neutral, frames: 150 }
+      - { seq: talk_o,  frames: 10 }
+      - { seq: talk_a,  frames: 10 }
+      - { seq: neutral, frames: 10 }
+      
+  - id: player_text
+    type: text
+    text: "Our movements are purely defensive. The [red]unannounced submarine activity[/] is the provocation."
+    row: 15 # Lower down to not overlap
+    col: 30
+
+  # --- Scene Title ---
+  - id: title
+    type: text
+    text: "[bold red]LIVE[/] | SECURE DIPLOMATIC CHANNEL"
+    row: 1
+    col: 40

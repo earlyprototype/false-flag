@@ -1,0 +1,242 @@
+# False Flag: The Wargame - Initial Conditions
+# Based on Episode 1 SRT transcript analysis
+# For CLI-based wargame initialization
+
+# Game Metadata
+metadata:
+  title: "False Flag: The Wargame"
+  scenario: "UK-Russia False Flag Crisis"
+  description: "A simulated crisis where Russia launches a false flag operation against the UK, escalating to potential military conflict"
+  start_date: "2025-10-05"  # Sunday, 5th October 2025
+  duration: "7 days"  # Typical wargame duration
+
+# Initial Game State
+game_state:
+  # Threat Levels (0-100 scale)
+  threat_levels:
+    military: 75  # High due to Russian naval exercise
+    cyber: 65     # 65% increase in attacks
+    diplomatic: 80  # Russia recalled ambassador
+    intelligence: 60  # Mixed signals, low confidence
+
+  # Alert Status
+  alert_status: "COBRA"  # Emergency government meeting
+
+  # Time Pressure
+  time_remaining: 168  # Hours (7 days)
+  escalation_timer: 24   # Hours until potential attack
+
+# Factions
+factions:
+  uk_government:
+    name: "United Kingdom"
+    type: "defensive"
+    resources:
+      military_readiness: "low"  # Post-Cold War cuts
+      nuclear_assets: 4  # Trident submarines
+      aircraft_carriers: 2  # One deployed, one available
+      destroyers: 6  # Only 2-3 operational
+      fighter_aircraft: 24  # F-35s available
+    intelligence_agencies:
+      - "MI6"
+      - "MI5"
+      - "GCHQ"
+    diplomatic_relations:
+      russia: "hostile"
+      nato: "strained"  # Uncertainty about US commitment
+      usa: "uncertain"  # Trump era complications
+
+  russian_federation:
+    name: "Russian Federation"
+    type: "offensive"
+    resources:
+      naval_exercise: true  # 15 submarines in North Atlantic
+      cyber_capabilities: "high"  # 65% attack increase
+      special_forces: "active"  # Pilot assassinations
+      nuclear_posture: "elevated"
+    objectives:
+      - "False flag pretext for military action"
+      - "Test NATO resolve"
+      - "Neutralize UK as NATO obstacle"
+
+# Key Characters (CLI Game Entities)
+characters:
+  # UK Team
+  prime_minister:
+    name: "Prime Minister"
+    role: "Government Leader"
+    influence: 100  # Maximum authority
+    initial_stance: "crisis_management"
+    key_concerns: ["NATO commitment", "military readiness", "public reassurance"]
+    available_actions: ["convene_cobra", "request_nato_support", "mobilize_reserves"]
+
+  chief_defence_staff:
+    name: "Chief of the Defence Staff"
+    role: "Military Commander"
+    influence: 85
+    initial_stance: "defensive_preparation"
+    key_concerns: ["Russian naval exercise", "pilot security", "limited air defense"]
+    available_actions: ["deploy_carrier", "surge_air_patrols", "prepare_nuclear_assets"]
+
+  national_security_advisor:
+    name: "National Security Advisor"
+    role: "Intelligence Coordinator"
+    influence: 90
+    initial_stance: "intelligence_gathering"
+    key_concerns: ["cyber_attacks", "false_flag_detection", "US_relations"]
+    available_actions: ["intelligence_briefing", "cyber_defense", "diplomatic_outreach"]
+
+  home_secretary:
+    name: "Home Secretary"
+    role: "Domestic Security"
+    influence: 70
+    initial_stance: "public_safety"
+    key_concerns: ["infrastructure_attacks", "diplomat_departures", "public_messaging"]
+    available_actions: ["counter_terrorism", "civil_defense", "media_management"]
+
+  foreign_secretary:
+    name: "Foreign Secretary"
+    role: "Diplomatic Lead"
+    influence: 75
+    initial_stance: "alliance_building"
+    key_concerns: ["US_engagement", "NATO_activation", "Russian_ambassador_recall"]
+    available_actions: ["contact_us", "nato_consultation", "public_denials"]
+
+  attorney_general:
+    name: "Attorney General"
+    role: "Legal Advisor"
+    influence: 60
+    initial_stance: "legal_framework"
+    key_concerns: ["international_law", "false_flag_legalities", "human_rights"]
+    available_actions: ["legal_assessment", "international_court", "sanctions_advice"]
+
+  # Russian Team
+  president_russia:
+    name: "President of Russia"
+    role: "Supreme Commander"
+    influence: 100
+    initial_stance: "strategic_opportunity"
+    key_concerns: ["NATO_response", "false_flag_success", "military_advantage"]
+    available_actions: ["naval_escalation", "cyber_operations", "diplomatic_pressure"]
+
+  chief_general_staff:
+    name: "Chief of the General Staff"
+    role: "Military Operations"
+    influence: 90
+    initial_stance: "offensive_planning"
+    key_concerns: ["UK_defenses", "NATO_intelligence", "strike_timing"]
+    available_actions: ["naval_exercise", "missile_preparation", "intelligence_operations"]
+
+  head_military_intelligence:
+    name: "Head of Military Intelligence (GRU)"
+    role: "Special Operations"
+    influence: 85
+    initial_stance: "covert_actions"
+    key_concerns: ["false_flag_execution", "pilot_assassinations", "cyber_disruption"]
+    available_actions: ["sabotage_operations", "assassination_missions", "disinformation"]
+
+  commander_northern_fleet:
+    name: "Northern Fleet Commander"
+    role: "Naval Operations"
+    influence: 80
+    initial_stance: "naval_posture"
+    key_concerns: ["submarine_deployment", "missile_readiness", "UK_tracking"]
+    available_actions: ["submarine_patrol", "missile_exercise", "surface_vessel_deployment"]
+
+# Initial Events (Timeline Triggers)
+initial_events:
+  - name: "Power Grid Attacks"
+    time: "2025-09-29"
+    description: "Major power cut affects England and Wales, disrupting railways and traffic"
+    impact: "cyber_threat +10, public_panic +5"
+
+  - name: "Ferry Terminal Fires"
+    time: "2025-10-02"
+    description: "Simultaneous fires at Plymouth and Portsmouth ferry terminals"
+    impact: "infrastructure_damage, counter_terrorism_investigation"
+
+  - name: "Russian Naval Base Attack"
+    time: "2025-10-01"
+    description: "Explosions at Severomorsk naval base, over 100 casualties"
+    impact: "russia_claims_uk_involvement, diplomatic_relations -20"
+
+  - name: "F-35 Pilot Murders"
+    time: "2025-10-05"
+    description: "Two elite F-35 pilots found shot dead in Norfolk"
+    impact: "military_morale -15, special_forces_threat +25"
+
+  - name: "Russian Ambassador Recall"
+    time: "2025-10-03"
+    description: "Moscow recalls ambassador, declares UK 'unfriendly state'"
+    impact: "diplomatic_relations -30, escalation_timer -12"
+
+  - name: "Cyber Attack Surge"
+    time: "2025-10-05"
+    description: "65% increase in cyber attacks on UK businesses and government"
+    impact: "cyber_threat +65, intelligence_overload"
+
+  - name: "Russian Naval Exercise"
+    time: "2025-10-05"
+    description: "15 submarines, 2 destroyers, 4 frigates in North Atlantic"
+    impact: "military_threat +50, nato_alert"
+
+# Resource Constraints
+resources:
+  uk:
+    military:
+      operational_ships: 3  # Out of 6 destroyers
+      available_aircraft: 16  # Out of 24 F-35s
+      air_defense: "limited"  # Only 2 patrol areas possible
+      nuclear_ready: 1  # One submarine at sea
+    intelligence:
+      confidence_level: "low"  # Mixed signals
+      cyber_defense: "basic"
+      surveillance: "active"  # P8 aircraft, Type 23 frigates
+    diplomatic:
+      nato_support: "uncertain"
+      us_commitment: "questionable"
+
+  russia:
+    military:
+      submarines: 15  # 7 SSBN, 8 SSN
+      surface_ships: 6  # 2 destroyers, 4 frigates
+      cyber_units: "extensive"
+      special_forces: "deployed"
+    intelligence:
+      false_flag_success: "high"
+      uk_vulnerabilities: "well_known"
+      nato_intelligence: "good"
+
+# Win Conditions
+objectives:
+  uk_victory:
+    - "Survive initial attack period (7 days)"
+    - "Secure NATO commitment"
+    - "Expose false flag operation"
+    - "Maintain public confidence"
+
+  russian_victory:
+    - "Successful false flag pretext"
+    - "Force UK military concessions"
+    - "Weaken NATO resolve"
+    - "Achieve strategic objectives without full war"
+
+  draw_conditions:
+    - "Mutual de-escalation"
+    - "Diplomatic solution reached"
+    - "False flag exposed but no major conflict"
+
+# Environmental Factors
+environment:
+  weather: "normal"  # Affects naval operations
+  public_mood: "anxious"  # Media coverage impact
+  economic_impact: "rising"  # Power cuts, transport disruption
+  media_coverage: "intensive"  # News reports every development
+
+# CLI Game Settings
+cli_settings:
+  turn_duration: 60  # Minutes per game turn
+  auto_save: true
+  difficulty: "realistic"  # Based on actual UK military constraints
+  random_events: true  # Cyber attacks, intelligence updates
+  multiplayer: false  # Single player vs AI initially

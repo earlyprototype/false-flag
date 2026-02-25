@@ -1,0 +1,3 @@
+# Idea for an additional Add-on to the game: Cyber Squad
+
+You take the role of the head of the UK Cyber Defense Squad. You are thrown into the command centre of the countries Cyber Security headquarters and must defend the nation from cyber attack. What tools do you have at your disposal? Is this a purely defensive play? What short, medium and long term tools and tactics will you use? What part does evolving global and national sentiment play into how things are run in your department? What shadowy figures are at your disposal; and attacking your router?

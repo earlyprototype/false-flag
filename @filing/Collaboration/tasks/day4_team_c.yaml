@@ -1,0 +1,12 @@
+- id: day4_team_c
+  team: C
+  branch: feat/day4-team-c
+  spec_path: Collaboration/Specs/day4_team_c_ingestion.md
+  status: completed
+  dependencies: [day3_team_c]
+  acceptance_tests:
+    - gate report stays clean
+    - add 2+ new role briefs and reference them
+    - add 1–2 early-scene injects that appear in transcript
+
+

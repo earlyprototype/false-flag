@@ -1,0 +1,45 @@
+version: 1
+palette: db16
+sprites:
+  anchor:
+    # Option A: explicit frame globs per sequence
+    # frames:
+    #   neutral: assets/anchor_zero/frames/anchor_neutral_*.png
+    #   blink:   assets/anchor_zero/frames/anchor_blink_*.png
+    #   talk:    assets/anchor_zero/frames/anchor_talk_*.png
+
+    # Option B: folder + tags (uses pattern "{tag}_*.png" by default)
+    path: assets/anchor_zero/frames
+    # Expanded tags include visemes for talk
+    tags: [neutral, blink, talk_a, talk_e, talk_o, talk_fv, talk_th]
+    pattern: "anchor_{tag}_*.png"
+layers:
+  - id: background
+    type: tile
+    image: assets/anchor_zero/bg/tile_16x16.png
+    vx: 0.25   # parallax scroll speed in columns/frame (0 = static)
+    vy: 0
+  - id: midground
+    type: tile
+    image: assets/anchor_zero/bg/mid_tile_16x16.png
+    vx: 0.10
+    vy: 0
+    bob: { axis: y, amplitude: 1, period: 160 }
+  - id: character
+    sprite: anchor
+    timeline:
+      - { seq: neutral, frames: 18 }
+      - { seq: blink,   frames: 2 }
+      - { seq: neutral, frames: 20 }
+      - { seq: talk_a,  frames: 2 }
+      - { seq: talk_e,  frames: 2 }
+      - { seq: talk_o,  frames: 2 }
+      - { seq: talk_fv, frames: 2 }
+      - { seq: talk_th, frames: 2 }
+    bob: { amplitude: 1, period: 16 }
+    guides: false  # set true to draw a simple landmark guide overlay
+  - id: ticker
+    type: text_scroll
+    text: "BREAKING: ..."
+    row: -2
+

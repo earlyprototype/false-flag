@@ -1,0 +1,83 @@
+# Turn 3 (Fast Start): Ballistic Missile Launch
+# Monday 6th October 2025, 03:00
+# Identical to original Turn 5 - the perfect climax before stochastic gameplay
+
+id: turn_003_fast_missile_launch
+title: "FLASH ALERT: Ballistic Missile Launch Detected"
+description: |
+  === FLASH ALERT ===
+  Monday 6th October 2025, 03:00 (10 hours since initial COBRA meeting)
+  
+  You are jolted awake by your secure phone. The duty officer's voice is urgent but controlled:
+  
+  "Prime Minister, we have a FLASH alert from GCHQ Bude and RAF Fylingdales. Ballistic 
+  missile launch detected from the Barents Sea. Trajectory analysis in progress."
+  
+  You're rushed to the COBRA briefing room. Advisors are arriving in various states of 
+  dress. The atmosphere is electric with tension. The wall display shows a red arc 
+  projecting from northern Russia toward the UK.
+  
+  [PAUSE]
+  
+  **CDS (on secure line from Northwood):**
+  "Prime Minister, we have 8 to 12 minutes to potential UK impact. Initial trajectory 
+  suggests a single missile, possibly an Iskander-M or similar theatre ballistic missile. 
+  Current projection shows North Sea impact zone, but we cannot rule out course correction.
+  
+  Our assessment: this is a deliberate near-miss designed to demonstrate capability and 
+  resolve. However, we must prepare for the possibility of actual impact on UK territory."
+  
+  **NSA:**
+  "Prime Minister, this is the most serious escalation yet. If this missile lands in UK 
+  territorial waters or on UK soil, we are effectively at war. We have minutes to decide 
+  how to respond."
+  
+  [PAUSE]
+  
+  **Home Secretary:**
+  "Prime Minister, do we activate the national emergency alert system? If we do, we'll 
+  wake 67 million people with a message that could cause mass panic. If we don't, and 
+  this missile hits a populated area, we'll be accused of failing to warn the public."
+  
+  **Foreign Secretary:**
+  "Prime Minister, I have the US President on standby. NATO is watching. If we invoke 
+  Article 5 now, we need to be prepared for what comes next. This could be the moment 
+  that triggers collective defence... or the moment that reveals NATO is a paper tiger."
+  
+  **CDS:**
+  "Prime Minister, we have Astute-class submarines in position. We can respond with 
+  conventional strikes on Russian naval assets within 30 minutes. Or we can hold fire 
+  and assess damage. But if we wait, we may lose the initiative."
+  
+  **Attorney General:**
+  "Prime Minister, if this missile lands in international waters, it's a provocation but 
+  not an act of war under international law. If it hits UK territory, we have clear 
+  grounds for self-defence under UN Charter Article 51. The legal framework depends 
+  entirely on where this missile lands."
+  
+  The CDS interrupts:
+  
+  [PAUSE]
+  
+  "Prime Minister, trajectory update. The missile is following a ballistic arc consistent 
+  with a deliberate near-miss. Projected impact: North Sea, approximately 45 nautical 
+  miles east of Newcastle. International waters. Impact in 4 minutes.
+  
+  This is a demonstration, Prime Minister. Russia is showing us they can hit us whenever 
+  they choose. The question is: how do we respond?"
+  
+  **NSA:**
+  "Prime Minister, in 4 minutes, this crisis enters a new phase. Whatever you decide now 
+  will determine whether we're heading toward war, capitulation, or some third path we 
+  haven't yet imagined. The next hours will define your premiership and possibly the 
+  future of the United Kingdom."
+
+channel: flash_alert
+effects:
+  - metric: escalation_risk
+    delta: 20..25
+  - metric: domestic_stability
+    delta: -10..-15
+  - metric: alliance_cohesion
+    delta: -5..-8
+

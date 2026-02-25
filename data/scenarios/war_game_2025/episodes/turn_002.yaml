@@ -1,0 +1,52 @@
+# Turn 2: Escalating Provocations
+# Sunday 5th October 2025, 19:00 (2 hours after COBRA meeting)
+# Based on typical wargame escalation patterns
+
+id: turn_002_submarine_provocation
+title: "Russian Submarine Surfaces Near UK Waters"
+description: |
+  === INTELLIGENCE UPDATE ===
+  
+  Prime Minister, we have a developing situation.
+  
+  Approximately 15 minutes ago, a Russian Kilo-class submarine surfaced in international 
+  waters approximately 12 nautical miles off the Orkney Islands. The submarine remained 
+  on the surface for approximately 15 minutes before submerging.
+  
+  This provocative act was witnessed by passengers aboard the MV Hamnavoe ferry service 
+  between Scrabster and Stromness. Multiple civilians have already posted photos and 
+  videos to social media. The images are spreading rapidly.
+  
+  **GCHQ Assessment:**
+  This is a deliberate show of force designed to intimidate and test UK response. The 
+  submarine is part of the larger Northern Fleet deployment we briefed earlier. Its 
+  surfacing in sight of civilians is highly unusual and represents a significant 
+  escalation in Russian messaging.
+  
+  **CDS Assessment:**
+  The submarine's position places it within striking range of several critical 
+  infrastructure targets in Scotland, including Scapa Flow, Faslane naval base, and 
+  North Sea oil installations. We assess this as reconnaissance and psychological 
+  warfare combined.
+  
+  **Home Secretary:**
+  Prime Minister, the public is already reacting. Social media is ablaze with speculation. 
+  We're seeing panic buying reports from supermarkets in northern Scotland. Some MPs are 
+  calling for immediate military response.
+  
+  **Foreign Secretary:**
+  I've just received word that the Russian Ambassador has declined our request for an 
+  emergency meeting. This is unprecedented. The US National Security Advisor has called 
+  to express concern but stopped short of offering concrete support.
+  
+  Prime Minister, how do you wish to respond?
+
+channel: intelligence
+effects:
+  - metric: escalation_risk
+    delta: 5..10
+  - metric: domestic_stability
+    delta: -5..-8
+  - metric: alliance_cohesion
+    delta: -2..-5
+

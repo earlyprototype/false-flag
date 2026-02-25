@@ -1,0 +1,9 @@
+id: day1_team_a
+team: A
+branch: feat/engine-rules
+spec_path: Collaboration/specs/day1_team_a_engine.md
+status: completed
+dependencies: []
+acceptance_tests:
+  - seed=42 llm mode produces exactly one action and clamped metrics
+

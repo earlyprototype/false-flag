@@ -1,0 +1,12 @@
+id: day3_team_c
+team: C
+branch: feat/day3-team-c
+spec_path: Collaboration/Specs/day3_team_c_ingestion.md
+status: completed
+dependencies: [day2_team_c]
+size: M
+acceptance_tests:
+  - gate report stays clean
+  - feature-specific checks per spec
+
+

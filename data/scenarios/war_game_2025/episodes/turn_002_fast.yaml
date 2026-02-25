@@ -1,0 +1,95 @@
+# Turn 2 (Fast Start): Critical Infrastructure Attack + NATO Response
+# Sunday 5th October 2025, 21:00-00:00
+# Compressed version combining original Turns 3 + 4
+
+id: turn_002_fast_infrastructure_attack
+title: "Critical Infrastructure Destroyed"
+description: |
+  === EMERGENCY BRIEFING ===
+  Sunday 5th October 2025, 21:00 (4 hours since initial COBRA meeting)
+  
+  Prime Minister, we have a critical incident.
+  
+  At 20:47 this evening, a major explosion occurred at Drax Power Station in North 
+  Yorkshire. Drax supplies approximately 6% of the UK's electricity. Initial reports 
+  indicate a catastrophic failure in the cooling system, but early forensic analysis 
+  suggests sabotage.
+  
+  **Immediate Impact:**
+  - 2 million homes without power across Yorkshire and the North East
+  - Emergency services responding to multiple casualties (estimated 5-8 fatalities)
+  - National Grid implementing rolling blackouts to manage load
+  - Hospitals switching to backup generators
+  
+  **GCHQ Assessment:**
+  "We intercepted encrypted communications between suspected Russian intelligence 
+  operatives in the UK approximately 30 minutes before the explosion. The timing is 
+  highly suspicious. We assess with moderate confidence this was a coordinated sabotage 
+  operation. Prime Minister, this is a direct attack on our critical national infrastructure."
+  
+  **Home Secretary:**
+  "Prime Minister, we need to consider invoking emergency powers. The public will demand 
+  protection. We're already seeing reports of vigilante groups forming to 'protect' other 
+  power stations. Social order is beginning to fray."
+  
+  [PAUSE]
+  
+  **CDS:**
+  "Prime Minister, I recommend we raise our military readiness to BIKINI BLACK SPECIAL. 
+  This would authorise deployment of armed forces to protect critical infrastructure. 
+  However, it will be visible to Russian intelligence and may be interpreted as 
+  preparation for offensive action."
+  
+  **Attorney General:**
+  "Prime Minister, if we can establish Russian state involvement, we have legal grounds 
+  for invoking Article 5 of the NATO treaty - collective defence. However, the evidence 
+  must be unambiguous. A premature invocation could fracture the alliance if other 
+  members don't agree with our assessment."
+  
+  The Foreign Secretary's secure phone rings. They answer, listen intently, then look at you.
+  
+  [PAUSE]
+  
+  === INCOMING CALL - US NATIONAL SECURITY ADVISOR ===
+  23:45 (During emergency consultation)
+  
+  **Foreign Secretary:**
+  "Prime Minister, it's the US National Security Advisor. They've been monitoring the 
+  situation closely."
+  
+  The call is put on speaker:
+  
+  "Prime Minister, the President has asked me to reach out directly. We've been watching 
+  this crisis unfold with grave concern. Before you make any decisions about invoking 
+  Article 5... we need to see unambiguous proof of Russian state involvement.
+  
+  I'll be frank: France and Germany are urging restraint. They're concerned about 
+  escalation. Poland is ready to support you immediately, but NATO consensus requires 
+  careful consideration. The President wants to help, but we need to be certain we're 
+  not being drawn into a conflict based on circumstantial evidence.
+  
+  What proof can you share with us?"
+  
+  [PAUSE]
+  
+  **NSA (after the call ends):**
+  "Prime Minister, we're at a critical juncture. Russia is testing whether we'll respond 
+  with force or restraint. Our allies are watching to see if we can build a coalition or 
+  if we'll stand alone. Our next move will signal our resolve - or lack thereof - to 
+  Moscow, Washington, and our own people.
+  
+  The evidence is strong but not conclusive. We have intercepted communications, suspicious 
+  timing, and a clear pattern of escalation. But proving state involvement to NATO's 
+  satisfaction may take days we don't have."
+
+channel: emergency
+effects:
+  - metric: escalation_risk
+    delta: 15..20
+  - metric: domestic_stability
+    delta: -15..-20
+  - metric: casualties_civ
+    delta: 5..8
+  - metric: alliance_cohesion
+    delta: -8..-12
+

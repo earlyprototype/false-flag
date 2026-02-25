@@ -1,0 +1,4 @@
+# MEDIA LEAK
+
+A draft intelligence memo on naval posture has surfaced in the press.
+Government sources neither confirm nor deny. Allies request clarification.

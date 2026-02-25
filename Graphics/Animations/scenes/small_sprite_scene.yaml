@@ -1,0 +1,43 @@
+
+version: 1
+palette: db16
+
+# Define the sprite using the NEW small assets
+sprites:
+  small_anchor:
+    path: assets/anchor_small # Points to the new directory
+    tags: [neutral, blink, talk_a, talk_o, talk_e]
+    pattern: "anchor_{tag}_*.png"
+
+# Define the layers of the scene
+layers:
+  - id: character
+    type: character
+    sprite: small_anchor # Use the small_anchor sprite
+    pos: {x: 5, y: 3}
+    timeline:
+      - { seq: neutral, frames: 30 }
+      - { seq: blink,   frames: 2 }
+      - { seq: neutral, frames: 20 }
+      - { seq: talk_a,  frames: 8 }
+      - { seq: talk_o,  frames: 8 }
+      - { seq: talk_e,  frames: 8 }
+      - { seq: neutral, frames: 10 }
+      - { seq: blink,   frames: 2 }
+  
+  - id: teleprompter
+    type: text
+    text: |
+      [bold yellow]SMALL SPRITE TEST[/]
+      
+      This sprite is 32x48 pixels,
+      which renders as a 32x24
+      character block in the terminal.
+
+      The full character, including
+      the jacket, should now be
+      visible in a standard-sized
+      terminal window.
+
+    row: 3
+    col: 40

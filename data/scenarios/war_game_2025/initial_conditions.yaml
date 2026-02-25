@@ -1,0 +1,537 @@
+# War Game 2025 - Initial Conditions
+# Based on "The Wargame" podcast Episode 1: False Flag
+# Game Start: Sunday 5th October 2025, 17:00 (5pm)
+
+# === METADATA ===
+metadata:
+  title: "False Flag: The Wargame"
+  scenario: "UK-Russia False Flag Crisis"
+  description: "A simulated crisis where Russia launches a false flag operation against the UK, escalating to potential military conflict"
+  start_date: "2025-10-05"
+  start_time: "17:00"
+
+# === GAME STATE ===
+game_state:
+  turn: 1
+  phase: cobra_briefing  # Phases: cobra_briefing → deliberation → decision → adjudication → consequences
+
+# === METRICS ===
+initial_metrics:
+  escalation_risk: 60        # High: murders, naval deployment, false accusations
+  domestic_stability: 50     # Degraded: power cuts, transport chaos, growing unease
+  alliance_cohesion: 40      # Low: US commitment uncertain, NATO fragility
+  casualties_mil: 2          # Two F-35 pilots murdered
+  casualties_civ: 0          # No civilian casualties yet
+
+# === NARRATIVE FLAGS ===
+initial_flags:
+  us_commitment: uncertain                    # Trump-era doubts about NATO Article 5
+  russian_families_departed: true             # Diplomatic staff + families leaving UK
+  f35_pilots_murdered: true                   # Saturday 4th Oct, Norfolk
+  severomorsk_attack_false_flag: true         # Russia falsely blames UK for Dagestani attack
+  public_awareness: partial                   # Submarine sighting + departures on social media
+
+# === TIMELINE (Pre-Game Events) ===
+timeline:
+  - date: "2025-09-25"
+    event: "Ferry terminal fires at Plymouth and Portsmouth (suspected sabotage)"
+  - date: "2025-09-29"
+    event: "Major power cut; 2 generators down; railway chaos; London traffic lights out"
+  - date: "2025-10-01"
+    event: "Explosions at Severomorsk Russian naval base; ~100 Russian naval personnel killed"
+  - date: "2025-10-04"
+    event: "Two F-35 pilots found shot dead in Norfolk"
+  - date: "2025-10-05"
+    event: "Cobra meeting convened at 17:00 (game start)"
+
+# === INTELLIGENCE ASSESSMENT (Known to UK) ===
+intelligence:
+  severomorsk_attribution:
+    assessment: "Dagestani extremists responsible (GCHQ high confidence)"
+    russian_narrative: "Falsely blames UK; claims frogman outfit found; compares to Nazi attack 1941"
+  
+  pilot_murders:
+    confidence: low
+    assessment: "Likely tracked before killed; traditional special forces activity"
+  
+  cyber_attacks:
+    increase: "65% intensity rise on UK businesses and government websites"
+    attribution: "Likely Russian state-sponsored"
+  
+  russian_naval_deployment:
+    total_submarines: 15
+    composition: "7 SSBNs (nuclear bombers), 8 SSNs (attack subs), 2 destroyers, 4 frigates"
+    location: "North Atlantic rendezvous point, moving southwest toward UK"
+    assessment: "Well above normal; entire Northern Fleet bar one SSBN deployed"
+    note: "Normal Atlantic submarine presence: 2-5 from all powers combined"
+
+# === CRITICAL NATIONAL INFRASTRUCTURE ===
+critical_infrastructure:
+  status: degraded
+  recent_attacks:
+    - target: "Ferry terminals (Plymouth, Portsmouth)"
+      date: "2025-09-25"
+      impact: "Channel crossings halted over weekend"
+    - target: "Power grid (2 generators)"
+      date: "2025-09-29"
+      impact: "Parts of England and Wales without electricity"
+    - target: "London traffic systems"
+      date: "2025-09-29"
+      impact: "Traffic lights out; police managing junctions"
+  attacks_count: 3
+
+# === AMMUNITION STOCKPILES ===
+stockpiles:
+  # Air Defence (CRITICAL WEAKNESS)
+  air_defence_missiles:
+    sea_viper_type45: 
+      count: 96
+      note: "2 Type-45s × 48 VLS cells; sole defence against ballistic missiles"
+    sky_sabre_army:
+      count: 24
+      note: "Land-based air defence; handful of systems"
+    asraam_air_to_air:
+      count: 400
+      note: "Fighter self-defence and CAP intercepts"
+  
+  # Naval Strike
+  tomahawk_cruise_missiles:
+    count: 30
+    note: "SSN-launched land attack"
+  harpoon_anti_ship:
+    count: 80
+    note: "Surface and sub-launched anti-ship"
+  
+  # Air-Launched Precision
+  storm_shadow_cruise_missiles:
+    count: 50
+    note: "Air-launched deep strike"
+  paveway_laser_guided_bombs:
+    count: 200
+    note: "Standard precision munitions for fighters"
+  
+  # Anti-Submarine
+  spearfish_torpedoes:
+    count: 120
+    note: "SSN primary weapon"
+  stingray_lightweight_torpedoes:
+    count: 150
+    note: "Helicopter and frigate ASW"
+
+# === UK FORCES (Named Locations) ===
+uk_forces:
+  naval:
+    - id: HMS_Prince_of_Wales
+      type: carrier
+      location: Portsmouth
+      status: not_highest_readiness
+      embarked: 8_F35s
+      turns_to_full_readiness: 3
+      note: "Can deploy immediately at reduced capability or wait 3 turns for full readiness; Indo-Pacific deployment cancelled due to tensions"
+    
+    - id: Type23_Frigate_1
+      type: asw_frigate
+      location: UK_waters
+      status: operational
+      armament: [Stingray_torpedoes, Harpoon]
+    
+    - id: Type23_Frigate_2
+      type: asw_frigate
+      location: UK_waters
+      status: operational
+      armament: [Stingray_torpedoes, Harpoon]
+    
+    - id: SSN_Astute_1
+      type: attack_submarine
+      location: available
+      status: operational
+      armament: [Spearfish_torpedoes, Tomahawk]
+    
+    - id: SSN_Astute_2
+      type: attack_submarine
+      location: available
+      status: operational
+      armament: [Spearfish_torpedoes, Tomahawk]
+    
+    - id: SSBN_on_patrol
+      type: nuclear_submarine
+      location: classified
+      status: on_continuous_patrol
+      armament: [Trident_D5_nuclear_missiles]
+      note: "Continuous at-sea deterrence"
+    
+    - id: SSBN_Faslane
+      type: nuclear_submarine
+      location: Faslane
+      status: can_be_readied
+      armament: [Trident_D5_nuclear_missiles]
+      note: "Can fire from moorings if necessary"
+    
+    - id: Type45_Destroyer_1
+      type: destroyer
+      location: UK_waters
+      status: operational
+      armament: [Sea_Viper_48_cells]
+      note: "Ballistic missile defence capable"
+    
+    - id: Type45_Destroyer_2
+      type: destroyer
+      location: UK_waters
+      status: operational
+      armament: [Sea_Viper_48_cells]
+      note: "Ballistic missile defence capable"
+  
+  air:
+    - id: RAF_CAP_capacity
+      type: air_defence
+      max_simultaneous_patrols: 2
+      current_assignments: [unassigned, unassigned]
+      note: "CRITICAL LIMITATION: Can only defend 2 locations across entire UK"
+    
+    # F-35B Lightning II Squadrons
+    - id: 617_Squadron_The_Dambusters
+      type: F35B_squadron
+      location: RAF_Marham
+      aircraft_count: 10
+      operational_aircraft: 8
+      status: degraded
+      role: carrier_strike_multirole
+      note: "2 pilots murdered 4 Oct; remaining pilots and families relocated to base for security; 2 aircraft grounded pending pilot availability"
+    
+    - id: 809_Naval_Air_Squadron
+      type: F35B_squadron
+      location: RNAS_Yeovilton
+      aircraft_count: 8
+      operational_aircraft: 8
+      status: operational
+      role: carrier_strike_naval
+      note: "Fleet Air Arm squadron; can embark on HMS Prince of Wales"
+    
+    # Typhoon FGR4 Squadrons (Quick Reaction Alert & Air Defence)
+    - id: 1_Squadron
+      type: Typhoon_FGR4_squadron
+      location: RAF_Lossiemouth
+      aircraft_count: 12
+      operational_aircraft: 12
+      status: operational
+      role: QRA_North_air_defence
+      note: "Quick Reaction Alert (North); armed with ASRAAM; families on base"
+    
+    - id: 6_Squadron
+      type: Typhoon_FGR4_squadron
+      location: RAF_Lossiemouth
+      aircraft_count: 12
+      operational_aircraft: 11
+      status: operational
+      role: air_defence_multirole
+      note: "1 aircraft in maintenance; families on base"
+    
+    - id: 11_Squadron
+      type: Typhoon_FGR4_squadron
+      location: RAF_Coningsby
+      aircraft_count: 12
+      operational_aircraft: 12
+      status: operational
+      role: QRA_South_air_defence
+      note: "Quick Reaction Alert (South); armed with ASRAAM; families on base"
+    
+    - id: 41_Squadron
+      type: Typhoon_FGR4_squadron
+      location: RAF_Coningsby
+      aircraft_count: 12
+      operational_aircraft: 10
+      status: operational
+      role: air_defence_multirole
+      note: "2 aircraft in maintenance; families on base"
+    
+    # Maritime Patrol & ISR
+    - id: 120_Squadron_P8_Poseidon
+      type: P8_Poseidon
+      location: RAF_Lossiemouth
+      aircraft_count: 9
+      operational_aircraft: 7
+      status: operational
+      role: ASW_maritime_patrol
+      note: "2 aircraft currently on North Atlantic patrol tracking Russian submarines"
+    
+    # Airborne Early Warning
+    - id: 8_Squadron_E7_Wedgetail
+      type: E7_Wedgetail
+      location: RAF_Lossiemouth
+      aircraft_count: 3
+      operational_aircraft: 2
+      status: operational
+      role: airborne_early_warning
+      note: "New capability; 1 aircraft in maintenance; critical for air battle management"
+
+# === RUSSIAN FORCES (Known to UK via Intelligence) ===
+red_forces:
+  active_operation: Tuman  # Means "Fog" in Russian; pre-planned attack with 2 months preparation
+  naval:
+    submarines:
+      SSBNs:
+        count: 7
+        type: nuclear_bomber_submarines
+        note: "Entire Northern Fleet bar one"
+      SSNs:
+        count: 8
+        type: attack_submarines
+    surface:
+      destroyers:
+        count: 2
+      frigates:
+        count: 4
+    
+    location: North_Atlantic_rendezvous
+    heading: southwest_toward_UK
+    activity: active_air_operations_over_North_Atlantic
+    
+    recent_provocations:
+      - event: "Kilo-class submarine surfaced off Orkney near commercial ferry, then submerged"
+        date: "2025-10-05"
+        visibility: public
+    
+    note: "15 submarines total vs normal 2-5 from all powers; extraordinary concentration"
+
+# === RED TEAM OBJECTIVES (Hidden from Blue) ===
+# Operation Tuman (Fog)
+red_objectives:
+  strategic: "Neutralize Anglo-Saxons as obstacle; fracture NATO"
+  pretext: "False flag: blame UK for Severomorsk attack"
+  preparation: "2 months planning; forces pre-positioned"
+  assessment: "UK cannot defend against missile barrage; US won't intervene"
+
+# === NAMED LOCATIONS (Not Hex Grid) ===
+locations:
+  uk:
+    - London
+    - Faslane                  # Nuclear submarine base, Scotland
+    - RAF_Marham               # F-35 base, Norfolk
+    - East_Anglia_RAF_bases    # Multiple fighter bases
+    - Orkney_Islands           # Northern Scotland
+    - Portsmouth               # Naval base
+    - Plymouth                 # Naval base, ferry terminal
+    - UK_waters                # General UK territorial waters
+  
+  operational_areas:
+    - North_Atlantic
+    - GIUK_gap                 # Greenland-Iceland-UK gap
+    - International_waters
+  
+  russia:
+    - Severomorsk              # Northern Fleet base, Murmansk region
+
+# === OBJECTIVES ===
+objectives:
+  uk:
+    primary: "De-escalate crisis without appearing weak"
+    secondary:
+      - "Secure credible US/NATO commitment"
+      - "Defend critical infrastructure (Faslane, key bases, London)"
+      - "Avoid civilian casualties"
+      - "Maintain public confidence"
+  
+  russia:
+    primary: "Test NATO resolve and fracture alliance"
+    secondary:
+      - "Use Severomorsk false flag as pretext"
+      - "Neutralize UK as obstacle to Russian objectives"
+      - "Demonstrate US will not defend Europe"
+
+# === INTELLIGENCE SUMMARY (Quick Reference) ===
+intelligence_summary:
+  uk_knows:
+    - "Russia deployed unprecedented naval force: 15 submarines in North Atlantic"
+    - "Two F-35 pilots assassinated; likely Russian special forces"
+    - "Russian diplomatic staff fleeing UK"
+    - "Cyber attacks increased 65%"
+    - "Kilo-class submarine surfaced off Orkney near commercial ferry"
+  
+  russia_knows:
+    - "UK air defences limited to 2 simultaneous patrols across entire country"
+    - "Type-45 destroyers are sole ballistic missile defence; only 2 available"
+    - "US unlikely to intervene; NATO fragile"
+    - "UK cannot sustain prolonged high-intensity conflict"
+    - "UK has limited precision munitions and air defence missiles"
+
+# === CONSTRAINTS ===
+constraints:
+  capability:
+    - "Only 2 simultaneous combat air patrols possible across entire UK"
+    - "Type-45 destroyers are sole defence against ballistic missiles; only 2 available"
+    - "Limited air defence: handful of RAF squadrons + limited army systems for cruise missiles"
+    - "Prince of Wales carrier not at highest readiness but can be surged"
+    - "4 Type-45 destroyers routinely unavailable (maintenance/crew)"
+  
+  political:
+    - "US commitment to NATO Article 5 uncertain"
+    - "Must avoid provoking Russia while preparing defence"
+    - "Public messaging: balance reassurance vs panic"
+    - "Need NATO solidarity; risk of UK standing alone"
+  
+  legal:
+    - "International law constraints on use of force"
+    - "ROE must be clearly defined"
+    - "Attorney General must approve major actions"
+  
+  time:
+    - "Rapid Russian escalation; no time to fix capability gaps"
+    - "Russian flotilla already in position"
+    - "Public awareness growing via social media"
+
+# === DIPLOMATIC CONTACTS ===
+diplomatic_contacts:
+  - country_code: "USA"
+    leader_name: "President (unspecified)"
+    leader_title: "President of the United States"
+    disposition: "Wary but publicly supportive" # US commitment is uncertain
+    access_level: 2 # 0: None, 1: Ambassador, 2: Foreign Minister, 3: Leader
+    notes:
+      - "Administration's commitment to NATO Article 5 is a key uncertainty."
+      - "Domestic politics may influence their level of involvement."
+
+  - country_code: "RUS"
+    leader_name: "President (unspecified)"
+    leader_title: "President of the Russian Federation"
+    disposition: "Hostile and belligerent"
+    access_level: 1 # Ambassador-level only for formal protests
+    notes:
+      - "Actively promoting a false narrative about the Severomorsk incident."
+      - "Recalled ambassador's family, signaling a break in relations."
+
+  - country_code: "FRA"
+    leader_name: "President (unspecified)"
+    leader_title: "President of France"
+    disposition: "Concerned but advocating for EU-led diplomacy"
+    access_level: 2
+    notes:
+      - "Wants to avoid being drawn into a UK-US led military response."
+      - "Stresses the need for a unified European position."
+
+  - country_code: "DEU" # Germany
+    leader_name: "Chancellor (unspecified)"
+    leader_title: "Chancellor of Germany"
+    disposition: "Cautious and risk-averse"
+    access_level: 2
+    notes:
+      - "Heavily reliant on Russian gas, making them hesitant to support strong sanctions."
+      - "Public opinion is strongly against military intervention."
+
+  - country_code: "CHN"
+    leader_name: "President (unspecified)"
+    leader_title: "President of the People's Republic of China"
+    disposition: "Neutral, calling for de-escalation"
+    access_level: 1
+    notes:
+      - "Watching NATO's response very closely for strategic insights."
+      - "Positioning themselves as a potential mediator."
+
+  - country_code: "IRL"
+    leader_name: "Taoiseach (unspecified)"
+    leader_title: "Taoiseach of Ireland"
+    disposition: "Neutral and concerned"
+    access_level: 2
+    notes:
+      - "Strictly neutral, will not support any military action."
+      - "Concerned about economic and refugee spillover from a European conflict."
+
+# === CHARACTERS (For LLM Context & Pushback) ===
+# These define advisor personalities, knowledge domains, and when they'll push back on player actions
+# NOT pre-scripted actions - advisors respond to free-form player input
+characters:
+  # UK Team (Player's Advisors)
+  prime_minister:
+    role: "Government Leader"
+    influence: 100  # Maximum authority
+    knowledge_domains: ["political_strategy", "public_messaging", "nato_relations"]
+    pushback_triggers:
+      - "Actions that risk NATO fracture"
+      - "Decisions without legal/military advice"
+      - "Responses that appear weak domestically"
+    key_concerns: ["NATO commitment", "military readiness", "public reassurance"]
+
+  chief_defence_staff:
+    role: "Military Commander"
+    influence: 85
+    knowledge_domains: ["military_operations", "force_readiness", "threat_assessment"]
+    pushback_triggers:
+      - "Militarily implausible actions (e.g., deploying unavailable assets)"
+      - "Operations beyond UK capability (e.g., sustained high-intensity ops)"
+      - "Actions that waste limited munitions"
+    key_concerns: ["Russian naval exercise", "pilot security", "limited air defence"]
+
+  national_security_advisor:
+    role: "Intelligence Coordinator"
+    influence: 90
+    knowledge_domains: ["intelligence_assessment", "cyber_security", "strategic_planning"]
+    pushback_triggers:
+      - "Actions based on unverified intelligence"
+      - "Decisions ignoring cyber vulnerabilities"
+      - "Responses that telegraph UK intentions"
+    key_concerns: ["cyber_attacks", "false_flag_detection", "US_relations"]
+
+  home_secretary:
+    role: "Domestic Security"
+    influence: 70
+    knowledge_domains: ["civil_protection", "counter_terrorism", "public_safety"]
+    pushback_triggers:
+      - "Military actions that risk civilian casualties"
+      - "Decisions that ignore infrastructure vulnerabilities"
+      - "Public messaging that causes panic"
+    key_concerns: ["infrastructure_attacks", "diplomat_departures", "public_messaging"]
+
+  foreign_secretary:
+    role: "Diplomatic Lead"
+    influence: 75
+    knowledge_domains: ["diplomacy", "alliance_management", "international_law"]
+    pushback_triggers:
+      - "Actions that violate international law"
+      - "Military responses without diplomatic cover"
+      - "Decisions that isolate UK from allies"
+    key_concerns: ["US_engagement", "NATO_activation", "Russian_ambassador_recall"]
+
+  attorney_general:
+    role: "Legal Advisor"
+    influence: 60
+    knowledge_domains: ["international_law", "rules_of_engagement", "legal_frameworks"]
+    pushback_triggers:
+      - "Actions that violate Geneva Conventions"
+      - "Use of force without legal justification"
+      - "Nuclear first-use without extreme justification"
+    key_concerns: ["international_law", "false_flag_legalities", "human_rights"]
+
+  # Russian Team (For Narrative Completeness & Red Team Context)
+  president_russia:
+    role: "Supreme Commander"
+    influence: 100
+    knowledge_domains: ["strategic_deception", "nato_politics", "military_doctrine"]
+    objectives: ["Test NATO resolve", "Fracture alliance", "Neutralize UK"]
+    note: "Controlled by game injects/adjudication, not player"
+
+  chief_general_staff:
+    role: "Military Operations"
+    influence: 90
+    knowledge_domains: ["operational_planning", "force_deployment", "combined_arms"]
+    objectives: ["Execute Operation Tuman", "Overwhelm UK defences", "Demonstrate US won't intervene"]
+    note: "Controlled by game injects/adjudication, not player"
+
+  head_military_intelligence:
+    role: "Special Operations (GRU)"
+    influence: 85
+    knowledge_domains: ["covert_operations", "sabotage", "disinformation"]
+    objectives: ["False flag execution", "Infrastructure disruption", "Pilot assassinations"]
+    note: "Controlled by game injects/adjudication, not player"
+
+  commander_northern_fleet:
+    role: "Naval Operations"
+    influence: 80
+    knowledge_domains: ["submarine_warfare", "naval_tactics", "missile_operations"]
+    objectives: ["Position forces for strike", "Demonstrate overwhelming force", "Track UK naval assets"]
+    note: "Controlled by game injects/adjudication, not player"
+
+# === ENVIRONMENT (For LLM Context) ===
+environment:
+  public_mood: "anxious"  # Growing unease due to power cuts, pilot murders, submarine sighting
+  media_coverage: "intensive"  # Social media spreading submarine sighting, diplomat departures
+  economic_impact: "rising"  # Power cuts, transport disruption, ferry terminals closed
+  weather: "normal"  # Can affect naval/air operations in future turns

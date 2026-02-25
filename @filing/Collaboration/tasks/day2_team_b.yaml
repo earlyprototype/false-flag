@@ -1,0 +1,10 @@
+id: day2_team_b
+team: B
+branch: feat/agents-day2-validation
+spec_path: Collaboration/Specs/day2_team_b_agents.md
+status: completed
+dependencies: [day1_team_b]
+acceptance_tests:
+  - proposals have non-empty rationale and valid agenda_cost
+  - if all invalid, fallback injected; count >= 1
+  - leader selects one in llm/mixed; deterministic under seed=42; gate passes

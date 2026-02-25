@@ -1,0 +1,12 @@
+- id: day4_team_a
+  team: A
+  branch: feat/day4-team-a
+  spec_path: Collaboration/Specs/day4_team_a_engine.md
+  status: completed
+  dependencies: [day3_team_a]
+  acceptance_tests:
+    - gate report stays clean
+    - determinism holds under seed 42
+    - risk flags map consistently from metrics thresholds
+
+

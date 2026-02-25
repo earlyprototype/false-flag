@@ -1,0 +1,81 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Configuration (contains API keys)
+config.py
+.env
+
+# Saves
+saves/
+*.json
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.bak
+
+# Cursor IDE
+.cursor/
+
+# Node
+node_modules/
+
+# Next.js build output
+.next/
+
+# Generated test images
+*.png
+
+# Large compiled scene files
+compiled_*.json
+*_scene.json
+
+# Test output
+test_output.txt
+
+# User approvals
+user_approval*.txt
+

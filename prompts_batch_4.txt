@@ -1,0 +1,146 @@
+================================================================================
+  PIXEL ART ASSET GENERATION PROMPTS - BATCH 4/4
+  Assets in this batch: 5
+  Total assets: 32
+  Style: LucasArts SCUMM (1990-1995)
+  Palette: DB16 (DawnBringer 16)
+================================================================================
+
+
+================================================================================
+ASSET #1/5 (Global: #28/32)
+================================================================================
+
+
+Filename: title_false_flag.png
+Dimensions: 320x96 pixels
+Save to: assets/intro/ui/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+320x96 pixel art title logo, "FALSE FLAG: THE WARGAME" text, bold military stencil font, DB16 palette (DawnBringer 16 colors), dramatic presentation, red and grey color scheme with black outlines, LucasArts adventure game title screen style, retro gaming aesthetic, suitable for terminal CLI display, clean pixel-perfect lettering, no anti-aliasing
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR title_false_flag.png
+--------------------------------------------------------------------------------
+
+
+
+
+
+================================================================================
+ASSET #2/5 (Global: #29/32)
+================================================================================
+
+
+Filename: subtitle_you_are_pm.png
+Dimensions: 320x32 pixels
+Save to: assets/intro/ui/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+320x32 pixel art subtitle text, "You are the Prime Minister", clean readable font, DB16 palette (DawnBringer 16 colors), white or light grey text, LucasArts style subtitle, retro gaming aesthetic, terminal-friendly, pixel-perfect lettering
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR subtitle_you_are_pm.png
+--------------------------------------------------------------------------------
+
+
+
+
+
+================================================================================
+ASSET #3/5 (Global: #30/32)
+================================================================================
+
+
+Filename: effect_water_ripple.png
+Dimensions: 32x16 pixels
+Save to: assets/unknown/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+32x16 pixel art water ripple effect, concentric circles expanding, transparent with white highlights, DB16 palette, LucasArts style, simple animation frames, suitable for submarine wake, retro gaming aesthetic
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR effect_water_ripple.png
+--------------------------------------------------------------------------------
+
+
+
+
+
+================================================================================
+ASSET #4/5 (Global: #31/32)
+================================================================================
+
+
+Filename: effect_pulse_glow.png
+Dimensions: 16x16 pixels
+Save to: assets/unknown/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+16x16 pixel art glow effect, expanding circular pulse, red color fading to transparent, DB16 palette (DawnBringer 16 colors), LucasArts UI style, suitable for map icon animation, retro gaming aesthetic, 3-4 frame loop
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR effect_pulse_glow.png
+--------------------------------------------------------------------------------
+
+
+
+
+
+================================================================================
+ASSET #5/5 (Global: #32/32)
+================================================================================
+
+
+Filename: transition_fade_black.png
+Dimensions: 320x180 pixels
+Save to: assets/unknown/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+320x180 pixel art solid black rectangle, used for fade-to-black transitions, DB16 palette, simple utility asset
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR transition_fade_black.png
+--------------------------------------------------------------------------------
+
+

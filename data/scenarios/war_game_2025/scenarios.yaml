@@ -1,0 +1,62 @@
+# Scenario Variants for FALSE FLAG: THE WARGAME
+# Defines different pacing and starting conditions
+
+# Difficulty levels affect scenario effect magnitudes (not player action impacts)
+difficulties:
+  standard:
+    name: "Standard"
+    multiplier: 0.5
+    description: "Balanced challenge - winnable with good decision-making"
+    recommended_for: "First playthroughs, learning the mechanics"
+  
+  challenging:
+    name: "Challenging"
+    multiplier: 0.7
+    description: "Tight margins - requires optimal decisions"
+    recommended_for: "Experienced players, second playthrough"
+  
+  brutal:
+    name: "Brutal"
+    multiplier: 1.0
+    description: "Maximum scenario intensity - currently unwinnable"
+    recommended_for: "Masochists, stress testing, future balancing work"
+
+scenarios:
+  standard:
+    name: "Standard Campaign"
+    description: "Experience the full crisis as it unfolds over 6 scripted turns"
+    difficulty: "Moderate"
+    scripted_turns: 6
+    turn_prefix: "turn_"  # Uses turn_001.yaml, turn_002.yaml, etc.
+    stochastic_from: 7
+    estimated_time: "90-120 minutes"
+    features:
+      - "Gradual escalation from diplomatic crisis to missile launch"
+      - "6 hours of in-game time before stochastic gameplay"
+      - "Full NATO consultation and diplomatic complexity"
+      - "Detailed world-building and character development"
+    recommended_for: "First-time players, narrative focus"
+    
+  fast_start:
+    name: "Fast Start"
+    description: "Compressed timeline - reach critical decisions faster"
+    difficulty: "Intense"
+    scripted_turns: 3
+    turn_prefix: "turn_"
+    turn_suffix: "_fast"  # Uses turn_001_fast.yaml, turn_002_fast.yaml, etc.
+    stochastic_from: 4
+    estimated_time: "45-60 minutes"
+    features:
+      - "Rapid escalation with breaking developments mid-turn"
+      - "3 hours of in-game time before stochastic gameplay"
+      - "All key narrative beats preserved but compressed"
+      - "Faster path to player-driven emergent gameplay"
+    recommended_for: "Experienced players, replay value, time-limited sessions"
+    
+  # Future scenarios can be added here
+  # sandbox:
+  #   name: "Sandbox Mode"
+  #   description: "Start with stochastic generation from Turn 1"
+  #   scripted_turns: 0
+  #   stochastic_from: 1
+

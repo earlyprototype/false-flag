@@ -1,0 +1,807 @@
+================================================================================
+  PIXEL ART ASSET GENERATION PROMPTS
+  Total Assets: 32
+  Style: LucasArts SCUMM (1990-1995)
+  Palette: DB16 (DawnBringer 16)
+================================================================================
+
+
+================================================================================
+ASSET #1/32
+================================================================================
+
+Filename: title_the_war_game.png
+Dimensions: 320x64 pixels
+Save to: assets/assets/ui//
+Priority: CRITICAL
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+Pixel art title logo "THE WAR GAME", bold military stencil font, DB16 palette (DawnBringer 16 colors), LucasArts adventure game title screen style, strong black outlines, red and grey color scheme, retro gaming aesthetic, suitable for terminal CLI display, clean pixel-perfect lettering, no anti-aliasing, dramatic presentation
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR title_the_war_game.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #2/32
+================================================================================
+
+Filename: episode_title_false_flag.png
+Dimensions: 320x48 pixels
+Save to: assets/assets/ui//
+Priority: CRITICAL
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+Pixel art text "Episode 1: False Flag", clean readable font, DB16 palette (DawnBringer 16 colors), LucasArts style subtitle text, white or light grey text on dark background, retro gaming aesthetic, terminal-friendly, pixel-perfect lettering, no gradients
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR episode_title_false_flag.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #3/32
+================================================================================
+
+Filename: news_ticker_bg.png
+Dimensions: 640x32 pixels
+Save to: assets/assets/ui//
+Priority: CRITICAL
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+Pixel art news ticker banner background, red breaking news bar, DB16 palette (DawnBringer 16 colors), flat solid color with subtle texture, suitable for scrolling text overlay, LucasArts style, retro broadcast graphics, terminal CLI compatible, clean pixel art
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR news_ticker_bg.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #4/32
+================================================================================
+
+Filename: lower_third_template.png
+Dimensions: 320x48 pixels
+Save to: assets/assets/ui//
+Priority: CRITICAL
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+Pixel art lower third name plate template, professional broadcast style, DB16 palette (DawnBringer 16 colors), dark semi-transparent bar with accent stripe, suitable for character name and title text overlay, LucasArts adventure game UI style, retro gaming aesthetic, clean pixel art, terminal-friendly
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR lower_third_template.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #5/32
+================================================================================
+
+Filename: icon_map_marker.png
+Dimensions: 16x16 pixels
+Save to: assets/assets/ui/icons//
+Priority: CRITICAL
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+16x16 pixel art icon, map location marker pin, simple geometric design, DB16 palette (DawnBringer 16 colors), red or blue color, LucasArts adventure game UI style, clear readable at small size, retro pixel art, no anti-aliasing
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR icon_map_marker.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #6/32
+================================================================================
+
+Filename: icon_clock.png
+Dimensions: 16x16 pixels
+Save to: assets/assets/ui/icons//
+Priority: CRITICAL
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+16x16 pixel art icon, clock or stopwatch symbol, simple circular design with clock hands, DB16 palette (DawnBringer 16 colors), white and grey tones, LucasArts UI style, clear at small size, retro gaming aesthetic, pixel-perfect edges
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR icon_clock.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #7/32
+================================================================================
+
+Filename: bg_war_room.png
+Dimensions: 320x180 pixels
+Save to: assets/assets/backgrounds//
+Priority: CRITICAL
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+Pixel art background, military war room interior, large table with maps, screens on walls, DB16 palette (DawnBringer 16 colors), LucasArts adventure game background style (Day of the Tentacle, Sam & Max quality), flat colors with strong outlines, Cold War command center aesthetic, detailed but not cluttered, retro gaming style, suitable for character overlay
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR bg_war_room.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #8/32
+================================================================================
+
+Filename: bg_news_studio.png
+Dimensions: 320x180 pixels
+Save to: assets/assets/backgrounds//
+Priority: CRITICAL
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+Pixel art background, professional news broadcast studio, desk with monitors, blue and grey color scheme, DB16 palette (DawnBringer 16 colors), LucasArts adventure game background quality, flat colors with black outlines, modern broadcast environment, retro pixel art style, suitable for anchor character overlay
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR bg_news_studio.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #9/32
+================================================================================
+
+Filename: bg_barents_sea_dark.png
+Dimensions: 16x16 pixels
+Save to: assets/intro/scene1_severomorsk/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+16x16 pixel art tileable texture, dark ocean water at night, very dark blue and black tones, subtle wave pattern, ominous atmosphere, DB16 palette (DawnBringer 16 colors), seamless on all four edges, LucasArts adventure game style, minimal detail, retro pixel art, suitable for parallax scrolling, Cold War thriller aesthetic
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR bg_barents_sea_dark.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #10/32
+================================================================================
+
+Filename: sprite_moon_crescent.png
+Dimensions: 32x32 pixels
+Save to: assets/intro/scene1_severomorsk/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+32x32 pixel art sprite, crescent moon, pale yellow-white color, simple geometric shape, DB16 palette (DawnBringer 16 colors), LucasArts style, clean design against dark background, retro gaming aesthetic, no anti-aliasing, sharp pixel-perfect edges
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR sprite_moon_crescent.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #11/32
+================================================================================
+
+Filename: sprite_submarine_silhouette.png
+Dimensions: 48x16 pixels
+Save to: assets/intro/scene1_severomorsk/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+48x16 pixel art submarine silhouette, side profile view, solid black shape with conning tower visible, simple geometric design, ballistic missile submarine (SSBN) profile, DB16 palette, LucasArts style, suitable for horizontal scrolling animation across screen, retro gaming aesthetic, clean edges
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR sprite_submarine_silhouette.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #12/32
+================================================================================
+
+Filename: sprite_observer_binoculars.png
+Dimensions: 32x48 pixels
+Save to: assets/intro/scene1_severomorsk/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+32x48 pixel art character, military observer with binoculars raised to face, side profile, dark silhouette against night sky, Russian naval officer, DB16 palette (DawnBringer 16 colors), LucasArts adventure game style, simple design suitable for distant view, retro pixel art, dramatic composition
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR sprite_observer_binoculars.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #13/32
+================================================================================
+
+Filename: bg_map_north_atlantic.png
+Dimensions: 320x180 pixels
+Save to: assets/intro/scene2_northwood/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+320x180 pixel art map, North Atlantic region, simplified coastlines showing UK, Iceland, Greenland, Norway, DB16 palette (DawnBringer 16 colors), dark blue ocean with grey land masses, tactical military display style, LucasArts UI aesthetic, clean lines, GIUK gap region visible, retro gaming map, suitable for force icon overlays
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR bg_map_north_atlantic.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #14/32
+================================================================================
+
+Filename: icon_force_blue.png
+Dimensions: 8x8 pixels
+Save to: assets/intro/scene2_northwood/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+8x8 pixel art icon, military force marker, simple blue dot or triangle, NATO/Allied forces symbol, DB16 palette (DawnBringer 16 colors), bright blue color, clean geometric design, LucasArts tactical UI style, suitable for map overlay, retro gaming aesthetic
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR icon_force_blue.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #15/32
+================================================================================
+
+Filename: icon_force_red.png
+Dimensions: 8x8 pixels
+Save to: assets/intro/scene2_northwood/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+8x8 pixel art icon, military force marker, simple red dot or diamond, Russian forces symbol, DB16 palette (DawnBringer 16 colors), bright red color, clean geometric design, LucasArts tactical UI style, suitable for pulsing animation on map, retro gaming aesthetic
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR icon_force_red.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #16/32
+================================================================================
+
+Filename: bg_operations_room.png
+Dimensions: 320x180 pixels
+Save to: assets/intro/scene2_northwood/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+320x180 pixel art background, military operations center interior, wall displays and monitors, dark professional atmosphere, UK Joint Operations Centre aesthetic, DB16 palette (DawnBringer 16 colors), LucasArts adventure game quality, flat colors with black outlines, command center with tactical displays, retro pixel art
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR bg_operations_room.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #17/32
+================================================================================
+
+Filename: sprite_commander_navy.png
+Dimensions: 64x96 pixels
+Save to: assets/intro/scene2_northwood/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+64x96 pixel art character, Royal Navy commander, serious expression, front-facing view, naval officer uniform with rank insignia, professional military bearing, DB16 palette (DawnBringer 16 colors), LucasArts adventure game style (Full Throttle quality), flat colors with strong black outlines, upper body from waist up, retro gaming aesthetic, no anti-aliasing
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR sprite_commander_navy.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #18/32
+================================================================================
+
+Filename: icon_phone_ringing.png
+Dimensions: 16x16 pixels
+Save to: assets/intro/scene2_northwood/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+16x16 pixel art icon, telephone handset, simple design with motion lines indicating ringing, DB16 palette (DawnBringer 16 colors), red or white color for urgency, LucasArts UI style, clean readable at small size, suitable for animation, retro gaming aesthetic
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR icon_phone_ringing.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #19/32
+================================================================================
+
+Filename: sprite_pm_stern.png
+Dimensions: 64x96 pixels
+Save to: assets/intro/scene3_cobra/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+64x96 pixel art character, British Prime Minister, stern serious expression, front-facing view, middle-aged male, professional dark business suit with tie, authoritative presence, UK government official, DB16 palette (DawnBringer 16 colors), LucasArts adventure game style (Full Throttle, Sam & Max quality), flat colors with strong black outlines, upper body from waist up, retro gaming aesthetic, no anti-aliasing, sharp pixel-perfect edges, commanding presence
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR sprite_pm_stern.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #20/32
+================================================================================
+
+Filename: bg_uk_gov_iconography.png
+Dimensions: 320x180 pixels
+Save to: assets/intro/scene3_cobra/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+320x180 pixel art background, UK government office interior, Royal coat of arms prominently displayed on wall, Union Jack flag visible in corner, dark wood paneling, professional official atmosphere, Cabinet Office aesthetic, DB16 palette (DawnBringer 16 colors), LucasArts adventure game quality, flat colors with black outlines, Cold War era government office, retro pixel art, suitable for character overlay, dramatic lighting
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR bg_uk_gov_iconography.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #21/32
+================================================================================
+
+Filename: sprite_pm_back_of_head.png
+Dimensions: 96x64 pixels
+Save to: assets/intro/scene3_cobra/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+96x64 pixel art, back of head and shoulders, British Prime Minister from behind, dark business suit, professional, foreground element for over-the-shoulder shot, DB16 palette (DawnBringer 16 colors), LucasArts adventure game style, flat colors with black outlines, suitable for layered composition, retro pixel art, cinematic framing
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR sprite_pm_back_of_head.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #22/32
+================================================================================
+
+Filename: bg_war_room_table_perspective.png
+Dimensions: 320x180 pixels
+Save to: assets/intro/scene3_cobra/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+320x180 pixel art background, war room interior with long mahogany table in perspective, chairs on both sides receding into distance, wall-mounted display screen at far end showing map, dramatic depth and perspective, COBRA briefing room aesthetic, DB16 palette (DawnBringer 16 colors), LucasArts adventure game quality (Day of the Tentacle perspective style), flat colors with black outlines, government crisis room, 70 Whitehall bunker atmosphere, retro gaming aesthetic, cinematic composition
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR bg_war_room_table_perspective.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #23/32
+================================================================================
+
+Filename: sprite_advisor_seated_small.png
+Dimensions: 32x48 pixels
+Save to: assets/intro/scene3_cobra/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+32x48 pixel art character, government advisor seated at table, small scale for background/distance view, professional business attire, generic design suitable for multiple uses, DB16 palette (DawnBringer 16 colors), LucasArts style, simple design with minimal detail, flat colors with black outlines, retro pixel art, suitable for war room scene
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR sprite_advisor_seated_small.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #24/32
+================================================================================
+
+Filename: sprite_pm_face_closeup.png
+Dimensions: 128x128 pixels
+Save to: assets/intro/scene3_cobra/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+128x128 pixel art extreme close-up, upper right quadrant of face, British Prime Minister, detailed facial features visible, eye with visible tension, temple, side of head, ear partially visible, tense stressed expression, skin texture detail, subtle worry lines, DB16 palette (DawnBringer 16 colors), LucasArts adventure game quality (high detail like Grim Fandango or Full Throttle close-ups), flat colors with black outlines, dramatic lighting from left, retro pixel art, cinematic intensity, suitable for CLI terminal display
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR sprite_pm_face_closeup.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #25/32
+================================================================================
+
+Filename: sprite_sweat_drop.png
+Dimensions: 8x8 pixels
+Save to: assets/intro/scene3_cobra/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+8x8 pixel art sprite, single water droplet, sweat bead, simple teardrop shape, transparent with white highlight, DB16 palette (DawnBringer 16 colors), LucasArts style, clean design suitable for frame-by-frame animation, retro gaming aesthetic, suitable for movement down side of face
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR sprite_sweat_drop.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #26/32
+================================================================================
+
+Filename: ui_location_timestamp.png
+Dimensions: 320x32 pixels
+Save to: assets/intro/ui/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+320x32 pixel art text overlay template, dark semi-transparent bar for location and timestamp text, DB16 palette (DawnBringer 16 colors), LucasArts UI style, suitable for text rendering on top, retro gaming aesthetic, clean design
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR ui_location_timestamp.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #27/32
+================================================================================
+
+Filename: ui_dialogue_box.png
+Dimensions: 320x64 pixels
+Save to: assets/intro/ui/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+320x64 pixel art dialogue box, dark background with border, suitable for character dialogue text, DB16 palette (DawnBringer 16 colors), LucasArts SCUMM engine style (Monkey Island dialogue boxes), retro adventure game aesthetic, clean readable design
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR ui_dialogue_box.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #28/32
+================================================================================
+
+Filename: title_false_flag.png
+Dimensions: 320x96 pixels
+Save to: assets/intro/ui/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+320x96 pixel art title logo, "FALSE FLAG: THE WARGAME" text, bold military stencil font, DB16 palette (DawnBringer 16 colors), dramatic presentation, red and grey color scheme with black outlines, LucasArts adventure game title screen style, retro gaming aesthetic, suitable for terminal CLI display, clean pixel-perfect lettering, no anti-aliasing
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR title_false_flag.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #29/32
+================================================================================
+
+Filename: subtitle_you_are_pm.png
+Dimensions: 320x32 pixels
+Save to: assets/intro/ui/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+320x32 pixel art subtitle text, "You are the Prime Minister", clean readable font, DB16 palette (DawnBringer 16 colors), white or light grey text, LucasArts style subtitle, retro gaming aesthetic, terminal-friendly, pixel-perfect lettering
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR subtitle_you_are_pm.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #30/32
+================================================================================
+
+Filename: effect_water_ripple.png
+Dimensions: 32x16 pixels
+Save to: assets/unknown/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+32x16 pixel art water ripple effect, concentric circles expanding, transparent with white highlights, DB16 palette, LucasArts style, simple animation frames, suitable for submarine wake, retro gaming aesthetic
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR effect_water_ripple.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #31/32
+================================================================================
+
+Filename: effect_pulse_glow.png
+Dimensions: 16x16 pixels
+Save to: assets/unknown/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+16x16 pixel art glow effect, expanding circular pulse, red color fading to transparent, DB16 palette (DawnBringer 16 colors), LucasArts UI style, suitable for map icon animation, retro gaming aesthetic, 3-4 frame loop
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR effect_pulse_glow.png
+--------------------------------------------------------------------------------
+
+
+
+================================================================================
+ASSET #32/32
+================================================================================
+
+Filename: transition_fade_black.png
+Dimensions: 320x180 pixels
+Save to: assets/unknown/
+Priority: MEDIUM
+
+--------------------------------------------------------------------------------
+FULL PROMPT (copy everything below this line):
+--------------------------------------------------------------------------------
+
+STYLE REQUIREMENTS: Classic LucasArts SCUMM engine adventure game aesthetic (1990-1995 era: The Secret of Monkey Island, Day of the Tentacle, Sam & Max Hit the Road, Full Throttle). MANDATORY specifications: DB16 palette ONLY (DawnBringer 16 colors - no other colors permitted), flat color fills with NO gradients, strong black pixel-perfect outlines on ALL shapes, NO anti-aliasing, NO blur, NO soft edges, sharp geometric forms, hand-drawn cartoon quality with bold readable silhouettes, expressive character design, clean composition suitable for VGA-era displays and modern CLI terminal rendering. Art style: comedic yet dramatic, exaggerated proportions, clear visual hierarchy, high contrast for readability. Technical: pixel-perfect edges, transparent PNG background where appropriate, exact dimensions as specified.
+
+---
+
+320x180 pixel art solid black rectangle, used for fade-to-black transitions, DB16 palette, simple utility asset
+
+--------------------------------------------------------------------------------
+END OF PROMPT FOR transition_fade_black.png
+--------------------------------------------------------------------------------
+
+

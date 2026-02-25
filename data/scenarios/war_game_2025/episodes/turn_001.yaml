@@ -1,0 +1,67 @@
+# Turn 1: COBRA Meeting - Initial Briefing
+# Sunday 5th October 2025, 17:00
+# Based on "The Wargame" podcast Episode 1
+
+id: turn_001_cobra_briefing
+title: "COBRA Emergency Meeting Convened"
+description: |
+  === CABINET OFFICE BRIEFING ROOM A (COBRA) ===
+  Sunday 5th October 2025, 17:00
+  
+  You are seated at the head of a long mahogany table in the secure briefing room beneath
+  70 Whitehall. The room is windowless, lit by overhead fluorescents that cast a clinical
+  glow over the assembled officials. A large digital display on the far wall shows a map
+  of the North Atlantic with multiple red icons clustered ominously near UK waters.
+  
+  Around the table:
+  
+  - NATIONAL SECURITY ADVISOR: To your right, leaning forward with hands clasped. 
+    Former diplomat, sharp eyes scanning the room. Coordinates intelligence and policy 
+    across government.
+  
+  - CHIEF OF THE DEFENCE STAFF: Across from you in service dress uniform. Calm, methodical, 
+    with decades of operational experience. Commands the UK Armed Forces.
+  
+  - HOME SECRETARY: To your left, tablet open, occasionally glancing at incoming messages. 
+    Responsible for domestic security and counter-terrorism.
+  
+  - FOREIGN SECRETARY: Next to the Home Secretary, diplomatic cables spread before them. 
+    Manages UK relations with allies and adversaries.
+  
+  - ATTORNEY GENERAL: At the far end, legal pad filled with notes. Advises on the legal 
+    framework for any action.
+  
+  Several junior officials line the walls, ready to provide briefing materials. The air
+  is tense but professional. Everyone knows this is not a drill.
+  
+  The National Security Advisor clears their throat and begins:
+  
+  "Prime Minister, thank you for convening this emergency COBRA meeting on short notice.
+  
+  In the past 48 hours, we've experienced a series of concerning developments:
+  
+  - Two F-35 pilots were found shot dead in Norfolk on Saturday night. Police investigations are ongoing,
+    but intelligence suggests these men were likely tracked before being killed. This bears the hallmarks
+    of traditional special forces activity.
+  
+  - Russia has falsely accused the UK of involvement in the terrorist attack at Severomorsk naval base
+    on 1st October, which killed over 100 Russian naval personnel. GCHQ assesses with high confidence
+    that Dagestani extremists were responsible, but Moscow is using this as a pretext.
+  
+  - Signals intelligence reveals a snap Russian naval exercise underway in the North Atlantic, involving
+    15 submarines (7 SSBNs, 8 SSNs), 2 destroyers, and 4 frigates. This is well above normal deployment levels.
+  
+  - GCHQ reports cyber attacks on UK businesses and government websites have increased by 65%.
+  
+  - Russian diplomatic staff and their families are departing the UK at speed.
+  
+  The National Security Council assesses this as a coordinated campaign of coercion designed to test
+  NATO resolve. We must respond carefully - neither appearing weak nor provoking further escalation.
+
+channel: briefing
+effects:
+  - metric: escalation_risk
+    delta: 5..8
+  - metric: domestic_stability
+    delta: -3..-5
+

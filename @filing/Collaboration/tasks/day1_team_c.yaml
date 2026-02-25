@@ -1,0 +1,9 @@
+id: day1_team_c
+team: C
+branch: feat/ingestion-scenario
+spec_path: Collaboration/specs/day1_team_c_ingestion.md
+status: completed
+dependencies: []
+acceptance_tests:
+  - events.yaml validates and references assets/placeholders/media_leak.md
+

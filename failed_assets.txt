@@ -1,0 +1,162 @@
+# Failed Asset Generation
+
+title_the_war_game.png
+  Path: assets/ui/
+  Size: 320×64
+  Source: asset_generation_prompts.md
+
+episode_title_false_flag.png
+  Path: assets/ui/
+  Size: 320×48
+  Source: asset_generation_prompts.md
+
+news_ticker_bg.png
+  Path: assets/ui/
+  Size: 640×32
+  Source: asset_generation_prompts.md
+
+lower_third_template.png
+  Path: assets/ui/
+  Size: 320×48
+  Source: asset_generation_prompts.md
+
+icon_map_marker.png
+  Path: assets/ui/icons/
+  Size: 16×16
+  Source: asset_generation_prompts.md
+
+icon_clock.png
+  Path: assets/ui/icons/
+  Size: 16×16
+  Source: asset_generation_prompts.md
+
+bg_war_room.png
+  Path: assets/backgrounds/
+  Size: 320×180
+  Source: asset_generation_prompts.md
+
+bg_news_studio.png
+  Path: assets/backgrounds/
+  Size: 320×180
+  Source: asset_generation_prompts.md
+
+bg_barents_sea_dark.png
+  Path: intro/scene1_severomorsk
+  Size: 16×16
+  Source: intro_sequence_prompts.md
+
+sprite_moon_crescent.png
+  Path: intro/scene1_severomorsk
+  Size: 32×32
+  Source: intro_sequence_prompts.md
+
+sprite_submarine_silhouette.png
+  Path: intro/scene1_severomorsk
+  Size: 48×16
+  Source: intro_sequence_prompts.md
+
+sprite_observer_binoculars.png
+  Path: intro/scene1_severomorsk
+  Size: 32×48
+  Source: intro_sequence_prompts.md
+
+bg_map_north_atlantic.png
+  Path: intro/scene2_northwood
+  Size: 320×180
+  Source: intro_sequence_prompts.md
+
+icon_force_blue.png
+  Path: intro/scene2_northwood
+  Size: 8×8
+  Source: intro_sequence_prompts.md
+
+icon_force_red.png
+  Path: intro/scene2_northwood
+  Size: 8×8
+  Source: intro_sequence_prompts.md
+
+bg_operations_room.png
+  Path: intro/scene2_northwood
+  Size: 320×180
+  Source: intro_sequence_prompts.md
+
+sprite_commander_navy.png
+  Path: intro/scene2_northwood
+  Size: 64×96
+  Source: intro_sequence_prompts.md
+
+icon_phone_ringing.png
+  Path: intro/scene2_northwood
+  Size: 16×16
+  Source: intro_sequence_prompts.md
+
+sprite_pm_stern.png
+  Path: intro/scene3_cobra
+  Size: 64×96
+  Source: intro_sequence_prompts.md
+
+bg_uk_gov_iconography.png
+  Path: intro/scene3_cobra
+  Size: 320×180
+  Source: intro_sequence_prompts.md
+
+sprite_pm_back_of_head.png
+  Path: intro/scene3_cobra
+  Size: 96×64
+  Source: intro_sequence_prompts.md
+
+bg_war_room_table_perspective.png
+  Path: intro/scene3_cobra
+  Size: 320×180
+  Source: intro_sequence_prompts.md
+
+sprite_advisor_seated_small.png
+  Path: intro/scene3_cobra
+  Size: 32×48
+  Source: intro_sequence_prompts.md
+
+sprite_pm_face_closeup.png
+  Path: intro/scene3_cobra
+  Size: 128×128
+  Source: intro_sequence_prompts.md
+
+sprite_sweat_drop.png
+  Path: intro/scene3_cobra
+  Size: 8×8
+  Source: intro_sequence_prompts.md
+
+ui_location_timestamp.png
+  Path: intro/ui
+  Size: 320×32
+  Source: intro_sequence_prompts.md
+
+ui_dialogue_box.png
+  Path: intro/ui
+  Size: 320×64
+  Source: intro_sequence_prompts.md
+
+title_false_flag.png
+  Path: intro/ui
+  Size: 320×96
+  Source: intro_sequence_prompts.md
+
+subtitle_you_are_pm.png
+  Path: intro/ui
+  Size: 320×32
+  Source: intro_sequence_prompts.md
+
+effect_water_ripple.png
+  Path: unknown
+  Size: 32×16
+  Source: intro_sequence_prompts.md
+
+effect_pulse_glow.png
+  Path: unknown
+  Size: 16×16
+  Source: intro_sequence_prompts.md
+
+transition_fade_black.png
+  Path: unknown
+  Size: 320×180
+  Source: intro_sequence_prompts.md
+

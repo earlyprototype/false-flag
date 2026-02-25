@@ -1,0 +1,61 @@
+# Turn 3: Critical Infrastructure Attack
+# Sunday 5th October 2025, 21:00 (4 hours after initial COBRA meeting)
+# Escalation continues with direct infrastructure targeting
+
+id: turn_003_infrastructure_attack
+title: "Major Power Station Explosion"
+description: |
+  === EMERGENCY BRIEFING ===
+  
+  Prime Minister, we have a critical incident.
+  
+  At 20:47 this evening, a major explosion occurred at Drax Power Station in North 
+  Yorkshire. Drax supplies approximately 6% of the UK's electricity. Initial reports 
+  indicate a catastrophic failure in the cooling system, but early forensic analysis 
+  suggests sabotage.
+  
+  **Immediate Impact:**
+  - 2 million homes without power across Yorkshire and the North East
+  - Emergency services responding to multiple casualties (estimated 5-8 fatalities)
+  - National Grid implementing rolling blackouts to manage load
+  - Hospitals switching to backup generators
+  
+  **GCHQ Assessment:**
+  We intercepted encrypted communications between suspected Russian intelligence 
+  operatives in the UK approximately 30 minutes before the explosion. The timing is 
+  highly suspicious. We assess with moderate confidence this was a coordinated sabotage 
+  operation.
+  
+  **Home Secretary:**
+  Prime Minister, this is a direct attack on our critical national infrastructure. We 
+  need to consider invoking emergency powers. The public will demand protection. We're 
+  already seeing reports of vigilante groups forming to "protect" other power stations.
+  
+  **CDS:**
+  Prime Minister, I recommend we raise our military readiness to BIKINI BLACK SPECIAL. 
+  This would authorize deployment of armed forces to protect critical infrastructure. 
+  However, it will be visible to Russian intelligence and may be interpreted as 
+  preparation for offensive action.
+  
+  **Attorney General:**
+  Prime Minister, if we can establish Russian state involvement, we have legal grounds 
+  for invoking Article 5 of the NATO treaty - collective defence. However, the evidence 
+  must be unambiguous. A premature invocation could fracture the alliance if other 
+  members don't agree with our assessment.
+  
+  **NSA:**
+  Prime Minister, we're at a critical juncture. Russia is testing whether we'll respond 
+  with force or restraint. Our next move will signal our resolve - or lack thereof - 
+  to Moscow, Washington, and our own people.
+
+channel: emergency
+effects:
+  - metric: escalation_risk
+    delta: 8..12
+  - metric: domestic_stability
+    delta: -10..-15
+  - metric: casualties_civ
+    delta: 5..8
+  - metric: alliance_cohesion
+    delta: -3..-5
+

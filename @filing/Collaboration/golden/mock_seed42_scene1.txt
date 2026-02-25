@@ -1,0 +1,59 @@
+﻿# National Security Council ù 05:42Z Situation Brief
+Prime Minister, overnight contact in the GIUK gap has raised tensions; allied formations are seeking guidance.
+A Royal Navy patrol reports close manoeuvres by an adversary frigate. Partial footage is already circulating, fuelling early commentary. No damage is confirmed. Intelligence assesses the move as signalling; the adversary frames it as a defensive patrol.
+Across Whitehall, teams have gathered in the Cabinet Office. Allies are awake and watching for our first note. The press is warming to the story. The room expects direction, but we will take a breath and set the picture first.
+CDS: Naval readiness is high; we can posture visibly without crossing thresholds.
+Cabinet Sec: Narrative discipline is essential; we should speak once, clearly, and soon.
+
+============================================================
+TURN 1
+============================================================
+
+=== INJECT: turn_001_cobra_briefing ===
+Title: COBRA Emergency Meeting Convened
+Channel: briefing
+
+Prime Minister, thank you for convening this emergency COBRA meeting on short notice.
+
+In the past 48 hours, we've experienced a series of concerning developments:
+
+- Two F-35 pilots were found shot dead in Norfolk on Saturday night. Police investigations are ongoing,
+  but intelligence suggests these men were likely tracked before being killed. This bears the hallmarks
+  of traditional special forces activity.
+
+- Russia has falsely accused the UK of involvement in the terrorist attack at Severomorsk naval base
+  on 1st October, which killed over 100 Russian naval personnel. GCHQ assesses with high confidence
+  that Dagestani extremists were responsible, but Moscow is using this as a pretext.
+
+- Signals intelligence reveals a snap Russian naval exercise underway in the North Atlantic, involving
+  15 submarines (7 SSBNs, 8 SSNs), 2 destroyers, and 4 frigates. This is well above normal deployment levels.
+
+- GCHQ reports cyber attacks on UK businesses and government websites have increased by 65%.
+
+- Russian diplomatic staff and their families are departing the UK at speed.
+
+The National Security Council assesses this as a coordinated campaign of coercion designed to test
+NATO resolve. We must respond carefully - neither appearing weak nor provoking further escalation.
+
+
+========================================
+Effect: escalation_risk +6 (-> 46)
+Effect: domestic_stability -4 (-> 56)
+
+
+Prime Minister's Decision: Deploy Type-45 destroyers and establish combat air patrols
+
+Interpretation:
+INTERPRETATION: Deploy naval and air assets to defensive posture
+FORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance
+RESOURCES CONSUMED: Minimal (patrol operations)
+TIMELINE: Immediate (within 1 turn)
+FEASIBILITY: Feasible within current constraints
+
+No advisor concerns raised.
+
+Adjudicating action effects...
+Effect: Deployment increases readiness but raises escalation risk
+
+Metrics: mission=13, risk=51, stability=56, cohesion=70
+Influence: +2

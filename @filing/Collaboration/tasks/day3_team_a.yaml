@@ -1,0 +1,12 @@
+id: day3_team_a
+team: A
+branch: feat/day3-team-a
+spec_path: Collaboration/Specs/day3_team_a_engine.md
+status: completed
+dependencies: [day2_team_a]
+size: M
+acceptance_tests:
+  - gate report stays clean
+  - feature-specific checks per spec
+
+

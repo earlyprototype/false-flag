@@ -1,0 +1,112 @@
+# Turn 1 (Fast Start): COBRA Meeting - Initial Briefing + Breaking Development
+# Sunday 5th October 2025, 17:00-19:00
+# Compressed version combining original Turns 1 + 2
+
+id: turn_001_fast_cobra_briefing
+title: "COBRA Emergency: Northern Fleet Deployment"
+description: |
+  === CABINET OFFICE BRIEFING ROOM A (COBRA) ===
+  Sunday 5th October 2025, 17:00
+  
+  You are seated at the head of a long mahogany table in the secure briefing room beneath
+  70 Whitehall. The room is windowless, lit by overhead fluorescents that cast a clinical
+  glow over the assembled officials. A large digital display on the far wall shows a map
+  of the North Atlantic with multiple red icons clustered ominously near UK waters.
+  
+  Around the table:
+  
+  - NATIONAL SECURITY ADVISOR: To your right, leaning forward with hands clasped. 
+    Former diplomat, sharp eyes scanning the room. Coordinates intelligence and policy 
+    across government.
+  
+  - CHIEF OF THE DEFENCE STAFF: Across from you in service dress uniform. Calm, methodical, 
+    with decades of operational experience. Commands the UK Armed Forces.
+  
+  - HOME SECRETARY: To your left, tablet open, occasionally glancing at incoming messages. 
+    Responsible for domestic security and counter-terrorism.
+  
+  - FOREIGN SECRETARY: Next to the Home Secretary, diplomatic cables spread before them. 
+    Manages UK relations with allies and adversaries.
+  
+  - ATTORNEY GENERAL: At the far end, legal pad filled with notes. Advises on the legal 
+    framework for any action.
+  
+  Several junior officials line the walls, ready to provide briefing materials. The air
+  is tense but professional. Everyone knows this is not a drill.
+  
+  The National Security Advisor clears their throat and begins:
+  
+  "Prime Minister, thank you for convening this emergency COBRA meeting on short notice.
+  
+  In the past 48 hours, we've experienced a series of concerning developments:
+  
+  - Two F-35 pilots were found shot dead in Norfolk on Saturday night. Police investigations are ongoing,
+    but intelligence suggests these men were likely tracked before being killed. This bears the hallmarks
+    of traditional special forces activity.
+  
+  - Russia has falsely accused the UK of involvement in the terrorist attack at Severomorsk naval base
+    on 1st October, which killed over 100 Russian naval personnel. GCHQ assesses with high confidence
+    that Dagestani extremists were responsible, but Moscow is using this as a pretext.
+  
+  - Signals intelligence reveals a snap Russian naval exercise underway in the North Atlantic, involving
+    15 submarines (7 SSBNs, 8 SSNs), 2 destroyers, and 4 frigates. This is well above normal deployment levels.
+  
+  - GCHQ reports cyber attacks on UK businesses and government websites have increased by 65%.
+  
+  - Russian diplomatic staff and their families are departing the UK at speed."
+  
+  The NSA pauses, about to continue, when a junior intelligence officer enters quickly and 
+  hands them a tablet. The NSA's expression darkens.
+  
+  "Prime Minister... we have a breaking development."
+  
+  [PAUSE]
+  
+  === BREAKING UPDATE - 18:45 ===
+  
+  The National Security Advisor looks up from the tablet:
+  
+  "Approximately 15 minutes ago, a Russian Kilo-class submarine surfaced in international 
+  waters 12 nautical miles off the Orkney Islands. The submarine remained on the surface 
+  for approximately 15 minutes before submerging.
+  
+  This provocative act was witnessed by passengers aboard the MV Hamnavoe ferry service. 
+  Multiple civilians have already posted photos and videos to social media. The images are 
+  spreading rapidly."
+  
+  **GCHQ Assessment:**
+  "This is a deliberate show of force designed to intimidate and test UK response. The 
+  submarine is part of the larger Northern Fleet deployment. Its surfacing in sight of 
+  civilians is highly unusual and represents a significant escalation in Russian messaging."
+  
+  **CDS:**
+  "Prime Minister, the submarine's position places it within striking range of several critical 
+  infrastructure targets in Scotland, including Scapa Flow, Faslane naval base, and North Sea 
+  oil installations. We assess this as reconnaissance and psychological warfare combined."
+  
+  **Home Secretary:**
+  "Prime Minister, the public is already reacting. Social media is ablaze with speculation. 
+  We're seeing panic buying reports from supermarkets in northern Scotland. Some MPs are 
+  calling for immediate military response."
+  
+  **Foreign Secretary:**
+  "I've just received word that the Russian Ambassador has declined our request for an 
+  emergency meeting. This is unprecedented. The US National Security Advisor has called 
+  to express concern but stopped short of offering concrete support."
+  
+  [PAUSE]
+  
+  **NSA:**
+  "Prime Minister, the National Security Council assesses this as a coordinated campaign of 
+  coercion designed to test NATO resolve. We must respond carefully - neither appearing weak 
+  nor provoking further escalation. But we need to act soon. The next few hours are critical."
+
+channel: briefing
+effects:
+  - metric: escalation_risk
+    delta: 10..15
+  - metric: domestic_stability
+    delta: -8..-13
+  - metric: alliance_cohesion
+    delta: -2..-5
+

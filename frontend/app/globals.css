@@ -1,0 +1,236 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 0, 0;
+}
+
+/* Custom Scrollbar - CHUNKY VGA Style */
+::-webkit-scrollbar {
+  width: 16px;
+  background: #000;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+  border: 2px solid #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border: 3px solid #1e293b;
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+@layer base {
+  :root {
+    /* DEFAULT THEME: DEFCON (Dark) - BRIGHTENED */
+    --background: 0 0% 0%;
+    --foreground: 180 100% 80%;
+    --card: 220 20% 15%;
+    --card-foreground: 180 100% 90%;
+    --popover: 220 20% 10%;
+    --popover-foreground: 180 100% 90%;
+    --primary: 180 100% 50%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 220 30% 25%;
+    --secondary-foreground: 180 100% 90%;
+    --muted: 220 20% 20%;
+    --muted-foreground: 180 50% 60%;
+    --accent: 45 100% 50%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 100% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 180 50% 40%;
+    --input: 180 80% 30%;
+    --ring: 180 100% 50%;
+    --radius: 0;
+    
+    --chart-1: 180 100% 50%;
+    --chart-2: 120 100% 50%;
+    --chart-3: 45 100% 50%;
+    --chart-4: 280 100% 60%;
+    --chart-5: 0 100% 50%;
+  }
+
+  /* THEME: STANDARD (Light) */
+  .theme-standard {
+    --background: 0 0% 95%;
+    --foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 220 100% 40%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 20% 80%;
+    --secondary-foreground: 0 0% 10%;
+    --muted: 220 20% 90%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 45 100% 50%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 100% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 20% 70%;
+    --input: 220 20% 80%;
+    --ring: 220 100% 40%;
+  }
+
+  /* THEME: RETRO (Phosphor Green) */
+  .theme-retro {
+    --background: 120 100% 5%;
+    --foreground: 120 100% 70%;
+    --card: 120 100% 8%;
+    --card-foreground: 120 100% 70%;
+    --popover: 120 100% 5%;
+    --popover-foreground: 120 100% 70%;
+    --primary: 120 100% 60%;
+    --primary-foreground: 120 100% 5%;
+    --secondary: 120 100% 15%;
+    --secondary-foreground: 120 100% 70%;
+    --muted: 120 50% 15%;
+    --muted-foreground: 120 50% 50%;
+    --accent: 120 100% 50%;
+    --accent-foreground: 120 100% 5%;
+    --destructive: 0 100% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 120 100% 30%;
+    --input: 120 100% 20%;
+    --ring: 120 100% 60%;
+  }
+
+  /* THEME: SLATE (High Contrast) */
+  .theme-slate {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 5%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 25%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 0 0% 80%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 100% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 40%;
+    --input: 0 0% 30%;
+    --ring: 0 0% 100%;
+  }
+  
+  /* THEME: DEFCON (Explicit) */
+  .theme-defcon {
+    --background: 0 0% 0%;
+    --foreground: 180 100% 80%;
+    --card: 220 20% 15%;
+    --card-foreground: 180 100% 90%;
+    --popover: 220 20% 10%;
+    --popover-foreground: 180 100% 90%;
+    --primary: 180 100% 50%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 220 30% 25%;
+    --secondary-foreground: 180 100% 90%;
+    --muted: 220 20% 20%;
+    --muted-foreground: 180 50% 60%;
+    --accent: 45 100% 50%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 100% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 180 50% 40%;
+    --input: 180 80% 30%;
+    --ring: 180 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-size: 20px;
+    line-height: 1.6;
+  }
+}
+
+/* SCUMM UI UTILITIES - ENHANCED */
+@layer components {
+  /* Chunky Panel - THICK borders, strong depth */
+  .scumm-panel {
+    @apply border-[6px] bg-slate-800 rounded-none;
+    border-top-color: #64748b;
+    border-left-color: #64748b;
+    border-right-color: #0f172a;
+    border-bottom-color: #0f172a;
+    box-shadow: 
+      inset 2px 2px 0 rgba(148, 163, 184, 0.3),
+      inset -2px -2px 0 rgba(0, 0, 0, 0.8),
+      0 4px 12px rgba(0, 0, 0, 0.6);
+  }
+  
+  /* Chunky Button - THICK, tactile */
+  .scumm-btn {
+    @apply border-[5px] bg-slate-700 hover:bg-slate-600 active:bg-slate-800 transition-none rounded-none font-vt323 uppercase tracking-widest text-xl px-4 py-2;
+    border-top-color: #94a3b8;
+    border-left-color: #94a3b8;
+    border-right-color: #000;
+    border-bottom-color: #000;
+    box-shadow: 
+      inset 1px 1px 0 rgba(203, 213, 225, 0.5),
+      2px 2px 0 rgba(0, 0, 0, 0.8);
+  }
+  
+  .scumm-btn:active {
+    border-top-color: #000;
+    border-left-color: #000;
+    border-right-color: #94a3b8;
+    border-bottom-color: #94a3b8;
+    box-shadow: 
+      inset 2px 2px 4px rgba(0, 0, 0, 0.8);
+    transform: translate(2px, 2px);
+  }
+  
+  /* Inset Input - GLOWING */
+  .scumm-input {
+    @apply border-[5px] bg-black text-cyan-300 font-vt323 text-2xl rounded-none focus-visible:ring-0 px-4 py-3;
+    border-top-color: #000;
+    border-left-color: #000;
+    border-right-color: #22d3ee;
+    border-bottom-color: #22d3ee;
+    box-shadow: 
+      inset 3px 3px 6px rgba(0, 0, 0, 0.9),
+      0 0 10px rgba(34, 211, 238, 0.3);
+  }
+  
+  .scumm-input:focus {
+    box-shadow: 
+      inset 3px 3px 6px rgba(0, 0, 0, 0.9),
+      0 0 20px rgba(34, 211, 238, 0.6);
+    border-right-color: #06b6d4;
+    border-bottom-color: #06b6d4;
+  }
+
+  /* VGA Text Glow */
+  .text-glow {
+    text-shadow: 0 0 8px currentColor, 0 0 4px currentColor;
+  }
+  
+  /* Strong Glow for Critical Elements */
+  .text-glow-strong {
+    text-shadow: 
+      0 0 10px currentColor, 
+      0 0 20px currentColor,
+      0 0 30px currentColor;
+  }
+}

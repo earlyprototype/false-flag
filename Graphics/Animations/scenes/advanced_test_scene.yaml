@@ -1,0 +1,44 @@
+
+version: 1
+palette: db16
+
+# Define the sprite using all the placeholder assets we have generated
+sprites:
+  anchor:
+    path: assets/anchor_zero/frames
+    tags: [neutral, blink, talk_a, talk_o, talk_e] # Using more tags
+    pattern: "anchor_{tag}_*.png"
+
+# Define the layers of the scene
+layers:
+  - id: character
+    type: character
+    sprite: anchor
+    pos: {x: 5, y: 5}
+    # This timeline is more complex, showing a variety of animations
+    timeline:
+      - { seq: neutral, frames: 30 }
+      - { seq: blink,   frames: 2 }
+      - { seq: neutral, frames: 20 }
+      - { seq: talk_a,  frames: 8 }
+      - { seq: talk_o,  frames: 8 }
+      - { seq: talk_e,  frames: 8 }
+      - { seq: neutral, frames: 10 }
+      - { seq: blink,   frames: 2 }
+  
+  - id: teleprompter
+    type: text
+    text: |
+      [bold yellow]ADVANCED ANIMATION TEST[/]
+      
+      This scene demonstrates a more
+      complex timeline, including the
+      'talk' viseme frames.
+
+      The animation will now cycle
+      through neutral, blink, and 
+      several mouth shapes.
+
+    row: 5
+    col: 35
+

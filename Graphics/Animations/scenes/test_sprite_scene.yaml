@@ -1,0 +1,34 @@
+
+version: 1
+palette: db16
+
+# Define the sprite using the placeholder assets we just generated
+sprites:
+  anchor:
+    path: assets/anchor_zero/frames
+    tags: [neutral, blink]
+    pattern: "anchor_{tag}_*.png"
+
+# Define the layers of the scene
+layers:
+  # The animated character layer
+  - id: character
+    type: character
+    sprite: anchor
+    pos: {x: 5, y: 5}
+    timeline:
+      - { seq: neutral, frames: 50 }
+      - { seq: blink, frames: 5 }
+  
+  # The static text layer
+  - id: teleprompter
+    type: text
+    # This text will be rendered by the compiler into the final artifact
+    text: |
+      [bold yellow]AUTOCUE[/bold yellow]
+      Good evening. Tonight's top story:
+      a significant escalation in the
+      North Atlantic.
+    row: 5
+    col: 25
+

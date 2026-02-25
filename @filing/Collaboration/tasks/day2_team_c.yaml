@@ -1,0 +1,9 @@
+id: day2_team_c
+team: C
+branch: feat/scenario-expansion
+spec_path: Collaboration/specs/day2_team_c_ingestion.md
+status: completed
+dependencies: [day1_team_c]
+acceptance_tests:
+  - events.yaml includes media_leak_02 with .md asset that exists
+  - role_briefs/uk_pm.md created

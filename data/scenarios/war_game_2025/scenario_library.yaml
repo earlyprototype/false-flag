@@ -1,0 +1,391 @@
+# Scenario Library for Dynamic Inject Generation
+# Mined from "The Wargame" Podcast Episodes 2-5
+# 
+# This library provides realistic scenario elements that the LLM can adapt
+# based on player decisions. These are NOT sequential injects - they're
+# building blocks for emergent narrative generation.
+
+metadata:
+  title: "False Flag Scenario Library"
+  source: "The Wargame Podcast (Audible/Somethin' Else)"
+  episodes_analyzed: [2, 3, 4, 5]
+  purpose: "Inform LLM-generated injects with realistic crisis escalation patterns"
+
+# === ESCALATION PATTERNS ===
+escalation_patterns:
+  
+  russian_strategy:
+    primary_objective: "Neutralize UK as NATO obstacle without triggering Article 5"
+    secondary_objective: "Fracture NATO alliance, especially US commitment"
+    tactics:
+      - "Calibrated strikes (not all-out war)"
+      - "Test NATO resolve incrementally"
+      - "Exploit UK military weaknesses"
+      - "Psychological warfare via media"
+      - "Ultimatums with tight deadlines"
+      - "Nuclear threats (but not use)"
+    
+  uk_constraints:
+    military:
+      - "Limited missile stocks (days, not weeks)"
+      - "Only 2 simultaneous air patrols for entire UK"
+      - "Type-45 destroyers: 6 total, typically only 2 operational"
+      - "Attack submarines: 5 total, only 2 deployable"
+      - "F-35s require tanker support for range"
+      - "No Iron Dome equivalent (£25bn+ to build)"
+    
+    political:
+      - "US commitment uncertain (Trump-era scenario)"
+      - "NATO divided (some support, some urge restraint)"
+      - "Public panic vs resilience ('Blitz spirit')"
+      - "Legal constraints (international law, proportionality)"
+      - "Nuclear deterrent: when to threaten vs use?"
+
+# === POTENTIAL INJECT SCENARIOS ===
+# These can be adapted by LLM based on player choices
+
+naval_scenarios:
+  
+  - id: submarine_surfacing
+    description: "Russian submarine surfaces provocatively near UK waters"
+    locations: ["Orkney Islands", "Scottish coast", "English Channel"]
+    effects:
+      - "Public panic (social media amplification)"
+      - "Demonstrates strike capability"
+      - "Forces UK response decision"
+    variations:
+      - "Witnessed by civilians (ferry passengers)"
+      - "Detected by P-8 reconnaissance"
+      - "Near critical infrastructure (oil rigs, cables)"
+  
+  - id: naval_task_force_positioning
+    description: "Russian Northern Fleet moves into striking position"
+    composition:
+      ssbns: 7  # Ballistic missile subs
+      ssns: 8   # Attack subs
+      destroyers: 2
+      frigates: 4
+    effects:
+      - "Threatens GIUK gap control"
+      - "Positions for missile strikes"
+      - "Tests UK anti-submarine warfare"
+  
+  - id: submarine_engagement
+    description: "UK submarine tracks/engages Russian submarine"
+    historical_note: "Only 2nd time ever one sub sank another while submerged (last: Feb 1945)"
+    effects:
+      - "Significant Russian loss (strategic setback)"
+      - "Escalation risk (retaliation)"
+      - "Demonstrates UK capability"
+
+infrastructure_scenarios:
+  
+  - id: power_station_attack
+    targets: ["Drax (6% of UK electricity)", "Gas terminals", "Nuclear plants"]
+    methods: ["Sabotage", "Cyber attack", "Missile strike"]
+    effects:
+      - "Rolling blackouts"
+      - "Civilian casualties"
+      - "Economic disruption"
+      - "Public panic"
+    
+  - id: gas_pipeline_sabotage
+    target: "St Fergus terminal (50% of UK gas supply)"
+    method: "Subsea explosive device (Russian deep-sea special forces)"
+    timing: "October (heating season beginning)"
+    effects:
+      - "National grid cannot run at full capacity"
+      - "Prioritize military/hospitals over civilian power"
+      - "3-hour rolling blackouts"
+      - "Industrial capacity reduced"
+  
+  - id: undersea_cable_attacks
+    targets: ["Communication cables", "Power interconnectors"]
+    note: "Russia has been mapping Western undersea infrastructure for years"
+    effects:
+      - "Internet/communication disruption"
+      - "Financial market impact"
+      - "Isolation from allies"
+
+cyber_scenarios:
+  
+  - id: cyber_attack_wave
+    targets: ["Government websites", "Businesses", "Critical infrastructure"]
+    intensity: "65% increase in attacks"
+    effects:
+      - "Service disruption"
+      - "Psychological impact"
+      - "Coordination with physical attacks"
+
+military_target_scenarios:
+  
+  - id: air_base_strikes
+    targets:
+      - "Lossiemouth (P-8 reconnaissance, tankers)"
+      - "Coningsby (Typhoons)"
+      - "RAF bases (F-35s)"
+    effects:
+      - "Reduced air defence capability"
+      - "Tanker losses (limits F-35 range)"
+      - "Aircraft destroyed on ground"
+  
+  - id: naval_base_strikes
+    targets:
+      - "Portsmouth (Type-45 destroyers)"
+      - "Faslane (nuclear submarine base)"
+    effects:
+      - "Fleet damage while in port"
+      - "Threatens nuclear deterrent"
+      - "Repair capacity destroyed"
+  
+  - id: gchq_strike
+    target: "GCHQ Cheltenham (signals/cyber intelligence)"
+    impact: "Massive strategic loss"
+    note: "Building destroyed, but staff evacuated"
+    effects:
+      - "Intelligence blind spots"
+      - "Reduced cyber defence"
+      - "Symbolic victory for Russia"
+  
+  - id: mod_whitehall_strike
+    target: "Ministry of Defence, Whitehall"
+    proximity: "Across from 10 Downing Street"
+    effects:
+      - "Command and control disruption"
+      - "Psychological impact (heart of government)"
+      - "Civilian casualties possible"
+
+civilian_target_scenarios:
+  
+  - id: london_strikes
+    targets:
+      - "Oxford Circus (shopping district)"
+      - "Wellington Barracks (near Buckingham Palace)"
+      - "Millbank (office block near Parliament)"
+      - "Heathrow Airport"
+    note: "Crossing threshold from military to civilian targets"
+    effects:
+      - "Public outrage"
+      - "Pressure for retaliation"
+      - "Potential NATO sympathy"
+      - "Legal justification for Article 5"
+  
+  - id: transport_chaos
+    methods: ["Railway sabotage", "Ferry fires", "Traffic infrastructure"]
+    effects:
+      - "Economic disruption"
+      - "Public fear"
+      - "Plausible deniability"
+
+covert_operation_scenarios:
+  
+  - id: pilot_assassinations
+    target: "F-35 pilots"
+    method: "GRU special forces (tracked and killed)"
+    location: "Norfolk"
+    effects:
+      - "Reduces pilot availability"
+      - "Psychological warfare"
+      - "Demonstrates reach into UK"
+  
+  - id: diplomat_exodus
+    description: "Russian diplomatic staff and families rapidly depart UK"
+    significance: "Classic pre-war indicator"
+    effects:
+      - "Intelligence warning sign"
+      - "Reduces diplomatic channels"
+      - "Public alarm"
+
+diplomatic_scenarios:
+  
+  - id: russian_ultimatum
+    deadline: "1 hour to midday"
+    demands:
+      - "Immediate unconditional ceasefire"
+      - "Withdraw all forces to sovereign territory"
+      - "Cease 'terrorist activities'"
+    threats:
+      - "Nuclear annihilation ('UK will cease to exist')"
+      - "'We are not bluffing'"
+    effects:
+      - "Extreme time pressure"
+      - "Public panic"
+      - "Forces decision: comply or escalate"
+  
+  - id: us_ceasefire_brokering
+    scenario: "US offers to broker ceasefire (favoring Russia)"
+    us_position:
+      - "Urges UK restraint"
+      - "Questions UK capability to continue"
+      - "Prioritizes avoiding nuclear war"
+      - "Reorienting to Pacific (not Europe)"
+    effects:
+      - "NATO fracture"
+      - "UK isolation"
+      - "Pressure to accept unfavorable terms"
+  
+  - id: nato_article_4_consultation
+    description: "Emergency NATO consultation (not Article 5 collective defence)"
+    allied_positions:
+      france: "Urges caution, measured response"
+      poland: "Strong support, ready for Article 5"
+      germany: "Exhaust diplomatic channels first"
+      baltics: "Preoccupied with own border security"
+      norway_netherlands_denmark: "Join 'coalition of willing'"
+    effects:
+      - "Alliance division visible"
+      - "Some support, but not unanimous"
+      - "US absence conspicuous"
+
+uk_response_scenarios:
+  
+  - id: submarine_kill_order
+    action: "Authorize sinking of Russian submarine"
+    justification: "Self-defence"
+    effects:
+      - "Significant Russian loss"
+      - "Demonstrates resolve"
+      - "Escalation risk"
+  
+  - id: task_force_engagement
+    action: "Target Russian naval task force"
+    constraints:
+      - "Limited missile stocks"
+      - "Outgunned by Russian forces"
+      - "Risk of losing remaining assets"
+  
+  - id: deep_strike_options
+    targets: ["Murmansk naval base", "Russian infrastructure"]
+    methods:
+      - "F-35 bombing raid (risky, limited weapons)"
+      - "Typhoon cruise missiles (older, detectable)"
+      - "Submarine-launched Tomahawks (best option)"
+    constraints:
+      - "Requires overflight permissions (allies reluctant)"
+      - "F-35s need tanker support"
+      - "Risk of aircraft losses"
+  
+  - id: northern_deployment
+    action: "Deploy 16 Air Assault Brigade to Norway/Finland border"
+    objective: "Strategic dilemma for Russia (threaten Murmansk)"
+    risks:
+      - "Light infantry, vulnerable to artillery"
+      - "Insufficient air defence"
+      - "50% casualty estimate"
+      - "Requires Norwegian/Finnish cooperation"
+  
+  - id: nuclear_signaling
+    actions:
+      - "Raise readiness (BIKINI BLACK SPECIAL)"
+      - "Threaten escalation to pressure allies"
+      - "Demonstrate shot (unused in scenario)"
+    constraints:
+      - "Deterrent worked (Russia didn't go further)"
+      - "But didn't prevent conventional attacks"
+      - "Risk of miscalculation"
+
+public_reaction_scenarios:
+  
+  - id: blitz_spirit
+    description: "Public resilience despite attacks"
+    behaviors:
+      - "Following shelter instructions"
+      - "Pulling together"
+      - "Lower casualties due to compliance"
+    note: "Experts: people don't panic under attack, they cooperate"
+  
+  - id: panic_buying
+    triggers: ["Submarine sighting", "Missile strikes", "Nuclear threats"]
+    behaviors:
+      - "Empty supermarket shelves"
+      - "Bottled water, tinned food hoarding"
+      - "Traffic jams fleeing London"
+  
+  - id: public_pressure
+    demands:
+      - "Where's the military response?"
+      - "Why aren't we protected?"
+      - "Retaliate against Russia"
+    effects:
+      - "Political pressure on PM"
+      - "Legitimacy crisis if no visible response"
+
+# === TIMING AND PACING ===
+crisis_timeline:
+  day_1_sunday:
+    - "Initial COBRA briefing (17:00)"
+    - "Submarine surfacing (19:00)"
+    - "Infrastructure attacks (21:00)"
+  
+  day_2_monday:
+    - "NATO consultations (00:00 midnight)"
+    - "First missile wave (03:15)"
+    - "PM address to nation (06:00)"
+    - "Second missile wave (09:30)"
+    - "Russian ultimatum (11:00)"
+    - "Deadline (12:00 midday)"
+  
+  note: "Crisis escalates over ~19 hours in podcast"
+
+# === KEY THEMES FOR LLM GENERATION ===
+themes:
+  
+  military_reality:
+    - "UK cannot sustain prolonged conventional war"
+    - "Missile stocks measured in days"
+    - "Maintenance backlogs limit availability"
+    - "Treasury cuts have consequences"
+  
+  alliance_dynamics:
+    - "NATO Article 5 not automatic"
+    - "US commitment uncertain"
+    - "European allies divided"
+    - "Coalition of willing possible"
+  
+  escalation_ladder:
+    - "Below-threshold attacks (cyber, sabotage)"
+    - "Limited conventional strikes"
+    - "Civilian target threshold"
+    - "Nuclear signaling"
+    - "Nuclear use (not reached)"
+  
+  decision_dilemmas:
+    - "Respond (escalate) vs restrain (appear weak)"
+    - "Use limited stocks now vs preserve for later"
+    - "Accept unfavorable ceasefire vs fight on"
+    - "Nuclear threat: when to signal vs use"
+  
+  fog_of_war:
+    - "Intelligence gaps"
+    - "Uncertain enemy intentions"
+    - "Ally commitments unclear"
+    - "Public information vs operational security"
+
+# === USAGE NOTES FOR LLM ===
+llm_guidance:
+  
+  adaptation_principles:
+    - "Use these scenarios as inspiration, not scripts"
+    - "Adapt based on player's previous decisions"
+    - "Escalate or de-escalate based on player actions"
+    - "Maintain realism (UK constraints, Russian strategy)"
+    - "Create consequences for player choices"
+  
+  example_adaptations:
+    - "If player authorized strikes → Russian retaliation"
+    - "If player sought NATO → alliance response (divided or united)"
+    - "If player focused on defence → Russia tests resolve differently"
+    - "If player threatened nuclear → Russian counter-threat or backing down"
+  
+  maintain_tension:
+    - "Keep time pressure (deadlines, rapid events)"
+    - "Force difficult trade-offs"
+    - "Show consequences (casualties, damage, political pressure)"
+    - "Balance hope (some allied support) with despair (isolation)"
+  
+  avoid:
+    - "Deus ex machina (sudden US cavalry)"
+    - "Unrealistic UK capabilities"
+    - "Ignoring previous player decisions"
+    - "Linear progression (adapt to player strategy)"
+

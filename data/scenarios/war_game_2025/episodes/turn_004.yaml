@@ -1,0 +1,64 @@
+# Turn 4: NATO Decision Point
+# Monday 6th October 2025, 00:00 (Midnight - 7 hours after initial COBRA)
+# The crisis reaches a critical diplomatic moment
+
+id: turn_004_nato_consultation
+title: "Emergency NATO Consultation - Article 4 Invoked"
+description: |
+  === NATO SECURE VIDEO CONFERENCE ===
+  
+  Prime Minister, you are now connected to an emergency NATO consultation under 
+  Article 4. The Secretary General has convened all 32 member states.
+  
+  **NATO Secretary General:**
+  "Prime Minister, the North Atlantic Council has received your request for emergency 
+  consultations under Article 4. We are treating this matter with the utmost seriousness. 
+  However, I must be frank - there is significant division among allies regarding the 
+  appropriate response."
+  
+  **US Position (National Security Advisor):**
+  "Prime Minister, President Trump has asked me to convey his concern for the UK's 
+  situation. However, the President is not convinced that Russian state involvement 
+  has been definitively established. He's concerned about being drawn into a European 
+  conflict based on circumstantial evidence. The President wants to see more proof 
+  before committing US forces."
+  
+  **French Position:**
+  "We stand with our British allies, but we must be cautious. An overreaction could 
+  provoke exactly the wider conflict we seek to avoid. France recommends a measured 
+  diplomatic response combined with defensive military posture."
+  
+  **Polish Position:**
+  "Poland has faced Russian aggression for years. We believe the UK's assessment is 
+  correct. We are prepared to invoke Article 5 if the UK requests it. Russia must be 
+  stopped now, or they will continue testing NATO's resolve."
+  
+  **German Position:**
+  "Germany shares concerns about Russian actions, but we must exhaust all diplomatic 
+  channels first. A military response at this stage would be premature and potentially 
+  catastrophic. We urge restraint."
+  
+  **NSA (Private Channel):**
+  Prime Minister, this is going as poorly as we feared. The alliance is fracturing. 
+  Without clear US commitment, several smaller members will not support strong action. 
+  We need to decide: do we act unilaterally to defend British interests, or do we 
+  accept that NATO may not come to our aid?
+  
+  **CDS:**
+  Prime Minister, if we're going to act alone, we need to do so soon. Our window for 
+  effective military response is narrowing. Russian forces are positioning for 
+  something - we just don't know what yet.
+  
+  **Foreign Secretary:**
+  Prime Minister, this is the moment that will define Britain's place in the world. 
+  Do we lead, or do we wait for permission that may never come?
+
+channel: diplomatic
+effects:
+  - metric: escalation_risk
+    delta: 3..5
+  - metric: alliance_cohesion
+    delta: -8..-12
+  - metric: domestic_stability
+    delta: -3..-5
+

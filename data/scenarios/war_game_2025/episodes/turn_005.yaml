@@ -1,0 +1,79 @@
+# Turn 5: Point of No Return
+# Monday 6th October 2025, 03:00 (10 hours after initial COBRA)
+# The crisis reaches its climax
+
+id: turn_005_missile_launch_detection
+title: "MISSILE LAUNCH DETECTION - BALLISTIC TRAJECTORY"
+description: |
+  === EMERGENCY ALERT - HIGHEST PRIORITY ===
+  
+  Prime Minister, we have a FLASH message from RAF Fylingdales early warning radar.
+  
+  **MISSILE LAUNCH DETECTED**
+  
+  **CDS (Urgent):**
+  Prime Minister, at 02:57 this morning, our ballistic missile early warning system 
+  detected a launch from a Russian submarine in the Norwegian Sea. Initial trajectory 
+  analysis indicates the missile is on a ballistic path that COULD intersect UK airspace.
+  
+  Flight time to potential UK impact: approximately 8-12 minutes from detection.
+  
+  Current assessment: SINGLE missile. Trajectory analysis ongoing.
+  
+  **NSA:**
+  Prime Minister, this could be:
+  1. An actual attack (nuclear or conventional warhead)
+  2. A test launch designed to provoke a response
+  3. A deliberate near-miss to demonstrate capability
+  4. A technical malfunction
+  
+  We have MINUTES to decide how to respond.
+  
+  **CDS:**
+  Prime Minister, our options:
+  
+  1. **HOLD FIRE** - Wait for trajectory confirmation. If it's heading for UK territory, 
+     we may have time for one Type-45 intercept attempt. If it's a near-miss or test, 
+     we avoid escalation.
+  
+  2. **DEFENSIVE INTERCEPT** - Order Type-45 destroyers to engage if missile enters 
+     UK territorial waters. This is purely defensive but uses our limited missile 
+     inventory.
+  
+  3. **IMMEDIATE RETALIATION** - Authorize submarine-launched response against Russian 
+     naval forces. This assumes hostile intent and commits us to military conflict.
+  
+  **Attorney General:**
+  Prime Minister, under international law, we have the right to self-defence if we 
+  face imminent attack. However, a retaliatory strike before confirming hostile intent 
+  could be legally and politically catastrophic.
+  
+  **Home Secretary:**
+  Prime Minister, if this missile impacts UK territory, we need to activate emergency 
+  civil defence protocols immediately. But if we do so now, we risk causing mass panic.
+  
+  **NSA:**
+  Prime Minister, the next 5 minutes will determine whether we're at war.
+  
+  **[UPDATED - 02:59]**
+  
+  **CDS:**
+  Prime Minister, updated trajectory analysis suggests the missile will impact in the 
+  North Sea, approximately 40 nautical miles east of Aberdeen. This appears to be a 
+  DELIBERATE near-miss - close enough to demonstrate capability, far enough to avoid 
+  direct attack.
+  
+  This is a message, Prime Minister. Russia is showing us they can strike whenever 
+  they choose.
+  
+  How do you respond?
+
+channel: emergency
+effects:
+  - metric: escalation_risk
+    delta: 15..20
+  - metric: domestic_stability
+    delta: -15..-20
+  - metric: alliance_cohesion
+    delta: 5..8  # Crisis may unify or fracture NATO
+

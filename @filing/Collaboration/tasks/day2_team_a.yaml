@@ -1,0 +1,9 @@
+id: day2_team_a
+team: A
+branch: feat/engine-events
+spec_path: Collaboration/specs/day2_team_a_engine.md
+status: completed
+dependencies: [day1_team_a]
+acceptance_tests:
+  - CLI output contains 'Inject: media_leak_01'
+  - domestic_stability drops by 3 deterministically (seed=42)

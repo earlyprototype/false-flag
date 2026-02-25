@@ -1,0 +1,152 @@
+# State Actor Definitions
+# Used to initialize the multi-agent simulation system.
+# Values guide the LLM in simulating individual country responses.
+
+- country_code: USA
+  full_name: United States of America
+  official_position: "Strong ally but requires evidence and Congressional consultation"
+  relationship_uk: 60
+  
+  true_motivations:
+    - avoid_entanglement_without_proof
+    - maintain_nato_credibility
+    - focus_on_china_pivot
+    - domestic_politics_first
+  
+  hidden_agendas:
+    - election_year_caution
+    - wants_europe_to_lead
+  
+  threat_perception: 50
+  domestic_pressure: 70
+  
+  dependencies:
+    CHN: strategic_competitor
+  
+  redlines:
+    - no_offensive_without_unambiguous_proof
+    - congress_approval_required
+    - no_nuclear_first_use
+  
+  military_capability: 100
+  economic_leverage: 95
+  diplomatic_influence: 100
+  intelligence_sharing: selective
+
+- country_code: FRA
+  full_name: French Republic
+  official_position: "European solidarity with UK, but diplomatic solutions preferred"
+  relationship_uk: 45
+  
+  true_motivations:
+    - european_strategic_autonomy
+    - reduce_anglosaxon_dominance
+    - position_as_mediator
+    - protect_french_interests
+  
+  hidden_agendas:
+    - secret_russia_backchannel
+    - wants_uk_weakened_to_strengthen_french_leadership
+    - delay_nato_action_to_create_space_for_diplomacy
+  
+  threat_perception: 30
+  domestic_pressure: 60
+  
+  dependencies:
+    DEU: eu_partnership
+    RUS: diplomatic_relationship
+  
+  redlines:
+    - will_not_support_offensive_action
+    - must_pursue_diplomatic_track_first
+    - no_subordination_to_us_uk_axis
+  
+  military_capability: 80
+  economic_leverage: 70
+  diplomatic_influence: 85
+  intelligence_sharing: limited
+
+- country_code: DEU
+  full_name: Federal Republic of Germany
+  official_position: "Solidarity with allies, but must follow proper procedures"
+  relationship_uk: 50
+  
+  true_motivations:
+    - energy_security_paramount
+    - avoid_economic_catastrophe
+    - maintain_nato_consensus
+    - constitutional_constraints
+  
+  hidden_agendas: []
+  
+  threat_perception: 40
+  domestic_pressure: 80
+  
+  dependencies:
+    RUS: natural_gas_supply
+    EU: economic_integration
+  
+  redlines:
+    - cannot_support_actions_threatening_gas_supply
+    - bundestag_approval_required
+    - no_offensive_military_action
+  
+  military_capability: 60
+  economic_leverage: 85
+  diplomatic_influence: 75
+  intelligence_sharing: full
+
+- country_code: POL
+  full_name: Republic of Poland
+  official_position: "Unwavering support for UK, Russia is existential threat"
+  relationship_uk: 85
+  
+  true_motivations:
+    - contain_russian_aggression
+    - strengthen_nato
+    - protect_eastern_europe
+    - prevent_appeasement
+  
+  hidden_agendas: []
+  
+  threat_perception: 95
+  domestic_pressure: 20
+  
+  dependencies: {}
+  
+  redlines: []
+  
+  military_capability: 50
+  economic_leverage: 30
+  diplomatic_influence: 40
+  intelligence_sharing: full
+
+- country_code: RUS
+  full_name: Russian Federation
+  official_position: "UK attacked Severomorsk, we are defending ourselves"
+  relationship_uk: 10
+  
+  true_motivations:
+    - test_nato_resolve
+    - fracture_alliance
+    - neutralize_uk_as_obstacle
+    - demonstrate_us_wont_defend_europe
+  
+  hidden_agendas:
+    - operation_tuman
+    - exploit_nato_divisions
+    - undermine_us_commitment
+  
+  threat_perception: 40
+  domestic_pressure: 30
+  
+  dependencies: {}
+  
+  redlines:
+    - will_escalate_if_nato_deploys_offensively
+    - nuclear_option_if_regime_threatened
+  
+  military_capability: 90
+  economic_leverage: 60
+  diplomatic_influence: 40
+  intelligence_sharing: none

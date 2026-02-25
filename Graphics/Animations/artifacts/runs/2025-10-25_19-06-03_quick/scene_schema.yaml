@@ -1,0 +1,28 @@
+version: 1
+palette: db16
+sprites:
+  anchor:
+    # Option A: explicit frame globs per sequence
+    # frames:
+    #   neutral: assets/anchor_zero/frames/anchor_neutral_*.png
+    #   blink:   assets/anchor_zero/frames/anchor_blink_*.png
+    #   talk:    assets/anchor_zero/frames/anchor_talk_*.png
+
+    # Option B: folder + tags (uses pattern "{tag}_*.png" by default)
+    path: assets/anchor_zero/frames
+    tags: [neutral, blink, talk]
+    pattern: "anchor_{tag}_*.png"
+layers:
+  - id: character
+    sprite: anchor
+    timeline:
+      - { seq: neutral, frames: 24 }
+      - { seq: blink,   frames: 2 }
+      - { seq: talk,    frames: 8 }
+    bob: { amplitude: 1, period: 16 }
+    guides: false  # set true to draw a simple landmark guide overlay
+  - id: ticker
+    type: text_scroll
+    text: "BREAKING: ..."
+    row: -2
+

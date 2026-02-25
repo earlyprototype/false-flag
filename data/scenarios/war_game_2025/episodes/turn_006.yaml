@@ -1,0 +1,46 @@
+# Turn 6: US Demands Answers
+# Mandatory diplomatic encounter with US President
+
+id: turn_006_us_demands_answers
+title: "US Demands Coordination"
+description: |
+  === INTELLIGENCE UPDATE ===
+  
+  Russian naval forces have moved closer to UK territorial waters. Two additional
+  SSBNs have been detected moving into firing positions. GCHQ intercepts suggest
+  Russian military communications are at heightened alert levels.
+  
+  Your previous actions have raised concerns in Washington. The US National Security
+  Council has been briefing the President on the UK situation, and there are questions
+  about whether the UK is coordinating adequately with NATO allies.
+  
+  *** INCOMING SECURE CALL: US PRESIDENT ***
+  
+  Your secure phone rings. It's the White House.
+
+channel: briefing
+effects:
+  - metric: escalation_risk
+    delta: 8..12
+  - metric: domestic_stability
+    delta: -2..-4
+
+# Mandatory diplomatic encounter
+diplomatic_encounter:
+  required: true
+  country: US
+  context: |
+    The US President is concerned about UK unilateral actions and wants assurances
+    before committing to Article 5 support. Your conversation will affect US willingness
+    to support the UK and overall NATO solidarity.
+  
+  success_conditions:
+    - Reassure about NATO coordination
+    - Explain UK strategic rationale
+    - Request specific US support (e.g., THAAD batteries, carrier group)
+  
+  failure_consequences:
+    - Alliance Cohesion -10 to -15
+    - US support becomes uncertain
+    - NATO Article 5 activation more difficult
+

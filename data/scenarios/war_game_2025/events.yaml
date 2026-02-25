@@ -1,0 +1,47 @@
+- id: role_brief_defence_sec
+  when: { scene_eq: 1 }
+  trigger: { always: true }
+  channel: briefing
+  effects:
+    - metric: alliance_cohesion
+      delta: +1..+2
+  image: data/scenarios/war_game_2025/role_briefs/defence_sec.md
+
+
+- id: role_brief_nsc_chair
+  when: { scene_eq: 1 }
+  trigger: { always: true }
+  channel: briefing
+  effects:
+    - metric: mission_progress
+      delta: +1..+1
+  image: data/scenarios/war_game_2025/role_briefs/nsc_chair.md
+ 
+- id: media_leak_01
+  when: { scene_eq: 1 }
+  trigger: { always: true }
+  channel: media
+  effects:
+    - metric: domestic_stability
+      delta: -4..-2
+  image: assets/placeholders/media_leak.md
+ 
+- id: media_leak_02
+  when: { scene_eq: 2 }
+  trigger: { always: true }
+  channel: media
+  effects:
+    - metric: domestic_stability
+      delta: -2..-1
+  image: assets/placeholders/media_leak_02.md
+
+
+- id: briefing_slide_01
+  when: { scene_eq: 1 }
+  trigger: { always: true }
+  channel: briefing
+  effects:
+    - metric: alliance_cohesion
+      delta: +1..+3
+  image: assets/placeholders/briefing_slide_01.md
+

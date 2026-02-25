@@ -1,0 +1,107 @@
+
+version: 1
+palette: db16
+
+# Define the different color-swapped sprites
+sprites:
+  us_anchor:
+    path: assets/diplomats/us
+    tags: [neutral, blink]
+    pattern: "{tag}.png"
+  de_anchor:
+    path: assets/diplomats/de
+    tags: [neutral, blink]
+    pattern: "{tag}.png"
+  fr_anchor:
+    path: assets/diplomats/fr
+    tags: [neutral, blink]
+    pattern: "{tag}.png"
+  ru_anchor:
+    path: assets/diplomats/ru
+    tags: [neutral, blink]
+    pattern: "{tag}.png"
+
+# Define the layers of the scene
+layers:
+  - id: title
+    type: text
+    text: "[bold]SECURE COMMS - CONTACTS[/]"
+    row: 1
+    col: 2
+
+  # --- US Diplomat ---
+  - id: us_char
+    type: character
+    sprite: us_anchor
+    pos: {x: 5, y: 4}
+    timeline:
+      - { seq: neutral, frames: 60 }
+      - { seq: blink, frames: 2 }
+  - id: us_text
+    type: text
+    text: "1. President | United States"
+    row: 6
+    col: 20
+  - id: us_status
+    type: text
+    text: "[green]Online[/green]"
+    row: 6
+    col: 65
+
+  # --- German Diplomat ---
+  - id: de_char
+    type: character
+    sprite: de_anchor
+    pos: {x: 5, y: 12}
+    timeline:
+      - { seq: neutral, frames: 70 }
+      - { seq: blink, frames: 2 }
+  - id: de_text
+    type: text
+    text: "2. Chancellor | Germany"
+    row: 14
+    col: 20
+  - id: de_status
+    type: text
+    text: "[green]Online[/green]"
+    row: 14
+    col: 65
+
+  # --- French Diplomat ---
+  - id: fr_char
+    type: character
+    sprite: fr_anchor
+    pos: {x: 5, y: 20}
+    timeline:
+      - { seq: neutral, frames: 50 }
+      - { seq: blink, frames: 2 }
+  - id: fr_text
+    type: text
+    text: "3. President | France"
+    row: 22
+    col: 20
+  - id: fr_status
+    type: text
+    text: "[yellow]Do Not Disturb[/yellow]"
+    row: 22
+    col: 65
+
+  # --- Russian Diplomat ---
+  - id: ru_char
+    type: character
+    sprite: ru_anchor
+    pos: {x: 5, y: 28}
+    timeline:
+      - { seq: neutral, frames: 80 }
+      - { seq: blink, frames: 2 }
+  - id: ru_text
+    type: text
+    text: "4. Ambassador | Russia"
+    row: 30
+    col: 20
+  - id: ru_status
+    type: text
+    text: "[red]Offline[/red]"
+    row: 30
+    col: 65
+

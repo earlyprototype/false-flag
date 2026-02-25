@@ -1,0 +1,54 @@
+narratives:
+  - narrative_id: "RUSSIA_AGGRESSION"
+    description: "The crisis is exactly as it appears: Russia is undertaking a major aggressive military operation to challenge NATO and assert dominance in the North Atlantic. Their motives are expansionist and opportunistic."
+    protagonist: "RUS"
+    antagonist: "GBR"
+    patsy: "NONE"
+    stances:
+      - country_code: "RUS"
+        secret_motive: "Intimidate NATO into political concessions regarding Arctic shipping lanes and test the UK's resolve, believing the alliance is weak."
+        public_posture: "Conducting legitimate naval exercises in international waters; any hostile action is a fabrication by the West."
+        economic_leverage: ["Gas supplies to Europe"]
+        intel_sharing_level: "Sabotaged"
+      - country_code: "USA"
+        secret_motive: "Reinforce NATO's strength and commitment, using the crisis to justify increased defense spending and troop presence in Europe."
+        public_posture: "Full solidarity with the United Kingdom and a commitment to collective defense under Article 5."
+        economic_leverage: ["International banking sanctions"]
+        intel_sharing_level: "Full"
+      - country_code: "CHN"
+        secret_motive: "Observe NATO response dynamics to inform future strategy regarding Taiwan, while avoiding direct involvement."
+        public_posture: "Calling for calm and de-escalation from all parties involved; positioning as a neutral peacemaker."
+        economic_leverage: ["Global supply chain dominance"]
+        intel_sharing_level: "Withheld"
+      - country_code: "IRL"
+        secret_motive: "Maintain neutrality at all costs and avoid being dragged into a major power conflict."
+        public_posture: "Expressing deep concern and offering to act as a neutral intermediary for diplomatic talks."
+        economic_leverage: []
+        intel_sharing_level: "Withheld"
+
+  - narrative_id: "CHINA_PROXY_WAR"
+    description: "This crisis is a sophisticated proxy operation by China. They are secretly funding and encouraging Russia's aggression to bog the US and NATO down in a European conflict, draining their resources and political will to focus on the Pacific."
+    protagonist: "CHN"
+    antagonist: "USA"
+    patsy: "RUS"
+    stances:
+      - country_code: "RUS"
+        secret_motive: "Follow through on the operation as encouraged by China, believing they have a powerful silent partner that will back them economically and diplomatically, making the risk acceptable."
+        public_posture: "Conducting legitimate naval exercises; dismissing Western accusations as baseless warmongering."
+        economic_leverage: ["Gas supplies to Europe"]
+        intel_sharing_level: "Sabotaged"
+      - country_code: "USA"
+        secret_motive: "Become increasingly suspicious of China's role, trying to confirm intelligence of their involvement without revealing sources and provoking a wider conflict."
+        public_posture: "Solidarity with the UK, but with growing private frustration that they are being drawn into a two-front cold war."
+        economic_leverage: ["Tariffs", "Technology sanctions"]
+        intel_sharing_level: "Partial" # Holding back intel related to China
+      - country_code: "CHN"
+        secret_motive: "Publicly call for peace while privately fanning the flames. Use state media to amplify narratives of Western aggression. Delay UN Security Council resolutions. Provide Russia with non-lethal aid and economic lifelines."
+        public_posture: "Concerned neutral party advocating for diplomatic solutions."
+        economic_leverage: ["Global supply chain dominance", "Debt diplomacy"]
+        intel_sharing_level: "Withheld"
+      - country_code: "IRL"
+        secret_motive: "Maintain neutrality, but become increasingly alarmed by the global scope of the conflict, potentially sharing low-level intel with the UK about unusual shipping."
+        public_posture: "Expressing deep concern and offering to act as a neutral intermediary for diplomatic talks."
+        economic_leverage: []
+        intel_sharing_level: "Withheld"
