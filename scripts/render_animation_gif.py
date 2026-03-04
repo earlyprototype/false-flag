@@ -328,7 +328,7 @@ def generate_frames(cols: int, rows: int, fps: int) -> List[Image.Image]:
         full_text = turn_info["text"]
 
         if speaker == "diplomat":
-            title = "President | United States"
+            title = "President | Russian Federation"
             border_rgb = RICH_COLOUR_NAMES["bright_blue"]
             bubble_x = diplomat_sprite_x + SPRITE_WIDTH + 2
             bubble_width = cols - bubble_x

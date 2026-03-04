@@ -204,7 +204,7 @@ def run_demo(fps: int):
             bubble_y = 3
             
             if speaker == "diplomat":
-                title = "President | United States"
+                title = "President | Russian Federation"
                 border_color = "bright_blue"
                 
                 # Draw static border once
