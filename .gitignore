@@ -79,3 +79,9 @@ test_output.txt
 # User approvals
 user_approval*.txt
 
+# Coach (coachtime) local session state
+.coachtime
+.claude/coach-session-*.txt
+.claude/coach-history.jsonl
+.claude/coach-intent.txt
+
