@@ -114,10 +114,11 @@ class GeminiDriver:
             # Note: Gemini doesn't support explicit seed, but we can use temperature
             seed = rng.randint(0, 2**31 - 1)
             
-            # Generate response
+            # Generate response (30s timeout so a network stall can't hang the game)
             response = self.model.generate_content(
                 prompt,
                 generation_config=self.generation_config,
+                request_options={"timeout": 30},
             )
             
             # Extract text from response
@@ -150,16 +151,32 @@ class GeminiDriver:
         if not prompts:
             return []
         
+        import threading
         from concurrent.futures import ThreadPoolExecutor, as_completed
-        
+
+        # Reuse the router's rate limiter so the parallel batch path obeys the
+        # same per-minute cap as the sequential path (free Flash tier = 10 RPM).
+        # Without this, the thread pool fires every request at once and 429s.
+        from llm.router import get_rate_limiter
+        rate_limiter = get_rate_limiter(self.model_name)
+        rate_limiter_lock = threading.Lock()
+
         def generate_single(prompt: str) -> str:
             """Generate single response - used by thread pool."""
             try:
+                # Gate on the shared rate limiter before each API call. The
+                # limiter itself isn't thread-safe, so serialize the
+                # check/wait/record under a lock; the API call still runs
+                # concurrently once a slot is granted.
+                if rate_limiter:
+                    with rate_limiter_lock:
+                        rate_limiter.wait_if_needed(verbose=False)
                 response = self.model.generate_content(
                     prompt,
                     generation_config=self.generation_config,
+                    request_options={"timeout": 30},
                 )
-                
+
                 if response.text:
                     return response.text.strip()
                 else:
@@ -167,7 +184,7 @@ class GeminiDriver:
                     return f"[ERROR: {finish_reason}]"
             except Exception as e:
                 return f"[ERROR: {str(e)}]"
-        
+
         # Use ThreadPoolExecutor for parallel processing
         # Process all prompts concurrently (up to max_workers)
         max_workers = min(len(prompts), 10)  # Limit concurrent requests
