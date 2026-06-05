@@ -39,7 +39,6 @@ config.py
 
 # Saves
 saves/
-*.json
 
 # Logs
 *.log
@@ -79,9 +78,18 @@ test_output.txt
 # User approvals
 user_approval*.txt
 
+# Windows device name artefacts
+nul
+
+# Server logs
+server_*.log
+
+# Generated assets (keep in _archive if needed)
+assets/imageoutputs/sorted/
+
+
 # Coach (coachtime) local session state
 .coachtime
 .claude/coach-session-*.txt
 .claude/coach-history.jsonl
 .claude/coach-intent.txt
-

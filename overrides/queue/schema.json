@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Control-Cell Override",
+  "type": "object",
+  "required": ["id", "scene", "rationale", "suggestion", "author", "status"],
+  "properties": {
+    "id": { "type": "string" },
+    "scene": { "type": "integer", "minimum": 1 },
+    "rationale": { "type": "string", "minLength": 1 },
+    "suggestion": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "enum": ["metric_adjust", "schedule_event", "cancel_event"] },
+        "metric": { "type": "string" },
+        "delta": { "type": "integer" },
+        "event_id": { "type": "string" }
+      }
+    },
+    "author": { "type": "string" },
+    "status": { "type": "string", "enum": ["pending", "approved", "rejected"] }
+  }
+}
+
+

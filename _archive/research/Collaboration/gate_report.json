@@ -1,0 +1,10 @@
+{
+  "yaml": [],
+  "seed_smoke": [
+    "Expected an action to be taken in llm mode"
+  ],
+  "icd": [],
+  "golden_mock_seed42": [
+    "Golden transcript mismatch under mock seed 42"
+  ]
+}
