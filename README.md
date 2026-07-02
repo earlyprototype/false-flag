@@ -141,7 +141,6 @@ wargame/
 │   └── main.py            # Main entry point
 ├── engine/                 # Core game engine
 │   ├── sim_loop.py        # Turn-based game loop
-│   ├── adjudicator.py     # Decision adjudication
 │   ├── initial_conditions.py  # Scenario setup
 │   └── persistence.py     # Save/load system
 ├── llm/                    # LLM integration
@@ -181,13 +180,20 @@ wargame/
 .\.venv\Scripts\python.exe -m scripts.batch_runner war_game_2025 42
 ```
 
+## Further Documentation
+
+- **[GAME_DESCRIPTION.md](GAME_DESCRIPTION.md)**: Full premise, characters, and the world behind the crisis
+- **[Diplomatic System](docs/handover/DIPLOMATIC_SYSTEM.md)**: How alliance negotiation and diplomatic encounters work
+- **[Nuclear Command Chain](docs/handover/NUCLEAR_COMMAND_CHAIN_SYSTEM.md)**: Nuclear authority, consequences, and escalation control
+- **[Dynamic Narrative System](docs/handover/DYNAMIC_NARRATIVE_SYSTEM.md)**: The hidden-narrative engine driving emergent storytelling
+
 ## Credits
 
 Inspired by "The Wargame" podcast by Audible and Somethin' Else.
 
 ## Licence
 
-[Add your licence here]
+MIT — see [LICENSE](LICENSE).
 
 ---
 
