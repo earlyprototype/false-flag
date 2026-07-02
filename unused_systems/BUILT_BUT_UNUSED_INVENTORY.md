@@ -41,7 +41,7 @@ class NarrativeState(BaseModel):
 
 **Blocking Issues:** None - fully functional
 
-**Last Worked On:** Session with Pydantic underscore fix (user said "remove the fucking leading underscore")
+**Last Worked On:** Session with Pydantic underscore fix (user emphatically asked to remove the leading underscore)
 
 ---
 
