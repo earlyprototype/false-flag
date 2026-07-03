@@ -129,12 +129,12 @@ The game delivers scenario events through a flexible system:
 
 #### Scripted Injects:
 - Hand-crafted YAML files (`turn_NNN.yaml`)
-- Based on podcast episodes and historical crises
+- Based on traditional scenario and historical crises
 - Ensure key narrative beats and realistic escalation
 
 #### Stochastic Injects (Optional):
 - AI-generated events using LLM
-- Draws from scenario library mined from podcast transcripts
+- Draws from scenario library
 - Adapts to player decisions and world state
 - Creates emergent, unpredictable scenarios
 
