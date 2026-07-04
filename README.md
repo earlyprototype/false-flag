@@ -1,10 +1,19 @@
 # FALSE FLAG: THE WARGAME
 
-An interactive political-military crisis simulation inspired by "The Wargame" podcast.
+You are the UK Prime Minister. Russia has just staged an attack and blamed Britain for it. Your cabinet of AI advisors is waiting for you to decide what happens next — in your own words, not from a menu.
 
-You are the Prime Minister of the United Kingdom. Russia has deployed an unprecedented naval force to the North Atlantic following a terrorist attack they falsely blame on Britain. Your decisions in the coming hours will determine whether the UK faces down this threat, stumbles into war, or appears weak before an adversary testing NATO's resolve.
+> Inspired by Sky News' **[The Wargame](https://www.audible.co.uk/podcast/The-Wargame/B0FCLQ7W9B)** podcast. This is an independent project — not affiliated with or endorsed by Sky News, Tortoise, or the podcast's participants.
 
 ![Dialogue Demo](dialogue_demo.gif)
+
+## What Happens in a Session
+
+- **Briefing** — you're read into the crisis: intelligence updates, breaking developments, and sometimes a call from a foreign leader you have to take there and then.
+- **Cabinet discussion** — you question five AI advisors (military, intelligence, diplomatic, legal, domestic) in plain English, and they answer in character.
+- **Free-form decision** — you say, in your own words, what you want to do. There is no list to choose from.
+- **Adjudication** — the game interprets your decision, your advisors push back if it's reckless, and the outcome plays out.
+- **Consequences** — escalation risk, alliance cohesion, and domestic stability shift, the world state updates, and it carries into the next turn.
+- Play this out across a live, unscripted crisis with seven nations in the mix, until the UK faces the threat down, stumbles into war, or looks weak in front of an adversary testing NATO's resolve.
 
 ## Features
 
@@ -15,55 +24,35 @@ You are the Prime Minister of the United Kingdom. Russia has deployed an unprece
 - **Two-Phase Turns**: Discussion phase (ask questions, gather advice) and Decision phase (commit to action)
 - **Save/Load System**: Continue your campaign across multiple sessions
 
-## Quick Start
-
-### 1. Install Dependencies
+## Quickstart
 
 ```powershell
-# Create virtual environment
+git clone https://github.com/earlyprototype/wargame.git
+cd wargame
+
 python -m venv .venv
-
-# Activate it
-.\.venv\Scripts\Activate.ps1
-
-# Install packages
 .\.venv\Scripts\pip.exe install -r requirements.txt
-```
 
-### 2. Play with Mock Advisors (No Setup Required)
+# Avoids a console-encoding crash some Windows terminals hit on the box-drawing UI
+$env:PYTHONIOENCODING = "utf-8"
 
-```powershell
 .\.venv\Scripts\python.exe -m cli.main play
 ```
 
-This uses template-based responses for testing.
+No API key and no config file needed. With nothing configured, the game defaults to a deterministic **mock** advisor mode, so you get the full turn structure — briefing, cabinet Q&A, decision, adjudication — without calling out to any LLM provider. On first launch you'll be asked to pick a scenario length, difficulty, and play mode; the defaults are sensible, so pressing Enter through them is fine.
 
-### 3. Enable Real AI Advisors (Recommended)
+### Real AI advisors (recommended for actual play)
 
-For intelligent, context-aware responses:
+Mock mode proves the game runs, but it answers from a small set of canned advisor lines rather than reasoning about your specific decision. For the real experience:
 
-1. Install Gemini SDK:
-   ```powershell
-   .\.venv\Scripts\pip.exe install google-generativeai
-   ```
-
-2. Get free API key from [Google AI Studio](https://aistudio.google.com/apikey)
-
-3. Create `config.py` from template:
-   ```powershell
-   copy config.example.py config.py
-   ```
-
-4. Edit `config.py` and add your API key:
+1. Install the Gemini SDK: `.\.venv\Scripts\pip.exe install google-generativeai`
+2. Get a free API key from [Google AI Studio](https://aistudio.google.com/apikey)
+3. `copy config.example.py config.py`, then edit `config.py`:
    ```python
    GOOGLE_API_KEY = "AIza..."
    LLM_PROVIDER = "gemini"
    ```
-
-5. Play:
-   ```powershell
-   .\.venv\Scripts\python.exe -m cli.main play
-   ```
+4. Run the same launch command again.
 
 See [docs/GEMINI_SETUP.md](docs/GEMINI_SETUP.md) for detailed setup instructions.
 
@@ -174,22 +163,17 @@ wargame/
 .\.venv\Scripts\python.exe -m ruff check .
 ```
 
-### Batch Mode (for testing)
-
-```powershell
-.\.venv\Scripts\python.exe -m scripts.batch_runner war_game_2025 42
-```
-
 ## Further Documentation
 
 - **[GAME_DESCRIPTION.md](GAME_DESCRIPTION.md)**: Full premise, characters, and the world behind the crisis
+- **[Inspiration & Sources](docs/INSPIRATION.md)**: Full credit to The Wargame, Perun's NATO wargame analysis, and the wargaming research behind the design
 - **[Diplomatic System](docs/handover/DIPLOMATIC_SYSTEM.md)**: How alliance negotiation and diplomatic encounters work
 - **[Nuclear Command Chain](docs/handover/NUCLEAR_COMMAND_CHAIN_SYSTEM.md)**: Nuclear authority, consequences, and escalation control
 - **[Dynamic Narrative System](docs/handover/DYNAMIC_NARRATIVE_SYSTEM.md)**: The hidden-narrative engine driving emergent storytelling
 
 ## Credits
 
-Inspired by "The Wargame" podcast by Audible and Somethin' Else.
+See [docs/INSPIRATION.md](docs/INSPIRATION.md) for full credit to The Wargame (Sky News and Tortoise), Perun's NATO wargame analysis, and the wargaming research behind this design.
 
 ## Licence
 

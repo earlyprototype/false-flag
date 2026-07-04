@@ -342,7 +342,7 @@ Based on **"The Wargame"** podcast series, which simulates realistic crisis scen
 
 ### Development:
 - **Game Design & Implementation**: AI-assisted development using Claude Sonnet 4.5
-- **Scenario Content**: Mined from podcast transcripts and historical crises
+- **Scenario Content**: Inspired by the podcast's scenarios, real-world wargaming research, and historical crises
 - **LLM Integration**: Google Gemini 2.5 Flash
 - **Framework**: Python, Typer, Pydantic, YAML
 
