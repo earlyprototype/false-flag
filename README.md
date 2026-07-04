@@ -27,8 +27,8 @@ You are the UK Prime Minister. Russia has just staged an attack and blamed Brita
 ## Quickstart
 
 ```powershell
-git clone https://github.com/earlyprototype/wargame.git
-cd wargame
+git clone https://github.com/earlyprototype/false-flag.git
+cd false-flag
 
 python -m venv .venv
 .\.venv\Scripts\pip.exe install -r requirements.txt
