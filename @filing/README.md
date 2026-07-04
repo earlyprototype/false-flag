@@ -10,7 +10,8 @@ Authoritative store for research, briefs, prompts, benchmarks, and references. O
 - Research log (template): `cli_research_log.md`
 - Precedents & influences: `precedents_and_influences.md`
 - Anchor Zero concept: `anchor_zero_concept.md`
-- Transcript/source refs: `transcript_sources.md`
+
+Third-party podcast/video transcripts formerly indexed here have been removed for rights reasons — see [docs/INSPIRATION.md](../docs/INSPIRATION.md) for source credits.
 
 ## Conventions
 - Keep originals intact; append with dated sections rather than overwriting.
