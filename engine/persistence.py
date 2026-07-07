@@ -5,7 +5,7 @@ Provides JSON-based persistence for WorldState and game transcript.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from models.world import WorldState
 from models.narrative_state import NarrativeState

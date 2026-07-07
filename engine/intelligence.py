@@ -4,7 +4,7 @@ Generates realistic intelligence reports from hidden metrics and actor states,
 allowing players to infer situation without seeing raw numbers.
 """
 
-from typing import List, Dict, Optional, Tuple
+from typing import List
 from random import Random
 from models.world import WorldState
 from models.narrative_state import NarrativeState
@@ -81,15 +81,15 @@ def _generate_economic_indicators(narrative_state: NarrativeState, rng: Random) 
     
     # Currency
     if stability > 70:
-        lines.append(f"• Sterling: £1 = $1.27 ([green]stable[/green])")
+        lines.append("• Sterling: £1 = $1.27 ([green]stable[/green])")
     elif stability > 40:
         lines.append(f"• Sterling: £1 = $1.18 ([yellow]-{rng.uniform(2.5, 4.5):.1f}%[/yellow] - flight to safe havens)")
     else:
-        lines.append(f"• Sterling: £1 = $1.09 ([bold red]CRITICAL - BoE emergency intervention imminent[/bold red])")
+        lines.append("• Sterling: £1 = $1.09 ([bold red]CRITICAL - BoE emergency intervention imminent[/bold red])")
     
     # Russian markets (indicator of escalation)
     if escalation > 70:
-        lines.append(f"• Moscow Exchange: [bold red]Suspended trading (war footing)[/bold red]")
+        lines.append("• Moscow Exchange: [bold red]Suspended trading (war footing)[/bold red]")
     elif escalation > 40:
         lines.append(f"• Russian defence stocks: [red]+{rng.uniform(10, 20):.0f}% (mobilization underway)[/red]")
     
@@ -122,49 +122,49 @@ def _generate_diplomatic_intelligence(
             if usa.relationship_uk > 70:
                 lines.append(f"• Washington-London hotline: [green]Active coordination ({rng.randint(15, 25)} calls today)[/green]")
             elif usa.relationship_uk > 40:
-                lines.append(f"• US NSA to UK Ambassador: \"Need more evidence before commitment\"")
+                lines.append("• US NSA to UK Ambassador: \"Need more evidence before commitment\"")
             else:
-                lines.append(f"• Washington-London hotline: [red]Radio silence (ABNORMAL)[/red]")
+                lines.append("• Washington-London hotline: [red]Radio silence (ABNORMAL)[/red]")
         
         if fra:
             if fra.relationship_uk < 50:
                 baseline = rng.randint(250, 400)
                 lines.append(f"• Paris-Berlin encrypted comms: [yellow]{baseline}% above baseline (UNUSUAL)[/yellow]")
                 if "secret_russia_backchannel" in fra.hidden_agendas:
-                    lines.append(f"• French Ambassador: [bold red]Off-diary meeting with Russian counterpart (SIGINT)[/bold red]")
+                    lines.append("• French Ambassador: [bold red]Off-diary meeting with Russian counterpart (SIGINT)[/bold red]")
             elif fra.relationship_uk > 60:
-                lines.append(f"• Paris echoing UK messaging on Russian aggression")
+                lines.append("• Paris echoing UK messaging on Russian aggression")
         
         if deu:
             if deu.relationship_uk < 50:
                 lines.append(f"• German Chancellor's office: [yellow]Cancelled UK PM call ({rng.randint(2, 4)}x this week)[/yellow]")
             elif deu.relationship_uk > 60:
-                lines.append(f"• Berlin coordinating closely with London")
+                lines.append("• Berlin coordinating closely with London")
         
         if pol:
             if pol.relationship_uk > 70:
                 lines.append(f"• Polish PM attempted UK PM call x{rng.randint(2, 5)} ([green]eager to coordinate[/green])")
             elif pol.relationship_uk > 50:
-                lines.append(f"• Warsaw: Unqualified support, forces on standby")
+                lines.append("• Warsaw: Unqualified support, forces on standby")
     else:
         # Fallback: generic intelligence based on aggregate cohesion
         if cohesion > 70:
-            lines.append(f"• NATO: [green]High coordination, Article 5 readiness confirmed[/green]")
-            lines.append(f"• Allied capitals: Unified messaging on Russian aggression")
+            lines.append("• NATO: [green]High coordination, Article 5 readiness confirmed[/green]")
+            lines.append("• Allied capitals: Unified messaging on Russian aggression")
         elif cohesion > 40:
-            lines.append(f"• NATO: [yellow]Divisions emerging, some members urge caution[/yellow]")
-            lines.append(f"• Paris-Berlin coordination increasing (UK excluded)")
+            lines.append("• NATO: [yellow]Divisions emerging, some members urge caution[/yellow]")
+            lines.append("• Paris-Berlin coordination increasing (UK excluded)")
         else:
-            lines.append(f"• NATO: [bold red]SEVERE DIVISIONS - emergency session postponed[/bold red]")
-            lines.append(f"• Multiple allies privately distancing from UK position")
+            lines.append("• NATO: [bold red]SEVERE DIVISIONS - emergency session postponed[/bold red]")
+            lines.append("• Multiple allies privately distancing from UK position")
     
     # NATO institutional response
     if cohesion > 60:
-        lines.append(f"• NATO Secretary General: \"Unshakeable Article 5 commitment\"")
+        lines.append("• NATO Secretary General: \"Unshakeable Article 5 commitment\"")
     elif cohesion > 30:
-        lines.append(f"• NATO Secretary General: \"Extremely concerned by divisions\"")
+        lines.append("• NATO Secretary General: \"Extremely concerned by divisions\"")
     else:
-        lines.append(f"• NATO: [red]Emergency session postponed - consensus impossible[/red]")
+        lines.append("• NATO: [red]Emergency session postponed - consensus impossible[/red]")
     
     return lines
 
@@ -181,13 +181,13 @@ def _generate_military_assessment(
     
     # Russian posture
     if escalation > 80:
-        lines.append(f"• Russian Northern Fleet: [bold red]ATTACK FORMATION - weapons hot[/bold red]")
-        lines.append(f"• Strategic Rocket Forces: [bold red]Increased alert status (CRITICAL)[/bold red]")
+        lines.append("• Russian Northern Fleet: [bold red]ATTACK FORMATION - weapons hot[/bold red]")
+        lines.append("• Strategic Rocket Forces: [bold red]Increased alert status (CRITICAL)[/bold red]")
     elif escalation > 50:
-        lines.append(f"• Russian Northern Fleet: [red]Maintaining aggressive posture[/red]")
+        lines.append("• Russian Northern Fleet: [red]Maintaining aggressive posture[/red]")
         lines.append(f"• Russian air patrols: {rng.randint(200, 300)}% above baseline")
     else:
-        lines.append(f"• Russian Northern Fleet: Defensive posture, holding position")
+        lines.append("• Russian Northern Fleet: Defensive posture, holding position")
     
     # Allied response
     if escalation > 60:
@@ -199,13 +199,13 @@ def _generate_military_assessment(
     if world.actor_system:
         fra = world.actor_system.get_actor("FRA")
         if fra and fra.relationship_uk < 50:
-            lines.append(f"• French submarine: [yellow]Departed patrol zone (ABNORMAL)[/yellow]")
+            lines.append("• French submarine: [yellow]Departed patrol zone (ABNORMAL)[/yellow]")
     
     # UK readiness
     if escalation > 70:
-        lines.append(f"• UK forces: [bold red]BIKINI BLACK SPECIAL - combat imminent[/bold red]")
+        lines.append("• UK forces: [bold red]BIKINI BLACK SPECIAL - combat imminent[/bold red]")
     elif escalation > 40:
-        lines.append(f"• UK forces: Elevated readiness, defensive posture")
+        lines.append("• UK forces: Elevated readiness, defensive posture")
     
     return lines
 
@@ -217,19 +217,19 @@ def _generate_media_monitoring(narrative_state: NarrativeState, rng: Random) -> 
     lines = ["[bold cyan]MEDIA & PUBLIC SENTIMENT[/bold cyan] (GCHQ Monitoring):"]
     
     if stability > 70:
-        lines.append(f"• BBC/Sky: Calm coverage, experts praising government response")
+        lines.append("• BBC/Sky: Calm coverage, experts praising government response")
         lines.append(f"• Social media sentiment: [green]{rng.randint(60, 75)}% supportive[/green] of government")
     elif stability > 40:
         lines.append(f"• BBC Question Time: Audience divided, [yellow]{rng.randint(40, 60)}% critical[/yellow]")
-        lines.append(f"• Social media: Rising panic, misinformation spreading rapidly")
+        lines.append("• Social media: Rising panic, misinformation spreading rapidly")
     else:
-        lines.append(f"• Media: [red]Openly questioning government competence[/red]")
+        lines.append("• Media: [red]Openly questioning government competence[/red]")
         lines.append(f"• BBC Question Time: Audience poll {rng.randint(60, 75)}% \"government out of depth\"")
-        lines.append(f"• Social media: [bold red]Calls for PM resignation trending[/bold red]")
+        lines.append("• Social media: [bold red]Calls for PM resignation trending[/bold red]")
     
     # Russian media (always hostile)
     if stability < 50:
-        lines.append(f"• Russian state TV: \"UK regime collapsing under pressure\"")
+        lines.append("• Russian state TV: \"UK regime collapsing under pressure\"")
     
     return lines
 
@@ -300,17 +300,17 @@ def generate_actor_detailed_assessment(
     
     # Behavioral indicators based on relationship
     if actor.relationship_uk > 70:
-        lines.append(f"• [green]Consistent support in diplomatic channels[/green]")
+        lines.append("• [green]Consistent support in diplomatic channels[/green]")
         lines.append(f"• Active intelligence sharing ({actor.intelligence_sharing})")
-        lines.append(f"• Military coordination proceeding smoothly")
+        lines.append("• Military coordination proceeding smoothly")
     elif actor.relationship_uk > 40:
-        lines.append(f"• [yellow]Mixed signals in diplomatic communications[/yellow]")
+        lines.append("• [yellow]Mixed signals in diplomatic communications[/yellow]")
         lines.append(f"• Intelligence sharing: {actor.intelligence_sharing}")
-        lines.append(f"• Some hesitation in public statements")
+        lines.append("• Some hesitation in public statements")
     else:
-        lines.append(f"• [red]Minimal diplomatic engagement[/red]")
+        lines.append("• [red]Minimal diplomatic engagement[/red]")
         lines.append(f"• Intelligence sharing: {actor.intelligence_sharing} (restrictive)")
-        lines.append(f"• Public statements lack commitment")
+        lines.append("• Public statements lack commitment")
     
     # Recent actions
     if actor.recent_actions:
@@ -322,13 +322,13 @@ def generate_actor_detailed_assessment(
     # Assessment
     lines.append("")
     if actor.relationship_uk > 70:
-        lines.append(f"Analyst Assessment: [green]Reliable ally. Can be counted on for support.[/green]")
+        lines.append("Analyst Assessment: [green]Reliable ally. Can be counted on for support.[/green]")
     elif actor.relationship_uk > 50:
-        lines.append(f"Analyst Assessment: [yellow]Supportive but cautious. Likely to follow major powers.[/yellow]")
+        lines.append("Analyst Assessment: [yellow]Supportive but cautious. Likely to follow major powers.[/yellow]")
     elif actor.relationship_uk > 30:
-        lines.append(f"Analyst Assessment: [red]Unreliable. May undermine UK position diplomatically.[/red]")
+        lines.append("Analyst Assessment: [red]Unreliable. May undermine UK position diplomatically.[/red]")
     else:
-        lines.append(f"Analyst Assessment: [bold red]ADVERSARIAL. Actively working against UK interests.[/bold red]")
+        lines.append("Analyst Assessment: [bold red]ADVERSARIAL. Actively working against UK interests.[/bold red]")
     
     lines.append("")
     lines.append("═" * 79)

@@ -10,13 +10,11 @@ from typing import Optional, Any, List, Tuple
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from rich.text import Text
-from rich.layout import Layout
 from rich.tree import Tree
 from rich.markdown import Markdown
 from rich import box
 
-from cli.theme import theme_manager, SYMBOLS, BOX, WIDTH, progress_bar
+from cli.theme import theme_manager, SYMBOLS, progress_bar
 from cli.formatters import format_metric_status
 
 # Environment variable killswitch for instant rollback

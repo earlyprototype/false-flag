@@ -1,4 +1,4 @@
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict
 from random import Random
 import re
 
@@ -78,7 +78,7 @@ If you have redlines, enforce them.
         response_text = llm_generate_fn(prompt, rng)
         return _parse_actor_response(actor.country_code, response_text)
     
-    except Exception as e:
+    except Exception:
         # Fallback to heuristic response
         return _heuristic_actor_response(actor, player_action)
 

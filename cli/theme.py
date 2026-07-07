@@ -4,7 +4,7 @@ Defines color palettes and style constants for Rich output.
 Supports multiple themes (Standard, Defcon 1, Retro).
 """
 
-from typing import Dict, Any
+from typing import Dict
 
 # Base symbols (constant across themes)
 # ASCII-ONLY - No emoji (user requirement)

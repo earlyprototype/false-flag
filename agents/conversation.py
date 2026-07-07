@@ -253,7 +253,7 @@ def check_critical_omissions(
                 role = char_info.get("role", "Advisor")
                 critical_concerns.append((role, concern, recommendation))
         
-        except Exception as e:
+        except Exception:
             # Silently continue if one advisor check fails
             continue
     

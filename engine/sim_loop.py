@@ -325,7 +325,7 @@ def run_turn_briefing(
                         console.print("")
                         # Dramatic pause
                         time.sleep(2.5)
-            except Exception as e:
+            except Exception:
                 # Fail gracefully (don't crash game on narrative flavor)
                 pass
 

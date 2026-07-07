@@ -6,7 +6,7 @@ Uses hidden metrics to guide LLM character responses whilst
 presenting narrative consequences to player.
 """
 
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Any
 from random import Random
 
 from models.narrative_state import NarrativeState

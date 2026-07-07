@@ -1,9 +1,7 @@
 """Test suite for dashboard UI implementation."""
 
-import pytest
 from pathlib import Path
 import sys
-import os
 
 # Add project root to path
 root = Path(__file__).parent.parent

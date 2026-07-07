@@ -1,7 +1,6 @@
 """Test both CLI modes work in parallel."""
 
 import subprocess
-import os
 import sys
 from pathlib import Path
 

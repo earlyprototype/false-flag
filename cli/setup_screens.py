@@ -8,13 +8,9 @@ This module handles:
 """
 
 import typer
-from pathlib import Path
 from rich import box
 from rich.panel import Panel
 from rich.console import Console
-from rich.text import Text
-from rich.layout import Layout
-from cli.theme import theme_manager
 
 # ASCII Art Title
 TITLE_ART = """
@@ -60,7 +56,6 @@ def render_screen(console: Console, title: str, content: str, pause_text: str = 
     """
     import time
     import msvcrt
-    import sys
     
     colors = get_defcon_colors()
     

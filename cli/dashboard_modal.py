@@ -8,7 +8,6 @@ from rich.panel import Panel
 from rich.console import Console
 from rich.layout import Layout
 from rich import box
-from typing import Union
 
 
 def show_overlay(console: Console, live, title: str, content, colors: dict) -> None:
@@ -21,8 +20,6 @@ def show_overlay(console: Console, live, title: str, content, colors: dict) -> N
         content: Renderable content (Panel, Table, str, etc.)
         colors: Colour dict from theme
     """
-    from rich.layout import Layout
-    from rich.text import Text
     
     # Create integrated overlay layout
     overlay_layout = Layout()

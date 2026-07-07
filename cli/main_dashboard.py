@@ -16,7 +16,7 @@ import os
 
 # CRITICAL: Import msvcrt FIRST on Windows (before Rich)
 if sys.platform == "win32":
-    import msvcrt
+    pass
 
 # Allow running this file directly
 if __package__ is None or __package__ == "":
@@ -31,10 +31,10 @@ from cli.rich_ui import (
     resources_tables, command_menu, metrics_guide_panel,
     format_markdown, RICH_ENABLED
 )
-from cli.theme import theme_manager, COLORS, SYMBOLS, BOX, WIDTH
+from cli.theme import theme_manager, SYMBOLS
 from cli.formatters import format_advisor_response
 from models.world import WorldState, Metrics
-from models.narrative_state import NarrativeState, create_initial_narrative_state, PlayMode
+from models.narrative_state import create_initial_narrative_state
 from models.narrative import NarrativeConfig
 from engine.scenario_loader import list_available_scenarios, get_scenario_config, get_turn_filename, load_narrative_configs
 from engine.sim_loop import (
@@ -1123,7 +1123,6 @@ def play(
 
                 if user_input.lower() in ["/status", "status"]:
                     from cli.dashboard_modal import show_overlay
-                    from rich.text import Text
                     
                     # Build status content based on play mode
                     if play_mode == "classic":

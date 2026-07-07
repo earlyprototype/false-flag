@@ -1,6 +1,6 @@
 """Narrator system for generating atmospheric bridges between turns."""
 
-from typing import List, Optional
+from typing import List
 from random import Random
 
 from models.world import WorldState
@@ -40,7 +40,7 @@ def generate_narrator_bridge(
             max_tokens=150
         )
         return bridge_text.strip()
-    except Exception as e:
+    except Exception:
         # Graceful fallback if LLM fails
         return "Time passes. The situation develops..."
 

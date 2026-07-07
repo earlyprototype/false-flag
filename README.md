@@ -129,9 +129,8 @@ You must balance:
 ## Project Structure
 
 ```
-wargame/
-├── cli/                    # Command-line interface
-│   └── main.py            # Main entry point
+false-flag/
+├── cli/                    # Command-line interface (the playable game)
 ├── engine/                 # Core game engine
 │   ├── sim_loop.py        # Turn-based game loop
 │   ├── initial_conditions.py  # Scenario setup
@@ -143,14 +142,16 @@ wargame/
 │   └── prompts.py         # Prompt templates
 ├── agents/                 # Advisor system
 │   └── conversation.py    # Question handling & responses
-├── models/                 # Data models
-│   └── world.py           # Game state
-├── data/scenarios/         # Scenario data
-│   └── war_game_2025/
-│       ├── initial_conditions.yaml  # Starting state
-│       └── episodes/      # Turn-based injects
-└── docs/                   # Documentation
-    └── GEMINI_SETUP.md    # AI setup guide
+├── models/                 # Data models (game state)
+├── data/scenarios/         # Scenario data (initial conditions + turn injects)
+├── Game_Mechanics/         # Design notes for the game systems
+├── tests/                  # Test suite
+├── docs/                   # Documentation & setup guides
+├── scripts/                # Launchers and setup helpers
+├── dev-scripts/            # Debugging and content-generation tools
+├── api/, frontend/         # Experimental web UI — not wired into the CLI game yet
+├── Graphics/, UX/          # Visual asset generation & UX exploration (experimental)
+└── ingestion/, overrides/  # Scenario-content tooling
 ```
 
 ## Development

@@ -10,10 +10,9 @@ import os
 
 from models.world import WorldState, Metrics
 from models.narrative_state import NarrativeState, create_initial_narrative_state
-from models.narrative import NarrativeConfig
 from engine.initial_conditions import load_initial_conditions
-from engine.scenario_loader import get_scenario_config, get_turn_filename, load_narrative_configs
-from engine.sim_loop import run_turn_briefing, run_turn_decision, run_turn_adjudication, run_turn_discussion
+from engine.scenario_loader import get_scenario_config, get_turn_filename
+from engine.sim_loop import run_turn_briefing, run_turn_decision, run_turn_discussion
 
 # Environment flag to disable Rich output in engine modules
 os.environ["WARGAME_RICH_UI"] = "false"
@@ -426,7 +425,6 @@ class GameManager:
         
         # Restore state
         from models.world import WorldState
-        from models.narrative_state import NarrativeState
         
         # Note: WorldState.parse_obj will handle nested ActorSystem if model structure matches
         manager.world = WorldState.parse_obj(state["world"])
