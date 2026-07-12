@@ -104,14 +104,15 @@ class NarrativeState(BaseModel):
     
     # === VIBE CALCULATION ===
     
-    def calculate_vibe(self, metric_name: str, value: int, reverse: bool = False) -> VibeLevel:
+    def calculate_vibe(self, metric_name: str, value: int, reverse: bool = False, attr_name: Optional[str] = None) -> VibeLevel:
         """
         Convert raw metric to vibe level.
-        
+
         Args:
             metric_name: Display name
             value: Raw metric value (0-100)
             reverse: If True, higher value = lower vibe (e.g., escalation risk)
+            attr_name: Metrics attribute backing this vibe (for trend lookup)
         """
         # Calculate level (0-5)
         if reverse:
@@ -143,19 +144,16 @@ class NarrativeState(BaseModel):
             else:
                 level, descriptor = 5, "CRITICAL"
         
-        # Calculate trend
-        if self.previous_metrics:
-            prev_value = getattr(self.previous_metrics, 
-                                 metric_name.lower().replace(" ", "_").replace("-", "_"), 
-                                 value)
+        # Calculate trend. The arrow follows the direction of the displayed
+        # quantity itself (Crisis Intensity rises when escalation_risk rises),
+        # so `reverse` plays no part here — it only affects the dot colouring.
+        trend = "stable"
+        if self.previous_metrics and attr_name:
+            prev_value = getattr(self.previous_metrics, attr_name, value)
             if value > prev_value + 3:
-                trend = "rising" if not reverse else "falling"
+                trend = "rising"
             elif value < prev_value - 3:
-                trend = "falling" if not reverse else "rising"
-            else:
-                trend = "stable"
-        else:
-            trend = "stable"
+                trend = "falling"
         
         return VibeLevel(
             name=metric_name,
@@ -169,9 +167,9 @@ class NarrativeState(BaseModel):
         m = self.hidden_metrics
         
         return [
-            self.calculate_vibe("Crisis Intensity", m.escalation_risk, reverse=True),
-            self.calculate_vibe("Allied Unity", m.alliance_cohesion, reverse=False),
-            self.calculate_vibe("Domestic Support", m.domestic_stability, reverse=False),
+            self.calculate_vibe("Crisis Intensity", m.escalation_risk, reverse=True, attr_name="escalation_risk"),
+            self.calculate_vibe("Allied Unity", m.alliance_cohesion, reverse=False, attr_name="alliance_cohesion"),
+            self.calculate_vibe("Domestic Support", m.domestic_stability, reverse=False, attr_name="domestic_stability"),
         ]
     
     # === DISPLAY METHODS ===

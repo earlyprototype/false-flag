@@ -28,7 +28,8 @@ def assess_action_quality(
     narrative_state: NarrativeState,
     interpretation: str,
     llm_generate_fn = None,
-    world_narrative = None
+    world_narrative = None,
+    rng: Random = None
 ) -> Dict[str, Any]:
     """
     Use LLM to assess quality and appropriateness of player action.
@@ -47,7 +48,7 @@ def assess_action_quality(
         - suggested_effects: Dict of metric impacts
     """
     
-    if llm_generate_fn is None:
+    if llm_generate_fn is None or rng is None:
         # Fallback to heuristic assessment
         return _heuristic_quality_assessment(action, narrative_state)
     
@@ -91,7 +92,7 @@ QUALITY MULTIPLIER: [0.5 to 2.5]
 """
     
     try:
-        response = llm_generate_fn(prompt, max_tokens=400)
+        response = llm_generate_fn(prompt, rng, max_tokens=400)
         return _parse_quality_response(response)
     except Exception:
         # Fallback to heuristic on error
@@ -149,7 +150,9 @@ def _heuristic_quality_assessment(action: str, narrative_state: NarrativeState) 
         effects["domestic_stability"] = -10
         if narrative_state.hidden_metrics.escalation_risk > 60:
             quality = "catastrophic"
-            multiplier = -0.5
+            # Amplify (never invert) the harmful effects: a negative multiplier
+            # would flip escalation penalties into rewards in apply_quality_scaling
+            multiplier = 2.0
             reasoning = "Aggressive escalation at the worst possible time - risks nuclear war."
     
     # Default baseline if no specific action detected
@@ -210,7 +213,7 @@ def _parse_quality_response(response: str) -> Dict[str, Any]:
             "good": 1.5,
             "adequate": 1.0,
             "poor": 0.5,
-            "catastrophic": -0.5
+            "catastrophic": 2.0  # amplify the harmful effects; negative would invert them
         }
         multiplier = quality_multipliers.get(quality, 1.0)
     
@@ -321,7 +324,8 @@ def generate_character_responses(
     quality_assessment: Dict[str, Any],
     final_effects: Dict[str, int],
     narrative_state: NarrativeState,
-    llm_generate_fn = None
+    llm_generate_fn = None,
+    rng: Random = None
 ) -> List[Tuple[str, str]]:
     """
     Generate character responses guided by metrics and quality.
@@ -338,7 +342,7 @@ def generate_character_responses(
     """
     responses = []
     
-    if llm_generate_fn is None:
+    if llm_generate_fn is None or rng is None:
         # Fallback to templated responses
         return _generate_templated_responses(action, quality_assessment, narrative_state)
     
@@ -357,7 +361,8 @@ def generate_character_responses(
             quality=quality_assessment["quality"],
             effects=final_effects,
             narrative_state=narrative_state,
-            llm_generate_fn=llm_generate_fn
+            llm_generate_fn=llm_generate_fn,
+            rng=rng
         )
         
         responses.append((char.name, response_text))
@@ -397,7 +402,8 @@ def _generate_character_response_llm(
     quality: str,
     effects: Dict[str, int],
     narrative_state: NarrativeState,
-    llm_generate_fn
+    llm_generate_fn,
+    rng: Random = None
 ) -> str:
     """Generate single character response using LLM"""
     
@@ -430,7 +436,7 @@ Keep your response to 2-3 sentences, in character, as if speaking directly to th
 Response:"""
     
     try:
-        response = llm_generate_fn(prompt, max_tokens=150)
+        response = llm_generate_fn(prompt, rng, max_tokens=150)
         # Clean up response
         response = response.strip().strip('"')
         return response
@@ -460,6 +466,77 @@ def _generate_templated_responses(
     return responses
 
 
+# === SITUATION SUMMARY ===
+
+def update_situation_summary(
+    narrative_state: NarrativeState,
+    action: str,
+    llm_generate_fn = None,
+    rng: Random = None
+) -> None:
+    """
+    Refresh the player-facing situation summary after adjudication.
+
+    The summary is the primary end-of-turn display in emergent mode and feeds
+    to_llm_context() for every downstream prompt, so it must track the story
+    rather than stay frozen at its initial value.
+    """
+    if llm_generate_fn is not None and rng is not None:
+        context = narrative_state.to_llm_context()
+        prompt = f"""
+{context}
+
+THE PRIME MINISTER'S LATEST DECISION: {action}
+
+Summarise the current situation in 2-3 sentences for the Prime Minister's
+daily brief. Cover how the crisis stands after this decision, the state of
+the alliance, and the mood at home. Write in plain, serious prose - no
+headings, no numbers, no bullet points.
+
+Summary:"""
+        try:
+            summary = llm_generate_fn(prompt, rng, max_tokens=150).strip().strip('"')
+            if summary:
+                narrative_state.situation_summary = summary
+                return
+        except Exception:
+            pass
+
+    # Deterministic fallback composed from the current hidden state
+    m = narrative_state.hidden_metrics
+    if m.escalation_risk >= 85:
+        risk = "The situation stands at the threshold of open war."
+    elif m.escalation_risk >= 70:
+        risk = "Escalation is severe and the margin for error is narrowing."
+    elif m.escalation_risk >= 50:
+        risk = "Tensions remain elevated across the North Atlantic."
+    else:
+        risk = "The immediate crisis appears contained, for now."
+
+    if m.alliance_cohesion >= 70:
+        alliance = "NATO stands firmly behind the UK."
+    elif m.alliance_cohesion >= 50:
+        alliance = "Allied support is holding, though commitments remain cautious."
+    elif m.alliance_cohesion >= 30:
+        alliance = "Alliance unity is under visible strain."
+    else:
+        alliance = "The alliance is fracturing and the UK risks standing alone."
+
+    if m.domestic_stability >= 70:
+        domestic = "The public mood is steady."
+    elif m.domestic_stability >= 50:
+        domestic = "The home front is anxious but orderly."
+    elif m.domestic_stability >= 30:
+        domestic = "Domestic pressure on the Government is mounting."
+    else:
+        domestic = "Public order is deteriorating."
+
+    parts = [risk, alliance, domestic]
+    if narrative_state.active_crises:
+        parts.append("Active crises: " + ", ".join(narrative_state.active_crises[-3:]) + ".")
+    narrative_state.situation_summary = " ".join(parts)
+
+
 # === MAIN ADJUDICATION FUNCTIONS ===
 
 def adjudicate_with_narrative(
@@ -487,7 +564,7 @@ def adjudicate_with_narrative(
     
     # 1. Assess action quality and get LLM-suggested effects
     quality_assessment = assess_action_quality(
-        action, narrative_state, interpretation, llm_generate_fn, world_narrative
+        action, narrative_state, interpretation, llm_generate_fn, world_narrative, rng
     )
     
     # 2. Use LLM's suggested effects directly (with quality scaling already applied)
@@ -504,7 +581,7 @@ def adjudicate_with_narrative(
     
     # 4. Generate character responses
     character_responses = generate_character_responses(
-        action, quality_assessment, final_effects, narrative_state, llm_generate_fn
+        action, quality_assessment, final_effects, narrative_state, llm_generate_fn, rng
     )
     
     # 5. Update character attitudes based on action quality
@@ -512,7 +589,10 @@ def adjudicate_with_narrative(
     
     # 6. Check for crisis triggers
     _check_and_trigger_crises(narrative_state)
-    
+
+    # 7. Refresh the player-facing situation summary
+    update_situation_summary(narrative_state, action, llm_generate_fn, rng)
+
     return final_effects, character_responses, quality_assessment["reasoning"]
 
 
@@ -565,7 +645,7 @@ def adjudicate_with_actor_simulation(
     actor_effects = calculate_effects_from_responses(actor_responses, actor_system)
     
     # 4. Also run quality assessment for player skill
-    quality_assessment = assess_action_quality(action, narrative_state, interpretation, llm_generate_fn, world_narrative)
+    quality_assessment = assess_action_quality(action, narrative_state, interpretation, llm_generate_fn, world_narrative, rng)
     base_effects = determine_base_effects(action, narrative_state)
     quality_effects = apply_quality_scaling(base_effects, quality_assessment, narrative_state)
     
@@ -588,7 +668,7 @@ def adjudicate_with_actor_simulation(
     
     # 7. Generate character responses (Advisors)
     character_responses = generate_character_responses(
-        action, quality_assessment, final_effects, narrative_state, llm_generate_fn
+        action, quality_assessment, final_effects, narrative_state, llm_generate_fn, rng
     )
     
     # 8. Generate narrative summary
@@ -596,7 +676,10 @@ def adjudicate_with_actor_simulation(
     
     # 9. Check for crisis triggers
     _check_and_trigger_crises(narrative_state)
-    
+
+    # 10. Refresh the player-facing situation summary
+    update_situation_summary(narrative_state, action, llm_generate_fn, rng)
+
     return final_effects, actor_responses, character_responses, reasoning
 
 

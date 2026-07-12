@@ -116,6 +116,31 @@ def wait_for_space(prompt: str = "Press SPACE to continue...") -> None:
                 break
 
 
+def strip_effect_boxes(lines: list) -> list:
+    """Remove the numeric 'Effect: metric +N (-> value)' boxes from briefing lines.
+
+    Used by immersive/emergent modes, which promise vibes instead of raw numbers.
+    The boxes are three lines: a top border, the 'Effect: ...' content, and a
+    bottom border.
+    """
+    out = []
+    drop_bottom_border = False
+    for line in lines:
+        stripped = line.strip()
+        if "Effect: " in stripped:
+            # Drop the top border that preceded this content line
+            if out and out[-1].strip() and set(out[-1].strip()) <= set("┌─┐"):
+                out.pop()
+            drop_bottom_border = True
+            continue
+        if drop_bottom_border:
+            drop_bottom_border = False
+            if stripped and set(stripped) <= set("└─┘"):
+                continue
+        out.append(line)
+    return out
+
+
 def parse_interpretation_simple(interpretation: str) -> dict:
     """Parse LLM interpretation into key sections for display.
     
@@ -851,18 +876,39 @@ def play(
         # For Turn 1 of new games: suppress panel display and effect boxes (will be streamed in intro flow)
         is_turn1_intro = (first_briefing_as_intro and world.turn == 1)
         inject, briefing_lines = run_turn_briefing(
-            world, 
-            scenario, 
-            use_stochastic, 
-            rng, 
-            root, 
+            world,
+            scenario,
+            use_stochastic,
+            rng,
+            root,
             transcript,
             get_player_input=lambda prompt: typer.prompt(prompt).strip(),
             turn_filename=turn_filename,
-            silent_effects=is_turn1_intro,  # Hide effect boxes for Turn 1 intro
+            silent_effects=is_turn1_intro or play_mode != "classic",  # Hide raw-number effect boxes for Turn 1 intro and non-classic modes
             suppress_display=is_turn1_intro  # Suppress panel so we can stream the text
         )
+
+        # Sync inject effects into the narrative state. Adjudication mutates
+        # narrative_state.hidden_metrics and the result is copied back over
+        # world.metrics at end of turn, so any briefing effect left only on
+        # world.metrics would be silently reverted. This also snapshots
+        # previous_metrics, giving the immersive-mode vibes a real trend baseline.
+        narrative_state.update_hidden_metrics({
+            "escalation_risk": world.metrics.escalation_risk,
+            "domestic_stability": world.metrics.domestic_stability,
+            "alliance_cohesion": world.metrics.alliance_cohesion,
+            "casualties_mil": world.metrics.casualties_mil,
+            "casualties_civ": world.metrics.casualties_civ,
+        })
         
+        # Non-classic modes hide raw metric numbers: strip the effect boxes from
+        # the on-screen briefing. They stay in `briefing_lines`/the transcript,
+        # which feeds saves and LLM context.
+        if play_mode != "classic":
+            briefing_display = strip_effect_boxes(briefing_lines)
+        else:
+            briefing_display = briefing_lines
+
         # Clear screen and display briefing at top
         # BUT: if this is Turn 1 of a new game, don't clear (flows from intro)
         if not (first_briefing_as_intro and world.turn == 1):
@@ -872,20 +918,20 @@ def play(
             typer.echo("")
             typer.echo("=" * 79)
             typer.echo("")
-        
+
         # Split briefing into scene-setting and actual briefing
         # Look for "The National Security Advisor" or similar transition line
         # BUT: for Turn 1 of new games, don't split - show everything in one flow
         scene_setting_end = -1
         if not (first_briefing_as_intro and world.turn == 1):
-            for i, line in enumerate(briefing_lines):
+            for i, line in enumerate(briefing_display):
                 if "National Security Advisor" in line and ("clears" in line or "begins" in line):
                     scene_setting_end = i
                     break
-        
+
         # Display scene-setting part with streaming
         skip_rest = False
-        for i, line in enumerate(briefing_lines):
+        for i, line in enumerate(briefing_display):
             # Stop at the transition line
             if scene_setting_end > 0 and i >= scene_setting_end:
                 break
@@ -927,8 +973,8 @@ def play(
             
             # Display rest of briefing (the actual intelligence report)
             typer.echo("")
-            for i in range(scene_setting_end, len(briefing_lines)):
-                typer.echo(briefing_lines[i])
+            for i in range(scene_setting_end, len(briefing_display)):
+                typer.echo(briefing_display[i])
         
         transcript.extend(briefing_lines)
         
@@ -1758,23 +1804,25 @@ def play(
                 typer.echo(reasoning)
             typer.echo("")
             
-            # Display effects
-            if RICH_ENABLED:
-                console.print(f"[{COLORS['accent']} bold]EFFECTS[/]")
-                console.print(f"[{COLORS['accent']}]" + "═" * 60 + f"[/{COLORS['accent']}]")
-            else:
-                typer.echo("=" * 60)
-                typer.echo("EFFECTS")
-                typer.echo("=" * 60)
-            typer.echo("")
-            
-            for metric, delta in final_effects.items():
+            # Display effects (numeric deltas are classic-mode only; immersive and
+            # emergent modes communicate consequences through vibes and narrative)
+            if play_mode == "classic":
                 if RICH_ENABLED:
-                    color = COLORS['success'] if delta > 0 else COLORS['danger'] if delta < 0 else COLORS['muted']
-                    console.print(f"  [{color}]{metric}: {delta:+d}[/{color}]")
+                    console.print(f"[{COLORS['accent']} bold]EFFECTS[/]")
+                    console.print(f"[{COLORS['accent']}]" + "═" * 60 + f"[/{COLORS['accent']}]")
                 else:
-                    typer.echo(f"  {metric}: {delta:+d}")
-            typer.echo("")
+                    typer.echo("=" * 60)
+                    typer.echo("EFFECTS")
+                    typer.echo("=" * 60)
+                typer.echo("")
+
+                for metric, delta in final_effects.items():
+                    if RICH_ENABLED:
+                        color = COLORS['success'] if delta > 0 else COLORS['danger'] if delta < 0 else COLORS['muted']
+                        console.print(f"  [{color}]{metric}: {delta:+d}[/{color}]")
+                    else:
+                        typer.echo(f"  {metric}: {delta:+d}")
+                typer.echo("")
             
             # Display character responses
             if character_responses:

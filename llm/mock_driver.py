@@ -24,7 +24,36 @@ class MockDeterministicDriver:
             Mock response text
         """
         prompt_lower = prompt.lower()
-        
+
+        # Task-shaped prompts are checked BEFORE advisor personas: these prompts
+        # embed the narrative context, which mentions advisors by title, so a
+        # persona keyword would otherwise shadow the actual task.
+
+        # Action quality assessment (narrative adjudication)
+        if "assess this action" in prompt_lower:
+            return ("QUALITY: adequate\n"
+                    "\n"
+                    "REASONING: A measured response that addresses the immediate situation without "
+                    "overcommitting forces or foreclosing diplomatic options.\n"
+                    "\n"
+                    "EFFECTS:\n"
+                    "escalation_risk: -2\n"
+                    "alliance_cohesion: 3\n"
+                    "domestic_stability: 1\n"
+                    "\n"
+                    "QUALITY MULTIPLIER: 1.0")
+
+        # Situation summary refresh (end of turn)
+        if "summarise the current situation" in prompt_lower:
+            return ("The crisis continues to develop as Russian forces maintain their posture in the "
+                    "North Atlantic. Allied consultations are ongoing and the public mood remains tense. "
+                    "The Government's latest decision is being watched closely at home and abroad.")
+
+        # Narrator bridge between turns
+        if "atmospheric bridge" in prompt_lower:
+            return ("The hours drag past in the bunker beneath Whitehall, each update thinning the "
+                    "silence a little further. Then an aide appears at the door, folder in hand.")
+
         # Advisor response templates
         if "chief of the defence staff" in prompt_lower or "military commander" in prompt_lower:
             return ("Prime Minister, from a military perspective, we have limited options given our force posture. "

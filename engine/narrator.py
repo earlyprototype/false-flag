@@ -34,7 +34,8 @@ def generate_narrator_bridge(
     try:
         # Use a lower temperature for consistent tone, but enough for creativity
         bridge_text = generate_text(
-            prompt=prompt,
+            prompt,
+            rng,
             system_instruction="You are a master storyteller for a political thriller. Be concise, atmospheric, and serious.",
             temperature=0.7,
             max_tokens=150

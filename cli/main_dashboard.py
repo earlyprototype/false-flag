@@ -922,18 +922,30 @@ def play(
         # For Turn 1 of new games: suppress panel display and effect boxes (will be streamed in intro flow)
         is_turn1_intro = (first_briefing_as_intro and world.turn == 1)
         inject, briefing_lines = run_turn_briefing(
-            world, 
-            scenario, 
-            use_stochastic, 
-            rng, 
-            root, 
+            world,
+            scenario,
+            use_stochastic,
+            rng,
+            root,
             transcript,
             get_player_input=lambda prompt: typer.prompt(prompt).strip(),
             turn_filename=turn_filename,
             silent_effects=is_turn1_intro,  # Hide effect boxes for Turn 1 intro
             suppress_display=is_turn1_intro  # Suppress panel so we can stream the text
         )
-        
+
+        # Sync inject effects into the narrative state. Adjudication mutates
+        # narrative_state.hidden_metrics and the result is copied back over
+        # world.metrics at end of turn, so any briefing effect left only on
+        # world.metrics would be silently reverted.
+        narrative_state.update_hidden_metrics({
+            "escalation_risk": world.metrics.escalation_risk,
+            "domestic_stability": world.metrics.domestic_stability,
+            "alliance_cohesion": world.metrics.alliance_cohesion,
+            "casualties_mil": world.metrics.casualties_mil,
+            "casualties_civ": world.metrics.casualties_civ,
+        })
+
         # Display briefing in COBRA-styled panel
         typer.clear()
         
