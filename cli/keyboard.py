@@ -61,7 +61,7 @@ def key_pressed(keys=(" ",)) -> bool:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
-def wait_for_key(prompt: str = "Press SPACE to continue...", keys=(" ",)) -> None:
+def wait_for_key(prompt: str = "Press SPACE (or Enter) to continue...", keys=(" ",)) -> None:
     """Block until one of `keys` is pressed.
 
     On non-interactive stdin, reads a line instead so piped input and CI

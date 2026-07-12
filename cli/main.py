@@ -29,6 +29,9 @@ from cli.rich_ui import (
 )
 from cli.theme import theme_manager, SYMBOLS, BOX, WIDTH
 from cli.formatters import format_advisor_response
+# strip_effect_boxes is re-exported here for backwards compatibility
+# (external code may still do `from cli.main import strip_effect_boxes`).
+from cli.display_utils import strip_effect_boxes, display_adjudication_results
 from rich.panel import Panel
 from rich.markup import escape as rich_escape
 from models.world import WorldState, Metrics
@@ -97,34 +100,9 @@ def scroll_text(text: str, delay: float = 0.03, allow_skip: bool = True) -> bool
     return False  # No skip
 
 
-def wait_for_space(prompt: str = "Press SPACE to continue...") -> None:
+def wait_for_space(prompt: str = "Press SPACE (or Enter) to continue...") -> None:
     """Wait for the player to press spacebar (cross-platform)."""
     wait_for_key(prompt)
-
-
-def strip_effect_boxes(lines: list) -> list:
-    """Remove the numeric 'Effect: metric +N (-> value)' boxes from briefing lines.
-
-    Used by immersive/emergent modes, which promise vibes instead of raw numbers.
-    The boxes are three lines: a top border, the 'Effect: ...' content, and a
-    bottom border.
-    """
-    out = []
-    drop_bottom_border = False
-    for line in lines:
-        stripped = line.strip()
-        if "Effect: " in stripped:
-            # Drop the top border that preceded this content line
-            if out and out[-1].strip() and set(out[-1].strip()) <= set("┌─┐"):
-                out.pop()
-            drop_bottom_border = True
-            continue
-        if drop_bottom_border:
-            drop_bottom_border = False
-            if stripped and set(stripped) <= set("└─┘"):
-                continue
-        out.append(line)
-    return out
 
 
 def parse_interpretation_simple(interpretation: str) -> dict:
@@ -745,7 +723,7 @@ def play(
             
             # Pause after each scene
             typer.echo("")
-            wait_for_space("Press SPACE to continue...")
+            wait_for_space("Press SPACE (or Enter) to continue...")
         
         typer.echo("")
     
@@ -761,6 +739,7 @@ def play(
     
     # Load or create world state
     resume_replay = False  # True when a loaded save already ran this turn's briefing
+    loaded_initial_metrics = None  # Campaign-start metrics persisted in the save
     if load_save:
         save_path = Path(load_save)
         try:
@@ -768,6 +747,10 @@ def play(
             # Use loaded play_mode if available, otherwise use command-line arg
             if loaded_play_mode:
                 play_mode = loaded_play_mode
+            # Campaign-start snapshot (2.2+ saves); old saves fall back to
+            # the resume point's metrics below.
+            from engine.persistence import read_save_field
+            loaded_initial_metrics = read_save_field(save_path, "initial_metrics")
             typer.echo(f"Loaded game from {save_path}")
             typer.echo(f"Resuming at Turn {world.turn}")
             typer.echo("")
@@ -838,11 +821,11 @@ def play(
 
     # Classic-mode campaign grading: thresholds can end the game on any turn,
     # and the campaign is graded after the scripted turns plus a short
-    # stochastic epilogue. Deltas in the debrief measure from this session's
-    # starting point.
-    campaign_final_turn = (stochastic_from_turn - 1) + EPILOGUE_TURNS
+    # stochastic epilogue. Deltas in the debrief measure from the campaign
+    # start (persisted in saves; old saves fall back to the resume point).
+    campaign_final_turn = (stochastic_from_turn - 1) + scenario_config.get("epilogue_turns", EPILOGUE_TURNS)
     endings_disabled = False
-    initial_metrics_snapshot = {
+    initial_metrics_snapshot = loaded_initial_metrics or {
         "escalation_risk": world.metrics.escalation_risk,
         "domestic_stability": world.metrics.domestic_stability,
         "alliance_cohesion": world.metrics.alliance_cohesion,
@@ -870,7 +853,7 @@ def play(
                 console.print("The scripted scenario has concluded. From this point forward,")
                 console.print("events will be dynamically generated based on your decisions.")
                 console.print("")
-                wait_for_space("Press SPACE to continue...")
+                wait_for_space("Press SPACE (or Enter) to continue...")
                 console.print("")
         
         # Determine if we should use stochastic generation for this turn
@@ -982,7 +965,7 @@ def play(
         # Pause after scene-setting (only if we found a split point)
         if scene_setting_end > 0:
             typer.echo("")
-            wait_for_space("Press SPACE to continue...")
+            wait_for_space("Press SPACE (or Enter) to continue...")
             
             # Display rest of briefing (the actual intelligence report)
             typer.echo("")
@@ -1002,7 +985,7 @@ def play(
         
         # Pause before discussion phase
         typer.echo("")
-        wait_for_space("Press SPACE to begin discussion phase...")
+        wait_for_space("Press SPACE (or Enter) to begin discussion phase...")
         
         # After Turn 1 intro briefing is shown, reset the flag
         if first_briefing_as_intro and world.turn == 1:
@@ -1052,7 +1035,7 @@ def play(
                     raise typer.Exit(0)
             
                 if user_input.lower() in ["/save", "save"]:
-                    save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", root, play_mode, narrative_state, variant=variant)
+                    save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", root, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot)
                     typer.echo(f"Game saved to {save_path}")
                     continue
             
@@ -1680,7 +1663,7 @@ def play(
                 if not action:
                     typer.echo("No action entered. Returning to discussion.")
                     typer.echo("")
-                    wait_for_space("Press SPACE to return to discussion...")
+                    wait_for_space("Press SPACE (or Enter) to return to discussion...")
                     break
             
                 # Interpret and get pushback
@@ -1705,7 +1688,7 @@ def play(
                         typer.echo("")
                         typer.echo("Returning to discussion phase.")
                         typer.echo("")
-                        wait_for_space("Press SPACE to return to discussion...")
+                        wait_for_space("Press SPACE (or Enter) to return to discussion...")
                         break
                 
                     elif action_code == 'M':
@@ -1777,7 +1760,7 @@ def play(
                         typer.echo("")
                         typer.echo("Decision cancelled. Returning to discussion.")
                         typer.echo("")
-                        wait_for_space("Press SPACE to return to discussion...")
+                        wait_for_space("Press SPACE (or Enter) to return to discussion...")
                         break  # Break inner loop, return to discussion
                     else:
                         decision_confirmed = True  # Proceed to adjudication
@@ -1826,89 +1809,17 @@ def play(
                     world_narrative=world.narrative
                 )
             
-            # Display quality reasoning
-            typer.echo("")
-            if RICH_ENABLED:
-                console.print(Panel(format_markdown(reasoning), title=f"[{COLORS['accent']} bold]ACTION ASSESSMENT[/]", border_style=COLORS['accent']))
-            else:
-                typer.echo("=" * 60)
-                typer.echo("ACTION ASSESSMENT")
-                typer.echo("=" * 60)
-                typer.echo("")
-                typer.echo(reasoning)
-            typer.echo("")
-            
-            # Display effects (numeric deltas are classic-mode only; immersive and
-            # emergent modes communicate consequences through vibes and narrative)
-            if play_mode == "classic":
-                if RICH_ENABLED:
-                    console.print(f"[{COLORS['accent']} bold]EFFECTS[/]")
-                    console.print(f"[{COLORS['accent']}]" + "═" * 60 + f"[/{COLORS['accent']}]")
-                else:
-                    typer.echo("=" * 60)
-                    typer.echo("EFFECTS")
-                    typer.echo("=" * 60)
-                typer.echo("")
+            # Display adjudication results (shared with the dashboard CLI)
+            display_adjudication_results(
+                COLORS,
+                play_mode,
+                reasoning,
+                final_effects,
+                character_responses,
+                actor_responses,
+                world,
+            )
 
-                for metric, delta in final_effects.items():
-                    if RICH_ENABLED:
-                        color = COLORS['success'] if delta > 0 else COLORS['danger'] if delta < 0 else COLORS['muted']
-                        console.print(f"  [{color}]{metric}: {delta:+d}[/{color}]")
-                    else:
-                        typer.echo(f"  {metric}: {delta:+d}")
-                typer.echo("")
-            
-            # Display character responses
-            if character_responses:
-                if RICH_ENABLED:
-                    console.print(f"[{COLORS['accent']} bold]ADVISOR REACTIONS[/]")
-                    console.print(f"[{COLORS['accent']}]" + "═" * 60 + f"[/{COLORS['accent']}]")
-                else:
-                    typer.echo("=" * 60)
-                    typer.echo("ADVISOR REACTIONS")
-                    typer.echo("=" * 60)
-                typer.echo("")
-                
-                for char_name, response in character_responses:
-                    if RICH_ENABLED:
-                        console.print(f"[{COLORS['secondary']} bold]{rich_escape(char_name)}:[/{COLORS['secondary']} bold]")
-                        console.print(f"  \"{rich_escape(response)}\"")
-                    else:
-                        typer.echo(f"{char_name}:")
-                        typer.echo(f"  \"{response}\"")
-                    typer.echo("")
-            
-            # Display international reactions (multi-agent simulation)
-            if actor_responses:
-                if RICH_ENABLED:
-                    console.print(f"[{COLORS['accent']} bold]INTERNATIONAL REACTIONS[/]")
-                    console.print(f"[{COLORS['accent']}]" + "═" * 60 + f"[/{COLORS['accent']}]")
-                else:
-                    typer.echo("=" * 60)
-                    typer.echo("INTERNATIONAL REACTIONS")
-                    typer.echo("=" * 60)
-                typer.echo("")
-                
-                for response in actor_responses:
-                    trust_delta = response.trust_change
-                    actor_id = response.actor_id
-                    
-                    # Get full name if available
-                    actor_name = actor_id
-                    if world.actor_system:
-                        actor = world.actor_system.get_actor(actor_id)
-                        if actor:
-                            actor_name = actor.full_name
-                    
-                    if RICH_ENABLED:
-                        color = COLORS['success'] if trust_delta > 0 else COLORS['danger'] if trust_delta < 0 else COLORS['muted']
-                        console.print(f"[{COLORS['primary']} bold]{actor_name}:[/{COLORS['primary']} bold] [{color}]({trust_delta:+d})[/{color}]")
-                        console.print(f"  \"{response.public_response}\"")
-                    else:
-                        typer.echo(f"{actor_name}: ({trust_delta:+d})")
-                        typer.echo(f"  \"{response.public_response}\"")
-                    typer.echo("")
-            
             # Sync world metrics with narrative state (keep both in sync)
             world.metrics.escalation_risk = narrative_state.hidden_metrics.escalation_risk
             world.metrics.domestic_stability = narrative_state.hidden_metrics.domestic_stability
@@ -2027,7 +1938,7 @@ def play(
         world.discussion_transcript = []
         world.phase = "briefing"
 
-        save_path = save_game(world, transcript, scenario, "autosave", root, play_mode, narrative_state, variant=variant)
+        save_path = save_game(world, transcript, scenario, "autosave", root, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot)
 
         if ending:
             debrief_lines = build_debrief_lines(world, ending, initial_metrics_snapshot, transcript)
@@ -2066,7 +1977,7 @@ def play(
 
         # Continue to next turn with spacebar
         try:
-            wait_for_space("Press SPACE to continue to next turn (or Ctrl+C to exit)...")
+            wait_for_space("Press SPACE (or Enter) to continue to next turn (or Ctrl+C to exit)...")
         except KeyboardInterrupt:
             typer.echo("\nGame paused. Use --load to resume.")
             break

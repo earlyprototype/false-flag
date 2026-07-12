@@ -29,6 +29,7 @@ scenarios:
     scripted_turns: 6
     turn_prefix: "turn_"  # Uses turn_001.yaml, turn_002.yaml, etc.
     stochastic_from: 7
+    epilogue_turns: 4  # Stochastic turns after the script before classic mode grades the campaign
     estimated_time: "90-120 minutes"
     features:
       - "Gradual escalation from diplomatic crisis to missile launch"
@@ -45,6 +46,7 @@ scenarios:
     turn_prefix: "turn_"
     turn_suffix: "_fast"  # Uses turn_001_fast.yaml, turn_002_fast.yaml, etc.
     stochastic_from: 4
+    epilogue_turns: 4  # Stochastic turns after the script before classic mode grades the campaign
     estimated_time: "45-60 minutes"
     features:
       - "Rapid escalation with breaking developments mid-turn"

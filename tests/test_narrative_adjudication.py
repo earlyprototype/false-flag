@@ -147,7 +147,7 @@ def test_update_hidden_metrics_snapshots_previous():
 
 
 def test_strip_effect_boxes_removes_numbers_keeps_narrative():
-    from cli.main import strip_effect_boxes
+    from cli.display_utils import strip_effect_boxes
 
     lines = [
         "Some narrative line.",

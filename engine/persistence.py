@@ -5,7 +5,7 @@ Provides JSON-based persistence for WorldState and game transcript.
 
 import json
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from models.world import WorldState
 from models.narrative_state import NarrativeState
@@ -19,7 +19,8 @@ def save_game(
     root_path: Optional[Path] = None,
     play_mode: str = "immersive",
     narrative_state: Optional[NarrativeState] = None,
-    variant: str = "standard"
+    variant: str = "standard",
+    initial_metrics: Optional[dict] = None
 ) -> Path:
     """Save game state and transcript to JSON file.
 
@@ -33,6 +34,8 @@ def save_game(
         narrative_state: Optional narrative state to persist
         variant: Scenario variant (standard/fast_start) — needed on load to
             pick the right turn files and stochastic transition point
+        initial_metrics: Metrics snapshot from the start of the campaign, so
+            a resumed game's debrief reports deltas from the true start
 
     Returns:
         Path to saved file
@@ -52,24 +55,37 @@ def save_game(
         "play_mode": play_mode,
         "narrative_state": narrative_state.model_dump() if narrative_state else None,
         "variant": variant,
-        "version": "2.1"  # 2.1: adds scenario variant
+        "initial_metrics": initial_metrics,
+        "version": "2.2"  # 2.1: adds scenario variant; 2.2: adds initial_metrics
     }
 
     save_path.write_text(json.dumps(save_data, indent=2), encoding="utf-8")
     return save_path
 
 
-def read_save_variant(save_path: Path) -> str:
-    """Read just the scenario variant from a save file.
+def read_save_field(save_path: Path, key: str, default: Any = None) -> Any:
+    """Read a single top-level field from a save file.
 
     Kept separate from load_game so its return shape stays stable for
-    existing callers. Old saves (pre-2.1) default to "standard".
+    existing callers. Missing keys (old saves) and unreadable files return
+    `default`. A stored null also returns `default` — old versions of this
+    tooling wrote explicit nulls for absent optional fields.
     """
     try:
         save_data = json.loads(Path(save_path).read_text(encoding="utf-8"))
-        return save_data.get("variant", "standard")
     except (OSError, json.JSONDecodeError):
-        return "standard"
+        return default
+    value = save_data.get(key)
+    return default if value is None else value
+
+
+def read_save_variant(save_path: Path) -> str:
+    """Read just the scenario variant from a save file.
+
+    Thin wrapper over read_save_field. Old saves (pre-2.1) default to
+    "standard".
+    """
+    return read_save_field(save_path, "variant", "standard")
 
 
 def load_game(save_path: Path) -> Tuple[str, WorldState, List[str], str, Optional[NarrativeState]]:
