@@ -83,11 +83,8 @@ def wait_for_key(prompt: str = "Press SPACE to continue...", keys=(" ",)) -> Non
             time.sleep(0.02)
 
     if not _stdin_is_tty():
-        # Piped/redirected input: consume one line (an empty line counts)
-        try:
-            sys.stdin.readline()
-        except (EOFError, OSError):
-            pass
+        # Piped/redirected input (scripts, CI): don't block and don't consume
+        # stdin — lines belong to the game's real prompts, not pacing gates.
         print("")
         return
 

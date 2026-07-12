@@ -10,6 +10,7 @@ import os
 
 from models.world import WorldState, Metrics
 from models.narrative_state import NarrativeState, create_initial_narrative_state
+from engine.flags import update_world_flags
 from engine.initial_conditions import load_initial_conditions
 from engine.scenario_loader import get_scenario_config, get_turn_filename
 from engine.sim_loop import run_turn_briefing, run_turn_decision, run_turn_discussion
@@ -84,21 +85,37 @@ class GameManager:
 
     def get_turn_briefing(self) -> Dict[str, Any]:
         """Run the briefing phase and return the inject."""
-        stochastic = False # Default for Turn 1
+        stochastic_from = self.scenario_config.get("stochastic_from", 7)
+        use_stochastic = self.world.turn >= stochastic_from
         turn_filename = get_turn_filename(self.world.turn, self.scenario_config)
-        
+
         inject, lines = run_turn_briefing(
             self.world,
             self.scenario_id,
-            stochastic,
+            use_stochastic,
             self.rng,
             self.root_path,
             self.transcript,
+            turn_filename=turn_filename,
             suppress_display=True,
             silent_effects=True
         )
-        
+
         self.transcript.extend(lines)
+
+        # Sync inject effects into the narrative state. Adjudication mutates
+        # narrative_state.hidden_metrics and the result is copied back over
+        # world.metrics at end of turn, so any briefing effect left only on
+        # world.metrics would be silently reverted. This also snapshots
+        # previous_metrics, giving the immersive-mode vibes a real trend baseline.
+        self.narrative_state.update_hidden_metrics({
+            "escalation_risk": self.world.metrics.escalation_risk,
+            "domestic_stability": self.world.metrics.domestic_stability,
+            "alliance_cohesion": self.world.metrics.alliance_cohesion,
+            "casualties_mil": self.world.metrics.casualties_mil,
+            "casualties_civ": self.world.metrics.casualties_civ,
+        })
+
         return inject or {}
 
     def process_question(self, question_text: str) -> List[str]:
@@ -178,7 +195,8 @@ class GameManager:
         character_responses = []
         actor_responses = []
         reasoning = ""
-        
+        error = None
+
         try:
             if self.world.actor_system:
                 from engine.narrative_adjudication import adjudicate_with_actor_simulation
@@ -205,20 +223,34 @@ class GameManager:
                     llm_generate_fn=generate_text,
                     world_narrative=self.world.narrative
                 )
+            # Sync world metrics with narrative state (keep both in sync)
+            self.world.metrics.escalation_risk = self.narrative_state.hidden_metrics.escalation_risk
+            self.world.metrics.domestic_stability = self.narrative_state.hidden_metrics.domestic_stability
+            self.world.metrics.alliance_cohesion = self.narrative_state.hidden_metrics.alliance_cohesion
+            self.world.metrics.casualties_mil = self.narrative_state.hidden_metrics.casualties_mil
+            self.world.metrics.casualties_civ = self.narrative_state.hidden_metrics.casualties_civ
+            update_world_flags(self.world)
         except Exception as e:
+            # Keep the print for server logs, but surface the failure to callers
             print(f"Adjudication error: {e}")
-        
+            error = str(e)
+
+        # Keep narrative state clock in sync before the turn advances
+        self.narrative_state.turn = self.world.turn
+
         # Update Phase & Turn
         self.world.turn += 1
         self.world.phase = "briefing"
         self.world.scene = self.world.turn
-        
+        self.world.discussion_transcript = []
+
         return {
             "interpretation": interpretation,
             "reasoning": reasoning,
             "effects": final_effects,
             "advisor_reactions": character_responses,
-            "international_reactions": [r.dict() for r in actor_responses] if actor_responses else []
+            "international_reactions": [r.dict() for r in actor_responses] if actor_responses else [],
+            "error": error
         }
 
     def commit_decision(self, action_text: str) -> Dict[str, Any]:
@@ -293,12 +325,12 @@ class GameManager:
                  actors.append({
                      "code": code,
                      "name": actor.full_name,
-                     "category": "adversary" if code == "RUS" else "ally" if code == "US" else "neutral"
+                     "category": "adversary" if code == "RUS" else "ally" if code == "USA" else "neutral"
                  })
         else:
             actors = [
                 {"code": "RUS", "name": "Russia", "category": "adversary"},
-                {"code": "US", "name": "United States", "category": "ally"},
+                {"code": "USA", "name": "United States", "category": "ally"},
                 {"code": "CHN", "name": "China", "category": "neutral"}
             ]
         return actors
@@ -307,7 +339,7 @@ class GameManager:
         """Generate detailed intelligence assessment."""
         from engine.intelligence import generate_actor_detailed_assessment
         
-        name_map = {"RUS": "Russia", "US": "United States", "CHN": "China"}
+        name_map = {"RUS": "Russia", "USA": "United States", "CHN": "China"}
         if self.world.actor_system and actor_code in self.world.actor_system.actors:
             actor_name = self.world.actor_system.actors[actor_code].full_name
         else:

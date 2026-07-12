@@ -18,10 +18,11 @@ def save_game(
     save_name: str = "autosave",
     root_path: Optional[Path] = None,
     play_mode: str = "immersive",
-    narrative_state: Optional[NarrativeState] = None
+    narrative_state: Optional[NarrativeState] = None,
+    variant: str = "standard"
 ) -> Path:
     """Save game state and transcript to JSON file.
-    
+
     Args:
         world: Current world state
         transcript: Full game transcript
@@ -30,29 +31,45 @@ def save_game(
         root_path: Optional root path override (for testing)
         play_mode: Gameplay mode (classic/immersive/emergent)
         narrative_state: Optional narrative state to persist
-    
+        variant: Scenario variant (standard/fast_start) — needed on load to
+            pick the right turn files and stochastic transition point
+
     Returns:
         Path to saved file
     """
     if root_path is None:
         root_path = Path(__file__).resolve().parents[1]
-    
+
     saves_dir = root_path / "saves"
     saves_dir.mkdir(exist_ok=True)
-    
+
     save_path = saves_dir / f"{scenario_id}_{save_name}.json"
-    
+
     save_data = {
         "scenario_id": scenario_id,
         "world": world.model_dump(),
         "transcript": transcript,
         "play_mode": play_mode,
         "narrative_state": narrative_state.model_dump() if narrative_state else None,
-        "version": "2.0"  # Increment version for narrative state support
+        "variant": variant,
+        "version": "2.1"  # 2.1: adds scenario variant
     }
-    
+
     save_path.write_text(json.dumps(save_data, indent=2), encoding="utf-8")
     return save_path
+
+
+def read_save_variant(save_path: Path) -> str:
+    """Read just the scenario variant from a save file.
+
+    Kept separate from load_game so its return shape stays stable for
+    existing callers. Old saves (pre-2.1) default to "standard".
+    """
+    try:
+        save_data = json.loads(Path(save_path).read_text(encoding="utf-8"))
+        return save_data.get("variant", "standard")
+    except (OSError, json.JSONDecodeError):
+        return "standard"
 
 
 def load_game(save_path: Path) -> Tuple[str, WorldState, List[str], str, Optional[NarrativeState]]:

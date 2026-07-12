@@ -92,9 +92,9 @@ def generate_inject(
             print(f"[DEBUG] Response preview: {response[:200]}")
             return None
         
-        # Ensure required fields
-        if "id" not in inject_data:
-            inject_data["id"] = f"turn_{turn_number:03d}_generated"
+        # Always stamp a deterministic per-turn id so generated injects
+        # (e.g. the mock driver's hardcoded id) never collide across turns
+        inject_data["id"] = f"turn_{world.turn:03d}_inject"
         
         return inject_data
     

@@ -311,9 +311,13 @@ class DiplomaticEncounter:
         self.transcript.append(pm_line)
         self.history.append(("Prime Minister", player_message))
         
-        # Check for end conditions
+        # Check for end conditions: only an explicit, standalone closer ends
+        # the call. A substring test hung up on lines like "Thank you for the
+        # intel, but I need firm Article 5 commitments."
         msg_lower = player_message.strip().lower()
-        if msg_lower in ["/end", "end", "goodbye"] or "thank you" in msg_lower:
+        normalized = "".join(c for c in msg_lower if c.isalpha() or c.isspace()).strip()
+        closers = {"end", "goodbye", "thank you", "thank you goodbye", "that will be all", "end call"}
+        if msg_lower == "/end" or normalized in closers:
             return self.end(llm_generate, rng)
 
         # Generate response
@@ -371,33 +375,39 @@ def run_diplomatic_encounter(
     # Start
     lines = encounter.start(rng)
     if print_fn:
-        for line in lines: print_fn(line)
-    
+        for line in lines:
+            print_fn(line)
+    printed_upto = len(encounter.transcript)
+
     # Loop
     max_exchanges = encounter.profile.get("conversation_rules", {}).get("max_exchanges", 11)
-    
+
     for _ in range(max_exchanges):
-        if not encounter.active: break
-        
+        if not encounter.active:
+            break
+
         if get_player_input:
             msg = get_player_input("Response: ")
         else:
             msg = "Thank you."
-            
-        new_lines = encounter.process_turn(msg, llm_generate, rng)
-        # Print only new lines (simple diff or just last few)
-        # Ideally we'd track index
+
+        encounter.process_turn(msg, llm_generate, rng)
+        # Print exactly the lines this exchange appended (the previous
+        # last-line-twice approach printed every reply twice and never the PM)
         if print_fn:
-            print_fn(new_lines[-1]) # Print PM
-            if len(new_lines) > 1 and encounter.active:
-                print_fn(new_lines[-1]) # Print Response (if active)
-                
+            for line in encounter.transcript[printed_upto:]:
+                print_fn(line)
+        printed_upto = len(encounter.transcript)
+
     if encounter.active:
         encounter.end(llm_generate, rng)
-        
-    if print_fn and encounter.outcome:
-        print_fn(encounter.transcript[-1])
-        
+
+    # Print anything appended after the loop (e.g. the end-of-call assessment
+    # when the exchange limit was hit) exactly once
+    if print_fn:
+        for line in encounter.transcript[printed_upto:]:
+            print_fn(line)
+
     return encounter.transcript, encounter.outcome.get("cohesion_delta", 0) if encounter.outcome else 0
 
 

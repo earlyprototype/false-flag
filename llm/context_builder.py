@@ -5,6 +5,7 @@ This module implements the role-based context strategy, providing specific,
 efficient, and secure context for each type of LLM agent in the simulation.
 """
 
+import re
 from typing import List
 
 from models.world import WorldState
@@ -13,10 +14,14 @@ from models.world import WorldState
 # an action, or a system message.
 FullTranscript = List[str]
 
+# Maximum transcript lines embedded in advisor context (keeps prompts bounded)
+MAX_ADVISOR_TRANSCRIPT_LINES = 500
+
 def get_advisor_context(transcript: FullTranscript, world_state: WorldState) -> str:
     """
-    Returns the full, unabridged game transcript.
-    Used for the Advisory Council to ensure perfect recall and persona consistency.
+    Returns the game transcript (capped at the most recent
+    MAX_ADVISOR_TRANSCRIPT_LINES lines) with a world state summary.
+    Used for the Advisory Council to ensure recall and persona consistency.
     """
     context_parts = []
     
@@ -33,12 +38,16 @@ def get_advisor_context(transcript: FullTranscript, world_state: WorldState) -> 
     context_parts.append(f"Civilian Casualties: {world_state.metrics.casualties_civ}")
     context_parts.append("")
     
-    # Add full transcript
+    # Add transcript (capped to keep the prompt bounded on long games)
     context_parts.append("=" * 60)
     context_parts.append("COMPLETE GAME HISTORY")
     context_parts.append("=" * 60)
-    context_parts.extend(transcript)
-    
+    if len(transcript) > MAX_ADVISOR_TRANSCRIPT_LINES:
+        context_parts.append("[... earlier history truncated ...]")
+        context_parts.extend(transcript[-MAX_ADVISOR_TRANSCRIPT_LINES:])
+    else:
+        context_parts.extend(transcript)
+
     return "\n".join(context_parts)
 
 def get_decision_interpreter_context(current_turn_transcript: List[str], world_state: WorldState) -> str:
@@ -225,30 +234,40 @@ def get_adjudicator_context(decision: str, summary: str, world_state: WorldState
 
 def generate_summary(transcript: FullTranscript, summary_prompt: str) -> str:
     """
-    Uses an LLM to generate a high-quality summary of the game so far,
-    tailored by the specific needs of the calling agent (via summary_prompt).
+    Builds a short deterministic digest of the game so far (no LLM call).
+
+    The digest is derived mechanically from the transcript, so no placeholder
+    text can leak into downstream prompts. The summary_prompt argument is
+    accepted for API compatibility but does not alter the digest.
     """
-    # For now, return a placeholder. Full implementation will call the LLM router.
-    # This will be implemented in Phase 3 when we integrate with llm/router.py
-    
-    # Build the summary request
-    context_for_summary = []
-    context_for_summary.append("=" * 60)
-    context_for_summary.append("GAME TRANSCRIPT TO SUMMARIZE")
-    context_for_summary.append("=" * 60)
-    context_for_summary.extend(transcript)
-    context_for_summary.append("")
-    context_for_summary.append("=" * 60)
-    context_for_summary.append("SUMMARY REQUIREMENTS")
-    context_for_summary.append("=" * 60)
-    context_for_summary.append(summary_prompt)
-    
-    full_context = "\n".join(context_for_summary)
-    
-    # TODO: Replace this placeholder with actual LLM call
-    # from llm.router import generate_text
-    # summary = generate_text(full_context, temperature=0.5, max_tokens=500)
-    # return summary
-    
-    # Placeholder: Return a basic summary based on transcript length
-    return f"Game summary: {len(transcript)} events have occurred. Summary generation will be implemented in Phase 3."
+    del summary_prompt  # Deterministic digest; kept for API compatibility
+
+    turn_numbers = []
+    event_lines = []
+    for raw_line in transcript:
+        line = raw_line.strip()
+        if not line:
+            continue
+        turn_match = re.match(r"^TURN\s+(\d+)\b", line)
+        if turn_match:
+            turn_numbers.append(int(turn_match.group(1)))
+            continue
+        # Collect lines that look like events/injects for the digest
+        if line.startswith(("[Narrator]", "[Stochastically generated inject]", "***")) or \
+                re.match(r"^(BREAKING|INTEL|BRIEFING)\b", line, re.IGNORECASE):
+            event_lines.append(line.strip("* ").strip())
+
+    summary_lines = ["STORY DIGEST:"]
+    if turn_numbers:
+        summary_lines.append(
+            f"- Turns played: {len(set(turn_numbers))} (latest: TURN {max(turn_numbers)})"
+        )
+    summary_lines.append(f"- Transcript length: {len(transcript)} lines")
+    if event_lines:
+        summary_lines.append("- Recent events:")
+        for event in event_lines[-3:]:
+            summary_lines.append(f"  - {event[:100]}")
+    else:
+        summary_lines.append("- No notable events recorded yet.")
+
+    return "\n".join(summary_lines)

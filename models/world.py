@@ -47,6 +47,12 @@ class WorldState(BaseModel):
         default_factory=list,
         description="Transcript of discussion phase for current turn"
     )
+
+    # Recently applied injects (for critical-omissions context)
+    recent_injects: List[str] = Field(
+        default_factory=list,
+        description="Titles/summaries of recently applied injects, most recent last"
+    )
     
     # Diplomatic relationship tracking
     diplomatic_relationships: Dict[str, int] = Field(

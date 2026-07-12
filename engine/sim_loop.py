@@ -199,16 +199,22 @@ def apply_inject_effects(world: WorldState, inject: Dict[str, Any], silent: bool
             except Exception:
                 delta_value = None
         
-        # Apply difficulty multiplier to scenario effects (not casualties)
+        # Apply difficulty multiplier to scenario effects (not casualties).
+        # round(), not int(): truncation turned every ±1 scripted effect into
+        # a no-op on the 0.5x and 0.7x difficulties.
         if delta_value is not None and metric_name not in ["casualties_civ", "casualties_mil"]:
-            delta_value = int(delta_value * difficulty_multiplier)
-        
+            delta_value = round(delta_value * difficulty_multiplier)
+
         if isinstance(metric_name, str) and delta_value is not None:
             # Update the targeted metric
             if hasattr(world.metrics, metric_name):
                 current = getattr(world.metrics, metric_name)
                 if isinstance(current, int):
-                    updated = clamp(current + delta_value)
+                    if metric_name in ("casualties_civ", "casualties_mil"):
+                        # Casualties are an open-ended count, not a 0-100 gauge
+                        updated = max(0, current + delta_value)
+                    else:
+                        updated = clamp(current + delta_value)
                     setattr(world.metrics, metric_name, updated)
                     
                     # Color-coded effect display (unless silent mode)
@@ -256,10 +262,11 @@ def run_turn_briefing(
     get_player_input: Optional[Any] = None,
     turn_filename: Optional[str] = None,
     silent_effects: bool = False,
-    suppress_display: bool = False
+    suppress_display: bool = False,
+    replay: bool = False
 ) -> Tuple[Optional[Dict[str, Any]], List[str]]:
     """Run briefing phase: load and display inject, handle mandatory diplomatic encounters.
-    
+
     Args:
         world: Current world state
         scenario_id: Scenario identifier
@@ -271,7 +278,10 @@ def run_turn_briefing(
         turn_filename: Optional custom turn filename (for scenario variants)
         silent_effects: If True, apply effects but don't display boxes (for initial Turn 1)
         suppress_display: If True, don't display inject panel (caller will stream it)
-    
+        replay: If True, this turn's briefing already ran before a save/load —
+            display the inject for context but do NOT re-apply its effects or
+            re-run its mandatory diplomatic encounter
+
     Returns:
         Tuple of (inject_dict, transcript_lines)
     """
@@ -332,22 +342,29 @@ def run_turn_briefing(
         # Display the inject
         inject_lines = display_inject(inject, root_path, display_panel=not suppress_display)
         transcript.extend(inject_lines)
-        
-        # Apply inject effects
-        effect_lines = apply_inject_effects(world, inject, silent=silent_effects)
-        transcript.extend(effect_lines)
-        
+
+        # Apply inject effects (skipped when replaying an already-applied briefing)
+        if not replay:
+            effect_lines = apply_inject_effects(world, inject, silent=silent_effects)
+            transcript.extend(effect_lines)
+
+            # Record the event so advisors can reference recent developments
+            title = inject.get("title")
+            if title:
+                world.recent_injects.append(str(title))
+                del world.recent_injects[:-5]
+
         # Check for mandatory diplomatic encounter
         diplomatic_encounter = inject.get("diplomatic_encounter")
-        if diplomatic_encounter and isinstance(diplomatic_encounter, dict):
+        if not replay and diplomatic_encounter and isinstance(diplomatic_encounter, dict):
             required = diplomatic_encounter.get("required", False)
             country = diplomatic_encounter.get("country")
             context = diplomatic_encounter.get("context")
-            
+
             if required and country:
                 transcript.append("\n*** MANDATORY DIPLOMATIC ENCOUNTER ***\n")
                 if get_player_input:
-                    input("Press ENTER to answer the call...")
+                    get_player_input("Press ENTER to answer the call...")
                 
                 # Run diplomatic encounter (with real-time printing if available)
                 encounter_transcript, cohesion_delta = run_diplomatic_encounter(
@@ -364,9 +381,10 @@ def run_turn_briefing(
                 )
                 
                 transcript.extend(encounter_transcript)
-                
-                # Apply alliance cohesion change
-                world.metrics.alliance_cohesion = clamp(world.metrics.alliance_cohesion + cohesion_delta)
+
+                # DiplomaticEncounter.end() already applied cohesion_delta to
+                # world.metrics — applying it again here doubled every
+                # diplomatic outcome. Just re-clamp and refresh flags.
                 clamp_metrics(world.metrics)
                 update_world_flags(world)
     else:
@@ -624,7 +642,7 @@ def run_full_turn(
         transcript.extend(discussion_lines)
     
     # Decision phase
-    interpretation, pushback, decision_lines = run_turn_decision(world, scenario_id, action, rng, root_path)
+    interpretation, pushback, critical_concerns, decision_lines = run_turn_decision(world, scenario_id, action, rng, root_path)
     transcript.extend(decision_lines)
     
     # Adjudication phase

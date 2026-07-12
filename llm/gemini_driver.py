@@ -15,6 +15,13 @@ except ImportError:
     GENAI_AVAILABLE = False
 
 
+def _truncate(text: str, limit: int = 200) -> str:
+    """Truncate long strings (e.g. response reprs) for error messages."""
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "... [truncated]"
+
+
 class GeminiDriver:
     """Driver for Google Gemini 2.5 Flash API.
     
@@ -112,25 +119,34 @@ class GeminiDriver:
         try:
             # Use RNG seed to make generation more deterministic
             # Note: Gemini doesn't support explicit seed, but we can use temperature
-            seed = rng.randint(0, 2**31 - 1)
-            
-            # Generate response
-            response = self.model.generate_content(
-                prompt,
-                generation_config=self.generation_config,
-            )
-            
+            _seed = rng.randint(0, 2**31 - 1)
+
+            # Generate response (60s timeout so a hung request can't stall the game)
+            try:
+                response = self.model.generate_content(
+                    prompt,
+                    generation_config=self.generation_config,
+                    request_options={"timeout": 60},
+                )
+            except TypeError:
+                # Older SDK versions don't accept request_options
+                response = self.model.generate_content(
+                    prompt,
+                    generation_config=self.generation_config,
+                )
+
             # Extract text from response
             if response.text:
                 return response.text.strip()
             else:
                 # Handle blocked or empty responses
                 finish_reason = getattr(response.candidates[0], 'finish_reason', 'UNKNOWN') if response.candidates else 'NO_CANDIDATES'
-                raise RuntimeError(f"Gemini returned no text. Finish reason: {finish_reason}. Response: {response}")
-        
+                raise RuntimeError(f"Gemini returned no text. Finish reason: {finish_reason}. Response: {_truncate(repr(response))}")
+
         except Exception as e:
-            # Re-raise exception so caller can handle it properly
-            raise Exception(f"Gemini API Error: {str(e)}") from e
+            # Re-raise exception so caller can handle it properly, keeping the
+            # original type in the message and truncating verbose payloads
+            raise Exception(f"Gemini API Error ({type(e).__name__}): {_truncate(str(e), 300)}") from e
     
     def batch_generate_text(self, prompts: list[str], rng: Random) -> list[str]:
         """Generate multiple text responses in parallel using concurrent processing.
@@ -155,11 +171,19 @@ class GeminiDriver:
         def generate_single(prompt: str) -> str:
             """Generate single response - used by thread pool."""
             try:
-                response = self.model.generate_content(
-                    prompt,
-                    generation_config=self.generation_config,
-                )
-                
+                try:
+                    response = self.model.generate_content(
+                        prompt,
+                        generation_config=self.generation_config,
+                        request_options={"timeout": 60},
+                    )
+                except TypeError:
+                    # Older SDK versions don't accept request_options
+                    response = self.model.generate_content(
+                        prompt,
+                        generation_config=self.generation_config,
+                    )
+
                 if response.text:
                     return response.text.strip()
                 else:

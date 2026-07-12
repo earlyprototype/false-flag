@@ -3,7 +3,8 @@
 Replaces the old hardcoded AdvisorProposal system with free-form Q&A.
 """
 
-from typing import Any, Dict, List, Tuple
+import re
+from typing import Any, Dict, List, Optional, Set, Tuple
 from random import Random
 
 from models.world import WorldState
@@ -15,6 +16,68 @@ from llm.prompts import (
 )
 from llm.model_config import LLMContext
 from engine.initial_conditions import get_all_uk_advisors
+
+
+# Common title variants advisors are referred to by in LLM output,
+# keyed by character id. Used to recognise "Role: message" pushback lines.
+_ADVISOR_ROLE_ALIASES: Dict[str, List[str]] = {
+    "prime_minister": ["prime minister", "pm"],
+    "chief_defence_staff": ["chief of the defence staff", "chief defence staff", "cds"],
+    "national_security_advisor": ["national security advisor", "national security adviser", "nsa"],
+    "home_secretary": ["home secretary"],
+    "foreign_secretary": ["foreign secretary"],
+    "attorney_general": ["attorney general"],
+}
+
+
+def _question_matches_keyword(question_lower: str, keyword: str) -> bool:
+    """Match a routing keyword against the question using word boundaries.
+
+    Prevents short keywords like "us" from matching inside words such as
+    "Russia" or "status", while multi-word phrases still match as phrases.
+    """
+    return re.search(r"\b" + re.escape(keyword) + r"\b", question_lower) is not None
+
+
+def _known_pushback_roles(initial_conditions: Dict[str, Any]) -> Set[str]:
+    """Build the set of normalized role names that identify a pushback speaker."""
+    roles: Set[str] = set()
+    for aliases in _ADVISOR_ROLE_ALIASES.values():
+        roles.update(aliases)
+
+    uk_advisors = get_all_uk_advisors(initial_conditions)
+    for char_id, char_info in uk_advisors.items():
+        roles.add(char_id.replace("_", " ").lower())
+        role = char_info.get("role", "")
+        if role:
+            roles.add(role.strip().lower())
+
+    return roles
+
+
+def _normalize_role_prefix(prefix: str) -> str:
+    """Strip markdown/bracket decoration from a candidate 'Role:' prefix."""
+    return prefix.strip().strip("*_`[]").strip()
+
+
+def _extract_labeled_text(line: str, label: str) -> Optional[str]:
+    """Return text after a "LABEL:" prefix, tolerating markdown decoration.
+
+    Accepts variants like "CONCERN:", "**CONCERN:**", "**CONCERN**:" and
+    "- concern:" (case-insensitive). Returns None if the line doesn't start
+    with the label.
+    """
+    pattern = r"^[\s*_`\-]*" + re.escape(label) + r"[\s*_`]*:[\s*_`]*(.*)$"
+    match = re.match(pattern, line.strip(), re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    return None
+
+
+def _is_no_pushback_line(line: str) -> bool:
+    """True only when a line IS the "NO PUSHBACK" sentinel (modulo decoration)."""
+    normalized = line.strip().strip("*_`[]().:;!- \t").upper()
+    return normalized == "NO PUSHBACK"
 
 
 def handle_player_question(
@@ -64,7 +127,9 @@ def handle_player_question(
     }
     
     for char_id, keywords in advisor_keywords.items():
-        if char_id in uk_advisors and any(kw in question_lower for kw in keywords):
+        if char_id in uk_advisors and any(
+            _question_matches_keyword(question_lower, kw) for kw in keywords
+        ):
             responding_advisors.append(char_id)
     
     # If no specific advisor mentioned, default to NSA (coordinates responses)
@@ -143,18 +208,39 @@ def generate_advisor_pushback(
     prompt = build_pushback_prompt(world, action, interpretation, initial_conditions, transcript)
     pushback_text = llm_generate_fn(prompt, rng, context=LLMContext.ADVISOR_PUSHBACK)
     
-    # Parse pushback response
-    if "NO PUSHBACK" in pushback_text:
+    # Parse pushback response.
+    # "NO PUSHBACK" only counts when it appears as a standalone line, so an
+    # advisor mentioning the phrase mid-sentence doesn't drop real pushback.
+    lines = pushback_text.strip().split("\n")
+    if any(_is_no_pushback_line(line) for line in lines):
         return []
-    
-    # Simple parsing: each line starting with role name
+
+    # A line starts a new pushback only when the prefix before ":" is a known
+    # advisor role; other lines (markdown emphasis, wrapped text) are treated
+    # as continuations of the previous advisor's message.
+    known_roles = _known_pushback_roles(initial_conditions)
     pushback_list = []
-    for line in pushback_text.strip().split("\n"):
-        line = line.strip()
-        if ":" in line:
-            role, message = line.split(":", 1)
-            pushback_list.append((role.strip(), message.strip()))
-    
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        role = None
+        message = ""
+        if ":" in stripped:
+            prefix, remainder = stripped.split(":", 1)
+            candidate = _normalize_role_prefix(prefix)
+            if candidate.lower() in known_roles:
+                role = candidate
+                message = remainder.strip()
+
+        if role is not None:
+            pushback_list.append((role, message))
+        elif pushback_list:
+            prev_role, prev_message = pushback_list[-1]
+            pushback_list[-1] = (prev_role, f"{prev_message} {stripped}".strip())
+        # Lines before any recognised advisor (e.g. preamble) are dropped
+
     return pushback_list
 
 
@@ -197,8 +283,8 @@ def check_critical_omissions(
     
     # Build recent events context from world state
     recent_events = []
-    if hasattr(world, 'recent_injects') and world.recent_injects:
-        recent_events = world.recent_injects[-3:]  # Last 3 injects
+    if world.recent_injects:
+        recent_events = world.recent_injects[-5:]  # Last 5 injects
     elif hasattr(world, 'flags') and world.flags:
         # Fallback: use flags as context
         recent_events = [f"Active situation: {flag}" for flag in list(world.flags.keys())[:3]]
@@ -233,28 +319,40 @@ def check_critical_omissions(
             if "NO_CONCERN" in response or "NO CONCERN" in response:
                 continue
             
-            # Extract concern and recommendation
+            # Extract concern and recommendation (tolerating markdown-bold
+            # labels); continuation lines append to whichever was seen last
             concern = ""
             recommendation = ""
-            
+            last_field = None
+
             lines = response.strip().split("\n")
             for line in lines:
                 line = line.strip()
-                if line.startswith("CONCERN:"):
-                    concern = line.replace("CONCERN:", "").strip()
-                elif line.startswith("RECOMMENDATION:"):
-                    recommendation = line.replace("RECOMMENDATION:", "").strip()
-                elif concern and not recommendation:
+                if not line:
+                    continue
+                concern_text = _extract_labeled_text(line, "CONCERN")
+                recommendation_text = _extract_labeled_text(line, "RECOMMENDATION")
+                if concern_text is not None:
+                    concern = concern_text
+                    last_field = "concern"
+                elif recommendation_text is not None:
+                    recommendation = recommendation_text
+                    last_field = "recommendation"
+                elif last_field == "concern":
                     # Multi-line concern
-                    concern += " " + line
-            
+                    concern = f"{concern} {line}".strip()
+                elif last_field == "recommendation":
+                    # Multi-line recommendation
+                    recommendation = f"{recommendation} {line}".strip()
+
             if concern and recommendation:
                 char_info = uk_advisors[char_id]
                 role = char_info.get("role", "Advisor")
                 critical_concerns.append((role, concern, recommendation))
-        
-        except Exception:
-            # Silently continue if one advisor check fails
+
+        except Exception as e:
+            # Keep checking the remaining advisors, but don't fail silently
+            print(f"[WARN] Critical omissions check failed for {char_id}: {e}")
             continue
     
     return critical_concerns

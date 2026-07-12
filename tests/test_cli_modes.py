@@ -21,7 +21,6 @@ def test_original_cli_works():
     assert result.returncode == 0, f"Original CLI broken! Exit code: {result.returncode}"
     assert "FALSE FLAG" in result.stdout, "Original CLI output doesn't match expected format"
     print("[PASS] Original CLI: WORKING")
-    return True
 
 def test_dashboard_cli_works():
     """Verify dashboard CLI runs."""
@@ -36,7 +35,6 @@ def test_dashboard_cli_works():
     assert result.returncode == 0, f"Dashboard CLI broken! Exit code: {result.returncode}"
     assert "FALSE FLAG" in result.stdout, "Dashboard CLI output doesn't match expected format"
     print("[PASS] Dashboard CLI: WORKING")
-    return True
 
 def test_dashboard_import():
     """Test that dashboard module can be imported."""
@@ -51,7 +49,6 @@ def test_dashboard_import():
     assert result.returncode == 0, f"Dashboard import failed! Exit code: {result.returncode}"
     assert "OK" in result.stdout, f"Dashboard import didn't produce expected output: {result.stdout}"
     print("[PASS] Dashboard import: WORKING")
-    return True
 
 def test_both_commands_available():
     """Verify both CLIs have the same commands available."""
@@ -81,7 +78,6 @@ def test_both_commands_available():
         assert cmd in dashboard_result.stdout, f"Dashboard CLI missing '{cmd}' command"
     
     print("[PASS] Command parity: VERIFIED")
-    return True
 
 def test_intro_command():
     """Test that intro command works in both CLIs."""
@@ -110,7 +106,6 @@ def test_intro_command():
     assert dashboard_result.returncode == 0, f"Dashboard intro failed: {dashboard_result.returncode}"
     
     print("[PASS] Intro command: WORKING on both CLIs")
-    return True
 
 if __name__ == "__main__":
     print("Running CLI integration tests...\n")
