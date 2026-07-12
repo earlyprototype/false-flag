@@ -44,6 +44,7 @@ from engine.sim_loop import (
 )
 from engine.narrative_adjudication import adjudicate_with_narrative
 from engine.intro import get_intro_lines
+from engine.endings import check_ending, build_debrief_lines, EPILOGUE_TURNS
 from engine.persistence import save_game, load_game
 from engine.initial_conditions import load_initial_conditions
 from engine.diplomacy import run_diplomatic_encounter, list_available_diplomatic_contacts
@@ -834,7 +835,19 @@ def play(
     # Load scenario configuration for variant-specific turn files
     scenario_config = get_scenario_config(scenario, variant, root)
     stochastic_from_turn = scenario_config.get("stochastic_from", 7)
-    
+
+    # Classic-mode campaign grading: thresholds can end the game on any turn,
+    # and the campaign is graded after the scripted turns plus a short
+    # stochastic epilogue. Deltas in the debrief measure from this session's
+    # starting point.
+    campaign_final_turn = (stochastic_from_turn - 1) + EPILOGUE_TURNS
+    endings_disabled = False
+    initial_metrics_snapshot = {
+        "escalation_risk": world.metrics.escalation_risk,
+        "domestic_stability": world.metrics.domestic_stability,
+        "alliance_cohesion": world.metrics.alliance_cohesion,
+    }
+
     # Main game loop
     while True:
         # Refresh colors at start of loop in case theme changed
@@ -2000,6 +2013,12 @@ def play(
             typer.echo("═" * 60)
             typer.echo("")
         
+        # Classic mode has the win/lose thresholds its menu screen promises.
+        # Immersive and emergent modes are open-ended by design.
+        ending = None
+        if play_mode == "classic" and not endings_disabled:
+            ending = check_ending(world, final_turn=campaign_final_turn)
+
         # Advance turn BEFORE autosaving: a save taken pre-increment resumed
         # into the just-finished turn, replaying its briefing and re-applying
         # inject effects on top of the saved metrics.
@@ -2010,12 +2029,41 @@ def play(
 
         save_path = save_game(world, transcript, scenario, "autosave", root, play_mode, narrative_state, variant=variant)
 
+        if ending:
+            debrief_lines = build_debrief_lines(world, ending, initial_metrics_snapshot, transcript)
+            transcript.extend(debrief_lines)
+            typer.echo("")
+            if RICH_ENABLED:
+                verdict_color = {
+                    "victory": COLORS["success"],
+                    "partial": COLORS["warning"],
+                    "defeat": COLORS["danger"],
+                }.get(ending.verdict, COLORS["normal"])
+                console.print(Panel(
+                    "\n".join(rich_escape(line) for line in debrief_lines[4:]),
+                    title=f"[{verdict_color} bold]{rich_escape(ending.title)}[/{verdict_color} bold]",
+                    subtitle=f"[{verdict_color}]{ending.verdict.upper()} — {world.turn - 1} turns[/{verdict_color}]",
+                    border_style=verdict_color,
+                ))
+            else:
+                for line in debrief_lines:
+                    typer.echo(line)
+            typer.echo("")
+
+            if typer.confirm("Continue playing open-ended (no further win/lose checks)?", default=False):
+                endings_disabled = True
+                typer.echo("")
+            else:
+                typer.echo("")
+                typer.echo(f"Final state saved to {save_path.name}. Thank you for playing.")
+                break
+
         typer.echo("")
         typer.echo("=" * 60)
         typer.echo(f"Turn {world.turn - 1} complete. Auto-saved to {save_path.name}")
         typer.echo("=" * 60)
         typer.echo("")
-        
+
         # Continue to next turn with spacebar
         try:
             wait_for_space("Press SPACE to continue to next turn (or Ctrl+C to exit)...")
