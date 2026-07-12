@@ -6,8 +6,11 @@ Uses hidden metrics to guide LLM character responses whilst
 presenting narrative consequences to player.
 """
 
+import logging
 from typing import Dict, List, Tuple, Any
 from random import Random
+
+logger = logging.getLogger(__name__)
 
 from models.narrative_state import NarrativeState
 from engine.utils import clamp
@@ -500,7 +503,10 @@ Summary:"""
                 narrative_state.situation_summary = summary
                 return
         except Exception:
-            pass
+            logger.debug(
+                "LLM situation summary failed; using deterministic fallback",
+                exc_info=True,
+            )
 
     # Deterministic fallback composed from the current hidden state
     m = narrative_state.hidden_metrics

@@ -1,22 +1,51 @@
 """Dashboard layout manager using Rich.Live and Rich.Layout.
 
 This module provides a persistent terminal UI with fixed zones:
-- Header: Turn, Phase, Time (always visible)
+- Header: Turn, Phase (always visible)
 - Sidebar: Live metrics (updates in-place)
 - Main: Scrolling dialogue
 - Footer: Available commands
 """
 
 from rich.layout import Layout
+from rich.markup import escape as rich_escape
 from rich.panel import Panel
+from rich.style import Style
 from rich.table import Table
+from rich.text import Text
 from rich import box
+
+
+def _safe_markup(text: str) -> str:
+    """Return text unchanged if it is valid Rich markup, escaped otherwise.
+
+    Feed messages mix code-authored markup (SYSTEM banners) with free text
+    from the player and the LLM. A stray closing tag in free text would crash
+    the Live repaint, and bracketed text like "[REDACTED]" would be swallowed
+    as an unknown style and disappear - escape anything that doesn't resolve.
+    """
+    try:
+        parsed = Text.from_markup(text)  # raises MarkupError on broken tags
+        for span in parsed.spans:
+            if isinstance(span.style, str):
+                Style.parse(span.style)  # raises on tags that aren't styles
+        return text
+    except Exception:
+        return rich_escape(text)
+
 
 class WargameDashboard:
     """Manages the persistent dashboard layout."""
     MAX_LOG_MESSAGES = 100
 
-    
+    # Rows consumed around the feed content: header (3) + footer (2) +
+    # feed panel border (2) + vertical padding (2)
+    FEED_CHROME_ROWS = 9
+    # Columns consumed around the feed content: sidebar (30) +
+    # feed panel border (2) + horizontal padding (2)
+    FEED_CHROME_COLS = 34
+
+
     def __init__(self, world, console):
         """Initialize dashboard with world state and console.
         
@@ -58,13 +87,14 @@ class WargameDashboard:
         )
     
     def render_header(self) -> Panel:
-        """Render top bar: TURN | PHASE | TIME.
-        
+        """Render top bar: TURN | PHASE.
+
         Returns:
             Rich Panel with header content
         """
-        # Format: TURN 004 | DISCUSSION PHASE | 17:00 HRS with dramatic styling
-        content = f"[reverse][{self.COLORS['emphasis']} bold] TURN {self.world.turn:03d} │ DISCUSSION PHASE │ 17:00 HRS [/][/reverse]"
+        # Format: TURN 004 | DISCUSSION PHASE with dramatic styling
+        phase = str(self.world.phase or "briefing").upper()
+        content = f"[reverse][{self.COLORS['emphasis']} bold] TURN {self.world.turn:03d} │ {phase} PHASE [/][/reverse]"
         
         return Panel(
             content,
@@ -136,29 +166,63 @@ class WargameDashboard:
             style="on #0A0E27"
         )
     
+    @staticmethod
+    def _estimate_lines(message: str, width: int) -> int:
+        """Estimate how many rendered lines a feed message occupies at a given width."""
+        try:
+            plain_len = Text.from_markup(message).cell_len
+        except Exception:
+            plain_len = len(message)
+        return max(1, -(-plain_len // max(1, width)))  # ceil division
+
     def render_main(self) -> Panel:
         """Render centre panel with live scrolling conversation feed.
-        
+
+        Rich crops overflowing panel content from the BOTTOM, so the feed must
+        pre-trim itself to the newest messages that fit the region - otherwise,
+        once the panel fills up, fresh messages are appended below the fold and
+        never become visible.
+
         Returns:
-            Rich Panel with recent dialogue (streaming style)
+            Rich Panel with the most recent dialogue (streaming style)
         """
-        # Show last 100 messages - much more capacity!
+        height = self.console.size.height or 24
+        width = self.console.size.width or 100
+        row_budget = max(3, height - self.FEED_CHROME_ROWS)
+        inner_width = max(20, width - self.FEED_CHROME_COLS)
+
         if not self.conversation_log:
             content = "[dim]═══ COBRA COMMAND FEED ═══\n\nAwaiting intelligence...[/]"
         else:
-            # Check if we have more messages than we're showing
-            total_messages = len(self.conversation_log)
-            messages_to_show = min(100, total_messages)  # Doubled from 50
-            recent = self.conversation_log[-messages_to_show:]
-            
+            # Walk backwards from the newest message, accounting for wrapping
+            selected = []
+            row_counts = []
+            used = 0
+            for message in reversed(self.conversation_log):
+                rows = self._estimate_lines(message, inner_width)
+                if selected and used + rows > row_budget:
+                    break
+                selected.append(message)
+                row_counts.append(rows)
+                used += rows
+                if used >= row_budget:
+                    break
+            selected.reverse()
+            row_counts.reverse()
+
             # Add scroll indicator at top if there's more content
-            if total_messages > messages_to_show:
-                hidden_count = total_messages - messages_to_show
-                scroll_hint = f"[{self.COLORS['muted']} dim]▲ {hidden_count} earlier messages - use /briefing for full log ▲[/]\n"
-                recent.insert(0, scroll_hint)
-            
-            content = "\n".join(recent)
-        
+            hidden_count = len(self.conversation_log) - len(selected)
+            if hidden_count > 0:
+                # Make room for the hint line by dropping the oldest visible message(s)
+                while len(selected) > 1 and used + 1 > row_budget:
+                    used -= row_counts.pop(0)
+                    selected.pop(0)
+                    hidden_count += 1
+                scroll_hint = f"[{self.COLORS['muted']} dim]▲ {hidden_count} earlier messages - use /briefing for full log ▲[/]"
+                selected.insert(0, scroll_hint)
+
+            content = "\n".join(selected)
+
         return Panel(
             content,
             title=f"[reverse][{self.COLORS['accent']} bold] ⬤ COBRA BRIEFING FEED [/][/reverse]",  # Added ⬤ for "live" indicator
@@ -198,10 +262,13 @@ class WargameDashboard:
             message: The message content
             stream: If True, message will appear with streaming effect
         """
+        # Free text (player input, LLM output) can contain broken markup that
+        # would crash the Live repaint; escape anything that doesn't parse.
+        message = _safe_markup(message)
         if speaker == "PM":
             formatted = f"[{self.COLORS['emphasis']}]PM:[/] {message}"
         else:
-            formatted = f"[{self.COLORS['secondary']}]{speaker}:[/] {message}"
+            formatted = f"[{self.COLORS['secondary']}]{rich_escape(speaker)}:[/] {message}"
         
         self.conversation_log.append(formatted)
         self._trim_log()
