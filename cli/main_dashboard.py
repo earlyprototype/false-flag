@@ -27,11 +27,19 @@ from cli.rich_ui import (
     console, phase_header, metrics_table,
     advisor_menu_panel, diplomatic_contacts_table,
     resources_tables, command_menu, metrics_guide_panel,
-    format_markdown, RICH_ENABLED
+    RICH_ENABLED
 )
 from cli.theme import theme_manager, SYMBOLS
 from cli.formatters import format_advisor_response
-from cli.display_utils import strip_effect_boxes, display_adjudication_results
+from cli.display_utils import (
+    strip_effect_boxes,
+    display_adjudication_results,
+    display_decision_summary,
+    parse_interpretation_simple,
+    markdown_to_rich,
+    format_vibe_line,
+    advisor_attitude_lines,
+)
 from models.world import WorldState, Metrics
 from models.narrative_state import create_initial_narrative_state
 from models.narrative import NarrativeConfig
@@ -108,102 +116,6 @@ def wait_for_space(prompt: str = "Press SPACE (or Enter) to continue...") -> Non
     wait_for_key(prompt)
 
 
-def parse_interpretation_simple(interpretation: str) -> dict:
-    """Parse LLM interpretation into key sections for display.
-    
-    Args:
-        interpretation: Full interpretation text
-    
-    Returns:
-        Dict with parsed sections
-    """
-    sections = {
-        "summary": "",
-        "forces": [],
-        "timeline": "",
-        "concerns": ""
-    }
-    
-    lines = interpretation.split('\n')
-    current_section = None
-    
-    for line in lines:
-        line = line.strip()
-        
-        if line.startswith("INTERPRETATION:"):
-            sections["summary"] = line.replace("INTERPRETATION:", "").strip()
-        elif line.startswith("FORCES INVOLVED:"):
-            current_section = "forces"
-        elif line.startswith("TIMELINE:"):
-            current_section = "timeline"
-        elif line.startswith("FEASIBILITY:"):
-            if "impossible" in line.lower() or "requires clarification" in line.lower():
-                sections["concerns"] = line.replace("FEASIBILITY:", "").strip()
-            current_section = None
-        elif current_section == "forces" and line and line.startswith("*"):
-            # Extract force name from bullet point
-            force = line.lstrip("* ").split(":")[0] if ":" in line else line.lstrip("* ")
-            if force and len(sections["forces"]) < 5:  # Max 5 forces shown
-                sections["forces"].append(force)
-        elif current_section == "timeline" and line:
-            sections["timeline"] = line
-    
-    return sections
-
-
-def display_decision_summary(action: str, interpretation: str, show_details: bool = False):
-    """Display decision interpretation in player-friendly format.
-    
-    Args:
-        action: Player's original decision text
-        interpretation: Full LLM interpretation
-        show_details: If True, show full interpretation
-    """
-    COLORS = theme_manager.get_colors()
-    
-    # Show player's exact words in a box
-    console.print("")
-    console.print(Panel(f"[italic]{rich_escape(action)}[/italic]", title="[bold]YOUR DECISION[/bold]", border_style="white"))
-    console.print("")
-    
-    if show_details:
-        # Show full interpretation
-        console.print(Panel(format_markdown(interpretation), title="[bold]FULL INTERPRETATION (DETAILED)[/bold]", border_style="blue"))
-        console.print("")
-    else:
-        # Show simplified summary
-        parsed = parse_interpretation_simple(interpretation)
-        
-        # Build content for panel
-        content = []
-        
-        # Show summary if we extracted one
-        if parsed["summary"]:
-            content.append(parsed["summary"])
-            content.append("")
-        
-        # Show key forces
-        if parsed["forces"]:
-            content.append(f"[{COLORS['success']}]Forces Deployed:[/{COLORS['success']}]")
-            for force in parsed["forces"]:
-                content.append(f"  • {force}")
-            content.append("")
-        
-        # Show timeline
-        if parsed["timeline"]:
-            content.append(f"[{COLORS['accent']}]Estimated Timeline:[/{COLORS['accent']}] {parsed['timeline']}")
-            content.append("")
-        
-        # Show concerns
-        if parsed["concerns"]:
-            content.append(f"[{COLORS['warning']}]⚠ Operational Concerns: {parsed['concerns']}[/{COLORS['warning']}]")
-            content.append("")
-        
-        content.append(f"[{COLORS['muted']}](Type 'details' to see full interpretation)[/{COLORS['muted']}]")
-        
-        console.print(Panel("\n".join(content), title="[bold]📋 OPERATIONAL ORDER[/bold]", border_style="cyan"))
-
-
 def display_critical_concerns_with_selection(critical_concerns: list) -> tuple:
     """Display critical concerns and let player select which to address.
     
@@ -219,7 +131,7 @@ def display_critical_concerns_with_selection(critical_concerns: list) -> tuple:
 
     console.print("")
     console.print(Panel(f"Advisors have raised {len(critical_concerns)} critical concerns regarding your decision.",
-                        title=f"[{COLORS['warning']} bold]⚠️ CRITICAL ADVISORIES[/]", 
+                        title=f"[{COLORS['warning']} bold]{SYMBOLS['warning']} CRITICAL ADVISORIES[/]",
                         border_style=COLORS['warning']))
     console.print("")
     
@@ -564,7 +476,7 @@ def select_narrative(scenario_id: str) -> Optional[NarrativeConfig]:
     console.print("   diplomats may have secret motivations that aren't immediately apparent.")
     console.print("   You must deduce the truth from their actions and responses.")
     console.print("")
-    console.print(f"   [{COLORS['danger']}]⚠ The narrative is randomly selected and hidden from you![/{COLORS['danger']}]")
+    console.print(f"   [{COLORS['danger']}]{SYMBOLS['warning']} The narrative is randomly selected and hidden from you![/{COLORS['danger']}]")
     console.print("")
     
     # Get user selection
@@ -873,7 +785,9 @@ def play(
             from models.state_actors import load_actors_from_yaml
             actor_yaml_path = root / "data" / "state_actors.yaml"
             world.actor_system = load_actors_from_yaml(str(actor_yaml_path))
-            console.print(f"[{COLORS['success']}]✓ Multi-agent actor system initialized[/{COLORS['success']}]")
+            # In-fiction status line (dev-speak like "multi-agent actor system
+            # initialized" breaks immersion mid-intro)
+            console.print(f"[{COLORS['muted']}]SECURE LIAISON CHANNELS ESTABLISHED — allied and adversary capitals monitored[/{COLORS['muted']}]")
         except Exception as e:
             console.print(f"[{COLORS['warning']}]Warning: Could not load actor system: {e}[/{COLORS['warning']}]")
             world.actor_system = None
@@ -969,6 +883,10 @@ def play(
             briefing_display = strip_effect_boxes(briefing_lines)
         else:
             briefing_display = briefing_lines
+
+        # Convert markdown emphasis in inject/briefing text to Rich markup so
+        # players never see raw asterisks (**GCHQ Assessment:** etc.)
+        briefing_display = [markdown_to_rich(line) for line in briefing_display]
 
         # Display briefing in COBRA-styled panel
         typer.clear()
@@ -1166,6 +1084,15 @@ def play(
                         live.start()
                         continue
 
+                    if user_input.lower() in ["/status advisors", "status advisors"]:
+                        from cli.dashboard_modal import show_overlay
+
+                        # Advisor trust levels and relationships (works in all modes)
+                        status_lines = ["ADVISOR ATTITUDES", "=" * 60, ""]
+                        status_lines.extend(advisor_attitude_lines(narrative_state, include_stance=True))
+                        show_overlay(console, live, "ADVISOR ATTITUDES", "\n".join(status_lines), COLORS)
+                        continue
+
                     if user_input.lower() in ["/status", "status"]:
                         from cli.dashboard_modal import show_overlay
 
@@ -1182,22 +1109,13 @@ def play(
                                 status_lines.append("")
                                 vibes = narrative_state.get_situation_vibes()
                                 for vibe in vibes:
-                                    status_lines.append(vibe.to_string())
+                                    status_lines.append(format_vibe_line(vibe, COLORS))
                                 status_lines.append("")
 
                                 status_lines.append("ADVISOR ATTITUDES")
                                 status_lines.append("=" * 60)
                                 status_lines.append("")
-                                for char_id, char_attitude in narrative_state.characters.items():
-                                    trust_level = char_attitude.trust // 20
-                                    trust_bar = "█" * trust_level + "░" * (5 - trust_level)
-                                    relationship_symbol = {
-                                        "allied": "✓",
-                                        "neutral": "○",
-                                        "hostile": "✗",
-                                        "unknown": "?"
-                                    }.get(char_attitude.relationship, "○")
-                                    status_lines.append(f"{char_attitude.name:<30} {trust_bar} {relationship_symbol} {char_attitude.relationship.upper()}")
+                                status_lines.extend(advisor_attitude_lines(narrative_state))
                             elif play_mode == "emergent":
                                 status_lines.append(narrative_state.situation_summary)
 
@@ -1281,8 +1199,21 @@ def play(
                         live.start()
                         continue
 
-                    if user_input.lower() in ["/advise", "advise"]:
+                    if user_input.lower() in ["/advise", "advise"] or user_input.lower().startswith("/advise "):
                         from cli.dashboard_modal import show_overlay
+
+                        # Optional argument: /advise concise -> brief responses
+                        advise_arg = ""
+                        if user_input.lower().startswith("/advise "):
+                            advise_arg = user_input[8:].strip().lower()
+                        if advise_arg and advise_arg != "concise":
+                            dashboard.add_message("SYSTEM", f"[{COLORS['warning']}]Usage: /advise or /advise concise[/]")
+                            dashboard.update()
+                            continue
+                        if advise_arg == "concise":
+                            brevity_note = "[Answer in one or two sentences maximum]"
+                        else:
+                            brevity_note = "[Please be concise - 3-4 sentences maximum]"
 
                         # Pause dashboard to run LLM calls
                         live.stop()
@@ -1300,11 +1231,11 @@ def play(
 
                         # Ask each advisor for their assessment
                         advisors = [
-                            ("National Security Advisor", "NSA, what's your assessment of the current situation and recommended course of action? [Please be concise - 3-4 sentences maximum]"),
-                            ("Chief of the Defence Staff", "CDS, what are our military options and constraints? [Please be concise - 3-4 sentences maximum]"),
-                            ("Foreign Secretary", "Foreign Secretary, what's the diplomatic landscape and alliance status? [Please be concise - 3-4 sentences maximum]"),
-                            ("Home Secretary", "Home Secretary, what are the domestic security concerns? [Please be concise - 3-4 sentences maximum]"),
-                            ("Attorney General", "Attorney General, what are the legal constraints and considerations? [Please be concise - 3-4 sentences maximum]")
+                            ("National Security Advisor", f"NSA, what's your assessment of the current situation and recommended course of action? {brevity_note}"),
+                            ("Chief of the Defence Staff", f"CDS, what are our military options and constraints? {brevity_note}"),
+                            ("Foreign Secretary", f"Foreign Secretary, what's the diplomatic landscape and alliance status? {brevity_note}"),
+                            ("Home Secretary", f"Home Secretary, what are the domestic security concerns? {brevity_note}"),
+                            ("Attorney General", f"Attorney General, what are the legal constraints and considerations? {brevity_note}")
                         ]
 
                         # Collect all advisor responses
@@ -1326,7 +1257,7 @@ def play(
                             dashboard.layout["body"]["main"].update(dashboard.render_main())
                             for line in discussion_lines:
                                 if not line.startswith("Prime Minister:"):
-                                    display_line = line.replace("[Please be concise - 3-4 sentences maximum]", "").strip()
+                                    display_line = line.replace(brevity_note, "").strip()
                                     if display_line:  # Only display non-empty lines
                                         # Format response with structure
                                         if ":" in display_line:
@@ -1480,7 +1411,7 @@ def play(
 
                 typer.echo("")
 
-                action = typer.prompt("Decision>").strip()
+                action = typer.prompt("Decision>", default="", show_default=False).strip()
 
                 if action.lower() == "cancel":
                     # Return to discussion phase
@@ -1500,7 +1431,10 @@ def play(
                 display_decision_summary(action, interpretation, show_details=False)
 
                 # Option to see full details
-                see_details = typer.prompt("", default="").strip().lower()
+                see_details = typer.prompt(
+                    "Press Enter to continue (or type 'details' for the full interpretation)",
+                    default="", show_default=False
+                ).strip().lower()
                 if see_details == "details":
                     display_decision_summary(action, interpretation, show_details=True)
                     console.print("")
@@ -1563,7 +1497,7 @@ def play(
                         # If STILL have concerns, warn
                         if critical_concerns_2:
                             console.print("")
-                            console.print(f"[{COLORS['warning']}]⚠ Warning: Critical concerns remain.[/{COLORS['warning']}]")
+                            console.print(f"[{COLORS['warning']}]{SYMBOLS['warning']} Warning: Critical concerns remain.[/{COLORS['warning']}]")
                             console.print("")
                             # Let player proceed or go back
                             cont = typer.confirm("Proceed anyway?", default=False)
@@ -1581,8 +1515,25 @@ def play(
                 # Confirm decision (regular pushback, if any)
                 elif pushback:
                     typer.echo("")
-                    confirm = typer.confirm("Proceed with this decision despite concerns?", default=True)
-                    if not confirm:
+                    console.print(f"[{COLORS['warning']} bold]ADVISOR CONCERNS[/{COLORS['warning']} bold]")
+                    typer.echo("")
+                    for role, concern in pushback:
+                        console.print(f"  [{COLORS['secondary']} bold]{rich_escape(role)}:[/{COLORS['secondary']} bold] {rich_escape(concern)}")
+                        typer.echo("")
+                    console.print("Your advisors have concerns. How do you wish to proceed?")
+                    console.print(f"  [{COLORS['primary']}]P[/{COLORS['primary']}] - Proceed with this decision")
+                    console.print(f"  [{COLORS['primary']}]A[/{COLORS['primary']}] - Amend the decision (re-enter decision text)")
+                    console.print(f"  [{COLORS['primary']}]C[/{COLORS['primary']}] - Cancel and return to discussion")
+                    typer.echo("")
+                    choice = typer.prompt("Choose [P/A/C]", default="P", show_default=False).strip().upper()
+                    if choice == "A":
+                        # Amend: re-prompt for decision text without returning
+                        # to the discussion phase
+                        typer.echo("")
+                        typer.echo("Enter your amended decision.")
+                        typer.echo("")
+                        continue
+                    elif choice == "C":
                         typer.echo("")
                         typer.echo("Decision cancelled. Returning to discussion.")
                         typer.echo("")
@@ -1721,27 +1672,17 @@ def play(
             
             vibes = narrative_state.get_situation_vibes()
             for vibe in vibes:
-                typer.echo(vibe.to_string())
-            
+                console.print(format_vibe_line(vibe, COLORS))
+
             typer.echo("")
             typer.echo("═" * 60)
             typer.echo("ADVISOR ATTITUDES")
             typer.echo("═" * 60)
             typer.echo("")
-            
-            for char_id, char_attitude in narrative_state.characters.items():
-                # Create visual trust bar
-                trust_level = char_attitude.trust // 20  # 0-5 scale
-                trust_bar = "█" * trust_level + "░" * (5 - trust_level)
-                relationship_symbol = {
-                    "allied": "✓",
-                    "neutral": "○",
-                    "hostile": "✗",
-                    "unknown": "?"
-                }.get(char_attitude.relationship, "○")
-                
-                typer.echo(f"{char_attitude.name:<30} {trust_bar} {relationship_symbol} {char_attitude.relationship.upper()}")
-            
+
+            for line in advisor_attitude_lines(narrative_state):
+                typer.echo(line)
+
             typer.echo("")
         elif play_mode == "emergent":
             # Emergent mode: Narrative summary only

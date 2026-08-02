@@ -12,7 +12,7 @@ def test_original_cli_works():
     """Verify original CLI is untouched."""
     print("Testing original CLI...")
     result = subprocess.run(
-        ["python", "-m", "cli.main", "--help"],
+        [sys.executable, "-m", "cli.main", "--help"],
         capture_output=True,
         text=True,
         cwd=root
@@ -26,7 +26,7 @@ def test_dashboard_cli_works():
     """Verify dashboard CLI runs."""
     print("Testing dashboard CLI...")
     result = subprocess.run(
-        ["python", "-m", "cli.main_dashboard", "--help"],
+        [sys.executable, "-m", "cli.main_dashboard", "--help"],
         capture_output=True,
         text=True,
         cwd=root
@@ -40,7 +40,7 @@ def test_dashboard_import():
     """Test that dashboard module can be imported."""
     print("Testing dashboard module import...")
     result = subprocess.run(
-        ["python", "-c", "from cli.dashboard import WargameDashboard; print('OK')"],
+        [sys.executable, "-c", "from cli.dashboard import WargameDashboard; print('OK')"],
         capture_output=True,
         text=True,
         cwd=root
@@ -56,7 +56,7 @@ def test_both_commands_available():
     
     # Get original CLI commands
     original_result = subprocess.run(
-        ["python", "-m", "cli.main", "--help"],
+        [sys.executable, "-m", "cli.main", "--help"],
         capture_output=True,
         text=True,
         cwd=root
@@ -64,7 +64,7 @@ def test_both_commands_available():
     
     # Get dashboard CLI commands
     dashboard_result = subprocess.run(
-        ["python", "-m", "cli.main_dashboard", "--help"],
+        [sys.executable, "-m", "cli.main_dashboard", "--help"],
         capture_output=True,
         text=True,
         cwd=root
@@ -85,7 +85,7 @@ def test_intro_command():
     
     # Test original
     original_result = subprocess.run(
-        ["python", "-m", "cli.main", "intro"],
+        [sys.executable, "-m", "cli.main", "intro"],
         capture_output=True,
         text=True,
         cwd=root,
@@ -94,7 +94,7 @@ def test_intro_command():
     
     # Test dashboard
     dashboard_result = subprocess.run(
-        ["python", "-m", "cli.main_dashboard", "intro"],
+        [sys.executable, "-m", "cli.main_dashboard", "intro"],
         capture_output=True,
         text=True,
         cwd=root,

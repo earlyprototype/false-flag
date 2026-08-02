@@ -468,8 +468,9 @@ def command_menu() -> Panel:
     # Commands
     commands = [
         ("/status", "Show current metrics and situation"),
+        ("/status advisors", "Show advisor trust and relationships"),
         ("/menu", "Display this help"),
-        ("/advise", "Get input from all advisors"),
+        ("/advise", "Get input from all advisors (/advise concise for brief)"),
         ("/resources", "View UK forces and stockpiles"),
         ("/intel", "Intelligence briefing on foreign actors"),
         ("/call <country>", "Contact foreign leader"),

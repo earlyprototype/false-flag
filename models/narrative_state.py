@@ -22,9 +22,9 @@ class VibeLevel(BaseModel):
     descriptor: str = ""  # e.g., "CRITICAL", "MODERATE", "STABLE"
     
     def to_visual(self) -> str:
-        """Convert to visual representation"""
-        filled = "🔴" * self.level
-        empty = "⚪" * (5 - self.level)
+        """Convert to visual representation (themed glyphs, no emoji)"""
+        filled = "●" * self.level
+        empty = "○" * (5 - self.level)
         return f"{filled}{empty}"
     
     def to_string(self) -> str:

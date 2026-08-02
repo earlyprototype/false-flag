@@ -4,6 +4,23 @@ import re
 
 from models.state_actors import StateActor, ActorResponse, StateActorSystem
 
+# ISO country codes -> short display names for player-facing summaries.
+# (StateActor.full_name holds the formal name, e.g. "Republic of Poland";
+# these are the compact forms used in dense panels.)
+COUNTRY_DISPLAY_NAMES = {
+    "USA": "United States",
+    "FRA": "France",
+    "DEU": "Germany",
+    "POL": "Poland",
+    "RUS": "Russia",
+}
+
+
+def display_country_name(country_code: str) -> str:
+    """Return a player-friendly name for an actor country code."""
+    return COUNTRY_DISPLAY_NAMES.get(country_code, country_code)
+
+
 def simulate_actor_response(
     actor: StateActor,
     player_action: str,

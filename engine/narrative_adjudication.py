@@ -20,7 +20,8 @@ from models.state_actors import StateActorSystem, ActorResponse
 from engine.actor_simulation import (
     simulate_actor_response,
     calculate_effects_from_responses,
-    identify_relevant_actors
+    identify_relevant_actors,
+    display_country_name
 )
 
 
@@ -704,9 +705,13 @@ def _generate_actor_summary(responses: List[ActorResponse], quality: Dict) -> st
             "no": "✗",
             "conditional": "○"
         }.get(response.will_support, "?")
-        
-        summary_parts.append(f"  {support_symbol} {response.actor_id}: {response.public_response[:60]}...")
-    
+
+        actor_name = display_country_name(response.actor_id)
+        public = response.public_response
+        if len(public) > 90:
+            public = public[:90].rstrip() + "..."
+        summary_parts.append(f"  {support_symbol} {actor_name}: {public}")
+
     return "\n".join(summary_parts)
 
 
