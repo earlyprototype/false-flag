@@ -37,7 +37,14 @@ def get_advisor_context(transcript: FullTranscript, world_state: WorldState) -> 
     context_parts.append(f"Military Casualties: {world_state.metrics.casualties_mil}")
     context_parts.append(f"Civilian Casualties: {world_state.metrics.casualties_civ}")
     context_parts.append("")
-    
+
+    # Add narrative context (Mystery mode): advisors know the secret truth so
+    # their assessments can carry subtle tells, same pattern as the inject and
+    # diplomatic context builders. Global truth only - no per-country stance.
+    if world_state.narrative:
+        context_parts.append(world_state.narrative.to_llm_context())
+        context_parts.append("")
+
     # Add transcript (capped to keep the prompt bounded on long games)
     context_parts.append("=" * 60)
     context_parts.append("COMPLETE GAME HISTORY")

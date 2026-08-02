@@ -4,11 +4,22 @@ Provides JSON-based persistence for WorldState and game transcript.
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
 from models.world import WorldState
 from models.narrative_state import NarrativeState
+
+
+def _default_root() -> Path:
+    """Repository root, overridable via WARGAME_SAVE_ROOT (used by tests so
+    they never touch the real saves/ directory)."""
+    env = os.environ.get("WARGAME_SAVE_ROOT")
+    if env:
+        return Path(env)
+    return Path(__file__).resolve().parents[1]
+
 
 
 def save_game(
@@ -41,10 +52,10 @@ def save_game(
         Path to saved file
     """
     if root_path is None:
-        root_path = Path(__file__).resolve().parents[1]
+        root_path = _default_root()
 
     saves_dir = root_path / "saves"
-    saves_dir.mkdir(exist_ok=True)
+    saves_dir.mkdir(parents=True, exist_ok=True)
 
     save_path = saves_dir / f"{scenario_id}_{save_name}.json"
 
@@ -139,7 +150,7 @@ def list_saves(scenario_id: Optional[str] = None, root_path: Optional[Path] = No
         List of save file paths
     """
     if root_path is None:
-        root_path = Path(__file__).resolve().parents[1]
+        root_path = _default_root()
     
     saves_dir = root_path / "saves"
     if not saves_dir.exists():

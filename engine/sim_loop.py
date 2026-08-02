@@ -7,6 +7,7 @@ Supports:
 - Adjudication phase: Apply effects to world state
 """
 
+import logging
 from typing import Any, Dict, List, Optional, Tuple
 from random import Random
 import time
@@ -28,6 +29,28 @@ from agents.conversation import (
 from llm.router import generate_text
 from llm.inject_generator import generate_inject
 from engine.diplomacy import run_diplomatic_encounter
+
+logger = logging.getLogger(__name__)
+
+
+def _quiet_turn_inject(turn: int) -> Dict[str, Any]:
+    """Diegetic fallback inject for when dynamic generation fails.
+
+    The failure details are logged (see run_turn_briefing); the player gets a
+    quiet turn that still reads in-fiction rather than parser errors.
+    """
+    return {
+        "id": f"turn_{turn:03d}_quiet",
+        "title": "Overnight Assessment",
+        "channel": "briefing",
+        "description": (
+            "The overnight cell reports no significant developments — an uneasy "
+            "stillness settles over Whitehall. Watch floors remain fully manned "
+            "and collection assets stay on task; the assessment is unchanged, "
+            "and nobody believes the quiet will hold."
+        ),
+        "effects": [],
+    }
 
 
 def display_inject(inject: Dict[str, Any], root_path: Path, display_panel: bool = True) -> List[str]:
@@ -147,24 +170,23 @@ def display_inject(inject: Dict[str, Any], root_path: Path, display_panel: bool 
 
 
 def apply_inject_effects(world: WorldState, inject: Dict[str, Any], silent: bool = False) -> List[str]:
-    """Apply inject effects with color-coded display.
-    
+    """Apply inject effects and return effect-box transcript lines.
+
     Applies difficulty multiplier to scenario effects based on world.difficulty setting.
-    
+
+    The effect boxes are ONLY returned, never printed here: the callers stream
+    the briefing transcript themselves, so printing from this function showed
+    every box twice (and before the narrative that explains it).
+
     Args:
         world: Current world state (modified in place)
         inject: Inject dict with effects
-        silent: If True, apply effects but don't display boxes (for initial briefing)
-    
+        silent: Retained for API compatibility; display is always the caller's
+            responsibility now (non-classic modes strip the boxes on display)
+
     Returns:
         List of transcript lines describing applied effects
     """
-    try:
-        from cli.rich_ui import console, RICH_ENABLED
-        from cli.theme import COLORS
-    except ImportError:
-        RICH_ENABLED = False
-    
     # Get difficulty multiplier
     difficulty_multipliers = {
         "standard": 0.5,
@@ -220,32 +242,13 @@ def apply_inject_effects(world: WorldState, inject: Dict[str, Any], silent: bool
                     else:
                         updated = clamp(current + delta_value)
                     setattr(world.metrics, metric_name, updated)
-                    
-                    # Color-coded effect display (unless silent mode)
-                    if RICH_ENABLED and not silent:
-                        delta_color = COLORS["success"] if delta_value > 0 else COLORS["danger"]
-                        muted_color = COLORS['muted']
-                        effect_text = f"Effect: {metric_name} [{delta_color}]{delta_value:+d}[/{delta_color}] ([{muted_color}]→ {updated}[/{muted_color}])"
-                        
-                        # Print complete box with content
-                        plain_text = f"Effect: {metric_name} {delta_value:+d} (→ {updated})"
-                        top_line = "┌" + "─" * (len(plain_text) + 2) + "┐"
-                        content_line = f"│ {effect_text} │"
-                        bottom_line = "└" + "─" * (len(plain_text) + 2) + "┘"
-                        
-                        console.print(top_line)
-                        console.print(content_line)
-                        console.print(bottom_line)
-                        
-                        lines.append(top_line)
-                        lines.append(f"│ {plain_text} │")  # Plain text for transcript
-                        lines.append(bottom_line)
-                    else:
-                        # Plain text fallback
-                        effect_text = f"Effect: {metric_name} {delta_value:+d} (-> {updated})"
-                        lines.append("┌" + "─" * (len(effect_text) + 2) + "┐")
-                        lines.append(f"│ {effect_text} │")
-                        lines.append("└" + "─" * (len(effect_text) + 2) + "┘")
+
+                    # Effect box (transcript only — callers display it after
+                    # the narrative). One glyph style everywhere: →
+                    effect_text = f"Effect: {metric_name} {delta_value:+d} (→ {updated})"
+                    lines.append("┌" + "─" * (len(effect_text) + 2) + "┐")
+                    lines.append(f"│ {effect_text} │")
+                    lines.append("└" + "─" * (len(effect_text) + 2) + "┘")
             else:
                 lines.append(f"Skipped: unknown metric '{metric_name}'")
     
@@ -280,7 +283,9 @@ def run_turn_briefing(
         full_transcript: Optional full game transcript for conversation history
         get_player_input: Optional function to get player input (for diplomatic encounters)
         turn_filename: Optional custom turn filename (for scenario variants)
-        silent_effects: If True, apply effects but don't display boxes (for initial Turn 1)
+        silent_effects: Retained for API compatibility; inert for display.
+            Effect boxes are transcript-only now (apply_inject_effects never
+            prints), so this flag no longer changes what the player sees.
         suppress_display: If True, don't display inject panel (caller will stream it)
         replay: If True, this turn's briefing already ran before a save/load —
             display the inject for context but do NOT re-apply its effects or
@@ -304,14 +309,17 @@ def run_turn_briefing(
     # Load inject for this turn (with optional custom filename for variants)
     inject = load_inject_for_turn(scenario_id, world.turn, root_path, turn_filename)
     
-    # If no inject file and stochastic mode enabled, generate one
+    # If no inject file and stochastic mode enabled, generate one. No meta
+    # marker in the transcript — the Narrator bridge already carries the
+    # transition, and "[Stochastically generated inject]" leaked to players.
     if inject is None and stochastic_injects:
         initial_conditions = load_initial_conditions(scenario_id, root_path)
         inject = generate_inject(world, world.turn, initial_conditions, rng, root_path, full_transcript)
-        if inject:
-            transcript.append("[Stochastically generated inject]")
-        else:
-            transcript.append("[WARNING] Failed to generate inject for this turn. Check console for errors.")
+        if inject is None:
+            # Generation failed: details are logged by the generator; keep the
+            # fiction intact with a quiet turn instead of surfacing errors
+            logger.warning("Inject generation failed for turn %d; using quiet-turn fallback", world.turn)
+            inject = _quiet_turn_inject(world.turn)
     
     if inject:
         # === STEP 1: NARRATOR INTRO BRIDGE ===
@@ -392,8 +400,10 @@ def run_turn_briefing(
                 clamp_metrics(world.metrics)
                 update_world_flags(world)
     else:
-        transcript.append("No inject for this turn.")
-    
+        # Scripted content exhausted with stochastic generation disabled:
+        # stay in-fiction rather than reporting a missing file
+        transcript.append("The morning brief carries no new developments.")
+
     transcript.append("")
     return inject, transcript
 

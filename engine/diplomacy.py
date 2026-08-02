@@ -264,11 +264,17 @@ Your assessment:"""
 class DiplomaticEncounter:
     """Stateful manager for a diplomatic conversation (API friendly)."""
     
-    def __init__(self, world: WorldState, country: str, context: Optional[str], root_path: Optional[Path] = None):
+    def __init__(self, world: WorldState, country: str, context: Optional[str], root_path: Optional[Path] = None,
+                 full_transcript: Optional[List[str]] = None):
         self.world = world
         self.country = country
         self.context = context
         self.root_path = root_path
+        # Full game transcript feeds get_diplomatic_context (public events plus
+        # the secret narrative truth); without it the conversation prompt falls
+        # back to a bare turn/escalation stub and Mystery mode never colours
+        # foreign leaders' responses.
+        self.full_transcript = full_transcript
         
         self.profiles = load_diplomatic_profiles(root_path)
         self.access_level, self.profile = check_diplomatic_access(world, country, self.profiles)
@@ -281,7 +287,18 @@ class DiplomaticEncounter:
         
         if not self.profile:
             self.active = False
-            self.transcript.append(f"Connection failed: No access to {country}.")
+            known_countries = (self.profiles or {}).get("countries", {})
+            if country not in known_countries:
+                # In-fiction failure: the country simply isn't on the exchange
+                self.transcript.append(
+                    f"SIGNAL: no secure channel to '{country}' — the Downing Street "
+                    "switchboard holds no such head of state on the exchange."
+                )
+            else:
+                self.transcript.append(
+                    f"SIGNAL: {country} is not accepting the call — alliance standing "
+                    "is too low for a secure channel at this time."
+                )
 
     def start(self, rng: Random) -> List[str]:
         """Initialize the call and generate opening line."""
@@ -322,7 +339,8 @@ class DiplomaticEncounter:
 
         # Generate response
         prompt = build_diplomatic_conversation_prompt(
-            self.world, self.country, self.profile, self.history, player_message
+            self.world, self.country, self.profile, self.history, player_message,
+            full_transcript=self.full_transcript
         )
         response = llm_generate(prompt, rng, context=LLMContext.DIPLOMACY_CONVERSATION)
         response = response.strip()
@@ -367,9 +385,15 @@ def run_diplomatic_encounter(
     print_fn: Optional[Callable[[str], None]] = None
 ) -> Tuple[List[str], int]:
     """Legacy blocking runner for CLI."""
-    encounter = DiplomaticEncounter(world, country, context, root_path)
-    
+    encounter = DiplomaticEncounter(world, country, context, root_path,
+                                    full_transcript=full_transcript)
+
     if not encounter.active:
+        # Surface the in-fiction failure (unknown country / no access) —
+        # returning silently left the player staring at a dead prompt.
+        if print_fn:
+            for line in encounter.transcript:
+                print_fn(line)
         return encounter.transcript, 0
     
     # Start
@@ -387,15 +411,21 @@ def run_diplomatic_encounter(
             break
 
         if get_player_input:
-            msg = get_player_input("Response: ")
+            # Bare label: CLI prompt wrappers add their own ": " suffix
+            # (passing "Response: " rendered a doubled "Response: : ")
+            msg = get_player_input("Response")
         else:
             msg = "Thank you."
 
         encounter.process_turn(msg, llm_generate, rng)
         # Print exactly the lines this exchange appended (the previous
-        # last-line-twice approach printed every reply twice and never the PM)
+        # last-line-twice approach printed every reply twice and never the PM).
+        # The "Prime Minister:" line stays transcript-only — the player just
+        # typed it, echoing it back reads as a glitch.
         if print_fn:
             for line in encounter.transcript[printed_upto:]:
+                if line.startswith("Prime Minister:"):
+                    continue
                 print_fn(line)
         printed_upto = len(encounter.transcript)
 

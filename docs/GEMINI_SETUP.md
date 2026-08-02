@@ -1,5 +1,11 @@
 # Gemini LLM Integration Setup Guide
 
+> **Status (Aug 2026):** Google's Gemini free tier has been heavily cut back —
+> Pro models are paid-only and Flash is limited to roughly 5–10 requests/min
+> with a small daily cap. For free play, see the new provider options
+> (Groq, OpenRouter, local Ollama) in [LLM_PROVIDERS.md](LLM_PROVIDERS.md).
+> This guide remains valid for paid-tier Gemini use.
+
 This guide shows you how to enable intelligent advisor responses using Google's Gemini 2.5 Flash.
 
 ## Quick Start

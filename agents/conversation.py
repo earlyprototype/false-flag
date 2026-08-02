@@ -30,6 +30,58 @@ _ADVISOR_ROLE_ALIASES: Dict[str, List[str]] = {
 }
 
 
+# Words that mark a leading "Title, ..." prefix as an address to a specific
+# official (as opposed to ordinary sentence openers like "Ok," or "Overall,").
+# Used to catch questions aimed at advisors who are not in the room.
+_TITLE_WORDS = {
+    "chancellor", "secretary", "minister", "advisor", "adviser", "general",
+    "chief", "commander", "admiral", "marshal", "director", "ambassador",
+    "governor", "president", "chairman", "whip", "staff",
+}
+
+# Leading address: optional "the", then a short title, ending at a comma,
+# colon or dash — e.g. "Chancellor, what do you think?"
+_ADDRESS_RE = re.compile(r"^\s*(?:the\s+)?([A-Za-z][A-Za-z '\-]{1,40}?)\s*[,:–—-]")
+
+# Lowercase connectives that appear inside natural titles ("Chancellor of the
+# Exchequer", "Minister for the Armed Forces") and must not defeat the
+# title-case test in _detect_unknown_addressee.
+_TITLE_CONNECTIVES = {"of", "the", "for", "and", "to"}
+
+# The cabinet titles the fiction seats around the COBRA table (matches /menu)
+_COBRA_ROSTER = (
+    "the National Security Advisor, the Chief of the Defence Staff, the "
+    "Foreign Secretary, the Home Secretary and the Attorney General"
+)
+
+
+def _detect_unknown_addressee(question: str, known_roles: Set[str]) -> Optional[str]:
+    """Return the addressed title if the player named an advisor who isn't present.
+
+    A question like "Chancellor, what do you think?" addresses an official the
+    roster doesn't contain; silently rerouting it to another advisor reads as
+    a bug. Only title-shaped prefixes trigger (see _TITLE_WORDS), so ordinary
+    openers ("Right, ...") never match.
+    """
+    match = _ADDRESS_RE.match(question)
+    if not match:
+        return None
+    candidate = match.group(1).strip()
+    words = candidate.split()
+    # A real address is title-cased ("Defence Secretary, ..."); this keeps
+    # sentence openers like "General question, ..." from matching. Lowercase
+    # connectives are ignored so "Chancellor of the Exchequer, ..." matches.
+    significant = [w for w in words if w.lower() not in _TITLE_CONNECTIVES]
+    if not significant or not all(w[0].isupper() for w in significant):
+        return None
+    normalized = candidate.lower()
+    if normalized in known_roles:
+        return None
+    if set(normalized.split()) & _TITLE_WORDS:
+        return candidate
+    return None
+
+
 def _question_matches_keyword(question_lower: str, keyword: str) -> bool:
     """Match a routing keyword against the question using word boundaries.
 
@@ -110,6 +162,16 @@ def handle_player_question(
     if not uk_advisors:
         return [("System", "Error: No advisors available. Initial conditions may not have loaded correctly.")]
     
+    # A named-but-absent advisor gets an in-fiction correction instead of a
+    # silent reroute to whoever matched a keyword (and burns no LLM call).
+    unknown_title = _detect_unknown_addressee(question, _known_pushback_roles(initial_conditions))
+    if unknown_title:
+        return [(
+            "Cabinet Secretary",
+            f"(leaning in) There is no {unknown_title} in this room, Prime "
+            f"Minister. Around this table: {_COBRA_ROSTER}."
+        )]
+
     # Simple keyword matching to determine which advisor(s) should respond
     # In a full implementation, this could use LLM to route questions
     question_lower = question.lower()

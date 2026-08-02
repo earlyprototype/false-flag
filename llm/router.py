@@ -4,8 +4,10 @@ Supports multiple LLM providers:
 - mock (default): Deterministic mock responses for testing
 - offline: Pre-recorded responses
 - gemini: Google Gemini 2.5 Flash/Pro (requires GOOGLE_API_KEY)
-- openai: OpenAI API (future)
-- anthropic: Anthropic API (future)
+- openai_compat: Any OpenAI-compatible chat-completions endpoint --
+  OpenRouter, Groq, Cerebras, Mistral, Ollama, LM Studio, ...
+  (requires OPENAI_COMPAT_BASE_URL + OPENAI_COMPAT_MODEL; see
+  docs/LLM_PROVIDERS.md)
 
 Configuration priority:
 1. Environment variable WARGAME_LLM (if set)
@@ -110,18 +112,32 @@ def get_rate_limiter(model_name: Optional[str] = None) -> Optional[RateLimiter]:
     provider = _get_provider()
 
     # Only rate limit for real API providers
-    if provider not in ["gemini"]:
+    if provider not in ["gemini", "openai_compat"]:
         return None
-    
-    # Determine RPM based on model (free tier limits)
-    # Flash: 10 RPM, Pro: 2 RPM (from Google AI Studio dashboard)
-    rpm = int(os.getenv("GEMINI_RPM", "0"))  # 0 = auto-detect
-    
-    if rpm == 0:  # Auto-detect based on model
-        if model_name and "flash" in model_name.lower():
-            rpm = 10  # Flash models: 10 RPM
-        else:
-            rpm = 2   # Pro models: 2 RPM
+
+    if provider == "openai_compat":
+        # RPM from OPENAI_COMPAT_RPM (env var, then config.py).
+        # 0 / unset = no rate limiting (right for local Ollama/LM Studio);
+        # hosted free tiers should set it (OpenRouter: 20, Groq: 30, ...).
+        rpm = int(os.getenv("OPENAI_COMPAT_RPM", "0"))
+        if rpm == 0:
+            try:
+                import config
+                rpm = int(getattr(config, "OPENAI_COMPAT_RPM", 0) or 0)
+            except ImportError:
+                pass
+        if rpm <= 0:
+            return None
+    else:
+        # Determine RPM based on model (free tier limits)
+        # Flash: 10 RPM, Pro: 2 RPM (from Google AI Studio dashboard)
+        rpm = int(os.getenv("GEMINI_RPM", "0"))  # 0 = auto-detect
+
+        if rpm == 0:  # Auto-detect based on model
+            if model_name and "flash" in model_name.lower():
+                rpm = 10  # Flash models: 10 RPM
+            else:
+                rpm = 2   # Pro models: 2 RPM
     
     # Create rate limiter if not exists or if RPM changed
     if _rate_limiter is None or _rate_limiter.requests_per_minute != rpm:
@@ -148,6 +164,15 @@ def _construct_text_driver(provider: str, model_name: Optional[str] = None):
             return GeminiDriver(model_name=model_name)
         except (ImportError, RuntimeError, ValueError) as e:
             print(f"[WARNING] Failed to initialize Gemini driver: {e}")
+            print("[WARNING] Falling back to mock driver")
+            return MockDeterministicDriver()
+
+    if provider == "openai_compat":
+        try:
+            from llm.openai_compat_driver import OpenAICompatDriver
+            return OpenAICompatDriver(model_name=model_name)
+        except (ImportError, RuntimeError, ValueError) as e:
+            print(f"[WARNING] Failed to initialize OpenAI-compatible driver: {e}")
             print("[WARNING] Falling back to mock driver")
             return MockDeterministicDriver()
 
@@ -254,19 +279,16 @@ def generate_text(
                 return MockDeterministicDriver().generate_text(prompt, rng)
 
     if use_spinner:
+        # Tuman sonar-sweep wait indicator (see cli/spinner.py). Only the
+        # import sits in the try: a driver-side ImportError must propagate to
+        # the resilient wrapper, not silently trigger a duplicate LLM call.
         try:
-            # Use rich console status instead of custom Spinner class
-            from cli.rich_ui import console
-            with console.status("[bold cyan]Thinking...[/bold cyan]", spinner="dots"):
-                return call_driver_resilient()
+            from cli.spinner import Spinner
         except ImportError:
-            # If rich import fails, try legacy Spinner
-            try:
-                from cli.spinner import Spinner
-                with Spinner("Thinking"):
-                    return call_driver_resilient()
-            except ImportError:
-                pass
+            pass
+        else:
+            with Spinner("AWAITING SECURE TRAFFIC"):
+                return call_driver_resilient()
 
     # No spinner - direct call
     return call_driver_resilient()
@@ -344,16 +366,15 @@ def batch_generate_text(
         return results
     
     if use_spinner:
+        # Tuman sonar-sweep wait indicator (see cli/spinner.py). Only the
+        # import sits in the try: a driver-side ImportError must propagate to
+        # the resilient retry logic, not silently trigger a duplicate call.
         try:
-            from cli.rich_ui import console
-            with console.status(f"[bold cyan]Simulating {len(prompts)} actors...[/bold cyan]", spinner="dots"):
-                return call_batch()
+            from cli.spinner import Spinner
         except ImportError:
-            try:
-                from cli.spinner import Spinner
-                with Spinner(f"Simulating {len(prompts)} actors"):
-                    return call_batch()
-            except ImportError:
-                pass
-        
+            pass
+        else:
+            with Spinner(f"SIGNALS INBOUND ── {len(prompts)} STATIONS"):
+                return call_batch()
+
     return call_batch()

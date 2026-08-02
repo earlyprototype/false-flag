@@ -79,3 +79,6 @@ test_output.txt
 # User approvals
 user_approval*.txt
 
+
+# Claude Code session tooling (worktrees, local settings)
+.claude/

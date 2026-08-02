@@ -13,6 +13,7 @@ from random import Random
 logger = logging.getLogger(__name__)
 
 from models.narrative_state import NarrativeState
+from engine.endings import _truncate_decision
 from engine.utils import clamp
 
 # Actor Simulation Imports
@@ -20,7 +21,8 @@ from models.state_actors import StateActorSystem, ActorResponse
 from engine.actor_simulation import (
     simulate_actor_response,
     calculate_effects_from_responses,
-    identify_relevant_actors
+    identify_relevant_actors,
+    display_country_name
 )
 
 
@@ -704,9 +706,13 @@ def _generate_actor_summary(responses: List[ActorResponse], quality: Dict) -> st
             "no": "✗",
             "conditional": "○"
         }.get(response.will_support, "?")
-        
-        summary_parts.append(f"  {support_symbol} {response.actor_id}: {response.public_response[:60]}...")
-    
+
+        actor_name = display_country_name(response.actor_id)
+        # Word-boundary truncation (shared with the debrief recap) so the
+        # summary never ends mid-word
+        public = _truncate_decision(response.public_response, limit=90)
+        summary_parts.append(f"  {support_symbol} {actor_name}: {public}")
+
     return "\n".join(summary_parts)
 
 

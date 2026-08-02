@@ -1,5 +1,10 @@
 # Rate Limiting for LLM API Calls
 
+> **Note (Aug 2026):** the Gemini free-tier numbers below are historical —
+> the current free tier is far more limited (see [LLM_PROVIDERS.md](LLM_PROVIDERS.md)).
+> The same rate-limiter now also serves the `openai_compat` provider via the
+> `OPENAI_COMPAT_RPM` setting (0 = disabled, right for local Ollama/LM Studio).
+
 **Date**: 12 November 2025  
 **Status**: ✅ Implemented
 

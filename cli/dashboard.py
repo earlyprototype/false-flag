@@ -1,12 +1,19 @@
 """Dashboard layout manager using Rich.Live and Rich.Layout.
 
 This module provides a persistent terminal UI with fixed zones:
-- Header: Turn, Phase (always visible)
+- Header: compact Operation Tuman masthead (classification strip + turn rule)
 - Sidebar: Live metrics (updates in-place)
-- Main: Scrolling dialogue
-- Footer: Available commands
+- Main: Scrolling dialogue with sonar-trace dividers
+- Footer: Available commands over a closing classification strip
+
+All chrome speaks the shared fog + signals-room language from
+``cli/aesthetics.py``: every render is static per repaint (no frame
+animation inside Live), every color is read from ``theme_manager`` at
+render time, and every seeded trim derives from the turn number so each
+turn's weather differs deterministically.
 """
 
+from rich.console import Group
 from rich.layout import Layout
 from rich.markup import escape as rich_escape
 from rich.panel import Panel
@@ -14,6 +21,9 @@ from rich.style import Style
 from rich.table import Table
 from rich.text import Text
 from rich import box
+
+from cli import aesthetics as ae
+from cli.theme import theme_manager
 
 
 def _safe_markup(text: str) -> str:
@@ -55,22 +65,12 @@ class WargameDashboard:
         """
         self.world = world
         self.console = console
-        
-        # Use DEFCON colors locally (don't change global theme)
-        self.COLORS = {
-            "primary": "#FF6B35",        # Deep Orange
-            "secondary": "#004E89",      # Navy Blue
-            "accent": "#1A659E",         # Steel Blue
-            "success": "#00D9A3",        # Teal
-            "warning": "#FFB627",        # Amber
-            "danger": "#FF0000",         # Pure Red
-            "muted": "#457B9D",          # Muted Blue
-            "emphasis": "#FF6B35",       # Deep Orange
-            "metric_good": "#00D9A3",    # Teal
-            "metric_neutral": "#A8DADC", # Light Blue
-            "metric_bad": "#FFB627",     # Amber
-            "metric_critical": "#FF0000", # Pure Red
-        }
+
+        # Active theme palette (the default "defcon" theme carries the same
+        # DEFCON values this dashboard used to hard-code). Kept as an
+        # attribute for callers; render methods re-read theme_manager at
+        # render time so /theme switches repaint the chrome instantly.
+        self.COLORS = theme_manager.get_colors()
         self.conversation_log = []
         
         # Create layout structure
@@ -86,69 +86,101 @@ class WargameDashboard:
             Layout(name="main", ratio=1)
         )
     
-    def render_header(self) -> Panel:
-        """Render top bar: TURN | PHASE.
+    def _chrome_width(self) -> int:
+        """Full-width chrome rows follow the live console width."""
+        return self.console.size.width or 100
+
+    def _turn_seed(self, salt: str = "") -> str:
+        """Stable per-turn seed so each turn's trims differ deterministically."""
+        return f"dash-turn-{self.world.turn}{('-' + salt) if salt else ''}"
+
+    def _fog_density(self) -> float:
+        """Fog thickens as escalation risk climbs (0.25 calm .. 0.65 critical)."""
+        risk = getattr(self.world.metrics, "escalation_risk", 50)
+        return min(0.65, 0.25 + risk / 250)
+
+    def render_header(self) -> Group:
+        """Render the compact Tuman masthead: classification strip,
+        title + turn/phase rule, and a thin per-turn fog trim.
 
         Returns:
-            Rich Panel with header content
+            Rich Group, exactly three rows (the header layout's size).
         """
-        # Format: TURN 004 | DISCUSSION PHASE with dramatic styling
+        colors = theme_manager.get_colors()
+        width = self._chrome_width()
         phase = str(self.world.phase or "briefing").upper()
-        content = f"[reverse][{self.COLORS['emphasis']} bold] TURN {self.world.turn:03d} │ {phase} PHASE [/][/reverse]"
-        
-        return Panel(
-            content,
-            style=f"bold {self.COLORS['primary']} on #0A0E27",
-            box=box.HEAVY,
-            padding=(0, 0)  # Minimal padding to maximize space
+        seed = self._turn_seed()
+
+        # ━━[ FALSE FLAG ── OPERATION TUMAN ]━━…━━[ TURN 004 │ DISCUSSION ]━━
+        status = f"TURN {self.world.turn:03d} │ {phase}"
+        rule = Text("━━", style=colors["accent"])
+        rule.append("[ ", style=colors["accent"])
+        rule.append("FALSE FLAG", style=f"{colors['primary']} bold")
+        rule.append(" ── OPERATION TUMAN", style=colors["muted"])
+        rule.append(" ]", style=colors["accent"])
+        fill = width - rule.cell_len - len(status) - 6  # "[ " + " ]━━"
+        if fill > 0:
+            rule.append("━" * fill, style=colors["accent"])
+        rule.append("[ ", style=colors["accent"])
+        rule.append(status, style=f"{colors['highlight']} bold")
+        rule.append(" ]━━", style=colors["accent"])
+        rule.no_wrap = True
+        rule.overflow = "crop"
+
+        return Group(
+            ae.classification_strip(width=width, seed=seed, edge="bare"),
+            rule,
+            ae.fog_band(width, 1, self._fog_density(), seed=seed),
         )
     
+    # Interior columns of the 30-col sidebar: 30 - 2 border - 2 padding
+    SIDEBAR_INNER_COLS = 26
+
     def render_sidebar(self) -> Panel:
         """Render left panel with live metrics.
-        
+
         Returns:
             Rich Panel with metrics table
         """
         from cli.theme import SYMBOLS, progress_bar
-        
-        # Check if we should hide metrics (Immersive/Emergent modes)
-        # This requires knowing the play mode, which isn't directly in dashboard state
-        # We'll check if metrics are hidden by looking at world.metrics visibility flags if they existed
-        # For now, we'll render a simplified view if needed
-        
-        # Create metrics table
-        table = Table(show_header=False, box=None, padding=(0, 1))
-        table.add_column("Label", style=self.COLORS['secondary'])
-        table.add_column("Value", justify="right")
-        table.add_column("Bar", width=10)
-        
+
+        colors = theme_manager.get_colors()
+
+        # Create metrics table. Column budget is tight: the 30-col sidebar
+        # leaves 26 interior columns, so pad on the right only and keep the
+        # bar at 8 cells — full labels ("Casualties") must never truncate.
+        table = Table(show_header=False, box=None, padding=(0, 1, 0, 0))
+        table.add_column("Label", style=colors['secondary'], no_wrap=True)
+        table.add_column("Value", justify="right", no_wrap=True)
+        table.add_column("Bar", width=8, no_wrap=True)
+
         # Risk
         risk = self.world.metrics.escalation_risk
-        risk_color = self.COLORS['metric_critical'] if risk >= 70 else self.COLORS['metric_bad'] if risk >= 50 else self.COLORS['metric_good']
+        risk_color = colors['metric_critical'] if risk >= 70 else colors['metric_bad'] if risk >= 50 else colors['metric_good']
         table.add_row(
             f"{SYMBOLS['risk']} Risk",
             f"[{risk_color}]{risk}[/]",
-            progress_bar(risk, 100, 10)
+            progress_bar(risk, 100, 8)
         )
-        
+
         # Stability
         stability = self.world.metrics.domestic_stability
-        stab_color = self.COLORS['metric_critical'] if stability <= 30 else self.COLORS['metric_bad'] if stability <= 50 else self.COLORS['metric_good']
+        stab_color = colors['metric_critical'] if stability <= 30 else colors['metric_bad'] if stability <= 50 else colors['metric_good']
         table.add_row(
             f"{SYMBOLS['stability']} Stability",
             f"[{stab_color}]{stability}[/]",
-            progress_bar(stability, 100, 10)
+            progress_bar(stability, 100, 8)
         )
-        
+
         # Cohesion
         cohesion = self.world.metrics.alliance_cohesion
-        coh_color = self.COLORS['metric_critical'] if cohesion <= 30 else self.COLORS['metric_bad'] if cohesion <= 50 else self.COLORS['metric_good']
+        coh_color = colors['metric_critical'] if cohesion <= 30 else colors['metric_bad'] if cohesion <= 50 else colors['metric_good']
         table.add_row(
             f"{SYMBOLS['cohesion']} Cohesion",
             f"[{coh_color}]{cohesion}[/]",
-            progress_bar(cohesion, 100, 10)
+            progress_bar(cohesion, 100, 8)
         )
-        
+
         # Casualties
         casualties = self.world.metrics.casualties_mil + self.world.metrics.casualties_civ
         table.add_row(
@@ -156,14 +188,23 @@ class WargameDashboard:
             f"{casualties}",
             f"{self.world.metrics.casualties_mil}m {self.world.metrics.casualties_civ}c"
         )
-        
+
+        # Thin per-turn fog trim under the metrics, sized to the sidebar's
+        # 26-col interior; density follows escalation risk (the fog literally
+        # thickens as the crisis worsens).
+        seed = self._turn_seed("sitrep")
+        fog = ae.fog_band(self.SIDEBAR_INNER_COLS, 1,
+                          self._fog_density(), seed)
+
         return Panel(
-            table,
-            title=f"[reverse][{self.COLORS['warning']} bold] SITREP [/][/reverse]",
-            border_style=f"bold {self.COLORS['primary']}",
-            box=box.HEAVY,
+            Group(table, fog),
+            title=f"[{colors['danger']} bold]SITREP[/]",
+            title_align="left",
+            subtitle=f"[{colors['warning']}]{ae.reference_code(seed)}[/]",
+            subtitle_align="right",
+            border_style=colors['muted'],
+            box=box.SQUARE,
             padding=(0, 1),
-            style="on #0A0E27"
         )
     
     @staticmethod
@@ -186,13 +227,14 @@ class WargameDashboard:
         Returns:
             Rich Panel with the most recent dialogue (streaming style)
         """
+        colors = theme_manager.get_colors()
         height = self.console.size.height or 24
         width = self.console.size.width or 100
         row_budget = max(3, height - self.FEED_CHROME_ROWS)
         inner_width = max(20, width - self.FEED_CHROME_COLS)
 
         if not self.conversation_log:
-            content = "[dim]═══ COBRA COMMAND FEED ═══\n\nAwaiting intelligence...[/]"
+            content = f"[{colors['muted']}]─── COBRA COMMAND FEED ───\n\nAwaiting intelligence...[/]"
         else:
             # Walk backwards from the newest message, accounting for wrapping
             selected = []
@@ -218,33 +260,41 @@ class WargameDashboard:
                     used -= row_counts.pop(0)
                     selected.pop(0)
                     hidden_count += 1
-                scroll_hint = f"[{self.COLORS['muted']} dim]▲ {hidden_count} earlier messages - use /briefing for full log ▲[/]"
+                scroll_hint = f"[{colors['muted']} dim]▲ {hidden_count} earlier messages - use /briefing for full log ▲[/]"
                 selected.insert(0, scroll_hint)
 
             content = "\n".join(selected)
 
         return Panel(
             content,
-            title=f"[reverse][{self.COLORS['accent']} bold] ⬤ COBRA BRIEFING FEED [/][/reverse]",  # Added ⬤ for "live" indicator
-            border_style=f"bold {self.COLORS['accent']}",
-            box=box.HEAVY,
+            title=f"[{colors['accent']} bold]● COBRA BRIEFING FEED[/]",  # ● = live contact
+            title_align="left",
+            subtitle=f"[{colors['muted']}]{ae.reference_code(self._turn_seed('feed'))}[/]",
+            subtitle_align="right",
+            border_style=colors['muted'],
+            box=box.SQUARE,
             padding=(1, 1),
-            style="on #0A0E27"  # Force dark navy background
         )
-    
-    def render_footer(self) -> Panel:
-        """Render bottom bar with available commands.
-        
+
+    def render_footer(self) -> Group:
+        """Render bottom bar: sonar quick-help row over the closing
+        classification strip (documents close the way they open).
+
         Returns:
-            Rich Panel with command hints
+            Rich Group, exactly two rows (the footer layout's size).
         """
-        commands = f"[{self.COLORS['primary']} bold]/status[/] │ [{self.COLORS['primary']} bold]/menu[/] │ [{self.COLORS['primary']} bold]/advise[/] │ [{self.COLORS['primary']} bold]/resources[/] │ [{self.COLORS['primary']} bold]/briefing[/] │ [{self.COLORS['success']} bold]/decide[/] │ [{self.COLORS['danger']} bold]/quit[/]"
-        
-        return Panel(
-            commands,
-            style=f"{self.COLORS['primary']} on #0A0E27",  # Orange on dark navy
-            box=box.HEAVY,
-            padding=(0, 1)  # Reduced padding to save vertical space
+        colors = theme_manager.get_colors()
+        width = self._chrome_width()
+        # Short set only: the full list lives in /menu. The longer string
+        # cropped past 80 columns in the no-wrap footer row.
+        commands = f"[{colors['primary']} bold]/status[/] │ [{colors['primary']} bold]/menu[/] │ [{colors['primary']} bold]/advise[/] │ [{colors['primary']} bold]/intel[/] │ [{colors['success']} bold]/decide[/] │ [{colors['danger']} bold]/quit[/]"
+        command_row = Text.from_markup(commands)
+        command_row.no_wrap = True
+        command_row.overflow = "crop"
+        return Group(
+            command_row,
+            ae.classification_strip(width=width, seed=self._turn_seed(),
+                                    edge="bare"),
         )
     
     def update(self):
@@ -265,12 +315,40 @@ class WargameDashboard:
         # Free text (player input, LLM output) can contain broken markup that
         # would crash the Live repaint; escape anything that doesn't parse.
         message = _safe_markup(message)
+        colors = theme_manager.get_colors()
         if speaker == "PM":
-            formatted = f"[{self.COLORS['emphasis']}]PM:[/] {message}"
+            formatted = f"[{colors['emphasis']}]PM:[/] {message}"
+        elif speaker == "SYSTEM":
+            # System traffic is background noise in the signals room: muted,
+            # like the main CLI's system lines.
+            formatted = f"[{colors['muted']}]SYSTEM:[/] {message}"
         else:
-            formatted = f"[{self.COLORS['secondary']}]{rich_escape(speaker)}:[/] {message}"
-        
+            formatted = f"[{colors['secondary']}]{rich_escape(speaker)}:[/] {message}"
+
         self.conversation_log.append(formatted)
+        self._trim_log()
+
+    def add_divider(self, label: str = "", seed=None):
+        """Append a sonar-language divider line to the feed.
+
+        Turn and phase breaks in the feed are sonar traces
+        (``──●──[ LABEL ]───── ·· ─``), not plain rules — the same language
+        the main CLI uses between sections. Rendered once at add time (the
+        feed is a list of markup strings), sized to the feed's interior.
+
+        Args:
+            label: Optional divider label (e.g. "TURN 3 BRIEFING"); a bare
+                sonar trace is used when empty.
+            seed: Deterministic seed; defaults to turn + label.
+        """
+        width = max(20, (self.console.size.width or 100) - self.FEED_CHROME_COLS)
+        if seed is None:
+            seed = f"{self._turn_seed('feed')}-{label}"
+        if label:
+            divider = ae.phase_banner(label, seed=seed, width=width)
+        else:
+            divider = ae.sonar_divider(seed=seed, width=width)
+        self.conversation_log.append(divider.markup)
         self._trim_log()
     
     def _trim_log(self):

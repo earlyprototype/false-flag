@@ -24,14 +24,25 @@ from rich.panel import Panel
 from rich import box
 from rich.markup import escape as rich_escape
 from cli.rich_ui import (
-    console, phase_header, metrics_table,
+    console, metrics_table,
     advisor_menu_panel, diplomatic_contacts_table,
     resources_tables, command_menu, metrics_guide_panel,
-    format_markdown, RICH_ENABLED
+    RICH_ENABLED
 )
 from cli.theme import theme_manager, SYMBOLS
+from cli import aesthetics as ae
+from cli.cinematics import play_title_sequence, setup_banner
 from cli.formatters import format_advisor_response
-from cli.display_utils import strip_effect_boxes, display_adjudication_results
+from cli.display_utils import (
+    strip_effect_boxes,
+    display_adjudication_results,
+    display_decision_summary,
+    display_role,
+    parse_interpretation_simple,
+    markdown_to_rich,
+    format_vibe_line,
+    advisor_attitude_lines,
+)
 from models.world import WorldState, Metrics
 from models.narrative_state import create_initial_narrative_state
 from models.narrative import NarrativeConfig
@@ -108,100 +119,53 @@ def wait_for_space(prompt: str = "Press SPACE (or Enter) to continue...") -> Non
     wait_for_key(prompt)
 
 
-def parse_interpretation_simple(interpretation: str) -> dict:
-    """Parse LLM interpretation into key sections for display.
-    
-    Args:
-        interpretation: Full interpretation text
-    
-    Returns:
-        Dict with parsed sections
-    """
-    sections = {
-        "summary": "",
-        "forces": [],
-        "timeline": "",
-        "concerns": ""
-    }
-    
-    lines = interpretation.split('\n')
-    current_section = None
-    
-    for line in lines:
-        line = line.strip()
-        
-        if line.startswith("INTERPRETATION:"):
-            sections["summary"] = line.replace("INTERPRETATION:", "").strip()
-        elif line.startswith("FORCES INVOLVED:"):
-            current_section = "forces"
-        elif line.startswith("TIMELINE:"):
-            current_section = "timeline"
-        elif line.startswith("FEASIBILITY:"):
-            if "impossible" in line.lower() or "requires clarification" in line.lower():
-                sections["concerns"] = line.replace("FEASIBILITY:", "").strip()
-            current_section = None
-        elif current_section == "forces" and line and line.startswith("*"):
-            # Extract force name from bullet point
-            force = line.lstrip("* ").split(":")[0] if ":" in line else line.lstrip("* ")
-            if force and len(sections["forces"]) < 5:  # Max 5 forces shown
-                sections["forces"].append(force)
-        elif current_section == "timeline" and line:
-            sections["timeline"] = line
-    
-    return sections
-
-
-def display_decision_summary(action: str, interpretation: str, show_details: bool = False):
-    """Display decision interpretation in player-friendly format.
-    
-    Args:
-        action: Player's original decision text
-        interpretation: Full LLM interpretation
-        show_details: If True, show full interpretation
-    """
+def _end_session() -> None:
+    """Close the session in fiction on EOF (Ctrl-D) instead of click's bare
+    'Aborted.' with exit code 1."""
     COLORS = theme_manager.get_colors()
-    
-    # Show player's exact words in a box
     console.print("")
-    console.print(Panel(f"[italic]{rich_escape(action)}[/italic]", title="[bold]YOUR DECISION[/bold]", border_style="white"))
-    console.print("")
-    
-    if show_details:
-        # Show full interpretation
-        console.print(Panel(format_markdown(interpretation), title="[bold]FULL INTERPRETATION (DETAILED)[/bold]", border_style="blue"))
-        console.print("")
-    else:
-        # Show simplified summary
-        parsed = parse_interpretation_simple(interpretation)
-        
-        # Build content for panel
-        content = []
-        
-        # Show summary if we extracted one
-        if parsed["summary"]:
-            content.append(parsed["summary"])
-            content.append("")
-        
-        # Show key forces
-        if parsed["forces"]:
-            content.append(f"[{COLORS['success']}]Forces Deployed:[/{COLORS['success']}]")
-            for force in parsed["forces"]:
-                content.append(f"  • {force}")
-            content.append("")
-        
-        # Show timeline
-        if parsed["timeline"]:
-            content.append(f"[{COLORS['accent']}]Estimated Timeline:[/{COLORS['accent']}] {parsed['timeline']}")
-            content.append("")
-        
-        # Show concerns
-        if parsed["concerns"]:
-            content.append(f"[{COLORS['warning']}]⚠ Operational Concerns: {parsed['concerns']}[/{COLORS['warning']}]")
-            content.append("")
-        
-        content.append(f"[{COLORS['muted']}](Type 'details' to see full interpretation)[/{COLORS['muted']}]")
-        
-        console.print(Panel("\n".join(content), title="[bold]📋 OPERATIONAL ORDER[/bold]", border_style="cyan"))
+    console.print(f"[{COLORS['muted']}]SIGNAL LOST — secure line closed. The campaign is preserved in the last autosave.[/{COLORS['muted']}]")
+    raise typer.Exit(0)
+
+
+def _console_input(prompt_text: str) -> str:
+    """console.input that ends the session cleanly on EOF."""
+    try:
+        return console.input(prompt_text)
+    except EOFError:
+        _end_session()
+
+
+def _prompt(text: str, **kwargs) -> str:
+    """typer.prompt that ends the session cleanly on EOF/Ctrl-C."""
+    try:
+        return typer.prompt(text, **kwargs)
+    except (typer.Abort, EOFError):
+        _end_session()
+
+
+def _confirm(text: str, **kwargs) -> bool:
+    """typer.confirm that ends the session cleanly on EOF/Ctrl-C."""
+    try:
+        return typer.confirm(text, **kwargs)
+    except (typer.Abort, EOFError):
+        _end_session()
+
+
+def _pause_for_enter(colors: dict) -> None:
+    """Interactive pause before returning to the dashboard.
+
+    No-op on piped stdin: a scripted run's next line is a queued command, not
+    an acknowledgement — consuming it here turned the player's next command
+    into a chat message.
+    """
+    if not sys.stdin.isatty():
+        return
+    console.print(f"[{colors['primary']} bold]Press ENTER to return to dashboard[/]")
+    try:
+        console.input()
+    except EOFError:
+        _end_session()
 
 
 def display_critical_concerns_with_selection(critical_concerns: list) -> tuple:
@@ -219,13 +183,13 @@ def display_critical_concerns_with_selection(critical_concerns: list) -> tuple:
 
     console.print("")
     console.print(Panel(f"Advisors have raised {len(critical_concerns)} critical concerns regarding your decision.",
-                        title=f"[{COLORS['warning']} bold]⚠️ CRITICAL ADVISORIES[/]", 
+                        title=f"[{COLORS['warning']} bold]{SYMBOLS['warning']} CRITICAL ADVISORIES[/]",
                         border_style=COLORS['warning']))
     console.print("")
     
     # Display each concern with number
     for idx, (role, concern, recommendation) in enumerate(critical_concerns, 1):
-        console.print(f"[{COLORS['warning']} bold][{idx}] {rich_escape(role)}[/{COLORS['warning']} bold]")
+        console.print(f"[{COLORS['warning']} bold][{idx}] {rich_escape(display_role(role))}[/{COLORS['warning']} bold]")
         console.print(f"  {rich_escape(concern)}")
         console.print(f"  [{COLORS['primary']}]→ RECOMMENDATION: \"{rich_escape(recommendation)}\"[/{COLORS['primary']}]")
         console.print("")
@@ -242,14 +206,14 @@ def display_critical_concerns_with_selection(critical_concerns: list) -> tuple:
     console.print(f"  [{COLORS['primary']}]D[/{COLORS['primary']}] - Return to discussion phase")
     console.print("")
     
-    choice = typer.prompt("Choose", type=str).strip().upper()
+    choice = _prompt("Choose", type=str).strip().upper()
     
     if choice == "A":
         return ('A', list(range(len(critical_concerns))))
     elif choice == "S":
         console.print("")
         console.print("Enter concern numbers separated by spaces (e.g., '1 3')")
-        selection = typer.prompt("Select").strip()
+        selection = _prompt("Select").strip()
         try:
             indices = [int(x) - 1 for x in selection.split()]
             valid_indices = [i for i in indices if 0 <= i < len(critical_concerns)]
@@ -307,10 +271,7 @@ def select_scenario_variant(scenario_id: str) -> str:
     
     typer.clear()
     console.print("")
-    console.print(f"[{COLORS['danger']} bold]# FALSE FLAG: THE WARGAME[/{COLORS['danger']} bold]")
-    console.print("=" * 79)
-    console.print("")
-    console.print(f"[{COLORS['primary']} bold]SELECT SCENARIO[/{COLORS['primary']} bold]")
+    console.print(setup_banner("SELECT SCENARIO"))
     console.print("")
     
     # Load available scenarios
@@ -352,7 +313,7 @@ def select_scenario_variant(scenario_id: str) -> str:
     console.print("")
     while True:
         try:
-            choice = typer.prompt("Select scenario (enter number)", type=int)
+            choice = _prompt("Select scenario (enter number)", type=int)
             if 1 <= choice <= len(scenarios):
                 selected_key = scenarios[choice - 1][0]
                 selected_name = scenarios[choice - 1][1].get("name", selected_key)
@@ -364,7 +325,7 @@ def select_scenario_variant(scenario_id: str) -> str:
                 return selected_key
             else:
                 console.print(f"[{COLORS['danger']}]Please enter a number between 1 and {len(scenarios)}[/{COLORS['danger']}]")
-        except (ValueError, KeyboardInterrupt):
+        except ValueError:
             console.print(f"[{COLORS['danger']}]Invalid input. Please enter a number.[/{COLORS['danger']}]")
 
 
@@ -378,10 +339,7 @@ def select_play_mode() -> str:
     
     typer.clear()
     console.print("")
-    console.print(f"[{COLORS['danger']} bold]# FALSE FLAG: THE WARGAME[/{COLORS['danger']} bold]")
-    console.print("=" * 79)
-    console.print("")
-    console.print(f"[{COLORS['primary']} bold]SELECT GAMEPLAY MODE[/{COLORS['primary']} bold]")
+    console.print(setup_banner("SELECT GAMEPLAY MODE"))
     console.print("")
     
     modes = [
@@ -429,7 +387,7 @@ def select_play_mode() -> str:
     
     while True:
         try:
-            choice = typer.prompt("Select gameplay mode (enter number)", type=int, default=2)
+            choice = _prompt("Select gameplay mode (enter number)", type=int, default=2)
             if 1 <= choice <= len(modes):
                 selected_key = modes[choice - 1][0]
                 selected_name = modes[choice - 1][1]['name']
@@ -441,7 +399,7 @@ def select_play_mode() -> str:
                 return selected_key
             else:
                 console.print(f"[{COLORS['danger']}]Please enter a number between 1 and {len(modes)}[/{COLORS['danger']}]")
-        except (ValueError, KeyboardInterrupt):
+        except ValueError:
             console.print(f"[{COLORS['danger']}]Invalid input. Please enter a number.[/{COLORS['danger']}]")
 
 
@@ -458,10 +416,7 @@ def select_difficulty(scenario_id: str) -> str:
     
     typer.clear()
     console.print("")
-    console.print(f"[{COLORS['danger']} bold]# FALSE FLAG: THE WARGAME[/{COLORS['danger']} bold]")
-    console.print("=" * 79)
-    console.print("")
-    console.print(f"[{COLORS['primary']} bold]SELECT DIFFICULTY[/{COLORS['primary']} bold]")
+    console.print(setup_banner("SELECT DIFFICULTY"))
     console.print("")
     console.print("Difficulty affects scenario effect magnitudes (crisis intensity).")
     console.print("Player action impacts remain the same across all difficulties.")
@@ -514,7 +469,7 @@ def select_difficulty(scenario_id: str) -> str:
     # Get user selection
     while True:
         try:
-            choice = typer.prompt("Select difficulty (enter number)", type=int, default=1)
+            choice = _prompt("Select difficulty (enter number)", type=int, default=1)
             if 1 <= choice <= len(difficulties):
                 selected_key = difficulties[choice - 1][0]
                 selected_name = difficulties[choice - 1][1].get("name", selected_key)
@@ -526,7 +481,7 @@ def select_difficulty(scenario_id: str) -> str:
                 return selected_key
             else:
                 console.print(f"[{COLORS['danger']}]Please enter a number between 1 and {len(difficulties)}[/{COLORS['danger']}]")
-        except (ValueError, KeyboardInterrupt):
+        except ValueError:
             console.print(f"[{COLORS['danger']}]Invalid input. Please enter a number.[/{COLORS['danger']}]")
 
 
@@ -544,10 +499,7 @@ def select_narrative(scenario_id: str) -> Optional[NarrativeConfig]:
     
     typer.clear()
     console.print("")
-    console.print(f"[{COLORS['danger']} bold]# FALSE FLAG: THE WARGAME[/{COLORS['danger']} bold]")
-    console.print("=" * 79)
-    console.print("")
-    console.print(f"[{COLORS['primary']} bold]SELECT GAME TYPE[/{COLORS['primary']} bold]")
+    console.print(setup_banner("SELECT GAME TYPE"))
     console.print("")
     console.print("Choose how you want to experience the crisis:")
     console.print("")
@@ -564,13 +516,13 @@ def select_narrative(scenario_id: str) -> Optional[NarrativeConfig]:
     console.print("   diplomats may have secret motivations that aren't immediately apparent.")
     console.print("   You must deduce the truth from their actions and responses.")
     console.print("")
-    console.print(f"   [{COLORS['danger']}]⚠ The narrative is randomly selected and hidden from you![/{COLORS['danger']}]")
+    console.print(f"   [{COLORS['danger']}]{SYMBOLS['warning']} The narrative is randomly selected and hidden from you![/{COLORS['danger']}]")
     console.print("")
     
     # Get user selection
     while True:
         try:
-            choice = typer.prompt("Select game type (enter number)", type=int, default=1)
+            choice = _prompt("Select game type (enter number)", type=int, default=1)
             if choice == 1:
                 # Original Story Mode - no secret narrative
                 console.print("")
@@ -597,7 +549,7 @@ def select_narrative(scenario_id: str) -> Optional[NarrativeConfig]:
                     return None
             else:
                 console.print(f"[{COLORS['danger']}]Please enter 1 or 2[/{COLORS['danger']}]")
-        except (ValueError, KeyboardInterrupt):
+        except ValueError:
             console.print(f"[{COLORS['danger']}]Invalid input. Please enter a number.[/{COLORS['danger']}]")
 
 
@@ -666,30 +618,12 @@ def play(
 
     # Display intro with COBRA command system styling
     if intro_only or load_save is None:
-        # System boot sequence
+        # Operation Tuman title sequence: fog condenses into the masthead,
+        # then the secure terminal boots. Any key skips; instant on non-TTY.
         typer.clear()
-        console.print(Panel(
-            f"""
-[{DEFCON_COLORS['warning']} bold]COBRA COMMAND SYSTEM[/]
-[{DEFCON_COLORS['muted']}]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/]
+        play_title_sequence(console, seed=seed)
 
-[{DEFCON_COLORS['accent']}]Initialising crisis management interface...[/]
-
-[{DEFCON_COLORS['success']}]✓[/] Secure communications online
-[{DEFCON_COLORS['success']}]✓[/] Intelligence feeds active  
-[{DEFCON_COLORS['success']}]✓[/] Advisory panel connected
-[{DEFCON_COLORS['success']}]✓[/] Decision framework loaded
-
-[{DEFCON_COLORS['primary']}]System ready. Press SPACE (or Enter) to continue...[/]
-            """,
-            title=f"[reverse][{DEFCON_COLORS['warning']} bold] SYSTEM INITIALISATION [/][/reverse]",
-            border_style=f"bold {DEFCON_COLORS['primary']}",
-            box=box.HEAVY,
-            style="on #0A0E27",
-            padding=(1, 2)
-        ))
-        
-        wait_for_space("")  # Wait without additional prompt
+        wait_for_space("Press SPACE (or Enter) to continue...")
         
         intro_lines = get_intro_lines(200)
         
@@ -873,7 +807,9 @@ def play(
             from models.state_actors import load_actors_from_yaml
             actor_yaml_path = root / "data" / "state_actors.yaml"
             world.actor_system = load_actors_from_yaml(str(actor_yaml_path))
-            console.print(f"[{COLORS['success']}]✓ Multi-agent actor system initialized[/{COLORS['success']}]")
+            # In-fiction status line (dev-speak like "multi-agent actor system
+            # initialized" breaks immersion mid-intro)
+            console.print(f"[{COLORS['muted']}]SECURE LIAISON CHANNELS ESTABLISHED — allied and adversary capitals monitored[/{COLORS['muted']}]")
         except Exception as e:
             console.print(f"[{COLORS['warning']}]Warning: Could not load actor system: {e}[/{COLORS['warning']}]")
             world.actor_system = None
@@ -915,12 +851,15 @@ def play(
                 # First time reaching stochastic content - show transition message
                 stochastic_injects = True
                 console.print("")
-                console.print(f"[{COLORS['primary']}]" + "=" * 79 + f"[/{COLORS['primary']}]")
-                console.print(f"[{COLORS['primary']} bold]ENTERING DYNAMIC SCENARIO GENERATION[/{COLORS['primary']} bold]")
-                console.print(f"[{COLORS['primary']}]" + "=" * 79 + f"[/{COLORS['primary']}]")
+                console.print(ae.classification_strip(
+                    label="ENTERING DYNAMIC SCENARIO GENERATION",
+                    seed=f"stochastic-{world.turn}", edge="top"))
                 console.print("")
                 console.print("The scripted scenario has concluded. From this point forward,")
                 console.print("events will be dynamically generated based on your decisions.")
+                console.print("")
+                console.print(ae.classification_strip(
+                    seed=f"stochastic-{world.turn}", edge="bottom"))
                 console.print("")
                 wait_for_space("Press SPACE (or Enter) to continue...")
                 console.print("")
@@ -941,7 +880,7 @@ def play(
             rng,
             root,
             transcript,
-            get_player_input=lambda prompt: typer.prompt(prompt).strip(),
+            get_player_input=lambda prompt: _prompt(prompt).strip(),
             turn_filename=turn_filename,
             silent_effects=is_turn1_intro or play_mode != "classic",  # Hide raw-number effect boxes for Turn 1 intro and non-classic modes
             suppress_display=is_turn1_intro,  # Suppress panel so we can stream the text
@@ -970,38 +909,42 @@ def play(
         else:
             briefing_display = briefing_lines
 
-        # Display briefing in COBRA-styled panel
+        # Convert markdown emphasis in inject/briefing text to Rich markup so
+        # players never see raw asterisks (**GCHQ Assessment:** etc.)
+        briefing_display = [markdown_to_rich(line) for line in briefing_display]
+
+        # Display briefing between classification strips (the ┏━━┓ COBRA
+        # panel now speaks the shared Tuman document language)
         typer.clear()
 
-        # Build briefing content
-        briefing_content = "\n".join([line for line in briefing_display if line.strip() and "===" not in line])
-        
-        # Show in COBRA panel
-        console.print(Panel(
-            briefing_content,
-            title=f"[reverse][{DEFCON_COLORS['warning']} bold] TURN {world.turn} INTELLIGENCE BRIEFING [/][/reverse]",
-            border_style=f"bold {DEFCON_COLORS['primary']}",
-            box=box.HEAVY,
-            style="on #0A0E27",
-            padding=(2, 4)
-        ))
-        
+        briefing_seed = f"briefing-{world.turn}"
+        console.print(ae.classification_strip(
+            label=f"TURN {world.turn} INTELLIGENCE BRIEFING",
+            seed=briefing_seed, edge="top"))
+        console.print("")
+        for line in briefing_display:
+            if line.strip() and "===" not in line:
+                console.print(line)
+        console.print("")
+        console.print(ae.classification_strip(seed=briefing_seed, edge="bottom"))
+
         transcript.extend(briefing_lines)
-        
+
         # Show intelligence briefing (Immersive/Emergent modes only)
         if play_mode in ["immersive", "emergent"] and world.turn > 1:
             from engine.intelligence import generate_intelligence_briefing
             intel_lines = generate_intelligence_briefing(narrative_state, world, rng, detailed=True)
             typer.echo("")
-            intel_content = "\n".join(intel_lines)
-            console.print(Panel(
-                intel_content,
-                title=f"[reverse][{DEFCON_COLORS['accent']} bold] INTELLIGENCE UPDATE [/][/reverse]",
-                border_style=f"bold {DEFCON_COLORS['primary']}",
-                box=box.HEAVY,
-                style="on #0A0E27",
-                padding=(2, 4)
-            ))
+            intel_seed = f"intel-{world.turn}"
+            console.print(ae.classification_strip(seed=intel_seed, edge="top"))
+            for line in intel_lines:
+                stripped = line.strip()
+                if stripped and set(stripped) <= {"═"}:
+                    continue  # classification strips replace the plain rules
+                if "Classification:" in stripped:
+                    continue  # the strip itself carries the classification
+                console.print(line)
+            console.print(ae.classification_strip(seed=intel_seed, edge="bottom"))
             typer.echo("")
         
         # Transition to dashboard
@@ -1024,12 +967,12 @@ def play(
             typer.echo("")  # Buffer line BEFORE Rich output
 
             if RICH_ENABLED:
-                console.print(phase_header("DISCUSSION", world.turn))
+                console.print(ae.phase_banner("DISCUSSION", world.turn))
                 typer.echo("")
                 typer.echo("  Ask questions or type /decide when ready")
-                console.print(f"  [{COLORS['muted']}]Quick: /status  /menu  /advise  /resources  /llm[/{COLORS['muted']}]")
+                console.print(f"  [{COLORS['muted']}]Quick: /status  /menu  /advise  /resources  /intel  /llm[/{COLORS['muted']}]")
                 typer.echo("")
-                console.print(f"[{COLORS['muted']}]" + "─" * 79 + f"[/{COLORS['muted']}]")
+                console.print(ae.sonar_divider(seed=f"discussion-{world.turn}"))
             else:
                 console.print("=" * 79)
                 console.print(f"[{COLORS['accent']} bold]TURN {world.turn}: DISCUSSION PHASE[/{COLORS['accent']} bold]")
@@ -1049,50 +992,57 @@ def play(
             # Use dashboard's DEFCON colors for commands
             COLORS = dashboard.COLORS
 
-            # Show dramatic transition to dashboard
+            # Show transition to dashboard: secure-terminal boot lines under a
+            # classification strip, fog clearing as the interface comes up
             console.clear()
-            transition_message = f"""
-[{COLORS['warning']} bold]═══ COBRA COMMAND INTERFACE ═══[/]
-
-[{COLORS['accent']}]Initialising dashboard...[/]
-[{COLORS['success']}]✓[/] Situation briefing loaded
-[{COLORS['success']}]✓[/] Metrics system online
-[{COLORS['success']}]✓[/] Advisory panel ready
-[{COLORS['success']}]✓[/] Communications active
-
-[{COLORS['emphasis']}]Dashboard active. Awaiting instructions.[/]
-        """
-            console.print(Panel(
-                transition_message,
-                title=f"[reverse][{COLORS['warning']} bold] SYSTEM INITIALISATION [/][/reverse]",
-                border_style=f"bold {COLORS['primary']}",
-                box=box.DOUBLE,
-                padding=(1, 2)
-            ))
+            init_seed = f"init-{world.turn}"
+            console.print(ae.classification_strip(
+                label="COBRA COMMAND INTERFACE", seed=init_seed, edge="top"))
+            console.print("")
+            console.print(f"[{COLORS['accent']}]Initialising dashboard...[/]")
+            console.print(f"[{COLORS['success']}]✓[/] Situation briefing loaded")
+            console.print(f"[{COLORS['success']}]✓[/] Metrics system online")
+            console.print(f"[{COLORS['success']}]✓[/] Advisory panel ready")
+            console.print(f"[{COLORS['success']}]✓[/] Communications active")
+            console.print("")
+            console.print(f"[{COLORS['emphasis']}]Dashboard active. Awaiting instructions.[/]")
+            console.print("")
+            console.print(ae.fog_band(ae.DEFAULT_WIDTH, 1, 0.3, init_seed))
+            console.print(ae.classification_strip(seed=init_seed, edge="bottom"))
             import time
-            time.sleep(1.5)
+            if sys.stdout.isatty():
+                # Pacing beat is invisible (and costly) on piped output
+                time.sleep(1.5)
             console.clear()
 
             # Pre-populate COBRA BRIEFING with turn briefing
-            # Add system header
-            dashboard.add_message("SYSTEM", f"[{COLORS['warning']}]═══ TURN {world.turn} BRIEFING ═══[/]")
+            # Sonar-trace turn divider heads the feed
+            dashboard.add_divider(f"TURN {world.turn} BRIEFING")
 
             # Take last 30 lines of briefing (increased from 20)
             for line in briefing_display[-30:]:
+                stripped = line.strip()
+                # Effect boxes don't survive the feed's wrapping: keep the
+                # content as one SYSTEM line and drop the box borders
+                if stripped and set(stripped) <= set("┌─┐└┘"):
+                    continue
+                if stripped.startswith("│") and "Effect:" in stripped:
+                    dashboard.add_message("SYSTEM", stripped.strip("│").strip())
+                    continue
                 # Parse speaker from line if present
-                if ":" in line and not line.strip().startswith("==="):
+                if ":" in line and not stripped.startswith("==="):
                     parts = line.split(":", 1)
                     if len(parts) == 2 and len(parts[0]) < 40:  # Likely a speaker
-                        speaker = parts[0].strip()
+                        speaker = display_role(parts[0].strip())
                         message = parts[1].strip()
                         dashboard.add_message(speaker, message)
                     else:
-                        dashboard.add_message("NARRATOR", line.strip())
-                elif line.strip() and not line.strip().startswith("==="):
-                    dashboard.add_message("NARRATOR", line.strip())
+                        dashboard.add_message("NARRATOR", stripped)
+                elif stripped and not stripped.startswith("==="):
+                    dashboard.add_message("NARRATOR", stripped)
 
             # Add separator and prompt
-            dashboard.add_message("SYSTEM", f"[{COLORS['success']}]═══ ADVISORY PANEL READY ═══[/]")
+            dashboard.add_divider("ADVISORY PANEL READY")
             dashboard.add_message("SYSTEM", f"[{COLORS['muted']}]Type questions or use commands (/menu for help)[/]")
 
             questions = []
@@ -1104,7 +1054,7 @@ def play(
 
                     # Get input (pause live updates)
                     live.stop()
-                    user_input = console.input(f"[{COLORS['primary']}]>[/] ").strip()
+                    user_input = _console_input(f"[{COLORS['primary']}]>[/] ").strip()
                     live.start()
 
                     if not user_input:
@@ -1115,16 +1065,28 @@ def play(
                         break
 
                     if user_input.lower() in ["/quit", "quit"]:
-                        typer.echo("Exiting game.")
-                        raise typer.Exit(0)
+                        # Mid-turn work only reaches disk at the end-of-turn
+                        # autosave — confirm before discarding it (Enter = stay)
+                        live.stop()
+                        console.print("")
+                        console.print(f"[{COLORS['warning']}]Progress this turn is unsaved — the last autosave was taken at the end of the previous turn.[/]")
+                        try:
+                            confirmed = typer.confirm("Leave the crisis room?", default=False)
+                        except (typer.Abort, EOFError):
+                            confirmed = True  # EOF/Ctrl-C at the prompt: leave
+                        if confirmed:
+                            typer.echo("Exiting game.")
+                            raise typer.Exit(0)
+                        console.clear()
+                        live.start()
+                        continue
 
                     if user_input.lower() in ["/save", "save"]:
                         # Pause the live repaint so the confirmation stays visible
                         live.stop()
-                        save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", root, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot)
+                        save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot)
                         typer.echo(f"Game saved to {save_path}")
-                        console.print(f"[{COLORS['primary']} bold]Press ENTER to return to dashboard[/]")
-                        console.input()
+                        _pause_for_enter(COLORS)
                         console.clear()
                         live.start()
                         continue
@@ -1150,7 +1112,7 @@ def play(
                         console.print("  4. Slate (Black/White Monochrome)")
                         typer.echo("")
 
-                        theme_choice = typer.prompt("Select theme (1-4)").strip()
+                        theme_choice = _prompt("Select theme (1-4)").strip()
                         theme_map = {"1": "standard", "2": "defcon1", "3": "retro", "4": "slate"}
 
                         if theme_choice in theme_map:
@@ -1160,10 +1122,23 @@ def play(
                             console.print(f"[{COLORS['success']}]Theme changed to {theme_name.title()}[/{COLORS['success']}]")
                         else:
                             console.print("[bold red]Invalid selection[/bold red]")
-                        console.print(f"[{COLORS['primary']} bold]Press ENTER to return to dashboard[/]")
-                        console.input()
+                        _pause_for_enter(COLORS)
                         console.clear()
                         live.start()
+                        continue
+
+                    if user_input.lower() in ["/status advisors", "status advisors"]:
+                        from cli.dashboard_modal import show_overlay
+
+                        # Advisor trust levels and relationships (works in all modes)
+                        status_lines = [
+                            ae.phase_banner("ADVISOR ATTITUDES",
+                                            seed=f"status-adv-{world.turn}",
+                                            width=60).markup,
+                            "",
+                        ]
+                        status_lines.extend(advisor_attitude_lines(narrative_state, include_stance=True))
+                        show_overlay(console, live, "ADVISOR ATTITUDES", "\n".join(status_lines), COLORS)
                         continue
 
                     if user_input.lower() in ["/status", "status"]:
@@ -1177,27 +1152,21 @@ def play(
                             status_lines = []
 
                             if play_mode == "immersive":
-                                status_lines.append("SITUATION ASSESSMENT")
-                                status_lines.append("=" * 60)
+                                status_seed = f"status-{world.turn}"
+                                status_lines.append(ae.phase_banner(
+                                    "SITUATION ASSESSMENT",
+                                    seed=status_seed, width=60).markup)
                                 status_lines.append("")
                                 vibes = narrative_state.get_situation_vibes()
                                 for vibe in vibes:
-                                    status_lines.append(vibe.to_string())
+                                    status_lines.append(format_vibe_line(vibe, COLORS))
                                 status_lines.append("")
 
-                                status_lines.append("ADVISOR ATTITUDES")
-                                status_lines.append("=" * 60)
+                                status_lines.append(ae.phase_banner(
+                                    "ADVISOR ATTITUDES",
+                                    seed=f"{status_seed}-adv", width=60).markup)
                                 status_lines.append("")
-                                for char_id, char_attitude in narrative_state.characters.items():
-                                    trust_level = char_attitude.trust // 20
-                                    trust_bar = "█" * trust_level + "░" * (5 - trust_level)
-                                    relationship_symbol = {
-                                        "allied": "✓",
-                                        "neutral": "○",
-                                        "hostile": "✗",
-                                        "unknown": "?"
-                                    }.get(char_attitude.relationship, "○")
-                                    status_lines.append(f"{char_attitude.name:<30} {trust_bar} {relationship_symbol} {char_attitude.relationship.upper()}")
+                                status_lines.extend(advisor_attitude_lines(narrative_state))
                             elif play_mode == "emergent":
                                 status_lines.append(narrative_state.situation_summary)
 
@@ -1234,15 +1203,16 @@ def play(
 
                         country = country_map.get(country_input, country_input.capitalize())
 
-                        # Show connection screen with dashboard styling
-                        connect_panel = Panel(
-                            f"[{COLORS['success']} bold]Establishing secure connection to {country}...[/]\n\n[{COLORS['muted']}]Initialising diplomatic channel...[/]",
-                            title=f"[reverse][{COLORS['warning']} bold] COBRA COMMAND: DIPLOMATIC CALL [/][/reverse]",
-                            border_style=f"bold {COLORS['primary']}",
-                            box=box.HEAVY,
-                            style="on #0A0E27"
-                        )
-                        console.print(connect_panel)
+                        # Show connection screen in the Tuman strip language
+                        call_seed = f"call-{world.turn}-{country}"
+                        console.print(ae.classification_strip(
+                            label="COBRA COMMAND ── DIPLOMATIC CALL",
+                            seed=call_seed, edge="top"))
+                        console.print("")
+                        console.print(f"[{COLORS['success']} bold]Establishing secure connection to {country}...[/]")
+                        console.print(f"[{COLORS['muted']}]Initialising diplomatic channel...[/]")
+                        console.print("")
+                        console.print(ae.sonar_divider(seed=call_seed))
                         console.print("")
 
                         # Run diplomatic encounter (with real-time printing)
@@ -1255,56 +1225,74 @@ def play(
                             rng=rng,
                             root_path=root,
                             full_transcript=transcript,
-                            get_player_input=lambda prompt: typer.prompt(prompt).strip(),
+                            get_player_input=lambda prompt: _prompt(prompt).strip(),
                             print_fn=typer.echo  # Print in real-time
                         )
 
                         # Transcript already printed, just save it
                         transcript.extend(encounter_transcript)
 
-                        # Apply alliance cohesion change
-                        from engine.utils import clamp, clamp_metrics
+                        # DiplomaticEncounter.end() already applied
+                        # cohesion_delta (parity with cli/main.py — applying it
+                        # again here doubled every call outcome)
+                        from engine.utils import clamp_metrics
                         from engine.flags import update_world_flags
 
-                        world.metrics.alliance_cohesion = clamp(world.metrics.alliance_cohesion + cohesion_delta)
                         clamp_metrics(world.metrics)
                         update_world_flags(world)
 
+                        # Keep the narrative state in step with the call outcome
+                        narrative_state.hidden_metrics.alliance_cohesion = world.metrics.alliance_cohesion
+
                         # Show completion message
                         console.print("")
-                        console.print(f"[{COLORS['success']}]═══ Call ended ═══[/]")
-                        console.print(f"[{COLORS['primary']} bold]Press ENTER to return to dashboard[/]")
-                        console.input()
+                        console.print(ae.sonar_divider(seed=f"call-{world.turn}-{country}-end"))
+                        console.print(f"[{COLORS['success']}]Call ended[/]")
+                        _pause_for_enter(COLORS)
 
                         # Resume dashboard
                         console.clear()
                         live.start()
                         continue
 
-                    if user_input.lower() in ["/advise", "advise"]:
+                    if user_input.lower() in ["/advise", "advise"] or user_input.lower().startswith("/advise "):
                         from cli.dashboard_modal import show_overlay
+
+                        # Optional argument: /advise concise -> brief responses
+                        advise_arg = ""
+                        if user_input.lower().startswith("/advise "):
+                            advise_arg = user_input[8:].strip().lower()
+                        if advise_arg and advise_arg != "concise":
+                            dashboard.add_message("SYSTEM", f"[{COLORS['warning']}]Usage: /advise or /advise concise[/]")
+                            dashboard.update()
+                            continue
+                        if advise_arg == "concise":
+                            brevity_note = "[Answer in one or two sentences maximum]"
+                        else:
+                            brevity_note = "[Please be concise - 3-4 sentences maximum]"
 
                         # Pause dashboard to run LLM calls
                         live.stop()
                         console.clear()
 
-                        # Show loading screen integrated with dashboard style
-                        loading_panel = Panel(
-                            f"[{COLORS['accent']}]Consulting COBRA advisory panel...[/]\n\n[{COLORS['muted']}]Contacting advisors...[/]",
-                            title=f"[reverse][{COLORS['warning']} bold] COBRA COMMAND: ADVISORY REQUEST [/][/reverse]",
-                            border_style=f"bold {COLORS['primary']}",
-                            box=box.HEAVY,
-                            style="on #0A0E27"
-                        )
-                        console.print(loading_panel)
+                        # Show loading screen in the Tuman strip language
+                        # (same label the main CLI stamps on its advisory round)
+                        advise_seed = f"advise-{world.turn}"
+                        console.print(ae.classification_strip(
+                            label="COBRA ADVISORY PANEL", seed=advise_seed,
+                            edge="top"))
+                        console.print("")
+                        console.print(f"[{COLORS['accent']}]Consulting COBRA advisory panel...[/]")
+                        console.print(f"[{COLORS['muted']}]Contacting advisors...[/]")
+                        console.print("")
 
                         # Ask each advisor for their assessment
                         advisors = [
-                            ("National Security Advisor", "NSA, what's your assessment of the current situation and recommended course of action? [Please be concise - 3-4 sentences maximum]"),
-                            ("Chief of the Defence Staff", "CDS, what are our military options and constraints? [Please be concise - 3-4 sentences maximum]"),
-                            ("Foreign Secretary", "Foreign Secretary, what's the diplomatic landscape and alliance status? [Please be concise - 3-4 sentences maximum]"),
-                            ("Home Secretary", "Home Secretary, what are the domestic security concerns? [Please be concise - 3-4 sentences maximum]"),
-                            ("Attorney General", "Attorney General, what are the legal constraints and considerations? [Please be concise - 3-4 sentences maximum]")
+                            ("National Security Advisor", f"NSA, what's your assessment of the current situation and recommended course of action? {brevity_note}"),
+                            ("Chief of the Defence Staff", f"CDS, what are our military options and constraints? {brevity_note}"),
+                            ("Foreign Secretary", f"Foreign Secretary, what's the diplomatic landscape and alliance status? {brevity_note}"),
+                            ("Home Secretary", f"Home Secretary, what are the domestic security concerns? {brevity_note}"),
+                            ("Attorney General", f"Attorney General, what are the legal constraints and considerations? {brevity_note}")
                         ]
 
                         # Collect all advisor responses
@@ -1326,7 +1314,7 @@ def play(
                             dashboard.layout["body"]["main"].update(dashboard.render_main())
                             for line in discussion_lines:
                                 if not line.startswith("Prime Minister:"):
-                                    display_line = line.replace("[Please be concise - 3-4 sentences maximum]", "").strip()
+                                    display_line = line.replace(brevity_note, "").strip()
                                     if display_line:  # Only display non-empty lines
                                         # Format response with structure
                                         if ":" in display_line:
@@ -1387,8 +1375,7 @@ def play(
                                 typer.echo("Intelligence system not available.")
 
                         typer.echo("")
-                        console.print(f"[{COLORS['primary']} bold]Press ENTER to return to dashboard[/]")
-                        console.input()
+                        _pause_for_enter(COLORS)
                         console.clear()
                         live.start()
                         continue
@@ -1439,7 +1426,8 @@ def play(
                     typer.echo("")  # Space before response
 
                     if RICH_ENABLED:
-                        console.print(f"[{COLORS['muted']}]" + "─" * 79 + f"[/{COLORS['muted']}]")
+                        console.print(ae.sonar_divider(
+                            seed=f"q-{world.turn}-{len(questions)}"))
                         typer.echo("")
 
                     # Stream advisor responses into the COBRA BRIEFING panel
@@ -1449,7 +1437,8 @@ def play(
                             if ":" in line:
                                 advisor_name, rest = line.split(":", 1)
                                 # Stream response into dashboard panel
-                                dashboard.add_message(advisor_name.strip(), rest.strip())
+                                # (internal persona names -> cabinet titles)
+                                dashboard.add_message(display_role(advisor_name.strip()), rest.strip())
                                 dashboard.update()
                             else:
                                 # Add other lines as system messages
@@ -1468,7 +1457,7 @@ def play(
                 typer.echo("")  # Buffer line
 
                 if RICH_ENABLED:
-                    console.print(phase_header("DECISION", world.turn))
+                    console.print(ae.phase_banner("DECISION", world.turn))
                     typer.echo("")
                     typer.echo("  Enter your decision (or 'cancel' to return to discussion)")
                 else:
@@ -1480,7 +1469,7 @@ def play(
 
                 typer.echo("")
 
-                action = typer.prompt("Decision>").strip()
+                action = _prompt("Decision>", default="", show_default=False).strip()
 
                 if action.lower() == "cancel":
                     # Return to discussion phase
@@ -1500,7 +1489,10 @@ def play(
                 display_decision_summary(action, interpretation, show_details=False)
 
                 # Option to see full details
-                see_details = typer.prompt("", default="").strip().lower()
+                see_details = _prompt(
+                    "Press Enter to continue (or type 'details' for the full interpretation)",
+                    default="", show_default=False
+                ).strip().lower()
                 if see_details == "details":
                     display_decision_summary(action, interpretation, show_details=True)
                     console.print("")
@@ -1538,7 +1530,7 @@ def play(
                         console.print("")
 
                         # Confirm
-                        confirm = typer.confirm("Proceed with enhanced decision?", default=True)
+                        confirm = _confirm("Proceed with enhanced decision?", default=True)
 
                         if not confirm:
                             console.print("")
@@ -1563,10 +1555,10 @@ def play(
                         # If STILL have concerns, warn
                         if critical_concerns_2:
                             console.print("")
-                            console.print(f"[{COLORS['warning']}]⚠ Warning: Critical concerns remain.[/{COLORS['warning']}]")
+                            console.print(f"[{COLORS['warning']}]{SYMBOLS['warning']} Warning: Critical concerns remain.[/{COLORS['warning']}]")
                             console.print("")
                             # Let player proceed or go back
-                            cont = typer.confirm("Proceed anyway?", default=False)
+                            cont = _confirm("Proceed anyway?", default=False)
                             if not cont:
                                 continue
 
@@ -1581,8 +1573,25 @@ def play(
                 # Confirm decision (regular pushback, if any)
                 elif pushback:
                     typer.echo("")
-                    confirm = typer.confirm("Proceed with this decision despite concerns?", default=True)
-                    if not confirm:
+                    console.print(f"[{COLORS['warning']} bold]ADVISOR CONCERNS[/{COLORS['warning']} bold]")
+                    typer.echo("")
+                    for role, concern in pushback:
+                        console.print(f"  [{COLORS['secondary']} bold]{rich_escape(display_role(role))}:[/{COLORS['secondary']} bold] {rich_escape(concern)}")
+                        typer.echo("")
+                    console.print("Your advisors have concerns. How do you wish to proceed?")
+                    console.print(f"  [{COLORS['primary']}]P[/{COLORS['primary']}] - Proceed with this decision")
+                    console.print(f"  [{COLORS['primary']}]A[/{COLORS['primary']}] - Amend the decision (re-enter decision text)")
+                    console.print(f"  [{COLORS['primary']}]C[/{COLORS['primary']}] - Cancel and return to discussion")
+                    typer.echo("")
+                    choice = _prompt("Choose [P/A/C]", default="P", show_default=False).strip().upper()
+                    if choice == "A":
+                        # Amend: re-prompt for decision text without returning
+                        # to the discussion phase
+                        typer.echo("")
+                        typer.echo("Enter your amended decision.")
+                        typer.echo("")
+                        continue
+                    elif choice == "C":
                         typer.echo("")
                         typer.echo("Decision cancelled. Returning to discussion.")
                         typer.echo("")
@@ -1599,7 +1608,7 @@ def play(
         typer.echo("")  # Buffer line
         
         if RICH_ENABLED:
-            console.print(phase_header("ADJUDICATION", world.turn))
+            console.print(ae.phase_banner("ADJUDICATION", world.turn))
         else:
             console.print("=" * 79)
             console.print(f"[{COLORS['success']} bold]TURN {world.turn}: ADJUDICATION[/{COLORS['success']} bold]")
@@ -1714,40 +1723,26 @@ def play(
                 typer.echo("")  # Buffer after table
         elif play_mode == "immersive":
             # Immersive mode: Show vibes + character attitudes
-            typer.echo("═" * 60)
-            typer.echo("SITUATION ASSESSMENT")
-            typer.echo("═" * 60)
+            console.print(ae.phase_banner("SITUATION ASSESSMENT"))
             typer.echo("")
-            
+
             vibes = narrative_state.get_situation_vibes()
             for vibe in vibes:
-                typer.echo(vibe.to_string())
-            
+                console.print(format_vibe_line(vibe, COLORS))
+
             typer.echo("")
-            typer.echo("═" * 60)
-            typer.echo("ADVISOR ATTITUDES")
-            typer.echo("═" * 60)
+            console.print(ae.phase_banner("ADVISOR ATTITUDES"))
             typer.echo("")
-            
-            for char_id, char_attitude in narrative_state.characters.items():
-                # Create visual trust bar
-                trust_level = char_attitude.trust // 20  # 0-5 scale
-                trust_bar = "█" * trust_level + "░" * (5 - trust_level)
-                relationship_symbol = {
-                    "allied": "✓",
-                    "neutral": "○",
-                    "hostile": "✗",
-                    "unknown": "?"
-                }.get(char_attitude.relationship, "○")
-                
-                typer.echo(f"{char_attitude.name:<30} {trust_bar} {relationship_symbol} {char_attitude.relationship.upper()}")
-            
+
+            for line in advisor_attitude_lines(narrative_state):
+                typer.echo(line)
+
             typer.echo("")
         elif play_mode == "emergent":
             # Emergent mode: Narrative summary only
-            typer.echo("═" * 60)
+            console.print(ae.sonar_divider(seed=f"summary-{world.turn}"))
             typer.echo(narrative_state.situation_summary)
-            typer.echo("═" * 60)
+            console.print(ae.sonar_divider(seed=f"summary-{world.turn}-b"))
             typer.echo("")
         
         # Advance turn BEFORE autosaving: a save taken pre-increment resumed
@@ -1758,12 +1753,12 @@ def play(
         world.discussion_transcript = []
         world.phase = "briefing"
 
-        save_path = save_game(world, transcript, scenario, "autosave", root, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot)
+        save_path = save_game(world, transcript, scenario, "autosave", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot)
 
         typer.echo("")
-        typer.echo("=" * 60)
+        console.print(ae.sonar_divider(seed=f"turn-{world.turn - 1}-close"))
         typer.echo(f"Turn {world.turn - 1} complete. Auto-saved to {save_path.name}")
-        typer.echo("=" * 60)
+        console.print(ae.sonar_divider(seed=f"turn-{world.turn - 1}-close-b"))
         typer.echo("")
         
         # Continue to next turn with spacebar

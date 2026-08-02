@@ -226,14 +226,18 @@ def test_full_turn_and_autosave_resume(game_runs):
     assert autosave_world["phase"] == "briefing"
     assert game_runs.autosave.get("variant", "standard") == "standard"
 
-    # Metrics reflect briefing (63/48) plus one adjudication only.
-    assert autosave_metrics["escalation_risk"] != 60, (
-        "escalation still at campaign baseline — turn-1 inject never applied"
+    # Metrics reflect briefing (63/48/40) plus exactly one adjudication pass.
+    # The mock pipeline is fully deterministic: the diplomatic decision draws
+    # supportive USA/POL actor responses plus an "adequate" quality
+    # assessment, netting esc -3 / stab +1 / coh +13 on top of the briefing.
+    # Exact equality catches both a skipped and a compounded briefing inject
+    # (run A independently proves the inject applies exactly once).
+    assert autosave_metrics["escalation_risk"] == 60, (
+        f"escalation {autosave_metrics['escalation_risk']} != 60 — briefing "
+        "inject skipped/compounded, or mock adjudication deltas changed"
     )
-    assert autosave_metrics["escalation_risk"] <= 66, (
-        f"escalation {autosave_metrics['escalation_risk']} exceeds the "
-        "single-application bound — briefing inject likely compounded"
-    )
+    assert autosave_metrics["domestic_stability"] == 49
+    assert autosave_metrics["alliance_cohesion"] == 53
 
     # Loading the autosave ran the turn-2 briefing once and saved mid-turn.
     first_world = game_runs.turn2_first["world"]

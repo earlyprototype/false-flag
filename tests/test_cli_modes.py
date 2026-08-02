@@ -1,5 +1,6 @@
 """Test both CLI modes work in parallel."""
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -12,7 +13,7 @@ def test_original_cli_works():
     """Verify original CLI is untouched."""
     print("Testing original CLI...")
     result = subprocess.run(
-        ["python", "-m", "cli.main", "--help"],
+        [sys.executable, "-m", "cli.main", "--help"],
         capture_output=True,
         text=True,
         cwd=root
@@ -26,7 +27,7 @@ def test_dashboard_cli_works():
     """Verify dashboard CLI runs."""
     print("Testing dashboard CLI...")
     result = subprocess.run(
-        ["python", "-m", "cli.main_dashboard", "--help"],
+        [sys.executable, "-m", "cli.main_dashboard", "--help"],
         capture_output=True,
         text=True,
         cwd=root
@@ -40,7 +41,7 @@ def test_dashboard_import():
     """Test that dashboard module can be imported."""
     print("Testing dashboard module import...")
     result = subprocess.run(
-        ["python", "-c", "from cli.dashboard import WargameDashboard; print('OK')"],
+        [sys.executable, "-c", "from cli.dashboard import WargameDashboard; print('OK')"],
         capture_output=True,
         text=True,
         cwd=root
@@ -56,7 +57,7 @@ def test_both_commands_available():
     
     # Get original CLI commands
     original_result = subprocess.run(
-        ["python", "-m", "cli.main", "--help"],
+        [sys.executable, "-m", "cli.main", "--help"],
         capture_output=True,
         text=True,
         cwd=root
@@ -64,7 +65,7 @@ def test_both_commands_available():
     
     # Get dashboard CLI commands
     dashboard_result = subprocess.run(
-        ["python", "-m", "cli.main_dashboard", "--help"],
+        [sys.executable, "-m", "cli.main_dashboard", "--help"],
         capture_output=True,
         text=True,
         cwd=root
@@ -85,7 +86,7 @@ def test_intro_command():
     
     # Test original
     original_result = subprocess.run(
-        ["python", "-m", "cli.main", "intro"],
+        [sys.executable, "-m", "cli.main", "intro"],
         capture_output=True,
         text=True,
         cwd=root,
@@ -94,7 +95,7 @@ def test_intro_command():
     
     # Test dashboard
     dashboard_result = subprocess.run(
-        ["python", "-m", "cli.main_dashboard", "intro"],
+        [sys.executable, "-m", "cli.main_dashboard", "intro"],
         capture_output=True,
         text=True,
         cwd=root,
@@ -106,6 +107,37 @@ def test_intro_command():
     assert dashboard_result.returncode == 0, f"Dashboard intro failed: {dashboard_result.returncode}"
     
     print("[PASS] Intro command: WORKING on both CLIs")
+
+def test_play_intro_smoke_non_tty():
+    """`play --intro-only` on piped stdio: instant cinematics, scene cards.
+
+    Exercises the non-TTY fast path of the title sequence and the scene
+    stamp-ins end to end (the four numeric menus, the animated masthead's
+    static frame, and all three intro scene cards).
+    """
+    print("Testing play --intro-only smoke (non-TTY cinematics)...")
+    env = dict(os.environ)
+    env["WARGAME_LLM"] = "mock"
+    result = subprocess.run(
+        [sys.executable, "-m", "cli.main", "play", "--intro-only"],
+        input="1\n1\n1\n1\n",
+        capture_output=True,
+        text=True,
+        cwd=root,
+        timeout=120,
+        env=env,
+    )
+    assert result.returncode == 0, (
+        f"intro-only run failed ({result.returncode}): {result.stderr[-2000:]}")
+    out = result.stdout
+    assert "██" in out, "title masthead missing"
+    assert "OPERATION TUMAN" in out, "tagline missing"
+    assert "TOP SECRET" in out, "classification strips missing"
+    for scene in ("SCENE I", "SCENE II", "SCENE III"):
+        assert scene in out, f"{scene} card missing"
+    assert "69°04'N 033°25'E" in out, "scene coordinates missing"
+    print("[PASS] play --intro-only smoke: WORKING")
+
 
 if __name__ == "__main__":
     print("Running CLI integration tests...\n")
