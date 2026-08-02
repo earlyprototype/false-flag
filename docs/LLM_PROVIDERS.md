@@ -82,6 +82,14 @@ Runs entirely on your machine. No keys, no quotas, works offline.
 
 1. Install Ollama for Windows from <https://ollama.com/download> and launch it
    (it serves an OpenAI-compatible API on `http://localhost:11434/v1`).
+
+   > **Important:** set the environment variable `OLLAMA_CONTEXT_LENGTH=8192`
+   > before starting the server. Ollama's default context window is 4,096
+   > tokens and this game's adjudication prompts measurably exceed 3,500 —
+   > past the ceiling, Ollama silently truncates the prompt and the advisors
+   > start reasoning from an incomplete briefing with no visible error.
+   > If calls run long on modest hardware, also raise the request timeout:
+   > `OPENAI_COMPAT_TIMEOUT=300` (seconds; default 60).
 2. Pull a model. The game's prompts are modest, so an 8–14B instruct model is
    plenty:
 
