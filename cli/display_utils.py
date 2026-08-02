@@ -83,7 +83,12 @@ def markdown_to_rich(text: str) -> str:
     LLM and scenario text frequently arrives with markdown decoration; anywhere
     it reaches the screen outside a Markdown-rendering panel this keeps players
     from seeing raw asterisks.
+
+    The input is escaped first so any [bracketed] text of LLM origin cannot be
+    parsed as Rich markup; only the [bold]/[italic] tags substituted here are
+    live markup in the returned string.
     """
+    text = rich_escape(text)
     if "*" not in text:
         return text
     text = _MD_BOLD_RE.sub(r"[bold]\1[/bold]", text)
@@ -117,8 +122,8 @@ def advisor_attitude_lines(narrative_state, include_stance: bool = False) -> lis
     in both CLI front-ends.
 
     Foreign liaisons (e.g. the US National Security Advisor) are listed in a
-    separate WASHINGTON section below the UK cabinet, so they never read as
-    members of it.
+    separate FOREIGN LIAISON section below the UK cabinet, so they never read
+    as members of it.
     """
     def rows(char_attitude):
         trust_level = char_attitude.trust // 20  # 0-5 scale
@@ -144,7 +149,7 @@ def advisor_attitude_lines(narrative_state, include_stance: bool = False) -> lis
     if foreign:
         if lines:
             lines.append("")
-        lines.append("──── WASHINGTON " + "─" * 24)
+        lines.append("──── FOREIGN LIAISON " + "─" * 19)
         lines.extend(foreign)
     return lines
 
@@ -394,12 +399,14 @@ def display_adjudication_results(
             # Numeric trust deltas are classic-mode only; immersive/emergent
             # let the reaction text carry the weight
             if RICH_ENABLED:
+                # Escaped: actor names and responses are LLM-origin text and
+                # may carry [brackets] Rich would parse as markup
                 if play_mode == "classic":
                     color = colors['success'] if trust_delta > 0 else colors['danger'] if trust_delta < 0 else colors['muted']
-                    console.print(f"[{colors['primary']} bold]{actor_name}:[/{colors['primary']} bold] [{color}]({trust_delta:+d})[/{color}]")
+                    console.print(f"[{colors['primary']} bold]{rich_escape(actor_name)}:[/{colors['primary']} bold] [{color}]({trust_delta:+d})[/{color}]")
                 else:
-                    console.print(f"[{colors['primary']} bold]{actor_name}:[/{colors['primary']} bold]")
-                console.print(f"  \"{response.public_response}\"")
+                    console.print(f"[{colors['primary']} bold]{rich_escape(actor_name)}:[/{colors['primary']} bold]")
+                console.print(f"  \"{rich_escape(response.public_response)}\"")
             else:
                 if play_mode == "classic":
                     typer.echo(f"{actor_name}: ({trust_delta:+d})")

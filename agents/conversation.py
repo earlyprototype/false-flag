@@ -43,6 +43,11 @@ _TITLE_WORDS = {
 # colon or dash — e.g. "Chancellor, what do you think?"
 _ADDRESS_RE = re.compile(r"^\s*(?:the\s+)?([A-Za-z][A-Za-z '\-]{1,40}?)\s*[,:–—-]")
 
+# Lowercase connectives that appear inside natural titles ("Chancellor of the
+# Exchequer", "Minister for the Armed Forces") and must not defeat the
+# title-case test in _detect_unknown_addressee.
+_TITLE_CONNECTIVES = {"of", "the", "for", "and", "to"}
+
 # The cabinet titles the fiction seats around the COBRA table (matches /menu)
 _COBRA_ROSTER = (
     "the National Security Advisor, the Chief of the Defence Staff, the "
@@ -64,8 +69,10 @@ def _detect_unknown_addressee(question: str, known_roles: Set[str]) -> Optional[
     candidate = match.group(1).strip()
     words = candidate.split()
     # A real address is title-cased ("Defence Secretary, ..."); this keeps
-    # sentence openers like "General question, ..." from matching.
-    if not all(w[0].isupper() for w in words):
+    # sentence openers like "General question, ..." from matching. Lowercase
+    # connectives are ignored so "Chancellor of the Exchequer, ..." matches.
+    significant = [w for w in words if w.lower() not in _TITLE_CONNECTIVES]
+    if not significant or not all(w[0].isupper() for w in significant):
         return None
     normalized = candidate.lower()
     if normalized in known_roles:

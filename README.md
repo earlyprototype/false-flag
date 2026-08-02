@@ -67,7 +67,7 @@ No API key and no config file needed. With nothing configured, the game defaults
 
 Mock mode proves the game runs (and each advisor now has their own canned voice), but it doesn't reason about your specific decision. For the real experience, point the game at any OpenAI-compatible LLM endpoint — hosted or local:
 
-1. `copy config.example.py config.py`
+1. Copy the example config: `copy config.example.py config.py` (Windows) or `cp config.example.py config.py` (Linux / macOS)
 2. Uncomment one preset block in `config.py` — **Groq** (free hosted, no card), **OpenRouter** (free `:free` models), or **Ollama** (free, runs locally, no key at all):
    ```python
    LLM_PROVIDER = "openai_compat"

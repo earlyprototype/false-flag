@@ -283,7 +283,9 @@ def run_turn_briefing(
         full_transcript: Optional full game transcript for conversation history
         get_player_input: Optional function to get player input (for diplomatic encounters)
         turn_filename: Optional custom turn filename (for scenario variants)
-        silent_effects: If True, apply effects but don't display boxes (for initial Turn 1)
+        silent_effects: Retained for API compatibility; inert for display.
+            Effect boxes are transcript-only now (apply_inject_effects never
+            prints), so this flag no longer changes what the player sees.
         suppress_display: If True, don't display inject panel (caller will stream it)
         replay: If True, this turn's briefing already ran before a save/load —
             display the inject for context but do NOT re-apply its effects or

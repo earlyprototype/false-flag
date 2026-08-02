@@ -558,6 +558,11 @@ def _parse_intro_scene(scene_lines: list) -> tuple:
     """
     header = None
     body = []
+    # After the "## SCENE" line, skip its date/time "## " subheading (shown
+    # on the scene card instead). An explicit flag rather than a "body is
+    # still empty" check: blank lines between the two headings land in body
+    # and would otherwise let the timestamp through as scene text.
+    awaiting_subheading = False
     for line in scene_lines:
         stripped = line.strip()
         if "===" in stripped:
@@ -568,9 +573,12 @@ def _parse_intro_scene(scene_lines: list) -> tuple:
                 numeral, title = match.group(1), match.group(2).strip()
                 location, timestamp = _INTRO_SCENE_META.get(numeral, ("", ""))
                 header = (numeral, title, location, timestamp)
+                awaiting_subheading = True
                 continue
-        if header is not None and stripped.startswith("## ") and not body:
-            continue  # date/time subheading - shown on the scene card
+        if awaiting_subheading and stripped:
+            awaiting_subheading = False
+            if stripped.startswith("## "):
+                continue  # date/time subheading - shown on the scene card
         if stripped.startswith("# "):
             continue  # plain-text masthead - replaced by the title sequence
         body.append(line)
@@ -616,7 +624,9 @@ def play(
 
     # A campaign already in progress? Offer to resume it before the setup
     # menus (--load keeps its explicit behaviour; plain Enter accepts).
-    if load_save is None and not intro_only:
+    # Interactive sessions only: with piped stdin the confirm would silently
+    # eat the first queued command, so non-TTY runs start a new campaign.
+    if load_save is None and not intro_only and sys.stdin.isatty():
         autosave_path = Path(__file__).resolve().parents[1] / "saves" / f"{scenario}_autosave.json"
         if autosave_path.exists():
             from datetime import datetime
@@ -634,7 +644,7 @@ def play(
                     f"Resume campaign (Turn {saved_turn}, saved {saved_at})?",
                     default=True)
             except (typer.Abort, EOFError):
-                raise typer.Exit(0)
+                raise typer.Exit(0) from None
             if resume:
                 load_save = str(autosave_path)
             typer.echo("")
@@ -683,7 +693,7 @@ def play(
                 current_section.append(line)
 
         # Only add final section if it has content beyond just a separator
-        if current_section and len([l for l in current_section if l.strip() and "===" not in l]) > 0:
+        if current_section and len([line for line in current_section if line.strip() and "===" not in line]) > 0:
             sections.append(current_section)
 
         # Display each scene: animated scene card, then the body streamed
@@ -1341,7 +1351,7 @@ def play(
                                 transcript.append(clean_line)
                                 continue
                         # Only add non-question lines to transcript (questions already added above)
-                        transcript.extend([l for l in discussion_lines if not l.startswith("Prime Minister:")])
+                        transcript.extend([line for line in discussion_lines if not line.startswith("Prime Minister:")])
                         typer.echo("")
                 
                     if RICH_ENABLED:
@@ -1682,8 +1692,9 @@ def play(
                             # Internal persona names -> cabinet titles on screen
                             advisor_name = display_role(advisor_name)
 
-                            # Print advisor name
-                            console.print(f"  [{COLORS['secondary']} bold]{advisor_name}[/{COLORS['secondary']} bold]")
+                            # Print advisor name (escaped: LLM-origin text may
+                            # carry [brackets] Rich would parse as markup)
+                            console.print(f"  [{COLORS['secondary']} bold]{rich_escape(advisor_name)}[/{COLORS['secondary']} bold]")
                             typer.echo("")
                         
                             # Format response with structure
@@ -1706,11 +1717,14 @@ def play(
         
             # Decision phase loop - allows returning to discussion if decision is cancelled
             decision_confirmed = False
+            # Set when the player chose to amend: the notice must render AFTER
+            # the loop's typer.clear(), or it is erased before it can be read
+            amend_pending = False
             while not decision_confirmed:
                 # Decision phase - clear screen and start at top
                 typer.clear()
                 typer.echo("")  # Buffer line
-            
+
                 if RICH_ENABLED:
                     console.print(ae.phase_banner("DECISION", world.turn))
                     typer.echo("")
@@ -1721,9 +1735,14 @@ def play(
                     console.print("=" * 79)
                     console.print("")
                     console.print("Enter your decision (or 'cancel' to return to discussion):")
-            
+
+                if amend_pending:
+                    amend_pending = False
+                    typer.echo("")
+                    console.print(f"  [{COLORS['warning']}]Your advisors' concerns stand. Enter your amended decision.[/{COLORS['warning']}]")
+
                 typer.echo("")
-            
+
                 action = typer.prompt("Decision>", default="", show_default=False).strip()
 
                 if action.lower() == "cancel":
@@ -1841,10 +1860,10 @@ def play(
                     choice = typer.prompt("Choose [P/A/C]", default="P", show_default=False).strip().upper()
                     if choice == "A":
                         # Amend: re-prompt for decision text without returning
-                        # to the discussion phase
-                        typer.echo("")
-                        typer.echo("Enter your amended decision.")
-                        typer.echo("")
+                        # to the discussion phase. The notice is deferred so it
+                        # renders after the loop-top typer.clear() instead of
+                        # being erased by it.
+                        amend_pending = True
                         continue
                     elif choice == "C":
                         typer.echo("")

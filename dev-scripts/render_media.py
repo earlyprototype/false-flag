@@ -24,6 +24,7 @@ are used, never the interactive players.
 from __future__ import annotations
 
 import io
+import os
 import re
 import sys
 import tempfile
@@ -100,18 +101,28 @@ class Rasterizer:
     def __init__(self, scale: int = SCALE):
         from playwright.sync_api import sync_playwright
         self._pw = sync_playwright().start()
-        launch_args = ["--no-sandbox", "--force-color-profile=srgb"]
+        self._browser = None
         try:
-            self._browser = self._pw.chromium.launch(args=launch_args)
+            launch_args = ["--no-sandbox", "--force-color-profile=srgb"]
+            try:
+                self._browser = self._pw.chromium.launch(args=launch_args)
+            except Exception:
+                # Preinstalled browser revision differs from the playwright
+                # package's pin: use the stable symlink directly (overridable
+                # via PW_CHROMIUM_PATH for other environments).
+                self._browser = self._pw.chromium.launch(
+                    executable_path=os.environ.get(
+                        "PW_CHROMIUM_PATH", "/opt/pw-browsers/chromium"),
+                    args=launch_args)
+            self._page = self._browser.new_page(
+                device_scale_factor=scale,
+                viewport={"width": 1400, "height": 2400})
         except Exception:
-            # Preinstalled browser revision differs from the playwright
-            # package's pin: use the stable symlink directly.
-            self._browser = self._pw.chromium.launch(
-                executable_path="/opt/pw-browsers/chromium",
-                args=launch_args)
-        self._page = self._browser.new_page(
-            device_scale_factor=scale,
-            viewport={"width": 1400, "height": 2400})
+            # Don't leak the Playwright node process if startup fails midway
+            if self._browser is not None:
+                self._browser.close()
+            self._pw.stop()
+            raise
 
     def rasterize(self, svg: str, path: Path) -> None:
         html = ("<!doctype html><html><body style='margin:0'>"
@@ -409,13 +420,11 @@ STATIC = {
 # ---------------------------------------------------------------------------
 
 def verify(produced: List[Path]) -> None:
+    """Check the assets produced by THIS run; the size budget stays dir-wide
+    (a partial regeneration must not push docs/media past the ceiling)."""
     print("\n── VERIFY " + "─" * 50)
-    total = 0
-    for path in sorted(OUT_DIR.iterdir()):
-        if path.suffix not in (".gif", ".png"):
-            continue
+    for path in sorted(produced):
         size = path.stat().st_size
-        total += size
         img = Image.open(path)
         if path.suffix == ".gif":
             n = getattr(img, "n_frames", 1)
@@ -437,6 +446,8 @@ def verify(produced: List[Path]) -> None:
             assert var > 3, f"{path.name}: looks blank (σ={var:.1f})"
             print(f"  {path.name:<26} {img.size[0]}x{img.size[1]}  "
                   f"{size/1024:.0f} KB")
+    total = sum(p.stat().st_size for p in OUT_DIR.iterdir()
+                if p.suffix in (".gif", ".png"))
     assert total <= 25 * 1024 * 1024, f"docs/media exceeds 25 MB ({total})"
     print(f"  total {total / (1024 * 1024):.1f} MB (budget 25 MB)")
 

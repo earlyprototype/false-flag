@@ -176,6 +176,39 @@ def test_sentence_openers_do_not_trigger_correction():
     assert _detect_unknown_addressee("Defence Secretary, report.", known) == "Defence Secretary"
 
 
+def test_titles_with_connectives_trigger_correction_without_llm_call():
+    """Natural titles carry lowercase connectives ("Chancellor of the
+    Exchequer"); they must still be caught instead of falling through to
+    keyword routing."""
+    from agents.conversation import (
+        _detect_unknown_addressee,
+        handle_player_question,
+    )
+
+    known = {"cds", "nsa", "foreign secretary"}
+    assert _detect_unknown_addressee(
+        "Chancellor of the Exchequer, can the Treasury cover this?", known,
+    ) == "Chancellor of the Exchequer"
+    assert _detect_unknown_addressee(
+        "Minister for the Armed Forces, report.", known,
+    ) == "Minister for the Armed Forces"
+    # Lowercase words that are NOT connectives still read as sentence openers
+    assert _detect_unknown_addressee(
+        "General point of order, what now?", known) is None
+
+    def exploding_llm(prompt, rng, **kwargs):
+        raise AssertionError("no LLM call should be made for an absent advisor")
+
+    responses = handle_player_question(
+        _world(), "Chancellor of the Exchequer, can we afford this?",
+        _initial_conditions(), exploding_llm, Random(42),
+    )
+    assert len(responses) == 1
+    role, text = responses[0]
+    assert role == "Cabinet Secretary"
+    assert "no Chancellor of the Exchequer in this room" in text
+
+
 # --- Display-time role mapping (defect 6) ----------------------------------
 
 def test_display_role_maps_internal_personas_to_cabinet_titles():
@@ -245,6 +278,54 @@ def test_adjudication_display_hides_numbers_outside_classic(monkeypatch):
             actor_responses, world)
     classic_out = _plain(cap.get())
     assert "(+6)" in classic_out  # classic keeps the numbers
+
+
+# --- Rich markup injection (LLM-origin text) ---------------------------------
+
+def test_markdown_to_rich_escapes_bracket_payloads():
+    from rich.text import Text
+
+    from cli.display_utils import markdown_to_rich
+
+    out = markdown_to_rich("**Alert:** [flash traffic] intercepted")
+    # The markdown emphasis still becomes live Rich markup...
+    assert out.startswith("[bold]Alert:[/bold]")
+    # ...and renders as intended, with the bracket payload shown literally
+    rendered = Text.from_markup(out)
+    assert rendered.plain == "Alert: [flash traffic] intercepted"
+    assert any(span.style == "bold" for span in rendered.spans)
+
+    # Plain text with brackets survives a markup round-trip unchanged
+    plain = markdown_to_rich("[flash traffic] intercepted")
+    assert Text.from_markup(plain).plain == "[flash traffic] intercepted"
+
+
+def test_adjudication_display_escapes_llm_bracket_payloads(monkeypatch):
+    import cli.display_utils as display_utils
+    from cli.display_utils import display_adjudication_results
+    from cli.rich_ui import console
+    from cli.theme import theme_manager
+
+    monkeypatch.setattr(display_utils, "RICH_ENABLED", True)
+    colors = theme_manager.get_colors()
+
+    actor_responses = [SimpleNamespace(
+        actor_id="usa [signals]", trust_change=-2,
+        public_response="We reject the [ultimatum] outright.")]
+    world = _world()
+    world.actor_system = None
+
+    with console.capture() as cap:
+        display_adjudication_results(
+            colors, "immersive", "Action Quality: ADEQUATE\nReasoning: x.",
+            {}, [("NSA [liaison]", "Copy that [bracket] payload.")],
+            actor_responses, world)
+    out = _plain(cap.get())
+    # Bracketed LLM text must be printed literally, not parsed as markup
+    assert "[ultimatum]" in out
+    assert "usa [signals]" in out
+    assert "NSA [liaison]" in out
+    assert "[bracket]" in out
 
 
 # --- Effect boxes (defect 7) ------------------------------------------------
@@ -345,32 +426,60 @@ def test_us_liaison_sectioned_apart_from_uk_cabinet():
 
     us_idx = next(i for i, l in enumerate(lines)
                   if "US National Security Advisor" in l)
-    divider_idx = next(i for i, l in enumerate(lines) if "WASHINGTON" in l)
-    assert divider_idx < us_idx, "US liaison must sit under a WASHINGTON divider"
+    divider_idx = next(i for i, l in enumerate(lines) if "FOREIGN LIAISON" in l)
+    assert divider_idx < us_idx, "US liaison must sit under a FOREIGN LIAISON divider"
     # Every UK cabinet row sits above the divider
     for i, line in enumerate(lines[:divider_idx]):
         assert "US National Security Advisor" not in line
 
 
+# --- Intro scene parsing ------------------------------------------------------
+
+def test_intro_scene_subheading_never_leaks_into_body():
+    """The date/time '## ' subheading after '## SCENE' belongs on the scene
+    card, even when blank lines separate the two headings."""
+    from cli.main import _parse_intro_scene
+
+    for scene in (
+        ["=" * 79,
+         "## SCENE I: SEVEROMORSK NAVAL BASE, RUSSIA",
+         "## 72 Hours Earlier — Thursday, 2nd October 2025, 03:15 Local Time",
+         "",
+         "The Barents Sea lies black and restless."],
+        # Blank line between the headings must not defeat the skip
+        ["=" * 79,
+         "## SCENE I: SEVEROMORSK NAVAL BASE, RUSSIA",
+         "",
+         "## 72 Hours Earlier — Thursday, 2nd October 2025, 03:15 Local Time",
+         "",
+         "The Barents Sea lies black and restless."],
+    ):
+        body, header = _parse_intro_scene(scene)
+        assert header is not None
+        assert header[0] == "I"
+        assert body == ["The Barents Sea lies black and restless."]
+        assert not any("72 Hours Earlier" in line for line in body)
+
+
 # --- Resume offer (defect 10) -----------------------------------------------
 
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="Piped-stdin input model differs on Windows (msvcrt consumes keys)",
-)
-def test_play_offers_to_resume_existing_autosave():
-    """`play` with an autosave present must offer to resume before the setup
-    menus; accepting loads the save (the --load path)."""
-    import os
-    import shutil
-    import subprocess
+class _StopPlay(Exception):
+    """Sentinel to halt `play` once the code under test has run."""
 
-    saves_dir = root / "saves"
-    backup = None
-    if saves_dir.exists():
-        backup = saves_dir.with_name(f"saves.pytest-backup-ux-{os.getpid()}")
-        saves_dir.rename(backup)
-    try:
+
+class _autosave_fixture:
+    """Context manager: park the real saves dir, write a Turn-3 autosave."""
+
+    def __enter__(self):
+        import os
+
+        self.saves_dir = root / "saves"
+        self.backup = None
+        if self.saves_dir.exists():
+            self.backup = self.saves_dir.with_name(
+                f"saves.pytest-backup-ux-{os.getpid()}")
+            self.saves_dir.rename(self.backup)
+
         from engine.persistence import save_game
 
         world = _world(turn=3)
@@ -378,25 +487,91 @@ def test_play_offers_to_resume_existing_autosave():
         save_game(world, ["earlier transcript"], "war_game_2025", "autosave",
                   root, play_mode="classic", narrative_state=None,
                   variant="standard")
+        return self
 
+    def __exit__(self, *exc):
+        import shutil
+
+        shutil.rmtree(self.saves_dir, ignore_errors=True)
+        if self.backup is not None:
+            self.backup.rename(self.saves_dir)
+        return False
+
+
+def test_play_offers_to_resume_autosave_when_interactive(monkeypatch):
+    """With a TTY stdin and an autosave present, `play` must offer to resume
+    before the setup menus; accepting routes into the --load path (verified up
+    to the save's variant read, then execution is halted)."""
+    import cli.main as main
+    import engine.persistence as persistence
+
+    with _autosave_fixture():
+        monkeypatch.setattr(main.sys.stdin, "isatty", lambda: True,
+                            raising=False)
+        # Neutralise the interactive-only chrome ahead of the offer
+        monkeypatch.setattr(main, "play_title_sequence", lambda *a, **k: None)
+        monkeypatch.setattr(main, "wait_for_space", lambda *a, **k: None)
+        monkeypatch.setattr(main.typer, "clear", lambda: None)
+
+        prompts = []
+
+        def fake_confirm(text, default=True, **kwargs):
+            prompts.append(text)
+            return True  # accept the resume offer
+
+        monkeypatch.setattr(main.typer, "confirm", fake_confirm)
+
+        loaded = {}
+
+        def capture_and_stop(path):
+            loaded["path"] = Path(path)
+            raise _StopPlay()
+
+        # Accepting the offer sets load_save; reading that save's variant is
+        # the very next step, so halt there
+        monkeypatch.setattr(persistence, "read_save_variant", capture_and_stop)
+
+        with pytest.raises(_StopPlay):
+            main.play(scenario="war_game_2025", seed=42, load_save=None,
+                      stochastic_injects=True, intro_only=False, variant=None,
+                      difficulty=None, play_mode=None, flash_only=False)
+
+        assert prompts, "resume offer must be shown on a TTY"
+        assert "Resume campaign (Turn 3" in prompts[0]
+        assert loaded["path"].name == "war_game_2025_autosave.json"
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Piped-stdin input model differs on Windows (msvcrt consumes keys)",
+)
+def test_play_skips_resume_prompt_when_stdin_piped():
+    """With piped stdin the resume confirm would silently eat the first queued
+    command, so non-interactive runs must skip the offer and start a new
+    campaign at the setup menus."""
+    import os
+    import subprocess
+
+    with _autosave_fixture():
         env = dict(os.environ)
         env["WARGAME_LLM"] = "mock"
         result = subprocess.run(
             [sys.executable, "-m", "cli.main", "play"],
-            input="y\n/quit\ny\n/quit\ny\n",
+            # Four numeric setup menus, then quit at the first discussion
+            # prompt (confirming "Leave the crisis room?")
+            input="1\n1\n1\n1\n/quit\ny\n",
             capture_output=True, text=True, cwd=str(root), env=env,
             timeout=480,
         )
         out = _plain(result.stdout + result.stderr)
-        assert result.returncode == 0, f"resume run exited {result.returncode}:\n{out[-3000:]}"
-        assert "Resume campaign (Turn 3" in out
-        assert "Resuming at Turn 3" in out
-        # Setup menus must have been skipped
-        assert "SELECT GAMEPLAY MODE" not in out
-    finally:
-        shutil.rmtree(saves_dir, ignore_errors=True)
-        if backup is not None:
-            backup.rename(saves_dir)
+        assert result.returncode == 0, (
+            f"piped run exited {result.returncode}:\n{out[-3000:]}")
+        # No resume offer on a pipe...
+        assert "Resume campaign" not in out
+        assert "Resuming at Turn 3" not in out
+        # ...and the first queued line reached the scenario menu (a new
+        # campaign starts, so the setup menus are all shown)
+        assert "SELECT SCENARIO" in out
 
 
 # --- Dashboard SITREP labels (defect 12c) -----------------------------------

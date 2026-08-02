@@ -110,12 +110,13 @@ def test_framed_lines_exact_width():
     for name, comp in checks.items():
         for line in render(comp).splitlines():
             stripped = line.rstrip()
-            # Fog rows may end in spaces; structural lines must be full width
+            # Structural lines must occupy exactly WIDTH cells. Trailing
+            # spaces count: the phase banner's sonar tail deliberately fades
+            # out through them, and Rich preserves them in the output.
             if stripped and stripped[0] in "┌└│╔╚║━─":
-                assert cell_len(line.rstrip("\n").rstrip()) == WIDTH or \
-                    cell_len(line[:WIDTH]) == WIDTH, (
-                        f"{name}: misaligned line {line!r} "
-                        f"({cell_len(stripped)} != {WIDTH})")
+                assert cell_len(line) == WIDTH, (
+                    f"{name}: misaligned line {line!r} "
+                    f"({cell_len(line)} != {WIDTH})")
 
 
 def test_masthead_rows_equal_width():

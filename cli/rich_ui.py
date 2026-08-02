@@ -457,7 +457,10 @@ def command_menu() -> Panel:
         Rich Panel object
     """
     if not RICH_ENABLED:
-        return "Commands: /status /menu /advise /resources /call /decide /save /quit"
+        # Keep in sync with the `commands` list below
+        return ("Commands: /status /status advisors /menu /advise "
+                "/advise concise /resources /intel /call <country> /decide "
+                "/theme /llm /save /quit")
     
     COLORS = theme_manager.get_colors()
     

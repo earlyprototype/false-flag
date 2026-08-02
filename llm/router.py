@@ -279,13 +279,16 @@ def generate_text(
                 return MockDeterministicDriver().generate_text(prompt, rng)
 
     if use_spinner:
+        # Tuman sonar-sweep wait indicator (see cli/spinner.py). Only the
+        # import sits in the try: a driver-side ImportError must propagate to
+        # the resilient wrapper, not silently trigger a duplicate LLM call.
         try:
-            # Tuman sonar-sweep wait indicator (see cli/spinner.py)
             from cli.spinner import Spinner
-            with Spinner("AWAITING SECURE TRAFFIC"):
-                return call_driver_resilient()
         except ImportError:
             pass
+        else:
+            with Spinner("AWAITING SECURE TRAFFIC"):
+                return call_driver_resilient()
 
     # No spinner - direct call
     return call_driver_resilient()
@@ -363,12 +366,15 @@ def batch_generate_text(
         return results
     
     if use_spinner:
+        # Tuman sonar-sweep wait indicator (see cli/spinner.py). Only the
+        # import sits in the try: a driver-side ImportError must propagate to
+        # the resilient retry logic, not silently trigger a duplicate call.
         try:
-            # Tuman sonar-sweep wait indicator (see cli/spinner.py)
             from cli.spinner import Spinner
-            with Spinner(f"SIGNALS INBOUND ── {len(prompts)} STATIONS"):
-                return call_batch()
         except ImportError:
             pass
+        else:
+            with Spinner(f"SIGNALS INBOUND ── {len(prompts)} STATIONS"):
+                return call_batch()
 
     return call_batch()

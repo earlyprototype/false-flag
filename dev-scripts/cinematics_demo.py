@@ -10,7 +10,8 @@ Sequences: title, scene, turn, debrief, spinner.
 
 ``record`` drives the title sequence through a pty (fake TTY) and prints a
 few captured intermediate frames - useful for checking the choreography
-from a non-interactive session.
+from a non-interactive session. Note: ``record`` is POSIX-only (it uses the
+``pty``/``fcntl``/``termios`` modules, unavailable on Windows).
 """
 
 import sys
@@ -110,9 +111,12 @@ def record_title() -> None:
     frames = re.split(r"\x1b\[\d+F", raw)
     ansi = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
     print(f"captured {len(frames)} frames")
-    for i in (5, len(frames) // 3, len(frames) // 2, len(frames) - 1):
+    # Guard the sample indices: a short capture can yield fewer than 6 frames
+    samples = sorted({i for i in (5, len(frames) // 3, len(frames) // 2,
+                                  len(frames) - 1) if 0 <= i < len(frames)})
+    for i in samples:
         print(f"\n----- frame {i} -----")
-        lines = [l.rstrip() for l in ansi.sub("", frames[i]).split("\n")]
+        lines = [line.rstrip() for line in ansi.sub("", frames[i]).split("\n")]
         while lines and not lines[-1].strip():
             lines.pop()
         print("\n".join(lines))

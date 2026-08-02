@@ -10,13 +10,13 @@ regeneration is deterministic.
 
 Regenerate everything:
 
-```
+```shell
 .venv/bin/python dev-scripts/render_media.py
 ```
 
 Regenerate a subset by asset stem, e.g.:
 
-```
+```shell
 .venv/bin/python dev-scripts/render_media.py title_sequence gameplay_collage
 ```
 
