@@ -22,7 +22,7 @@ LLM_PROVIDER = "mock"
 # ---------------------------------------------------------------------------
 # LLM_PROVIDER = "openai_compat"
 # OPENAI_COMPAT_BASE_URL = "https://openrouter.ai/api/v1"
-# OPENAI_COMPAT_API_KEY = "sk-or-v1-YOUR_KEY_HERE"
+# OPENAI_COMPAT_API_KEY = "PASTE-YOUR-OPENROUTER-KEY"  # keys begin sk-or-v1-
 # OPENAI_COMPAT_MODEL = "meta-llama/llama-3.3-70b-instruct:free"
 # OPENAI_COMPAT_RPM = 18  # stay just under OpenRouter's 20 req/min cap
 
@@ -33,7 +33,7 @@ LLM_PROVIDER = "mock"
 # ---------------------------------------------------------------------------
 # LLM_PROVIDER = "openai_compat"
 # OPENAI_COMPAT_BASE_URL = "https://api.groq.com/openai/v1"
-# OPENAI_COMPAT_API_KEY = "gsk_YOUR_KEY_HERE"
+# OPENAI_COMPAT_API_KEY = "PASTE-YOUR-GROQ-KEY"  # keys begin gsk_
 # OPENAI_COMPAT_MODEL = "llama-3.3-70b-versatile"
 # OPENAI_COMPAT_RPM = 28  # stay just under Groq's 30 req/min cap
 
