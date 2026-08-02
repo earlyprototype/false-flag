@@ -20,6 +20,63 @@ _MD_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 _MD_ITALIC_RE = re.compile(r"(?<!\*)\*([^*\n]+?)\*(?!\*)")
 
 
+# Internal persona names (initial_conditions.yaml roles) -> the cabinet titles
+# the fiction uses everywhere else. Display-time only: internal IDs, LLM
+# prompts, transcripts and save formats keep the original names.
+_ROLE_DISPLAY_TITLES = {
+    "military commander": "Chief of the Defence Staff",
+    "intelligence coordinator": "National Security Advisor",
+    "diplomatic lead": "Foreign Secretary",
+    "domestic security": "Home Secretary",
+    "legal advisor": "Attorney General",
+    "government leader": "Prime Minister",
+}
+
+
+def display_role(role: str) -> str:
+    """Map an internal persona name to its cabinet title for display.
+
+    Unknown names pass through unchanged, so LLM-invented or already-correct
+    speaker labels are unaffected.
+    """
+    return _ROLE_DISPLAY_TITLES.get(role.strip().lower(), role)
+
+
+# Quality grades -> in-fiction phrases for immersive/emergent adjudication
+# display (classic mode keeps the raw mechanical assessment).
+_QUALITY_PHRASES = {
+    "exceptional": "Around the table, your advisors regard the response as "
+                   "masterly — the right move at the right moment.",
+    "good": "Your advisors regard the response as sound.",
+    "adequate": "Your advisors regard the response as measured.",
+    "poor": "Around the table, your advisors are visibly uneasy about the response.",
+    "catastrophic": "Your advisors are alarmed — more than one believes this "
+                    "course invites disaster.",
+}
+
+
+def narrative_assessment(reasoning: str) -> str:
+    """Rewrite the adjudicator's assessment for immersive/emergent display.
+
+    Replaces the mechanical "Action Quality: ADEQUATE" grade line with an
+    in-fiction phrase and drops the "Reasoning:" label. Transcripts and saves
+    keep the original text; classic mode displays it unchanged.
+    """
+    out = []
+    for line in reasoning.split("\n"):
+        stripped = line.strip()
+        lower = stripped.lower()
+        if lower.startswith("action quality:"):
+            quality = stripped.split(":", 1)[1].strip().lower()
+            out.append(_QUALITY_PHRASES.get(
+                quality, "Your advisors take stock of the response."))
+        elif lower.startswith("reasoning:"):
+            out.append(stripped.split(":", 1)[1].strip())
+        else:
+            out.append(line)
+    return "\n".join(out)
+
+
 def markdown_to_rich(text: str) -> str:
     """Convert basic markdown emphasis (**bold**, *italic*) to Rich markup.
 
@@ -58,9 +115,12 @@ def advisor_attitude_lines(narrative_state, include_stance: bool = False) -> lis
 
     Shared by the post-adjudication display and the /status advisors command
     in both CLI front-ends.
+
+    Foreign liaisons (e.g. the US National Security Advisor) are listed in a
+    separate WASHINGTON section below the UK cabinet, so they never read as
+    members of it.
     """
-    lines = []
-    for _char_id, char_attitude in narrative_state.characters.items():
+    def rows(char_attitude):
         trust_level = char_attitude.trust // 20  # 0-5 scale
         trust_bar = "█" * trust_level + "░" * (5 - trust_level)
         relationship_symbol = {
@@ -69,9 +129,23 @@ def advisor_attitude_lines(narrative_state, include_stance: bool = False) -> lis
             "hostile": "✗",
             "unknown": "?"
         }.get(char_attitude.relationship, "○")
-        lines.append(f"{char_attitude.name:<30} {trust_bar} {relationship_symbol} {char_attitude.relationship.upper()}")
+        out = [f"{char_attitude.name:<30} {trust_bar} {relationship_symbol} {char_attitude.relationship.upper()}"]
         if include_stance and char_attitude.stance_summary:
-            lines.append(f"  {char_attitude.stance_summary}")
+            out.append(f"  {char_attitude.stance_summary}")
+        return out
+
+    lines = []
+    foreign = []
+    for char_id, char_attitude in narrative_state.characters.items():
+        if char_id.startswith("uk_"):
+            lines.extend(rows(char_attitude))
+        else:
+            foreign.extend(rows(char_attitude))
+    if foreign:
+        if lines:
+            lines.append("")
+        lines.append("──── WASHINGTON " + "─" * 24)
+        lines.extend(foreign)
     return lines
 
 
@@ -240,6 +314,11 @@ def display_adjudication_results(
         actor_responses: List of actor response objects (multi-agent sim).
         world: WorldState, used to resolve actor full names.
     """
+    # Non-classic modes speak in fiction: no ALL-CAPS quality grades and no
+    # numeric deltas anywhere in the post-adjudication display.
+    if play_mode != "classic":
+        reasoning = narrative_assessment(reasoning)
+
     # Display quality reasoning
     typer.echo("")
     if RICH_ENABLED:
@@ -282,6 +361,7 @@ def display_adjudication_results(
         typer.echo("")
 
         for char_name, response in character_responses:
+            char_name = display_role(char_name)
             if RICH_ENABLED:
                 console.print(f"[{colors['secondary']} bold]{rich_escape(char_name)}:[/{colors['secondary']} bold]")
                 console.print(f"  \"{rich_escape(response)}\"")
@@ -311,11 +391,19 @@ def display_adjudication_results(
                 if actor:
                     actor_name = actor.full_name
 
+            # Numeric trust deltas are classic-mode only; immersive/emergent
+            # let the reaction text carry the weight
             if RICH_ENABLED:
-                color = colors['success'] if trust_delta > 0 else colors['danger'] if trust_delta < 0 else colors['muted']
-                console.print(f"[{colors['primary']} bold]{actor_name}:[/{colors['primary']} bold] [{color}]({trust_delta:+d})[/{color}]")
+                if play_mode == "classic":
+                    color = colors['success'] if trust_delta > 0 else colors['danger'] if trust_delta < 0 else colors['muted']
+                    console.print(f"[{colors['primary']} bold]{actor_name}:[/{colors['primary']} bold] [{color}]({trust_delta:+d})[/{color}]")
+                else:
+                    console.print(f"[{colors['primary']} bold]{actor_name}:[/{colors['primary']} bold]")
                 console.print(f"  \"{response.public_response}\"")
             else:
-                typer.echo(f"{actor_name}: ({trust_delta:+d})")
+                if play_mode == "classic":
+                    typer.echo(f"{actor_name}: ({trust_delta:+d})")
+                else:
+                    typer.echo(f"{actor_name}:")
                 typer.echo(f"  \"{response.public_response}\"")
             typer.echo("")

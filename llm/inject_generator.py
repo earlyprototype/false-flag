@@ -4,6 +4,7 @@ Uses LLM to generate plausible next events based on current world state,
 informed by realistic scenario patterns from the podcast.
 """
 
+import logging
 from typing import Any, Dict, List, Optional
 from random import Random
 from pathlib import Path
@@ -13,6 +14,8 @@ from models.world import WorldState
 from llm.prompts import build_inject_generation_prompt
 from llm.router import generate_text
 from llm.model_config import LLMContext
+
+logger = logging.getLogger(__name__)
 
 
 def _load_scenario_library(root_path: Path) -> Dict[str, Any]:
@@ -59,14 +62,16 @@ def generate_inject(
     
     prompt = build_inject_generation_prompt(world, turn_number, initial_conditions, scenario_library, transcript)
     
+    # Failures are logged, never printed: the player-facing fallback is the
+    # caller's diegetic quiet-turn inject (engine.sim_loop).
     try:
         response = generate_text(prompt, rng, context=LLMContext.INJECT_GENERATION)
     except Exception as e:
-        print(f"[ERROR] LLM generation failed: {e}")
+        logger.warning("Inject LLM generation failed for turn %d: %s", turn_number, e)
         return None
-    
+
     if not response or not response.strip():
-        print(f"[ERROR] LLM returned empty response for turn {turn_number}")
+        logger.warning("Inject LLM returned empty response for turn %d", turn_number)
         return None
     
     # Parse YAML from response
@@ -88,8 +93,8 @@ def generate_inject(
         inject_data = yaml.safe_load(yaml_text)
         
         if not isinstance(inject_data, dict):
-            print(f"[ERROR] LLM response was not valid YAML dict for turn {turn_number}")
-            print(f"[DEBUG] Response preview: {response[:200]}")
+            logger.warning("Inject LLM response was not a YAML mapping for turn %d", turn_number)
+            logger.debug("Inject response preview: %s", response[:200])
             return None
         
         # Always stamp a deterministic per-turn id so generated injects
@@ -100,7 +105,7 @@ def generate_inject(
     
     except (yaml.YAMLError, ValueError, IndexError) as e:
         # Generation failed, return None
-        print(f"[ERROR] Failed to parse YAML from LLM response: {e}")
-        print(f"[DEBUG] Response preview: {response[:500]}")
+        logger.warning("Failed to parse YAML from inject LLM response for turn %d: %s", turn_number, e)
+        logger.debug("Inject response preview: %s", response[:500])
         return None
 

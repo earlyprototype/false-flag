@@ -37,6 +37,7 @@ from cli.display_utils import (
     strip_effect_boxes,
     display_adjudication_results,
     display_decision_summary,
+    display_role,
     parse_interpretation_simple,
     markdown_to_rich,
     format_vibe_line,
@@ -118,6 +119,47 @@ def wait_for_space(prompt: str = "Press SPACE (or Enter) to continue...") -> Non
     wait_for_key(prompt)
 
 
+def _end_session() -> None:
+    """Close the session in fiction on EOF (Ctrl-D) instead of click's bare
+    'Aborted.' with exit code 1."""
+    COLORS = theme_manager.get_colors()
+    console.print("")
+    console.print(f"[{COLORS['muted']}]SIGNAL LOST — secure line closed. The campaign is preserved in the last autosave.[/{COLORS['muted']}]")
+    raise typer.Exit(0)
+
+
+def _console_input(prompt_text: str) -> str:
+    """console.input that ends the session cleanly on EOF."""
+    try:
+        return console.input(prompt_text)
+    except EOFError:
+        _end_session()
+
+
+def _prompt(text: str, **kwargs) -> str:
+    """typer.prompt that ends the session cleanly on EOF/Ctrl-C."""
+    try:
+        return typer.prompt(text, **kwargs)
+    except (typer.Abort, EOFError):
+        _end_session()
+
+
+def _pause_for_enter(colors: dict) -> None:
+    """Interactive pause before returning to the dashboard.
+
+    No-op on piped stdin: a scripted run's next line is a queued command, not
+    an acknowledgement — consuming it here turned the player's next command
+    into a chat message.
+    """
+    if not sys.stdin.isatty():
+        return
+    console.print(f"[{colors['primary']} bold]Press ENTER to return to dashboard[/]")
+    try:
+        console.input()
+    except EOFError:
+        _end_session()
+
+
 def display_critical_concerns_with_selection(critical_concerns: list) -> tuple:
     """Display critical concerns and let player select which to address.
     
@@ -139,7 +181,7 @@ def display_critical_concerns_with_selection(critical_concerns: list) -> tuple:
     
     # Display each concern with number
     for idx, (role, concern, recommendation) in enumerate(critical_concerns, 1):
-        console.print(f"[{COLORS['warning']} bold][{idx}] {rich_escape(role)}[/{COLORS['warning']} bold]")
+        console.print(f"[{COLORS['warning']} bold][{idx}] {rich_escape(display_role(role))}[/{COLORS['warning']} bold]")
         console.print(f"  {rich_escape(concern)}")
         console.print(f"  [{COLORS['primary']}]→ RECOMMENDATION: \"{rich_escape(recommendation)}\"[/{COLORS['primary']}]")
         console.print("")
@@ -156,14 +198,14 @@ def display_critical_concerns_with_selection(critical_concerns: list) -> tuple:
     console.print(f"  [{COLORS['primary']}]D[/{COLORS['primary']}] - Return to discussion phase")
     console.print("")
     
-    choice = typer.prompt("Choose", type=str).strip().upper()
+    choice = _prompt("Choose", type=str).strip().upper()
     
     if choice == "A":
         return ('A', list(range(len(critical_concerns))))
     elif choice == "S":
         console.print("")
         console.print("Enter concern numbers separated by spaces (e.g., '1 3')")
-        selection = typer.prompt("Select").strip()
+        selection = _prompt("Select").strip()
         try:
             indices = [int(x) - 1 for x in selection.split()]
             valid_indices = [i for i in indices if 0 <= i < len(critical_concerns)]
@@ -827,7 +869,7 @@ def play(
             rng,
             root,
             transcript,
-            get_player_input=lambda prompt: typer.prompt(prompt).strip(),
+            get_player_input=lambda prompt: _prompt(prompt).strip(),
             turn_filename=turn_filename,
             silent_effects=is_turn1_intro or play_mode != "classic",  # Hide raw-number effect boxes for Turn 1 intro and non-classic modes
             suppress_display=is_turn1_intro,  # Suppress panel so we can stream the text
@@ -917,7 +959,7 @@ def play(
                 console.print(phase_header("DISCUSSION", world.turn))
                 typer.echo("")
                 typer.echo("  Ask questions or type /decide when ready")
-                console.print(f"  [{COLORS['muted']}]Quick: /status  /menu  /advise  /resources  /llm[/{COLORS['muted']}]")
+                console.print(f"  [{COLORS['muted']}]Quick: /status  /menu  /advise  /resources  /intel  /llm[/{COLORS['muted']}]")
                 typer.echo("")
                 console.print(f"[{COLORS['muted']}]" + "─" * 79 + f"[/{COLORS['muted']}]")
             else:
@@ -969,17 +1011,25 @@ def play(
 
             # Take last 30 lines of briefing (increased from 20)
             for line in briefing_display[-30:]:
+                stripped = line.strip()
+                # Effect boxes don't survive the feed's wrapping: keep the
+                # content as one SYSTEM line and drop the box borders
+                if stripped and set(stripped) <= set("┌─┐└┘"):
+                    continue
+                if stripped.startswith("│") and "Effect:" in stripped:
+                    dashboard.add_message("SYSTEM", stripped.strip("│").strip())
+                    continue
                 # Parse speaker from line if present
-                if ":" in line and not line.strip().startswith("==="):
+                if ":" in line and not stripped.startswith("==="):
                     parts = line.split(":", 1)
                     if len(parts) == 2 and len(parts[0]) < 40:  # Likely a speaker
-                        speaker = parts[0].strip()
+                        speaker = display_role(parts[0].strip())
                         message = parts[1].strip()
                         dashboard.add_message(speaker, message)
                     else:
-                        dashboard.add_message("NARRATOR", line.strip())
-                elif line.strip() and not line.strip().startswith("==="):
-                    dashboard.add_message("NARRATOR", line.strip())
+                        dashboard.add_message("NARRATOR", stripped)
+                elif stripped and not stripped.startswith("==="):
+                    dashboard.add_message("NARRATOR", stripped)
 
             # Add separator and prompt
             dashboard.add_message("SYSTEM", f"[{COLORS['success']}]═══ ADVISORY PANEL READY ═══[/]")
@@ -994,7 +1044,7 @@ def play(
 
                     # Get input (pause live updates)
                     live.stop()
-                    user_input = console.input(f"[{COLORS['primary']}]>[/] ").strip()
+                    user_input = _console_input(f"[{COLORS['primary']}]>[/] ").strip()
                     live.start()
 
                     if not user_input:
@@ -1005,16 +1055,28 @@ def play(
                         break
 
                     if user_input.lower() in ["/quit", "quit"]:
-                        typer.echo("Exiting game.")
-                        raise typer.Exit(0)
+                        # Mid-turn work only reaches disk at the end-of-turn
+                        # autosave — confirm before discarding it (Enter = stay)
+                        live.stop()
+                        console.print("")
+                        console.print(f"[{COLORS['warning']}]Progress this turn is unsaved — the last autosave was taken at the end of the previous turn.[/]")
+                        try:
+                            confirmed = typer.confirm("Leave the crisis room?", default=False)
+                        except (typer.Abort, EOFError):
+                            confirmed = True  # EOF/Ctrl-C at the prompt: leave
+                        if confirmed:
+                            typer.echo("Exiting game.")
+                            raise typer.Exit(0)
+                        console.clear()
+                        live.start()
+                        continue
 
                     if user_input.lower() in ["/save", "save"]:
                         # Pause the live repaint so the confirmation stays visible
                         live.stop()
                         save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", root, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot)
                         typer.echo(f"Game saved to {save_path}")
-                        console.print(f"[{COLORS['primary']} bold]Press ENTER to return to dashboard[/]")
-                        console.input()
+                        _pause_for_enter(COLORS)
                         console.clear()
                         live.start()
                         continue
@@ -1040,7 +1102,7 @@ def play(
                         console.print("  4. Slate (Black/White Monochrome)")
                         typer.echo("")
 
-                        theme_choice = typer.prompt("Select theme (1-4)").strip()
+                        theme_choice = _prompt("Select theme (1-4)").strip()
                         theme_map = {"1": "standard", "2": "defcon1", "3": "retro", "4": "slate"}
 
                         if theme_choice in theme_map:
@@ -1050,8 +1112,7 @@ def play(
                             console.print(f"[{COLORS['success']}]Theme changed to {theme_name.title()}[/{COLORS['success']}]")
                         else:
                             console.print("[bold red]Invalid selection[/bold red]")
-                        console.print(f"[{COLORS['primary']} bold]Press ENTER to return to dashboard[/]")
-                        console.input()
+                        _pause_for_enter(COLORS)
                         console.clear()
                         live.start()
                         continue
@@ -1145,26 +1206,29 @@ def play(
                             rng=rng,
                             root_path=root,
                             full_transcript=transcript,
-                            get_player_input=lambda prompt: typer.prompt(prompt).strip(),
+                            get_player_input=lambda prompt: _prompt(prompt).strip(),
                             print_fn=typer.echo  # Print in real-time
                         )
 
                         # Transcript already printed, just save it
                         transcript.extend(encounter_transcript)
 
-                        # Apply alliance cohesion change
-                        from engine.utils import clamp, clamp_metrics
+                        # DiplomaticEncounter.end() already applied
+                        # cohesion_delta (parity with cli/main.py — applying it
+                        # again here doubled every call outcome)
+                        from engine.utils import clamp_metrics
                         from engine.flags import update_world_flags
 
-                        world.metrics.alliance_cohesion = clamp(world.metrics.alliance_cohesion + cohesion_delta)
                         clamp_metrics(world.metrics)
                         update_world_flags(world)
+
+                        # Keep the narrative state in step with the call outcome
+                        narrative_state.hidden_metrics.alliance_cohesion = world.metrics.alliance_cohesion
 
                         # Show completion message
                         console.print("")
                         console.print(f"[{COLORS['success']}]═══ Call ended ═══[/]")
-                        console.print(f"[{COLORS['primary']} bold]Press ENTER to return to dashboard[/]")
-                        console.input()
+                        _pause_for_enter(COLORS)
 
                         # Resume dashboard
                         console.clear()
@@ -1290,8 +1354,7 @@ def play(
                                 typer.echo("Intelligence system not available.")
 
                         typer.echo("")
-                        console.print(f"[{COLORS['primary']} bold]Press ENTER to return to dashboard[/]")
-                        console.input()
+                        _pause_for_enter(COLORS)
                         console.clear()
                         live.start()
                         continue
@@ -1352,7 +1415,8 @@ def play(
                             if ":" in line:
                                 advisor_name, rest = line.split(":", 1)
                                 # Stream response into dashboard panel
-                                dashboard.add_message(advisor_name.strip(), rest.strip())
+                                # (internal persona names -> cabinet titles)
+                                dashboard.add_message(display_role(advisor_name.strip()), rest.strip())
                                 dashboard.update()
                             else:
                                 # Add other lines as system messages
@@ -1383,7 +1447,7 @@ def play(
 
                 typer.echo("")
 
-                action = typer.prompt("Decision>", default="", show_default=False).strip()
+                action = _prompt("Decision>", default="", show_default=False).strip()
 
                 if action.lower() == "cancel":
                     # Return to discussion phase
@@ -1403,7 +1467,7 @@ def play(
                 display_decision_summary(action, interpretation, show_details=False)
 
                 # Option to see full details
-                see_details = typer.prompt(
+                see_details = _prompt(
                     "Press Enter to continue (or type 'details' for the full interpretation)",
                     default="", show_default=False
                 ).strip().lower()
@@ -1490,14 +1554,14 @@ def play(
                     console.print(f"[{COLORS['warning']} bold]ADVISOR CONCERNS[/{COLORS['warning']} bold]")
                     typer.echo("")
                     for role, concern in pushback:
-                        console.print(f"  [{COLORS['secondary']} bold]{rich_escape(role)}:[/{COLORS['secondary']} bold] {rich_escape(concern)}")
+                        console.print(f"  [{COLORS['secondary']} bold]{rich_escape(display_role(role))}:[/{COLORS['secondary']} bold] {rich_escape(concern)}")
                         typer.echo("")
                     console.print("Your advisors have concerns. How do you wish to proceed?")
                     console.print(f"  [{COLORS['primary']}]P[/{COLORS['primary']}] - Proceed with this decision")
                     console.print(f"  [{COLORS['primary']}]A[/{COLORS['primary']}] - Amend the decision (re-enter decision text)")
                     console.print(f"  [{COLORS['primary']}]C[/{COLORS['primary']}] - Cancel and return to discussion")
                     typer.echo("")
-                    choice = typer.prompt("Choose [P/A/C]", default="P", show_default=False).strip().upper()
+                    choice = _prompt("Choose [P/A/C]", default="P", show_default=False).strip().upper()
                     if choice == "A":
                         # Amend: re-prompt for decision text without returning
                         # to the discussion phase

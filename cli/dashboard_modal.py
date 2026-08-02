@@ -4,6 +4,8 @@ This module provides full-screen overlays that pause the dashboard's
 Live() updates, display command output, and then return to the dashboard.
 """
 
+import sys
+
 from rich.panel import Panel
 from rich.console import Console
 from rich.layout import Layout
@@ -63,8 +65,15 @@ def show_overlay(console: Console, live, title: str, content, colors: dict) -> N
     live.stop()
     console.clear()
     console.print(overlay_layout)
-    console.input()
-    
+    # Wait for ENTER only on interactive stdin: a piped run's next line is a
+    # queued command, not an acknowledgement — consuming it here turned the
+    # player's next command into a chat message. EOF just closes the overlay.
+    if sys.stdin.isatty():
+        try:
+            console.input()
+        except EOFError:
+            pass
+
     # Resume dashboard
     console.clear()
     live.start()

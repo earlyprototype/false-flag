@@ -116,39 +116,41 @@ class WargameDashboard:
         # We'll check if metrics are hidden by looking at world.metrics visibility flags if they existed
         # For now, we'll render a simplified view if needed
         
-        # Create metrics table
-        table = Table(show_header=False, box=None, padding=(0, 1))
-        table.add_column("Label", style=self.COLORS['secondary'])
-        table.add_column("Value", justify="right")
-        table.add_column("Bar", width=10)
-        
+        # Create metrics table. Column budget is tight: the 30-col sidebar
+        # leaves 26 interior columns, so pad on the right only and keep the
+        # bar at 8 cells — full labels ("Casualties") must never truncate.
+        table = Table(show_header=False, box=None, padding=(0, 1, 0, 0))
+        table.add_column("Label", style=self.COLORS['secondary'], no_wrap=True)
+        table.add_column("Value", justify="right", no_wrap=True)
+        table.add_column("Bar", width=8, no_wrap=True)
+
         # Risk
         risk = self.world.metrics.escalation_risk
         risk_color = self.COLORS['metric_critical'] if risk >= 70 else self.COLORS['metric_bad'] if risk >= 50 else self.COLORS['metric_good']
         table.add_row(
             f"{SYMBOLS['risk']} Risk",
             f"[{risk_color}]{risk}[/]",
-            progress_bar(risk, 100, 10)
+            progress_bar(risk, 100, 8)
         )
-        
+
         # Stability
         stability = self.world.metrics.domestic_stability
         stab_color = self.COLORS['metric_critical'] if stability <= 30 else self.COLORS['metric_bad'] if stability <= 50 else self.COLORS['metric_good']
         table.add_row(
             f"{SYMBOLS['stability']} Stability",
             f"[{stab_color}]{stability}[/]",
-            progress_bar(stability, 100, 10)
+            progress_bar(stability, 100, 8)
         )
-        
+
         # Cohesion
         cohesion = self.world.metrics.alliance_cohesion
         coh_color = self.COLORS['metric_critical'] if cohesion <= 30 else self.COLORS['metric_bad'] if cohesion <= 50 else self.COLORS['metric_good']
         table.add_row(
             f"{SYMBOLS['cohesion']} Cohesion",
             f"[{coh_color}]{cohesion}[/]",
-            progress_bar(cohesion, 100, 10)
+            progress_bar(cohesion, 100, 8)
         )
-        
+
         # Casualties
         casualties = self.world.metrics.casualties_mil + self.world.metrics.casualties_civ
         table.add_row(
@@ -238,7 +240,7 @@ class WargameDashboard:
         Returns:
             Rich Panel with command hints
         """
-        commands = f"[{self.COLORS['primary']} bold]/status[/] │ [{self.COLORS['primary']} bold]/menu[/] │ [{self.COLORS['primary']} bold]/advise[/] │ [{self.COLORS['primary']} bold]/resources[/] │ [{self.COLORS['primary']} bold]/briefing[/] │ [{self.COLORS['success']} bold]/decide[/] │ [{self.COLORS['danger']} bold]/quit[/]"
+        commands = f"[{self.COLORS['primary']} bold]/status[/] │ [{self.COLORS['primary']} bold]/menu[/] │ [{self.COLORS['primary']} bold]/advise[/] │ [{self.COLORS['primary']} bold]/resources[/] │ [{self.COLORS['primary']} bold]/intel[/] │ [{self.COLORS['primary']} bold]/briefing[/] │ [{self.COLORS['success']} bold]/decide[/] │ [{self.COLORS['danger']} bold]/quit[/]"
         
         return Panel(
             commands,

@@ -281,7 +281,18 @@ class DiplomaticEncounter:
         
         if not self.profile:
             self.active = False
-            self.transcript.append(f"Connection failed: No access to {country}.")
+            known_countries = (self.profiles or {}).get("countries", {})
+            if country not in known_countries:
+                # In-fiction failure: the country simply isn't on the exchange
+                self.transcript.append(
+                    f"SIGNAL: no secure channel to '{country}' — the Downing Street "
+                    "switchboard holds no such head of state on the exchange."
+                )
+            else:
+                self.transcript.append(
+                    f"SIGNAL: {country} is not accepting the call — alliance standing "
+                    "is too low for a secure channel at this time."
+                )
 
     def start(self, rng: Random) -> List[str]:
         """Initialize the call and generate opening line."""
@@ -368,8 +379,13 @@ def run_diplomatic_encounter(
 ) -> Tuple[List[str], int]:
     """Legacy blocking runner for CLI."""
     encounter = DiplomaticEncounter(world, country, context, root_path)
-    
+
     if not encounter.active:
+        # Surface the in-fiction failure (unknown country / no access) —
+        # returning silently left the player staring at a dead prompt.
+        if print_fn:
+            for line in encounter.transcript:
+                print_fn(line)
         return encounter.transcript, 0
     
     # Start
@@ -387,15 +403,21 @@ def run_diplomatic_encounter(
             break
 
         if get_player_input:
-            msg = get_player_input("Response: ")
+            # Bare label: CLI prompt wrappers add their own ": " suffix
+            # (passing "Response: " rendered a doubled "Response: : ")
+            msg = get_player_input("Response")
         else:
             msg = "Thank you."
 
         encounter.process_turn(msg, llm_generate, rng)
         # Print exactly the lines this exchange appended (the previous
-        # last-line-twice approach printed every reply twice and never the PM)
+        # last-line-twice approach printed every reply twice and never the PM).
+        # The "Prime Minister:" line stays transcript-only — the player just
+        # typed it, echoing it back reads as a glitch.
         if print_fn:
             for line in encounter.transcript[printed_upto:]:
+                if line.startswith("Prime Minister:"):
+                    continue
                 print_fn(line)
         printed_upto = len(encounter.transcript)
 

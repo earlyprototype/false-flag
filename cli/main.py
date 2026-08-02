@@ -44,6 +44,7 @@ from cli.display_utils import (
     strip_effect_boxes,
     display_adjudication_results,
     display_decision_summary,
+    display_role,
     parse_interpretation_simple,
     markdown_to_rich,
     format_vibe_line,
@@ -149,7 +150,7 @@ def display_critical_concerns_with_selection(critical_concerns: list) -> tuple:
     
     # Display each concern with number
     for idx, (role, concern, recommendation) in enumerate(critical_concerns, 1):
-        console.print(f"[{COLORS['warning']} bold][{idx}] {rich_escape(role)}[/{COLORS['warning']} bold]")
+        console.print(f"[{COLORS['warning']} bold][{idx}] {rich_escape(display_role(role))}[/{COLORS['warning']} bold]")
         console.print(f"  {rich_escape(concern)}")
         console.print(f"  [{COLORS['primary']}]→ RECOMMENDATION: \"{rich_escape(recommendation)}\"[/{COLORS['primary']}]")
         console.print("")
@@ -613,6 +614,31 @@ def play(
     play_title_sequence(console, seed=seed)
     wait_for_space("Press SPACE (or Enter) to continue...")
 
+    # A campaign already in progress? Offer to resume it before the setup
+    # menus (--load keeps its explicit behaviour; plain Enter accepts).
+    if load_save is None and not intro_only:
+        autosave_path = Path(__file__).resolve().parents[1] / "saves" / f"{scenario}_autosave.json"
+        if autosave_path.exists():
+            from datetime import datetime
+            from engine.persistence import read_save_field
+            saved_world = read_save_field(autosave_path, "world", {}) or {}
+            saved_turn = saved_world.get("turn", "?")
+            saved_at = datetime.fromtimestamp(
+                autosave_path.stat().st_mtime).strftime("%d %b %Y %H:%M")
+            typer.echo("")
+            console.print(ae.classification_strip(
+                label="CAMPAIGN IN PROGRESS", seed="resume-offer", edge="bare"))
+            typer.echo("")
+            try:
+                resume = typer.confirm(
+                    f"Resume campaign (Turn {saved_turn}, saved {saved_at})?",
+                    default=True)
+            except (typer.Abort, EOFError):
+                raise typer.Exit(0)
+            if resume:
+                load_save = str(autosave_path)
+            typer.echo("")
+
     # If no variant specified and not loading a save, show selection menu
     if variant is None and load_save is None:
         variant = select_scenario_variant(scenario)
@@ -1050,8 +1076,19 @@ def play(
                     break
             
                 if user_input.lower() in ["/quit", "quit"]:
-                    typer.echo("Exiting game.")
-                    raise typer.Exit(0)
+                    # Mid-turn work only reaches disk at the end-of-turn
+                    # autosave — confirm before discarding it (Enter = stay)
+                    typer.echo("")
+                    console.print(f"[{COLORS['warning']}]Progress this turn is unsaved — the last autosave was taken at the end of the previous turn.[/{COLORS['warning']}]")
+                    try:
+                        confirmed = typer.confirm("Leave the crisis room?", default=False)
+                    except (typer.Abort, EOFError):
+                        confirmed = True  # EOF/Ctrl-C at the prompt: leave
+                    if confirmed:
+                        typer.echo("Exiting game.")
+                        raise typer.Exit(0)
+                    typer.echo("")
+                    continue
             
                 if user_input.lower() in ["/save", "save"]:
                     save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", root, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot)
@@ -1289,6 +1326,7 @@ def play(
                                     # Format response with structure
                                     if ":" in display_line:
                                         advisor_role, rest = display_line.split(":", 1)
+                                        advisor_role = display_role(advisor_role)
                                         if RICH_ENABLED:
                                             formatted = format_advisor_response("", rest)
                                             console.print(formatted)
@@ -1641,7 +1679,9 @@ def play(
                     if not line.startswith("Prime Minister:"):
                         if ":" in line:
                             advisor_name, rest = line.split(":", 1)
-                        
+                            # Internal persona names -> cabinet titles on screen
+                            advisor_name = display_role(advisor_name)
+
                             # Print advisor name
                             console.print(f"  [{COLORS['secondary']} bold]{advisor_name}[/{COLORS['secondary']} bold]")
                             typer.echo("")
@@ -1791,7 +1831,7 @@ def play(
                     console.print(f"[{COLORS['warning']} bold]ADVISOR CONCERNS[/{COLORS['warning']} bold]")
                     typer.echo("")
                     for role, concern in pushback:
-                        console.print(f"  [{COLORS['secondary']} bold]{rich_escape(role)}:[/{COLORS['secondary']} bold] {rich_escape(concern)}")
+                        console.print(f"  [{COLORS['secondary']} bold]{rich_escape(display_role(role))}:[/{COLORS['secondary']} bold] {rich_escape(concern)}")
                         typer.echo("")
                     console.print("Your advisors have concerns. How do you wish to proceed?")
                     console.print(f"  [{COLORS['primary']}]P[/{COLORS['primary']}] - Proceed with this decision")

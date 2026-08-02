@@ -142,7 +142,8 @@ def build_debrief_lines(
     lines.append(f"  {'Casualties':<20} {m.casualties_mil} military, {m.casualties_civ} civilian")
     lines.append("")
 
-    # Decision recap from the transcript
+    # Decision recap from the transcript (each entry trimmed — a 300-word
+    # decision reprinted in full swamps the debrief)
     decisions = [
         line.split(":", 1)[1].strip()
         for line in transcript
@@ -151,7 +152,16 @@ def build_debrief_lines(
     if decisions:
         lines.append("YOUR DECISIONS:")
         for i, decision in enumerate(decisions[-10:], 1):
-            lines.append(f"  {i}. {decision}")
+            lines.append(f"  {i}. {_truncate_decision(decision)}")
         lines.append("")
 
     return lines
+
+
+def _truncate_decision(text: str, limit: int = 160) -> str:
+    """Trim a decision recap entry to ~limit chars on a word boundary."""
+    text = " ".join(text.split())
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rsplit(" ", 1)[0].rstrip(" ,;:.")
+    return cut + "..."
