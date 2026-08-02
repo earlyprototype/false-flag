@@ -21,10 +21,33 @@ gracefully to the mock driver, same as the Gemini driver.
 """
 
 import os
+import re as _re
+import time
 from random import Random
 from typing import Optional
 
 import requests
+
+def _retry_delay_seconds(response):
+    """Extract a rate-limit recovery delay from a 429 (header or body).
+
+    Returns None when the response names no usable window, in which case
+    the caller falls through to the normal error path.
+    """
+    headers = getattr(response, "headers", None) or {}
+    ra = headers.get("retry-after")
+    if ra:
+        try:
+            return float(ra)
+        except (TypeError, ValueError):
+            pass
+    text = getattr(response, "text", "") or ""
+    m = _re.search(r"try again in (?:(\d+)m)?([\d.]+)s", text)
+    if m:
+        minutes = int(m.group(1) or 0)
+        return minutes * 60 + float(m.group(2))
+    return None
+
 
 # Seconds before a hung request is abandoned (matches the Gemini driver).
 # Overridable for slow local backends — CPU-only Ollama inference routinely
@@ -158,6 +181,19 @@ class OpenAICompatDriver:
                 json=payload,
                 timeout=REQUEST_TIMEOUT,
             )
+            if response.status_code == 429:
+                # Rate-limited: the provider names its recovery window
+                # (Retry-After header, or "try again in Xs" in the body).
+                # Waiting it out beats an instant doomed retry.
+                delay = _retry_delay_seconds(response)
+                if delay is not None and delay <= 120:
+                    time.sleep(delay + 0.5)
+                    response = requests.post(
+                        f"{self.base_url}/chat/completions",
+                        headers=self._headers(),
+                        json=payload,
+                        timeout=REQUEST_TIMEOUT,
+                    )
             if response.status_code != 200:
                 raise RuntimeError(
                     f"HTTP {response.status_code}: {_truncate(response.text)}"
