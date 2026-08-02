@@ -228,6 +228,304 @@ _ACTOR_DEFAULT = [
      0, "conditional", "Clear evidence and allied consensus", "none"),
 ]
 
+# ---------------------------------------------------------------------------
+# Diplomatic calls (/call)
+#
+# The diplomacy prompt builder emits an explicit persona line:
+#   "You are roleplaying as the {title} of {country} in a crisis simulation."
+# Detection keys on that line (same technique as the advisor personas) and the
+# player's current line arrives as "UK Prime Minister: {message}". Each
+# callable capital gets its own voice; a light keyword layer shifts the
+# response when the PM makes a recognisable ask (troops/ports vs statement vs
+# support). Variant selection hashes the player's line.
+# ---------------------------------------------------------------------------
+
+_LEADER_LINE_RE = re.compile(
+    r"you are roleplaying as the (.+?) of "
+    r"(us|france|germany|poland|russia|ukraine|ireland) in a crisis simulation"
+)
+
+# country -> tone -> variants. Missing tones fall back to "general".
+_DIPLOMACY_VOICES = {
+    "ireland": {
+        "military": [
+            ("Prime Minister, I'll be straight with you, as a friend: Irish "
+             "neutrality isn't something I can set aside, even now. Ports and "
+             "bases for military use are off the table. What I can offer is "
+             "Shannon for humanitarian flights, and every diplomatic channel "
+             "Dublin has."),
+            ("Ah, now - you know I can't send soldiers or open our ports to "
+             "warships. The Dáil would have my head, and rightly so. But "
+             "Ireland will help with the human side of this: refugees, medical "
+             "support, quiet diplomacy wherever it's useful."),
+        ],
+        "statement": [
+            ("We can certainly say something, Prime Minister, though you'll "
+             "understand it will be worded carefully - concern, de-escalation, "
+             "support for international law. Neutral language from a neutral "
+             "country, but the warmth between our islands will be plain enough."),
+        ],
+        "general": [
+            ("Prime Minister, it's good to hear your voice, truly - though I "
+             "wish the circumstances were kinder. Ireland is watching this with "
+             "real concern. We're neutral, you know that, but neutral doesn't "
+             "mean indifferent. Tell me what you're thinking, and I'll tell you "
+             "honestly what Dublin can and cannot do."),
+            ("I won't pretend we aren't worried over here - your crisis washes "
+             "up on our shores too, one way or another. We can't join any "
+             "military effort, but if you need a back channel or an honest "
+             "broker, Ireland's door is open."),
+            ("Between the two of us, Prime Minister, half my cabinet is asking "
+             "how close this comes to Irish airspace. We'll support you every "
+             "way a neutral country can - just don't ask me for what I can't "
+             "give."),
+        ],
+    },
+    "us": {
+        "support": [
+            ("Prime Minister, we're with you - but let's be clear about what "
+             "that means. Article 5 is for an armed attack, and my lawyers tell "
+             "me we're not there yet. Give me hard attribution I can take to "
+             "Congress and we'll talk about the next step. Meanwhile, what are "
+             "you putting on the table?"),
+            ("Look, America stands by its allies, you know that. But I need "
+             "something to work with here - burden-sharing, intelligence, a "
+             "concrete plan. If Europe steps up, we step up. That's the deal."),
+        ],
+        "military": [
+            ("You want assets, I want clarity. The carrier group can move, but "
+             "I'm not committing American forces to a shooting war on ambiguous "
+             "intelligence. Show me the evidence chain and we'll surge what you "
+             "need."),
+        ],
+        "general": [
+            ("Alright, Prime Minister, give it to me straight - what's your "
+             "play, and what do you need from us? I've got Congress asking why "
+             "Europe can't handle its own backyard, and my planners want to be "
+             "looking at the Pacific. Convince me."),
+            ("We're tracking everything you're tracking, probably more. The "
+             "question isn't whether America supports Britain - it's what this "
+             "costs and who pays. Let's keep this practical."),
+            ("I'll be honest with you: half this town wants to stay out of it, "
+             "and half wants to sail the Sixth Fleet up the Channel. Keep your "
+             "response tight and defensible and I can hold the middle together."),
+        ],
+    },
+    "france": {
+        "support": [
+            ("France stands with Britain, naturally. But permit me an "
+             "observation: if the answer to every European crisis is to "
+             "telephone Washington, then Europe has learned nothing. Let us "
+             "build a response that is ours - European capability, European "
+             "resolve - and the Americans may join it."),
+        ],
+        "general": [
+            ("Ah, Prime Minister. The situation is grave, but graver still "
+             "would be a Europe that cannot answer for its own security. I "
+             "propose we coordinate directly - joint patrols, shared "
+             "intelligence, a European framework with NATO alongside it, not in "
+             "front of it."),
+            ("You will forgive me if I think aloud: Moscow tests not Britain, "
+             "but Europe entire. The response must be measured, sophisticated - "
+             "escalation is a game the crude play. France offers you "
+             "partnership, on the understanding that Europe leads."),
+            ("France is with you, of course. But let us be precise about the "
+             "architecture of this response. Strategic autonomy is not a "
+             "slogan, Prime Minister - it is the difference between a Europe "
+             "that acts and one that waits."),
+        ],
+    },
+    "germany": {
+        "military": [
+            ("Prime Minister, I must be honest: military measures are extremely "
+             "difficult for us. My coalition would not survive a deployment "
+             "vote taken in haste, and our constitutional constraints are real. "
+             "Let us exhaust Article 4 consultations first - properly, "
+             "collectively."),
+        ],
+        "support": [
+            ("Germany supports you, but you must understand my position. Half "
+             "of German industry is watching the gas price, and half my "
+             "coalition is watching the other half. I can deliver consensus, "
+             "sanctions, patience - I cannot deliver boldness overnight."),
+        ],
+        "general": [
+            ("Prime Minister, thank you for consulting us before acting - it "
+             "matters. We must proceed by the book: NATO consultations, EU "
+             "coordination, consensus at each step. Germany's support is solid, "
+             "but it must be built properly or it will not hold."),
+            ("I will speak plainly, between us: our energy exposure is severe, "
+             "and my coalition partners are nervous. Germany will not block a "
+             "firm collective response, but I need process, evidence, and time "
+             "to bring my government with me."),
+            ("This is a grave situation, and gravity demands care. We support "
+             "de-escalation where possible and defence where necessary - in "
+             "that order. Please, no surprises; every unilateral step makes my "
+             "task in Berlin harder."),
+        ],
+    },
+    "poland": {
+        "military": [
+            ("Whatever you need, Prime Minister - airfields, ports, logistics "
+             "corridors, they are yours. Poland has been preparing for this day "
+             "for twenty years. Base your aircraft with us, stage through "
+             "Gdansk, and let Moscow see that NATO's flank holds."),
+        ],
+        "support": [
+            ("Poland is with you completely - and I ask only that Britain not "
+             "lose its nerve. Push for Article 4 today and put Article 5 on the "
+             "table. Every day of hesitation, Moscow reads as weakness. We know "
+             "them; we have always known them."),
+        ],
+        "general": [
+            ("Prime Minister, we warned the West for years, and now it is "
+             "here. Poland stands with Britain without conditions. Tell me what "
+             "you need - basing, logistics, our voice at NATO - and it is done."),
+            ("Good that you called. While Berlin drafts communiqués, Poland "
+             "acts. Our eastern radars are yours, our airspace is open to "
+             "allied movements, and my government will back the strongest "
+             "response NATO will bear."),
+            ("Do not let them do to you what they did to others by inches, "
+             "Prime Minister. Strength now is the cheapest option on the table. "
+             "Poland offers full support - and asks that Britain lead from the "
+             "front."),
+        ],
+    },
+    "russia": {
+        "general": [
+            ("Prime Minister, I will convey your words to Moscow, though I "
+             "doubt they will improve the mood there. The Russian Federation "
+             "has attacked no one. It is British provocation, and NATO's, that "
+             "brings us to this point - and provocations have consequences."),
+            ("You repeat accusations without evidence. Russia conducts lawful "
+             "exercises in international waters; your response has been "
+             "hysteria and escalation. I would advise the United Kingdom, most "
+             "sincerely, to step back before events acquire their own logic."),
+            ("These are serious charges, Prime Minister, delivered with "
+             "remarkably little proof. Moscow denies them entirely. But I note "
+             "them carefully - as I note every British deployment. Nothing you "
+             "do goes unobserved."),
+        ],
+    },
+    "ukraine": {
+        "general": [
+            ("Prime Minister, we have seen this film before - the denials, the "
+             "'exercises', the outrage at being accused. It is the same "
+             "playbook they used on us. Do not wait for perfect proof; by then "
+             "the next phase has already begun. Ukraine will share everything "
+             "we have."),
+            ("Listen to me as a friend who has paid for this knowledge: they "
+             "escalate when you hesitate and pause when you are firm. Whatever "
+             "you decide, decide it quickly and together with your allies. Our "
+             "intelligence services are at your disposal."),
+            ("We stand with Britain absolutely. And I must say what others "
+             "will not: some of your allies will counsel patience because the "
+             "missiles are not falling on them. We know how that story ends. "
+             "Move fast, stay united, and do not negotiate from fear."),
+        ],
+    },
+}
+
+_DIPLOMACY_DEFAULT = {
+    "general": [
+        ("Prime Minister, thank you for the call. My government is following "
+         "events closely and consulting with partners. We would welcome any "
+         "evidence you can share through official channels, and we will "
+         "coordinate our response accordingly."),
+        ("We appreciate the United Kingdom keeping us informed. Our position "
+         "for now is one of concern and careful watching - please keep this "
+         "channel open as the situation develops."),
+    ],
+}
+
+
+def _diplomacy_tone(message_lower: str) -> str:
+    """Classify the PM's ask so capitals can react to it plausibly."""
+    if any(w in message_lower for w in (
+            "troop", "soldier", "ship", "port", "base", "basing", "deploy",
+            "military", "forces", "navy", "aircraft")):
+        return "military"
+    if any(w in message_lower for w in (
+            "statement", "public", "announce", "declar", "condemn", "press")):
+        return "statement"
+    if any(w in message_lower for w in (
+            "support", "help", "assist", "commit", "article 5", "stand with",
+            "back us")):
+        return "support"
+    return "general"
+
+
+def _extract_player_line(prompt: str) -> str:
+    """Pull the PM's current line out of a diplomacy prompt, if present."""
+    matches = re.findall(r"uk prime minister:\s*(.+)", prompt, re.IGNORECASE)
+    return matches[-1].strip() if matches else prompt
+
+# ---------------------------------------------------------------------------
+# Mystery mode narratives
+#
+# When a hidden narrative is active, its context block (models/narrative.py
+# to_llm_context) reaches prompts via the context builders and includes a
+# "Crisis Protagonist: <ISO>" line. Detection keys on that line; tells are
+# short clauses appended deterministically to roughly half of the outputs so
+# the deduction loop is playable offline without turning into a headline.
+# ---------------------------------------------------------------------------
+
+_NARRATIVE_PROTAGONISTS = {"rus": "russia", "chn": "china"}
+
+
+def _detect_narrative(prompt_lower: str):
+    """Return 'russia'/'china' if a hidden narrative context block is present."""
+    match = re.search(r"crisis protagonist:\s*([a-z]{2,3})", prompt_lower)
+    if not match:
+        return None
+    return _NARRATIVE_PROTAGONISTS.get(match.group(1))
+
+
+# Advisor Q&A tells, keyed by advisor then narrative.
+_ADVISOR_TELLS = {
+    "nsa": {
+        "china": (" One loose thread troubles me: several of the financial and "
+                  "cyber fingerprints do not route through Moscow at all - they "
+                  "trace east, through Hong Kong infrastructure we associate "
+                  "with Chinese state actors."),
+        "russia": (" If anything, attribution is almost too clean - textbook "
+                   "GRU tradecraft, every fingerprint exactly where we would "
+                   "expect it."),
+    },
+    "foreign": {
+        "china": (" And a small oddity from the diplomatic track: Beijing has "
+                  "gone unusually quiet - not even their standard call for "
+                  "restraint from all sides."),
+        "russia": (" The diplomatic picture matches the intelligence, for once: "
+                   "this is Moscow's operation, prosecuted more or less in the "
+                   "open."),
+    },
+}
+
+# Foreign-leader tells for /call responses (the Russian ambassador excepted).
+_DIPLOMACY_TELLS = {
+    "china": ("One more thing, between us - has anyone in London remarked on "
+              "how quiet Beijing has been through all of this? Not even the "
+              "usual lecture about restraint."),
+    "russia": ("For what it is worth, our own services see Moscow's hand in "
+               "this, and Moscow's alone."),
+}
+
+# International-actor tells (appended to public responses; RUS excepted).
+_ACTOR_TELLS = {
+    "china": (" We are also watching indicators well beyond Moscow - Beijing's "
+              "public silence has been noted."),
+}
+
+# Inject description tells (inserted inside the YAML description block).
+_INJECT_TELLS = {
+    "china": ("  Analysts flag one anomaly: elements of the financing and cyber "
+              "infrastructure behind recent attacks route through commercial "
+              "fronts in Hong Kong rather than known Russian channels."),
+    "russia": ("  Analysts note the operation carries standard Northern Fleet "
+               "planning signatures throughout; attribution is uncontested."),
+}
+
 
 def _detect_advisor(prompt_lower: str):
     """Return the advisor key explicitly addressed by a persona line, if any."""
@@ -329,9 +627,12 @@ class MockDeterministicDriver:
         if "critical omissions check" in prompt_lower:
             return "NO_CONCERN"
 
-        # Inject generation
+        # Inject generation. Under a Mystery narrative the intelligence
+        # assessment carries a subtle attribution tell.
         if "generate the next inject" in prompt_lower:
-            return """```yaml
+            narrative = _detect_narrative(prompt_lower)
+            tell = ("\n" + _INJECT_TELLS[narrative]) if narrative in _INJECT_TELLS else ""
+            return f"""```yaml
 id: turn_002_inject
 title: "Russian Submarine Surfaces Near UK Waters"
 description: |
@@ -340,7 +641,7 @@ description: |
   before submerging. This provocative act was witnessed by civilians and is already spreading on social media.
 
   Intelligence assessment: This is a deliberate show of force designed to intimidate and test UK response.
-  The submarine is part of the larger Northern Fleet deployment.
+  The submarine is part of the larger Northern Fleet deployment.{tell}
 channel: intelligence
 effects:
   - metric: escalation_risk
@@ -348,6 +649,36 @@ effects:
   - metric: domestic_stability
     delta: -3..-5
 ```"""
+
+        # Diplomatic call: the counterpart persona line names the leader and
+        # country, the same way advisor prompts name the addressed advisor.
+        # Must run before advisor detection - the call context mentions cabinet
+        # titles (e.g. the US National Security Advisor) that would otherwise
+        # shadow the foreign counterpart.
+        if "you are roleplaying as the" in prompt_lower:
+            leader_match = _LEADER_LINE_RE.search(prompt_lower)
+            country = leader_match.group(2) if leader_match else None
+            player_line = _extract_player_line(prompt)
+            voices = _DIPLOMACY_VOICES.get(country, _DIPLOMACY_DEFAULT)
+            tone = _diplomacy_tone(player_line.lower())
+            variants = voices.get(tone) or voices["general"]
+            response = variants[_stable_index(player_line, len(variants))]
+
+            # Mystery tell: appended to roughly half the exchanges. The
+            # Russian ambassador never helps with attribution.
+            narrative = _detect_narrative(prompt_lower)
+            if (narrative in _DIPLOMACY_TELLS and country != "russia"
+                    and _stable_index((country or "") + player_line, 2) == 0):
+                response += " " + _DIPLOMACY_TELLS[narrative]
+            return response
+
+        # Diplomatic call outcome assessment (structured format expected)
+        if "assessing the outcome of a diplomatic conversation" in prompt_lower:
+            return ("OUTCOME: NEUTRAL\n"
+                    "ALLIANCE_COHESION_DELTA: 0\n"
+                    "SUMMARY: The call kept the channel open and clarified positions "
+                    "on both sides, without securing commitments beyond continued "
+                    "consultation.")
 
         # International actor simulation (multi-agent adjudication). Requires the
         # structured-format marker so it can't shadow the advisor pushback prompt
@@ -358,6 +689,13 @@ effects:
             variants = _ACTOR_RESPONSES.get(code, _ACTOR_DEFAULT)
             public, private, trust, support, conditions, intel = \
                 variants[_stable_index(prompt, len(variants))]
+
+            # Mystery tell: allied capitals occasionally hint that attribution
+            # is wider than Moscow. Russia's responses stay on script.
+            narrative = _detect_narrative(prompt_lower)
+            if (narrative in _ACTOR_TELLS and code != "RUS"
+                    and _stable_index(code + prompt, 2) == 0):
+                public += _ACTOR_TELLS[narrative]
             return (f"PUBLIC_RESPONSE: {public}\n"
                     "\n"
                     f"PRIVATE_ASSESSMENT: {private}\n"
@@ -380,8 +718,17 @@ effects:
                 # Post-decision reaction: tone follows the assessed quality
                 bucket = _QUALITY_BUCKETS.get(quality_match.group(1), "neutral")
                 return _ADVISOR_REACTIONS[advisor][bucket]
+            question = _extract_question(prompt)
             variants = _ADVISOR_QA[advisor]
-            return variants[_stable_index(_extract_question(prompt), len(variants))]
+            response = variants[_stable_index(question, len(variants))]
+
+            # Mystery tell: intelligence/diplomatic answers occasionally carry
+            # an attribution clause consistent with the hidden narrative.
+            narrative = _detect_narrative(prompt_lower)
+            tells = _ADVISOR_TELLS.get(advisor, {})
+            if narrative in tells and _stable_index(question, 2) == 0:
+                response += tells[narrative]
+            return response
 
         # Legacy keyword fallback for prompts without a persona line
         for key, aliases in _ADVISOR_ALIASES.items():

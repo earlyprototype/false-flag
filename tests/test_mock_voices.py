@@ -8,7 +8,11 @@ Covers the playtest defects around mock-mode identity collapse:
   "<ISO> acknowledges the action";
 - ISO codes map to player-facing country names;
 - markdown emphasis converts to Rich markup instead of leaking asterisks;
-- vibes render with themed glyphs, not emoji.
+- vibes render with themed glyphs, not emoji;
+- foreign leaders on /call speak with distinct national voices and react to
+  the shape of the PM's ask (troops vs statement vs support);
+- Mystery mode narratives colour mock output with subtle deterministic tells
+  (present under the matching narrative, absent otherwise).
 """
 
 from pathlib import Path
@@ -182,6 +186,280 @@ def test_parse_interpretation_handles_inline_fields():
     # Unstructured text parses to nothing (display falls back to raw text)
     empty = parse_interpretation_simple("The PM's plan is broadly sensible.")
     assert not any([empty["summary"], empty["forces"], empty["timeline"], empty["concerns"]])
+
+
+# --- Diplomatic call voices (/call) -----------------------------------------
+
+from models.world import WorldState, Metrics
+
+
+def _world(narrative=None):
+    return WorldState(
+        turn=2, scene=2,
+        metrics=Metrics(escalation_risk=60, domestic_stability=50,
+                        alliance_cohesion=70),
+        flags={}, posture={}, narrative=narrative,
+    )
+
+
+def _narratives():
+    from engine.scenario_loader import load_narrative_configs
+    return {c.narrative_id: c for c in load_narrative_configs("war_game_2025", ROOT)}
+
+
+def _diplo_prompt(country, message, world=None, level="leader", transcript=None):
+    """Build the real diplomacy conversation prompt for a country/level."""
+    from engine.diplomacy import build_diplomatic_conversation_prompt, load_diplomatic_profiles
+
+    profiles = load_diplomatic_profiles(ROOT)
+    profile = profiles["countries"][country][level]
+    return build_diplomatic_conversation_prompt(
+        world or _world(), country, profile, [], message,
+        full_transcript=transcript,
+    )
+
+
+_GENERIC_FALLBACK = "Understood, Prime Minister. I'll provide my assessment based on the current situation."
+
+
+def test_mock_diplomacy_leaders_have_distinct_voices():
+    driver = MockDeterministicDriver()
+    message = "Talk me through where your government stands right now."
+    countries = ["Ireland", "US", "France", "Germany", "Poland"]
+    responses = {
+        c: driver.generate_text(_diplo_prompt(c, message), RNG)
+        for c in countries
+    }
+    assert len(set(responses.values())) == len(countries), (
+        "Leader voices collapsed: " + repr(responses)
+    )
+    for country, response in responses.items():
+        assert response != _GENERIC_FALLBACK, f"{country} fell back to the generic line"
+
+
+def test_mock_diplomacy_deterministic_and_varies():
+    driver = MockDeterministicDriver()
+    message = "Give me your honest read of the situation."
+
+    first = driver.generate_text(_diplo_prompt("Ireland", message), RNG)
+    second = driver.generate_text(_diplo_prompt("Ireland", message), RNG)
+    assert first == second
+
+    messages = [f"Message number {i} about the situation." for i in range(12)]
+    answers = {driver.generate_text(_diplo_prompt("Ireland", m), RNG) for m in messages}
+    assert len(answers) > 1, "Leader never varies the canned response"
+
+
+def test_mock_diplomacy_reacts_to_common_asks():
+    from llm import mock_driver
+
+    driver = MockDeterministicDriver()
+
+    # Ireland asked for military assets invokes neutrality constraints
+    irl = driver.generate_text(
+        _diplo_prompt("Ireland", "Can you send troops and open your ports to the Royal Navy?"),
+        RNG)
+    assert irl in mock_driver._DIPLOMACY_VOICES["ireland"]["military"]
+
+    # Poland asked for military assets leans forward with basing
+    pol = driver.generate_text(
+        _diplo_prompt("Poland", "We need basing and airfields for allied aircraft."),
+        RNG)
+    assert pol in mock_driver._DIPLOMACY_VOICES["poland"]["military"]
+    assert "airfields" in pol.lower()
+
+    # The US hedges when asked for commitment
+    usa = driver.generate_text(
+        _diplo_prompt("US", "Will you commit to Article 5? We need America to stand with us."),
+        RNG)
+    assert usa in mock_driver._DIPLOMACY_VOICES["us"]["support"]
+
+
+def test_mock_diplomacy_unknown_country_uses_default_diplomat():
+    from engine.diplomacy import build_diplomatic_conversation_prompt
+    from llm import mock_driver
+
+    driver = MockDeterministicDriver()
+    prompt = build_diplomatic_conversation_prompt(
+        _world(), "Atlantis", {"title": "Foreign Minister"}, [],
+        "Where does your government stand?")
+    response = driver.generate_text(prompt, RNG)
+    assert response in mock_driver._DIPLOMACY_DEFAULT["general"]
+    assert response != _GENERIC_FALLBACK
+
+
+def test_mock_diplomacy_outcome_assessment_is_structured():
+    from engine.diplomacy import assess_diplomatic_outcome
+
+    driver = MockDeterministicDriver()
+
+    def llm(prompt, rng, **kwargs):
+        return driver.generate_text(prompt, rng)
+
+    assessment, delta = assess_diplomatic_outcome(
+        _world(), "Ireland",
+        [("Taoiseach", "Hello."), ("Prime Minister", "Thank you.")],
+        llm, Random(42))
+    assert "NEUTRAL" in assessment
+    assert delta == 0
+
+
+# --- Mystery mode tells ------------------------------------------------------
+
+_TRANSCRIPT = [f"TURN 1 line {i}" for i in range(12)]
+_PROBE_MESSAGES = [f"Tell me candidly, item {i}, how you read this." for i in range(10)]
+
+
+def _diplo_responses(narrative):
+    driver = MockDeterministicDriver()
+    world = _world(narrative)
+    return [
+        driver.generate_text(
+            _diplo_prompt("France", m, world=world, transcript=_TRANSCRIPT), RNG)
+        for m in _PROBE_MESSAGES
+    ]
+
+
+def test_narrative_reaches_diplomacy_prompt():
+    narratives = _narratives()
+    prompt = _diplo_prompt("France", "Where do you stand?",
+                           world=_world(narratives["CHINA_PROXY_WAR"]),
+                           transcript=_TRANSCRIPT)
+    assert "SECRET NARRATIVE CONTEXT" in prompt
+    assert "Crisis Protagonist: CHN" in prompt
+    # Without a transcript the prompt must not crash, just omit the context
+    bare = _diplo_prompt("France", "Where do you stand?")
+    assert "SECRET NARRATIVE CONTEXT" not in bare
+
+
+def test_diplomacy_tells_differ_by_narrative():
+    narratives = _narratives()
+
+    china = " ".join(_diplo_responses(narratives["CHINA_PROXY_WAR"]))
+    russia = " ".join(_diplo_responses(narratives["RUSSIA_AGGRESSION"]))
+    plain = " ".join(_diplo_responses(None))
+
+    assert "Beijing" in china, "China-proxy runs must hint at Beijing's silence"
+    assert "Beijing" not in russia
+    assert "Moscow's hand" in russia, "Russia runs keep tells conventional"
+    assert "Beijing" not in plain and "Moscow's hand" not in plain
+
+
+def test_diplomacy_tells_are_deterministic():
+    narratives = _narratives()
+    first = _diplo_responses(narratives["CHINA_PROXY_WAR"])
+    second = _diplo_responses(narratives["CHINA_PROXY_WAR"])
+    assert first == second
+
+
+def test_russian_ambassador_never_helps_with_attribution():
+    driver = MockDeterministicDriver()
+    narratives = _narratives()
+    world = _world(narratives["CHINA_PROXY_WAR"])
+    responses = [
+        driver.generate_text(
+            _diplo_prompt("Russia", m, world=world, level="diplomat",
+                          transcript=_TRANSCRIPT), RNG)
+        for m in _PROBE_MESSAGES
+    ]
+    assert all("Beijing" not in r for r in responses)
+
+
+def _advisor_responses(narrative, character_id="national_security_advisor"):
+    from llm.prompts import build_advisor_context
+
+    driver = MockDeterministicDriver()
+    world = _world(narrative)
+    conditions = {
+        "characters": {
+            "national_security_advisor": {"role": "Intelligence Coordinator"},
+            "foreign_secretary": {"role": "Diplomatic Lead"},
+        }
+    }
+    return [
+        driver.generate_text(
+            build_advisor_context(world, conditions, character_id, q, _TRANSCRIPT),
+            RNG)
+        for q in _PROBE_MESSAGES
+    ]
+
+
+def test_advisor_tells_differ_by_narrative():
+    narratives = _narratives()
+
+    china = " ".join(_advisor_responses(narratives["CHINA_PROXY_WAR"]))
+    russia = " ".join(_advisor_responses(narratives["RUSSIA_AGGRESSION"]))
+    plain = " ".join(_advisor_responses(None))
+
+    # Intelligence answers point east under the China proxy narrative...
+    assert "Hong Kong" in china
+    # ...stay conventional under Russia aggression...
+    assert "Hong Kong" not in russia
+    assert "GRU tradecraft" in russia
+    # ...and carry no tells at all outside Mystery mode
+    assert "Hong Kong" not in plain and "GRU tradecraft" not in plain
+
+
+def test_foreign_secretary_notes_beijing_quietness_under_china_proxy():
+    narratives = _narratives()
+    china = " ".join(_advisor_responses(narratives["CHINA_PROXY_WAR"],
+                                        character_id="foreign_secretary"))
+    plain = " ".join(_advisor_responses(None, character_id="foreign_secretary"))
+    assert "Beijing" in china
+    assert "Beijing" not in plain
+
+
+def test_actor_simulation_tells_under_china_proxy():
+    from models.state_actors import load_actors_from_yaml
+
+    narratives = _narratives()
+    system = load_actors_from_yaml(str(ROOT / "data" / "state_actors.yaml"))
+    driver = MockDeterministicDriver()
+
+    def responses_for(code, narrative):
+        actor = system.get_actor(code)
+        context = "World context here."
+        if narrative:
+            context += "\n" + narrative.to_llm_context()
+        return [
+            simulate_actor_response(
+                actor, f"Action {i}: consult allies.", context,
+                driver.generate_text, RNG).public_response
+            for i in range(10)
+        ]
+
+    usa_china = " ".join(responses_for("USA", narratives["CHINA_PROXY_WAR"]))
+    usa_plain = " ".join(responses_for("USA", None))
+    rus_china = " ".join(responses_for("RUS", narratives["CHINA_PROXY_WAR"]))
+
+    assert "Beijing" in usa_china
+    assert "Beijing" not in usa_plain
+    assert "Beijing" not in rus_china, "Russia's actor responses stay on script"
+
+
+def test_inject_tells_present_and_yaml_stays_valid():
+    import yaml as yaml_lib
+    from llm.prompts import build_inject_generation_prompt
+
+    narratives = _narratives()
+    driver = MockDeterministicDriver()
+
+    def inject_for(narrative):
+        world = _world(narrative)
+        prompt = build_inject_generation_prompt(world, 2, {}, None, _TRANSCRIPT)
+        raw = driver.generate_text(prompt, RNG)
+        body = raw.strip().removeprefix("```yaml").removesuffix("```")
+        return yaml_lib.safe_load(body)
+
+    china = inject_for(narratives["CHINA_PROXY_WAR"])
+    russia = inject_for(narratives["RUSSIA_AGGRESSION"])
+    plain = inject_for(None)
+
+    assert "Hong Kong" in china["description"]
+    assert "Hong Kong" not in russia["description"]
+    assert "Northern Fleet planning signatures" in russia["description"]
+    assert "Hong Kong" not in plain["description"]
+    assert "planning signatures" not in plain["description"]
 
 
 def test_mock_pushback_scoped_to_decision_text():

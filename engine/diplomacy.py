@@ -264,11 +264,17 @@ Your assessment:"""
 class DiplomaticEncounter:
     """Stateful manager for a diplomatic conversation (API friendly)."""
     
-    def __init__(self, world: WorldState, country: str, context: Optional[str], root_path: Optional[Path] = None):
+    def __init__(self, world: WorldState, country: str, context: Optional[str], root_path: Optional[Path] = None,
+                 full_transcript: Optional[List[str]] = None):
         self.world = world
         self.country = country
         self.context = context
         self.root_path = root_path
+        # Full game transcript feeds get_diplomatic_context (public events plus
+        # the secret narrative truth); without it the conversation prompt falls
+        # back to a bare turn/escalation stub and Mystery mode never colours
+        # foreign leaders' responses.
+        self.full_transcript = full_transcript
         
         self.profiles = load_diplomatic_profiles(root_path)
         self.access_level, self.profile = check_diplomatic_access(world, country, self.profiles)
@@ -333,7 +339,8 @@ class DiplomaticEncounter:
 
         # Generate response
         prompt = build_diplomatic_conversation_prompt(
-            self.world, self.country, self.profile, self.history, player_message
+            self.world, self.country, self.profile, self.history, player_message,
+            full_transcript=self.full_transcript
         )
         response = llm_generate(prompt, rng, context=LLMContext.DIPLOMACY_CONVERSATION)
         response = response.strip()
@@ -378,7 +385,8 @@ def run_diplomatic_encounter(
     print_fn: Optional[Callable[[str], None]] = None
 ) -> Tuple[List[str], int]:
     """Legacy blocking runner for CLI."""
-    encounter = DiplomaticEncounter(world, country, context, root_path)
+    encounter = DiplomaticEncounter(world, country, context, root_path,
+                                    full_transcript=full_transcript)
 
     if not encounter.active:
         # Surface the in-fiction failure (unknown country / no access) —
