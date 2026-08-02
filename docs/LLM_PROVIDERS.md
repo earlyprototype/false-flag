@@ -90,6 +90,18 @@ Runs entirely on your machine. No keys, no quotas, works offline.
    > start reasoning from an incomplete briefing with no visible error.
    > If calls run long on modest hardware, also raise the request timeout:
    > `OPENAI_COMPAT_TIMEOUT=300` (seconds; default 60).
+
+   **Bigger brains than your RAM:** MoE models activate only a few billion
+   parameters per token, and [BigMoeOnEdge](https://github.com/Helldez/BigMoeOnEdge)
+   streams the routed experts from disk so the model no longer has to fit in
+   memory. Measured on a 4-core, 15 GB, GPU-less VM with this game's actual
+   prompts: Qwen3-30B-A3B (18.5 GB — un-loadable in plain Ollama on that box)
+   ran at 3.4–5.4 tok/s generation with a 3,495-token briefing prefilling at
+   18.4 tok/s (~3 min). Roughly double the per-call latency of a dense 3B, for
+   a different class of advisor. Its `bmoe-cli` is a CLI rather than an
+   OpenAI-compatible server, so wiring it to the game needs a small shim
+   around its `--session` JSON mode; worthwhile only where quality outranks
+   turn speed.
 2. Pull a model. The game's prompts are modest, so an 8–14B instruct model is
    plenty:
 
