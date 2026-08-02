@@ -35,7 +35,8 @@ class GameManager:
         self.seed = seed
         self.rng = Random(seed)
         
-        self.root_path = Path(__file__).resolve().parents[1]
+        from engine.persistence import _default_root
+        self.root_path = _default_root()
         self.transcript: List[str] = []
         self.active_encounter = None
         

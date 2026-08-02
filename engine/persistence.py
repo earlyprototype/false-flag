@@ -55,7 +55,7 @@ def save_game(
         root_path = _default_root()
 
     saves_dir = root_path / "saves"
-    saves_dir.mkdir(exist_ok=True)
+    saves_dir.mkdir(parents=True, exist_ok=True)
 
     save_path = saves_dir / f"{scenario_id}_{save_name}.json"
 

@@ -248,7 +248,8 @@ _LEADER_LINE_RE = None
 def _leader_line_re():
     global _LEADER_LINE_RE
     if _LEADER_LINE_RE is None:
-        countries = "|".join(sorted(_DIPLOMACY_VOICES, key=len, reverse=True))
+        countries = "|".join(re.escape(country) for country
+                             in sorted(_DIPLOMACY_VOICES, key=len, reverse=True))
         _LEADER_LINE_RE = re.compile(
             r"you are roleplaying as the (.+?) of "
             r"(" + countries + r") in a crisis simulation"
@@ -627,7 +628,12 @@ class MockDeterministicDriver:
         if "pushback triggers" in prompt_lower:
             decided = re.search(r'the pm has decided:\s*"(.*?)"', prompt,
                                 re.IGNORECASE | re.DOTALL)
-            action_text = (decided.group(1) if decided else prompt).lower()
+            # Fail closed: if the decision can't be extracted, don't scan the
+            # whole prompt - its context mentions deploy/carrier every turn
+            # and would fire spurious pushback.
+            if not decided:
+                return "NO PUSHBACK"
+            action_text = decided.group(1).lower()
 
             if "nuclear" in action_text:
                 return ("Attorney General: Prime Minister, nuclear first-use without imminent existential threat "
