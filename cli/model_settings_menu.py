@@ -132,17 +132,36 @@ def show_presets_menu(config: ModelConfig):
     return choice != "5"
 
 
+def _active_provider() -> str:
+    """Return the currently configured LLM provider name."""
+    try:
+        from llm.router import _get_provider
+        return _get_provider()
+    except Exception:
+        return "unknown"
+
+
 def model_settings_menu():
     """Main model settings menu."""
     config = get_model_config()
-    
+    provider = _active_provider()
+
     while True:
         console.clear()
         console.print(Panel.fit(
             "[bold cyan]LLM Model Settings[/bold cyan]\n"
-            "Configure which systems use Flash (fast/cheap) vs Pro (sophisticated/expensive)",
+            "Configure which systems use Flash (fast/cheap) vs Pro (sophisticated/expensive)\n"
+            f"Active provider: [bold]{provider}[/bold] "
+            "(mock / gemini / openai_compat - see docs/LLM_PROVIDERS.md)",
             border_style="cyan"
         ))
+
+        if provider == "openai_compat":
+            console.print(
+                "[yellow]Note:[/yellow] the Flash/Pro tiers below only affect the "
+                "Gemini provider. With openai_compat every call uses the single "
+                "OPENAI_COMPAT_MODEL from your config.\n"
+            )
         
         display_current_config(config)
         

@@ -61,18 +61,19 @@ No API key and no config file needed. With nothing configured, the game defaults
 
 ### Real AI advisors (recommended for actual play)
 
-Mock mode proves the game runs, but it answers from a small set of canned advisor lines rather than reasoning about your specific decision. For the real experience:
+Mock mode proves the game runs (and each advisor now has their own canned voice), but it doesn't reason about your specific decision. For the real experience, point the game at any OpenAI-compatible LLM endpoint — hosted or local:
 
-1. Install the Gemini SDK: `.\.venv\Scripts\pip.exe install google-generativeai`
-2. Get a free API key from [Google AI Studio](https://aistudio.google.com/apikey)
-3. `copy config.example.py config.py`, then edit `config.py`:
+1. `copy config.example.py config.py`
+2. Uncomment one preset block in `config.py` — **Groq** (free hosted, no card), **OpenRouter** (free `:free` models), or **Ollama** (free, runs locally, no key at all):
    ```python
-   GOOGLE_API_KEY = "AIza..."
-   LLM_PROVIDER = "gemini"
+   LLM_PROVIDER = "openai_compat"
+   OPENAI_COMPAT_BASE_URL = "https://api.groq.com/openai/v1"
+   OPENAI_COMPAT_API_KEY = "gsk_..."
+   OPENAI_COMPAT_MODEL = "llama-3.3-70b-versatile"
    ```
-4. Run the same launch command again.
+3. Run the same launch command again.
 
-See [docs/GEMINI_SETUP.md](docs/GEMINI_SETUP.md) for detailed setup instructions.
+See [docs/LLM_PROVIDERS.md](docs/LLM_PROVIDERS.md) for the full provider comparison (free-tier status as of Aug 2026), recommended models, and the Ollama local walkthrough. The original Google Gemini path still works ([docs/GEMINI_SETUP.md](docs/GEMINI_SETUP.md)), but its free tier is now heavily restricted.
 
 ## How to Play
 
