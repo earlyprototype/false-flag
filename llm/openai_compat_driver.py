@@ -27,7 +27,9 @@ from typing import Optional
 import requests
 
 # Seconds before a hung request is abandoned (matches the Gemini driver).
-REQUEST_TIMEOUT = 60
+# Overridable for slow local backends — CPU-only Ollama inference routinely
+# needs longer than a hosted endpoint.
+REQUEST_TIMEOUT = int(os.environ.get("OPENAI_COMPAT_TIMEOUT", "60"))
 
 
 def _truncate(text: str, limit: int = 300) -> str:
