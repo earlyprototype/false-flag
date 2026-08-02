@@ -7,6 +7,7 @@ Supports:
 - Stochastic inject generation
 """
 
+import re
 import typer
 from pathlib import Path
 from random import Random
@@ -22,12 +23,20 @@ from cli.keyboard import key_pressed, wait_for_key
 
 # THEN import Rich (after msvcrt is loaded)
 from cli.rich_ui import (
-    console, phase_header, metrics_table,
+    console, metrics_table,
     advisor_menu_panel, diplomatic_contacts_table,
     resources_tables, command_menu, metrics_guide_panel,
     RICH_ENABLED
 )
-from cli.theme import theme_manager, SYMBOLS, BOX, WIDTH
+from cli.theme import theme_manager, SYMBOLS
+from cli import aesthetics as ae
+from cli.cinematics import (
+    play_title_sequence,
+    play_scene_stamp,
+    play_turn_transition,
+    play_debrief_reveal,
+    setup_banner,
+)
 from cli.formatters import format_advisor_response
 # strip_effect_boxes is re-exported here for backwards compatibility
 # (external code may still do `from cli.main import strip_effect_boxes`).
@@ -144,7 +153,7 @@ def display_critical_concerns_with_selection(critical_concerns: list) -> tuple:
         console.print(f"  {rich_escape(concern)}")
         console.print(f"  [{COLORS['primary']}]→ RECOMMENDATION: \"{rich_escape(recommendation)}\"[/{COLORS['primary']}]")
         console.print("")
-        console.print(f"[{COLORS['muted']}]" + "─" * 40 + f"[/{COLORS['muted']}]")
+        console.print(ae.sonar_divider(seed=f"concern-{idx}", width=40))
         console.print("")
     
     # Get selection
@@ -222,10 +231,7 @@ def select_scenario_variant(scenario_id: str) -> str:
     
     typer.clear()
     console.print("")
-    console.print(f"[{COLORS['danger']} bold]# FALSE FLAG: THE WARGAME[/{COLORS['danger']} bold]")
-    console.print("=" * 79)
-    console.print("")
-    console.print(f"[{COLORS['primary']} bold]SELECT SCENARIO[/{COLORS['primary']} bold]")
+    console.print(setup_banner("SELECT SCENARIO"))
     console.print("")
     
     # Load available scenarios
@@ -293,10 +299,7 @@ def select_play_mode() -> str:
     
     typer.clear()
     console.print("")
-    console.print(f"[{COLORS['danger']} bold]# FALSE FLAG: THE WARGAME[/{COLORS['danger']} bold]")
-    console.print("=" * 79)
-    console.print("")
-    console.print(f"[{COLORS['primary']} bold]SELECT GAMEPLAY MODE[/{COLORS['primary']} bold]")
+    console.print(setup_banner("SELECT GAMEPLAY MODE"))
     console.print("")
     
     modes = [
@@ -373,10 +376,7 @@ def select_difficulty(scenario_id: str) -> str:
     
     typer.clear()
     console.print("")
-    console.print(f"[{COLORS['danger']} bold]# FALSE FLAG: THE WARGAME[/{COLORS['danger']} bold]")
-    console.print("=" * 79)
-    console.print("")
-    console.print(f"[{COLORS['primary']} bold]SELECT DIFFICULTY[/{COLORS['primary']} bold]")
+    console.print(setup_banner("SELECT DIFFICULTY"))
     console.print("")
     console.print("Difficulty affects scenario effect magnitudes (crisis intensity).")
     console.print("Player action impacts remain the same across all difficulties.")
@@ -459,10 +459,7 @@ def select_narrative(scenario_id: str) -> Optional[NarrativeConfig]:
     
     typer.clear()
     console.print("")
-    console.print(f"[{COLORS['danger']} bold]# FALSE FLAG: THE WARGAME[/{COLORS['danger']} bold]")
-    console.print("=" * 79)
-    console.print("")
-    console.print(f"[{COLORS['primary']} bold]SELECT GAME TYPE[/{COLORS['primary']} bold]")
+    console.print(setup_banner("SELECT GAME TYPE"))
     console.print("")
     console.print("Choose how you want to experience the crisis:")
     console.print("")
@@ -516,6 +513,73 @@ def select_narrative(scenario_id: str) -> Optional[NarrativeConfig]:
             console.print(f"[{COLORS['danger']}]Invalid input. Please enter a number.[/{COLORS['danger']}]")
 
 
+# Coordinates/timestamps for the intro scene cards, keyed by scene numeral.
+# Titles are parsed from assets/placeholders/intro_stage.md so editing the
+# asset stays authoritative; the geography is presentation-layer flavour.
+_INTRO_SCENE_META = {
+    "I": ("69°04'N 033°25'E", "02 OCT 25 │ 03:15 LOCAL ── 72 HRS EARLIER"),
+    "II": ("51°38'N 000°28'W", "05 OCT 25 │ 16:45 LONDON"),
+    "III": ("51°30'N 000°07'W", "05 OCT 25 │ 17:00 LONDON"),
+}
+
+_SCENE_HEADER_RE = re.compile(r"SCENE\s+([IVXLC]+)\s*:\s*(.+)")
+
+_RULE_HEADER_RE = re.compile(r"=+\s*(.*?)\s*=+")
+
+
+def print_briefing_line(line: str) -> None:
+    """Print one briefing line, reskinning plain ``=== TITLE ===`` markers.
+
+    Scenario/inject text still carries ad-hoc ``===`` rules; on screen they
+    become sonar-language section banners so the whole session speaks one
+    visual language. (Transcript/save copies keep the original lines.)
+    """
+    stripped = line.strip()
+    if stripped.startswith("===") or (stripped and set(stripped) <= {"-"}):
+        match = _RULE_HEADER_RE.fullmatch(stripped)
+        if match and match.group(1):
+            console.print(ae.classification_strip(label=match.group(1),
+                                                  seed=match.group(1),
+                                                  edge="bare"))
+        return  # bare rules: the banner language replaces them
+    if "[/" in line and "[" in line:
+        console.print(line)
+    else:
+        typer.echo(line)
+
+
+def _parse_intro_scene(scene_lines: list) -> tuple:
+    """Split one intro section into (body_lines, scene_header or None).
+
+    Consumes the ``## SCENE N: TITLE`` line (and its date/time subheading)
+    into a header tuple for the animated scene card; drops the ``====``
+    rules and the top-level ``#`` title (the title sequence replaced it).
+    """
+    header = None
+    body = []
+    for line in scene_lines:
+        stripped = line.strip()
+        if "===" in stripped:
+            continue
+        if stripped.startswith("## SCENE"):
+            match = _SCENE_HEADER_RE.match(stripped[2:].strip())
+            if match:
+                numeral, title = match.group(1), match.group(2).strip()
+                location, timestamp = _INTRO_SCENE_META.get(numeral, ("", ""))
+                header = (numeral, title, location, timestamp)
+                continue
+        if header is not None and stripped.startswith("## ") and not body:
+            continue  # date/time subheading - shown on the scene card
+        if stripped.startswith("# "):
+            continue  # plain-text masthead - replaced by the title sequence
+        body.append(line)
+    while body and not body[0].strip():
+        body.pop(0)
+    while body and not body[-1].strip():
+        body.pop()
+    return body, header
+
+
 @app.command(rich_help_panel="GAMEPLAY")
 def play(
     scenario: str = typer.Option("war_game_2025", help="Scenario identifier"),
@@ -542,6 +606,13 @@ def play(
         typer.echo("[Flash-only mode enabled - using gemini-2.5-flash for all calls]")
         typer.echo("")
     
+    # Operation Tuman title sequence: fog banks condense into the FALSE
+    # FLAG masthead, then the secure terminal boots. Any key skips; on
+    # non-TTY stdout the finished frame prints instantly with no sleeps.
+    typer.clear()
+    play_title_sequence(console, seed=seed)
+    wait_for_space("Press SPACE (or Enter) to continue...")
+
     # If no variant specified and not loading a save, show selection menu
     if variant is None and load_save is None:
         variant = select_scenario_variant(scenario)
@@ -571,12 +642,12 @@ def play(
     # Display intro with pauses
     if intro_only or load_save is None:
         intro_lines = get_intro_lines(200)
-        
+
         # Split intro into sections (scenes)
         # Scene markers are lines with "## SCENE"
         current_section = []
         sections = []
-        
+
         for line in intro_lines:
             if "===" in line and current_section:
                 # Start of new scene - save previous and start new
@@ -584,19 +655,29 @@ def play(
                 current_section = [line]
             else:
                 current_section.append(line)
-        
+
         # Only add final section if it has content beyond just a separator
         if current_section and len([l for l in current_section if l.strip() and "===" not in l]) > 0:
             sections.append(current_section)
-        
-        # Display each scene
-        for i, scene in enumerate(sections):
-            # Clear screen at start of EVERY scene (including title)
+
+        # Display each scene: animated scene card, then the body streamed
+        # through the existing typewriter
+        for scene in sections:
+            body, scene_header = _parse_intro_scene(scene)
+            if not body and scene_header is None:
+                # e.g. the bare title section - the title sequence covers it
+                continue
             typer.clear()
-            
+            if scene_header is not None:
+                numeral, scene_title, location, timestamp = scene_header
+                play_scene_stamp(numeral, scene_title, location, timestamp,
+                                 seed=f"intro-scene-{numeral}",
+                                 console=console)
+                typer.echo("")
+
             skip_rest = False
             prev_line_blank = False
-            for line in scene:
+            for line in body:
                 if skip_rest:
                     # User pressed SPACE - print remaining lines instantly
                     # Check if line has Rich markup
@@ -605,32 +686,26 @@ def play(
                     else:
                         typer.echo(line)
                     continue
-                    
-                if "===" in line:
-                    # Structural element - print instantly
-                    typer.echo(line)
-                    prev_line_blank = False
-                elif line.strip() == "":
+
+                if line.strip() == "":
                     # Blank line
                     if not prev_line_blank:
                         typer.echo("")
                     prev_line_blank = True
-                elif line.strip().startswith("# "):
-                    # Title - print instantly
-                    typer.echo(line)
-                    prev_line_blank = False
                 elif line.strip().startswith("## YOUR ROLE"):
-                    # Section header - print instantly
-                    typer.echo(line)
+                    # Section header in the sonar language
+                    console.print(ae.phase_banner("YOUR ROLE"))
                     prev_line_blank = False
                 else:
                     # All other text (narrative)
                     # Check if line contains Rich markup
                     if "[/" in line and "[" in line:
-                        # Has Rich markup - use console.print with brief pause
-                        import time
+                        # Has Rich markup - print whole with a brief pause
+                        # (pause is invisible on non-TTY, so skip it there)
                         console.print(line)
-                        time.sleep(0.3)  # Brief pause for readability
+                        if sys.stdout.isatty():
+                            import time
+                            time.sleep(0.3)
                         prev_line_blank = False
                     else:
                         # Plain text - stream it
@@ -638,11 +713,11 @@ def play(
                         if skipped:
                             skip_rest = True  # Skip rest of scene
                         prev_line_blank = False
-            
+
             # Pause after each scene
             typer.echo("")
             wait_for_space("Press SPACE (or Enter) to continue...")
-        
+
         typer.echo("")
     
     if intro_only:
@@ -766,12 +841,15 @@ def play(
                 # First time reaching stochastic content - show transition message
                 stochastic_injects = True
                 console.print("")
-                console.print(f"[{COLORS['primary']}]" + "=" * 79 + f"[/{COLORS['primary']}]")
-                console.print(f"[{COLORS['primary']} bold]ENTERING DYNAMIC SCENARIO GENERATION[/{COLORS['primary']} bold]")
-                console.print(f"[{COLORS['primary']}]" + "=" * 79 + f"[/{COLORS['primary']}]")
+                console.print(ae.classification_strip(
+                    label="ENTERING DYNAMIC SCENARIO GENERATION",
+                    seed=f"stochastic-{world.turn}", edge="top"))
                 console.print("")
                 console.print("The scripted scenario has concluded. From this point forward,")
                 console.print("events will be dynamically generated based on your decisions.")
+                console.print("")
+                console.print(ae.classification_strip(
+                    seed=f"stochastic-{world.turn}", edge="bottom"))
                 console.print("")
                 wait_for_space("Press SPACE (or Enter) to continue...")
                 console.print("")
@@ -829,15 +907,25 @@ def play(
         # players never see raw asterisks (**GCHQ Assessment:** etc.)
         briefing_display = [markdown_to_rich(line) for line in briefing_display]
 
+        # The animated turn banner replaces the transcript's plain
+        # ``==== TURN N ====`` header on screen (it stays in the transcript
+        # for saves and LLM context)
+        briefing_display = [
+            line for line in briefing_display
+            if not (line.strip() and set(line.strip()) == {"="})
+            and not re.fullmatch(r"TURN \d+", line.strip())
+        ]
+
         # Clear screen and display briefing at top
         # BUT: if this is Turn 1 of a new game, don't clear (flows from intro)
         if not (first_briefing_as_intro and world.turn == 1):
             typer.clear()
         else:
-            # First briefing of new game - add separator but don't clear
+            # First briefing of new game - flow on from the intro
             typer.echo("")
-            typer.echo("=" * 79)
-            typer.echo("")
+        # Fog rolls through the turn banner region and clears
+        play_turn_transition(world.turn, console=console)
+        typer.echo("")
 
         # Split briefing into scene-setting and actual briefing
         # Look for "The National Security Advisor" or similar transition line
@@ -858,33 +946,26 @@ def play(
                 
             if skip_rest:
                 # User pressed SPACE - print rest instantly
-                # Check if line has Rich markup
-                if "[/" in line and "[" in line:
-                    console.print(line)
-                else:
-                    typer.echo(line)
+                print_briefing_line(line)
                 continue
-            
-            # Scroll the turn number header
-            if i == 1 and line.strip().startswith("TURN"):
-                skipped = scroll_text(line, delay=0.05)
-                if skipped:
-                    skip_rest = True
+
             # Stream narrative text (not structural elements)
-            elif line.strip() and not line.strip().startswith("==="):
+            if line.strip() and not line.strip().startswith("==="):
                 # Check if line contains Rich markup
                 if "[/" in line and "[" in line:
-                    # Has Rich markup - use console.print with brief pause
-                    import time
+                    # Has Rich markup - print whole with a brief pause
+                    # (pause is invisible on non-TTY, so skip it there)
                     console.print(line)
-                    time.sleep(0.3)
+                    if sys.stdout.isatty():
+                        import time
+                        time.sleep(0.3)
                 else:
                     # Plain text - stream it
                     skipped = scroll_text(line, delay=0.02)
                     if skipped:
                         skip_rest = True
             else:
-                typer.echo(line)
+                print_briefing_line(line)
         
         # Pause after scene-setting (only if we found a split point)
         if scene_setting_end > 0:
@@ -894,11 +975,7 @@ def play(
             # Display rest of briefing (the actual intelligence report)
             typer.echo("")
             for i in range(scene_setting_end, len(briefing_display)):
-                line = briefing_display[i]
-                if "[/" in line and "[" in line:
-                    console.print(line)
-                else:
-                    typer.echo(line)
+                print_briefing_line(briefing_display[i])
         
         transcript.extend(briefing_lines)
         
@@ -907,8 +984,16 @@ def play(
             from engine.intelligence import generate_intelligence_briefing
             intel_lines = generate_intelligence_briefing(narrative_state, world, rng, detailed=True)
             typer.echo("")
+            intel_seed = f"intel-{world.turn}"
+            console.print(ae.classification_strip(seed=intel_seed, edge="top"))
             for line in intel_lines:
+                stripped = line.strip()
+                if stripped and set(stripped) <= {"═"}:
+                    continue  # classification strips replace the plain rules
+                if "Classification:" in stripped:
+                    continue  # the strip itself carries the classification
                 console.print(line)
+            console.print(ae.classification_strip(seed=intel_seed, edge="bottom"))
             typer.echo("")
         
         # Pause before discussion phase
@@ -930,12 +1015,12 @@ def play(
             typer.echo("")  # Buffer line BEFORE Rich output
         
             if RICH_ENABLED:
-                console.print(phase_header("DISCUSSION", world.turn))
+                console.print(ae.phase_banner("DISCUSSION", world.turn))
                 typer.echo("")
                 typer.echo("  Ask questions or type /decide when ready")
                 console.print(f"  [{COLORS['muted']}]Quick: /status  /menu  /advise  /resources  /intel  /llm[/{COLORS['muted']}]")
                 typer.echo("")
-                console.print(f"[{COLORS['muted']}]" + "─" * 79 + f"[/{COLORS['muted']}]")
+                console.print(ae.sonar_divider(seed=f"discussion-{world.turn}"))
             else:
                 console.print("=" * 79)
                 console.print(f"[{COLORS['accent']} bold]TURN {world.turn}: DISCUSSION PHASE[/{COLORS['accent']} bold]")
@@ -993,12 +1078,12 @@ def play(
                         # Refresh current view
                         typer.clear()
                         if RICH_ENABLED:
-                            console.print(phase_header("DISCUSSION", world.turn))
+                            console.print(ae.phase_banner("DISCUSSION", world.turn))
                             typer.echo("")
                             typer.echo("  Ask questions or type /decide when ready")
                             console.print(f"  [{COLORS['muted']}]Quick: /status  /menu  /advise  /resources  /intel  /llm[/{COLORS['muted']}]")
                             typer.echo("")
-                            console.print(f"[{COLORS['muted']}]" + "─" * 79 + f"[/{COLORS['muted']}]")
+                            console.print(ae.sonar_divider(seed=f"discussion-{world.turn}"))
                     else:
                         console.print("[bold red]Invalid selection[/bold red]")
                     continue
@@ -1006,9 +1091,7 @@ def play(
                 if user_input.lower() in ["/status advisors", "status advisors"]:
                     # Advisor trust levels and relationships (works in all modes)
                     typer.echo("")
-                    typer.echo("═" * 60)
-                    typer.echo("ADVISOR ATTITUDES")
-                    typer.echo("═" * 60)
+                    console.print(ae.phase_banner("ADVISOR ATTITUDES"))
                     typer.echo("")
                     for line in advisor_attitude_lines(narrative_state, include_stance=True):
                         typer.echo(line)
@@ -1025,9 +1108,7 @@ def play(
                             console.print(metrics_table(world))
                         elif play_mode == "immersive":
                             # Show vibes
-                            typer.echo("═" * 60)
-                            typer.echo("SITUATION ASSESSMENT")
-                            typer.echo("═" * 60)
+                            console.print(ae.phase_banner("SITUATION ASSESSMENT"))
                             typer.echo("")
                             vibes = narrative_state.get_situation_vibes()
                             for vibe in vibes:
@@ -1035,17 +1116,15 @@ def play(
                             typer.echo("")
 
                             # Show character attitudes
-                            typer.echo("═" * 60)
-                            typer.echo("ADVISOR ATTITUDES")
-                            typer.echo("═" * 60)
+                            console.print(ae.phase_banner("ADVISOR ATTITUDES"))
                             typer.echo("")
                             for line in advisor_attitude_lines(narrative_state):
                                 typer.echo(line)
                         elif play_mode == "emergent":
                             # Show narrative summary
-                            typer.echo("═" * 60)
+                            console.print(ae.sonar_divider(seed=f"summary-{world.turn}"))
                             typer.echo(narrative_state.situation_summary)
-                            typer.echo("═" * 60)
+                            console.print(ae.sonar_divider(seed=f"summary-{world.turn}-b"))
                     
                         # Show active flags if any
                         if world.flags:
@@ -1162,14 +1241,12 @@ def play(
 
                     typer.echo("")
 
+                    advise_seed = f"advise-{world.turn}"
                     if RICH_ENABLED:
-                        # Top border
-                        box = BOX["round"]
-                        title = " COBRA ADVISORY PANEL "
-                        title_len = len(title)
-                        left_pad = (WIDTH - title_len - 2) // 2
-                        right_pad = WIDTH - title_len - left_pad - 2
-                        console.print(f"[{COLORS['accent']} bold]{box['tl']}{box['h'] * left_pad}{title}{box['h'] * right_pad}{box['tr']}[/{COLORS['accent']} bold]")
+                        # Top strip
+                        console.print(ae.classification_strip(
+                            label="COBRA ADVISORY PANEL", seed=advise_seed,
+                            edge="top"))
                         typer.echo("")
                     else:
                         typer.echo("=" * 79)
@@ -1191,9 +1268,10 @@ def play(
                     ]
 
                     for advisor_name, question in advisors:
-                        # Separator between advisors
+                        # Sonar-trace separator between advisors
                         if RICH_ENABLED:
-                            console.print(f"[{COLORS['muted']}]" + "─" * 79 + f"[/{COLORS['muted']}]")
+                            console.print(ae.sonar_divider(
+                                seed=f"{advise_seed}-{advisor_name}"))
                         else:
                             typer.echo("─" * 79)
                     
@@ -1229,8 +1307,9 @@ def play(
                         typer.echo("")
                 
                     if RICH_ENABLED:
-                        # Bottom border
-                        console.print(f"[{COLORS['accent']} bold]{box['bl']}{box['h'] * (WIDTH - 2)}{box['br']}[/{COLORS['accent']} bold]")
+                        # Bottom strip
+                        console.print(ae.classification_strip(
+                            seed=advise_seed, edge="bottom"))
                     else:
                         typer.echo("=" * 79)
                 
@@ -1417,12 +1496,12 @@ def play(
                     typer.clear()
                     typer.echo("")
                     if RICH_ENABLED:
-                        console.print(phase_header("DISCUSSION", world.turn))
+                        console.print(ae.phase_banner("DISCUSSION", world.turn))
                         typer.echo("")
                         typer.echo("  Ask questions or type /decide when ready")
                         console.print(f"  [{COLORS['muted']}]Quick: /status  /menu  /advise  /resources  /intel  /llm[/{COLORS['muted']}]")
                         typer.echo("")
-                        console.print(f"[{COLORS['muted']}]" + "─" * 79 + f"[/{COLORS['muted']}]")
+                        console.print(ae.sonar_divider(seed=f"discussion-{world.turn}"))
                     else:
                         console.print("=" * 79)
                         console.print(f"[{COLORS['accent']} bold]TURN {world.turn}: DISCUSSION PHASE[/{COLORS['accent']} bold]")
@@ -1552,9 +1631,9 @@ def play(
                 discussion_lines = run_turn_discussion(world, scenario, [user_input], rng, root, transcript)
             
                 typer.echo("")  # Space before response
-            
+
                 if RICH_ENABLED:
-                    console.print(f"[{COLORS['muted']}]" + "─" * 79 + f"[/{COLORS['muted']}]")
+                    console.print(ae.sonar_divider(seed=f"q-{world.turn}-{len(questions)}"))
                     typer.echo("")
             
                 for line in discussion_lines:
@@ -1579,10 +1658,10 @@ def play(
                 transcript.extend(discussion_lines)
             
                 typer.echo("")  # Space after response
-            
+
                 if RICH_ENABLED:
-                    console.print(f"[{COLORS['muted']}]" + "─" * 79 + f"[/{COLORS['muted']}]")
-            
+                    console.print(ae.sonar_divider(seed=f"q-{world.turn}-{len(questions)}-end"))
+
                 typer.echo("")
         
             # Decision phase loop - allows returning to discussion if decision is cancelled
@@ -1593,7 +1672,7 @@ def play(
                 typer.echo("")  # Buffer line
             
                 if RICH_ENABLED:
-                    console.print(phase_header("DECISION", world.turn))
+                    console.print(ae.phase_banner("DECISION", world.turn))
                     typer.echo("")
                     typer.echo("  Enter your decision (or 'cancel' to return to discussion)")
                 else:
@@ -1744,7 +1823,7 @@ def play(
         typer.echo("")  # Buffer line
         
         if RICH_ENABLED:
-            console.print(phase_header("ADJUDICATION", world.turn))
+            console.print(ae.phase_banner("ADJUDICATION", world.turn))
         else:
             console.print("=" * 79)
             console.print(f"[{COLORS['success']} bold]TURN {world.turn}: ADJUDICATION[/{COLORS['success']} bold]")
@@ -1859,19 +1938,15 @@ def play(
                 typer.echo("")  # Buffer after table
         elif play_mode == "immersive":
             # Immersive mode: Show vibes + character attitudes
-            typer.echo("═" * 60)
-            typer.echo("SITUATION ASSESSMENT")
-            typer.echo("═" * 60)
+            console.print(ae.phase_banner("SITUATION ASSESSMENT"))
             typer.echo("")
-            
+
             vibes = narrative_state.get_situation_vibes()
             for vibe in vibes:
                 console.print(format_vibe_line(vibe, COLORS))
 
             typer.echo("")
-            typer.echo("═" * 60)
-            typer.echo("ADVISOR ATTITUDES")
-            typer.echo("═" * 60)
+            console.print(ae.phase_banner("ADVISOR ATTITUDES"))
             typer.echo("")
 
             for line in advisor_attitude_lines(narrative_state):
@@ -1880,9 +1955,9 @@ def play(
             typer.echo("")
         elif play_mode == "emergent":
             # Emergent mode: Narrative summary only
-            typer.echo("═" * 60)
+            console.print(ae.sonar_divider(seed=f"summary-{world.turn}"))
             typer.echo(narrative_state.situation_summary)
-            typer.echo("═" * 60)
+            console.print(ae.sonar_divider(seed=f"summary-{world.turn}-b"))
             typer.echo("")
         
         # Classic mode has the win/lose thresholds its menu screen promises.
@@ -1906,17 +1981,34 @@ def play(
             transcript.extend(debrief_lines)
             typer.echo("")
             if RICH_ENABLED:
-                verdict_color = {
-                    "victory": COLORS["success"],
-                    "partial": COLORS["warning"],
-                    "defeat": COLORS["danger"],
-                }.get(ending.verdict, COLORS["normal"])
-                console.print(Panel(
-                    "\n".join(rich_escape(line) for line in debrief_lines[4:]),
-                    title=f"[{verdict_color} bold]{rich_escape(ending.title)}[/{verdict_color} bold]",
-                    subtitle=f"[{verdict_color}]{ending.verdict.upper()} — {world.turn - 1} turns[/{verdict_color}]",
-                    border_style=verdict_color,
-                ))
+                # Compose the after-action frame body: wrapped ending
+                # narrative, then the metric/decision recap from the debrief
+                import textwrap
+                inner = ae.DEFAULT_WIDTH - 8
+                body_lines = textwrap.wrap(ending.narrative, width=inner)
+                body_lines.append("")
+                for line in debrief_lines[4:]:
+                    if line.strip() == ending.narrative.strip():
+                        continue  # already wrapped above
+                    if not line.strip():
+                        if body_lines and body_lines[-1] == "":
+                            continue
+                        body_lines.append("")
+                    elif len(line) <= inner:
+                        body_lines.append(line)
+                    else:
+                        body_lines.extend(textwrap.wrap(line, width=inner,
+                                                        subsequent_indent="     "))
+                while body_lines and not body_lines[-1]:
+                    body_lines.pop()
+                # The ending condenses out of heavy fog (skippable)
+                play_debrief_reveal(
+                    ending.title,
+                    subtitle=f"{ending.verdict.upper()} ── {world.turn - 1} TURNS",
+                    lines=body_lines,
+                    seed=f"debrief-{ending.ending_id}",
+                    console=console,
+                )
             else:
                 for line in debrief_lines:
                     typer.echo(line)
@@ -1931,9 +2023,9 @@ def play(
                 break
 
         typer.echo("")
-        typer.echo("=" * 60)
-        typer.echo(f"Turn {world.turn - 1} complete. Auto-saved to {save_path.name}")
-        typer.echo("=" * 60)
+        console.print(ae.sonar_divider(seed=f"turn-{world.turn - 1}-close"))
+        console.print(f"[{COLORS['muted']}]TURN {world.turn - 1} COMPLETE ── auto-saved to {save_path.name}[/{COLORS['muted']}]")
+        console.print(ae.sonar_divider(seed=f"turn-{world.turn - 1}-close-b"))
         typer.echo("")
 
         # Continue to next turn with spacebar

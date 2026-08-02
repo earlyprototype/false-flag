@@ -280,18 +280,12 @@ def generate_text(
 
     if use_spinner:
         try:
-            # Use rich console status instead of custom Spinner class
-            from cli.rich_ui import console
-            with console.status("[bold cyan]Thinking...[/bold cyan]", spinner="dots"):
+            # Tuman sonar-sweep wait indicator (see cli/spinner.py)
+            from cli.spinner import Spinner
+            with Spinner("AWAITING SECURE TRAFFIC"):
                 return call_driver_resilient()
         except ImportError:
-            # If rich import fails, try legacy Spinner
-            try:
-                from cli.spinner import Spinner
-                with Spinner("Thinking"):
-                    return call_driver_resilient()
-            except ImportError:
-                pass
+            pass
 
     # No spinner - direct call
     return call_driver_resilient()
@@ -370,15 +364,11 @@ def batch_generate_text(
     
     if use_spinner:
         try:
-            from cli.rich_ui import console
-            with console.status(f"[bold cyan]Simulating {len(prompts)} actors...[/bold cyan]", spinner="dots"):
+            # Tuman sonar-sweep wait indicator (see cli/spinner.py)
+            from cli.spinner import Spinner
+            with Spinner(f"SIGNALS INBOUND ── {len(prompts)} STATIONS"):
                 return call_batch()
         except ImportError:
-            try:
-                from cli.spinner import Spinner
-                with Spinner(f"Simulating {len(prompts)} actors"):
-                    return call_batch()
-            except ImportError:
-                pass
-        
+            pass
+
     return call_batch()

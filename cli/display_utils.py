@@ -11,6 +11,7 @@ import typer
 from rich.panel import Panel
 from rich.markup import escape as rich_escape
 
+from cli import aesthetics as ae
 from cli.rich_ui import console, format_markdown, RICH_ENABLED
 from cli.theme import theme_manager, SYMBOLS
 
@@ -255,8 +256,7 @@ def display_adjudication_results(
     # emergent modes communicate consequences through vibes and narrative)
     if play_mode == "classic":
         if RICH_ENABLED:
-            console.print(f"[{colors['accent']} bold]EFFECTS[/]")
-            console.print(f"[{colors['accent']}]" + "═" * 60 + f"[/{colors['accent']}]")
+            console.print(ae.phase_banner("EFFECTS"))
         else:
             typer.echo("=" * 60)
             typer.echo("EFFECTS")
@@ -274,8 +274,7 @@ def display_adjudication_results(
     # Display character responses
     if character_responses:
         if RICH_ENABLED:
-            console.print(f"[{colors['accent']} bold]ADVISOR REACTIONS[/]")
-            console.print(f"[{colors['accent']}]" + "═" * 60 + f"[/{colors['accent']}]")
+            console.print(ae.phase_banner("ADVISOR REACTIONS"))
         else:
             typer.echo("=" * 60)
             typer.echo("ADVISOR REACTIONS")
@@ -294,8 +293,7 @@ def display_adjudication_results(
     # Display international reactions (multi-agent simulation)
     if actor_responses:
         if RICH_ENABLED:
-            console.print(f"[{colors['accent']} bold]INTERNATIONAL REACTIONS[/]")
-            console.print(f"[{colors['accent']}]" + "═" * 60 + f"[/{colors['accent']}]")
+            console.print(ae.phase_banner("INTERNATIONAL REACTIONS"))
         else:
             typer.echo("=" * 60)
             typer.echo("INTERNATIONAL REACTIONS")

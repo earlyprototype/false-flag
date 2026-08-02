@@ -30,6 +30,8 @@ from cli.rich_ui import (
     RICH_ENABLED
 )
 from cli.theme import theme_manager, SYMBOLS
+from cli import aesthetics as ae
+from cli.cinematics import play_title_sequence, setup_banner
 from cli.formatters import format_advisor_response
 from cli.display_utils import (
     strip_effect_boxes,
@@ -219,10 +221,7 @@ def select_scenario_variant(scenario_id: str) -> str:
     
     typer.clear()
     console.print("")
-    console.print(f"[{COLORS['danger']} bold]# FALSE FLAG: THE WARGAME[/{COLORS['danger']} bold]")
-    console.print("=" * 79)
-    console.print("")
-    console.print(f"[{COLORS['primary']} bold]SELECT SCENARIO[/{COLORS['primary']} bold]")
+    console.print(setup_banner("SELECT SCENARIO"))
     console.print("")
     
     # Load available scenarios
@@ -290,10 +289,7 @@ def select_play_mode() -> str:
     
     typer.clear()
     console.print("")
-    console.print(f"[{COLORS['danger']} bold]# FALSE FLAG: THE WARGAME[/{COLORS['danger']} bold]")
-    console.print("=" * 79)
-    console.print("")
-    console.print(f"[{COLORS['primary']} bold]SELECT GAMEPLAY MODE[/{COLORS['primary']} bold]")
+    console.print(setup_banner("SELECT GAMEPLAY MODE"))
     console.print("")
     
     modes = [
@@ -370,10 +366,7 @@ def select_difficulty(scenario_id: str) -> str:
     
     typer.clear()
     console.print("")
-    console.print(f"[{COLORS['danger']} bold]# FALSE FLAG: THE WARGAME[/{COLORS['danger']} bold]")
-    console.print("=" * 79)
-    console.print("")
-    console.print(f"[{COLORS['primary']} bold]SELECT DIFFICULTY[/{COLORS['primary']} bold]")
+    console.print(setup_banner("SELECT DIFFICULTY"))
     console.print("")
     console.print("Difficulty affects scenario effect magnitudes (crisis intensity).")
     console.print("Player action impacts remain the same across all difficulties.")
@@ -456,10 +449,7 @@ def select_narrative(scenario_id: str) -> Optional[NarrativeConfig]:
     
     typer.clear()
     console.print("")
-    console.print(f"[{COLORS['danger']} bold]# FALSE FLAG: THE WARGAME[/{COLORS['danger']} bold]")
-    console.print("=" * 79)
-    console.print("")
-    console.print(f"[{COLORS['primary']} bold]SELECT GAME TYPE[/{COLORS['primary']} bold]")
+    console.print(setup_banner("SELECT GAME TYPE"))
     console.print("")
     console.print("Choose how you want to experience the crisis:")
     console.print("")
@@ -578,30 +568,12 @@ def play(
 
     # Display intro with COBRA command system styling
     if intro_only or load_save is None:
-        # System boot sequence
+        # Operation Tuman title sequence: fog condenses into the masthead,
+        # then the secure terminal boots. Any key skips; instant on non-TTY.
         typer.clear()
-        console.print(Panel(
-            f"""
-[{DEFCON_COLORS['warning']} bold]COBRA COMMAND SYSTEM[/]
-[{DEFCON_COLORS['muted']}]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/]
+        play_title_sequence(console, seed=seed)
 
-[{DEFCON_COLORS['accent']}]Initialising crisis management interface...[/]
-
-[{DEFCON_COLORS['success']}]✓[/] Secure communications online
-[{DEFCON_COLORS['success']}]✓[/] Intelligence feeds active  
-[{DEFCON_COLORS['success']}]✓[/] Advisory panel connected
-[{DEFCON_COLORS['success']}]✓[/] Decision framework loaded
-
-[{DEFCON_COLORS['primary']}]System ready. Press SPACE (or Enter) to continue...[/]
-            """,
-            title=f"[reverse][{DEFCON_COLORS['warning']} bold] SYSTEM INITIALISATION [/][/reverse]",
-            border_style=f"bold {DEFCON_COLORS['primary']}",
-            box=box.HEAVY,
-            style="on #0A0E27",
-            padding=(1, 2)
-        ))
-        
-        wait_for_space("")  # Wait without additional prompt
+        wait_for_space("Press SPACE (or Enter) to continue...")
         
         intro_lines = get_intro_lines(200)
         
@@ -1665,19 +1637,15 @@ def play(
                 typer.echo("")  # Buffer after table
         elif play_mode == "immersive":
             # Immersive mode: Show vibes + character attitudes
-            typer.echo("═" * 60)
-            typer.echo("SITUATION ASSESSMENT")
-            typer.echo("═" * 60)
+            console.print(ae.phase_banner("SITUATION ASSESSMENT"))
             typer.echo("")
-            
+
             vibes = narrative_state.get_situation_vibes()
             for vibe in vibes:
                 console.print(format_vibe_line(vibe, COLORS))
 
             typer.echo("")
-            typer.echo("═" * 60)
-            typer.echo("ADVISOR ATTITUDES")
-            typer.echo("═" * 60)
+            console.print(ae.phase_banner("ADVISOR ATTITUDES"))
             typer.echo("")
 
             for line in advisor_attitude_lines(narrative_state):
@@ -1686,9 +1654,9 @@ def play(
             typer.echo("")
         elif play_mode == "emergent":
             # Emergent mode: Narrative summary only
-            typer.echo("═" * 60)
+            console.print(ae.sonar_divider(seed=f"summary-{world.turn}"))
             typer.echo(narrative_state.situation_summary)
-            typer.echo("═" * 60)
+            console.print(ae.sonar_divider(seed=f"summary-{world.turn}-b"))
             typer.echo("")
         
         # Advance turn BEFORE autosaving: a save taken pre-increment resumed

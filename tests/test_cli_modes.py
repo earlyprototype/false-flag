@@ -1,5 +1,6 @@
 """Test both CLI modes work in parallel."""
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -106,6 +107,37 @@ def test_intro_command():
     assert dashboard_result.returncode == 0, f"Dashboard intro failed: {dashboard_result.returncode}"
     
     print("[PASS] Intro command: WORKING on both CLIs")
+
+def test_play_intro_smoke_non_tty():
+    """`play --intro-only` on piped stdio: instant cinematics, scene cards.
+
+    Exercises the non-TTY fast path of the title sequence and the scene
+    stamp-ins end to end (the four numeric menus, the animated masthead's
+    static frame, and all three intro scene cards).
+    """
+    print("Testing play --intro-only smoke (non-TTY cinematics)...")
+    env = dict(os.environ)
+    env["WARGAME_LLM"] = "mock"
+    result = subprocess.run(
+        [sys.executable, "-m", "cli.main", "play", "--intro-only"],
+        input="1\n1\n1\n1\n",
+        capture_output=True,
+        text=True,
+        cwd=root,
+        timeout=120,
+        env=env,
+    )
+    assert result.returncode == 0, (
+        f"intro-only run failed ({result.returncode}): {result.stderr[-2000:]}")
+    out = result.stdout
+    assert "██" in out, "title masthead missing"
+    assert "OPERATION TUMAN" in out, "tagline missing"
+    assert "TOP SECRET" in out, "classification strips missing"
+    for scene in ("SCENE I", "SCENE II", "SCENE III"):
+        assert scene in out, f"{scene} card missing"
+    assert "69°04'N 033°25'E" in out, "scene coordinates missing"
+    print("[PASS] play --intro-only smoke: WORKING")
+
 
 if __name__ == "__main__":
     print("Running CLI integration tests...\n")

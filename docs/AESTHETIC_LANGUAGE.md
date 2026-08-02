@@ -80,3 +80,33 @@ console.print(debrief_frame("Uneasy Peace",
 Escalation-driven weather: pass
 `density=world.metrics.escalation_risk / 100` to `fog_band` (or thread it
 through a wrapper) so the fog literally thickens as the crisis worsens.
+
+## Cinematics (`cli/cinematics.py`)
+
+The animated layer on top of these primitives. Preview:
+`.venv/bin/python dev-scripts/cinematics_demo.py [title|scene|turn|debrief|spinner|record]`
+
+| Function | Purpose |
+| --- | --- |
+| `play_title_sequence(console, seed)` | The centrepiece (~6s): fog banks roll in, the FALSE FLAG masthead **condenses out of the fog** cell by cell in seeded scatter order, holds with a residual breathing shimmer, wipes thin top-to-bottom, then the classification strip stamps in, the tagline types word by word, and the boot log ticks through its `····· OK` lines. |
+| `play_scene_stamp(number, title, location, timestamp)` | Intro scene card assembles fast (~0.6s): chrome first, then title/coordinates type in, then the fog underline. |
+| `play_turn_transition(turn)` | A dense fog band rolls left-to-right through the turn banner region and clears (~0.8s). |
+| `play_debrief_reveal(title, subtitle, lines, seed)` | Heavier, slower condense of the after-action `debrief_frame` for endings (~4s). |
+| `condense_frames(renderable, seed, ...)` | Generic engine: captures any renderable as a styled cell grid and condenses it out of drifting fog. |
+| `setup_banner(title)` | Static compact classification-strip header for setup menus. |
+
+Contracts:
+
+- **Deterministic content** per seed (timing uses the wall clock; frame
+  content never does).
+- **Any keypress skips** to the final frame (`cli.keyboard.key_pressed`).
+- **Non-TTY stdout prints the final frame instantly** - zero sleeps - so
+  piped runs, tests and CI stay fast; the printed frame is identical to the
+  animation's last frame.
+- Rendering is cortex-style raw ANSI in-place redraw (cursor-up + rewrite
+  with per-line clear-to-EOL), not `rich.live.Live` - the game console runs
+  `force_interactive=False` for its keyboard model and Live suppresses
+  per-frame refreshes on non-interactive consoles. Legacy Windows consoles
+  fall back to the static final frame.
+- The LLM-wait spinner (`cli/spinner.py`) speaks the same language: a sonar
+  ping sweeping a short trace (`[·•●······]`), silent on non-TTY.
