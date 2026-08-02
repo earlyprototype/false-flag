@@ -627,7 +627,8 @@ def play(
     # Interactive sessions only: with piped stdin the confirm would silently
     # eat the first queued command, so non-TTY runs start a new campaign.
     if load_save is None and not intro_only and sys.stdin.isatty():
-        autosave_path = Path(__file__).resolve().parents[1] / "saves" / f"{scenario}_autosave.json"
+        from engine.persistence import _default_root
+        autosave_path = _default_root() / "saves" / f"{scenario}_autosave.json"
         if autosave_path.exists():
             from datetime import datetime
             from engine.persistence import read_save_field
@@ -1101,7 +1102,7 @@ def play(
                     continue
             
                 if user_input.lower() in ["/save", "save"]:
-                    save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", root, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot)
+                    save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot)
                     typer.echo(f"Game saved to {save_path}")
                     continue
             
@@ -2033,7 +2034,7 @@ def play(
         world.discussion_transcript = []
         world.phase = "briefing"
 
-        save_path = save_game(world, transcript, scenario, "autosave", root, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot)
+        save_path = save_game(world, transcript, scenario, "autosave", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot)
 
         if ending:
             debrief_lines = build_debrief_lines(world, ending, initial_metrics_snapshot, transcript)

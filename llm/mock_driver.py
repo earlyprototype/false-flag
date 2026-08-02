@@ -240,10 +240,20 @@ _ACTOR_DEFAULT = [
 # support). Variant selection hashes the player's line.
 # ---------------------------------------------------------------------------
 
-_LEADER_LINE_RE = re.compile(
-    r"you are roleplaying as the (.+?) of "
-    r"(us|france|germany|poland|russia|ukraine|ireland) in a crisis simulation"
-)
+# Country alternation is derived from _DIPLOMACY_VOICES (defined below) so a
+# new capital only needs a dictionary entry.
+_LEADER_LINE_RE = None
+
+
+def _leader_line_re():
+    global _LEADER_LINE_RE
+    if _LEADER_LINE_RE is None:
+        countries = "|".join(sorted(_DIPLOMACY_VOICES, key=len, reverse=True))
+        _LEADER_LINE_RE = re.compile(
+            r"you are roleplaying as the (.+?) of "
+            r"(" + countries + r") in a crisis simulation"
+        )
+    return _LEADER_LINE_RE
 
 # country -> tone -> variants. Missing tones fall back to "general".
 _DIPLOMACY_VOICES = {
@@ -470,12 +480,19 @@ def _extract_player_line(prompt: str) -> str:
 # the deduction loop is playable offline without turning into a headline.
 # ---------------------------------------------------------------------------
 
-_NARRATIVE_PROTAGONISTS = {"rus": "russia", "chn": "china"}
+_NARRATIVE_PROTAGONISTS = {
+    "rus": "russia", "russia": "russia",
+    "chn": "china", "china": "china",
+}
 
 
 def _detect_narrative(prompt_lower: str):
-    """Return 'russia'/'china' if a hidden narrative context block is present."""
-    match = re.search(r"crisis protagonist:\s*([a-z]{2,3})", prompt_lower)
+    """Return 'russia'/'china' if a hidden narrative context block is present.
+
+    Accepts ISO codes and full names; anything else is an explicit None so an
+    unrecognised protagonist never half-matches a tell.
+    """
+    match = re.search(r"crisis protagonist:\s*([a-z]+)", prompt_lower)
     if not match:
         return None
     return _NARRATIVE_PROTAGONISTS.get(match.group(1))
@@ -656,7 +673,7 @@ effects:
         # titles (e.g. the US National Security Advisor) that would otherwise
         # shadow the foreign counterpart.
         if "you are roleplaying as the" in prompt_lower:
-            leader_match = _LEADER_LINE_RE.search(prompt_lower)
+            leader_match = _leader_line_re().search(prompt_lower)
             country = leader_match.group(2) if leader_match else None
             player_line = _extract_player_line(prompt)
             voices = _DIPLOMACY_VOICES.get(country, _DIPLOMACY_DEFAULT)

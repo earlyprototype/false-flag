@@ -424,12 +424,13 @@ def test_us_liaison_sectioned_apart_from_uk_cabinet():
         escalation_risk=60, domestic_stability=50, alliance_cohesion=40))
     lines = advisor_attitude_lines(state)
 
-    us_idx = next(i for i, l in enumerate(lines)
-                  if "US National Security Advisor" in l)
-    divider_idx = next(i for i, l in enumerate(lines) if "FOREIGN LIAISON" in l)
+    us_idx = next(i for i, line in enumerate(lines)
+                  if "US National Security Advisor" in line)
+    divider_idx = next(i for i, line in enumerate(lines)
+                       if "FOREIGN LIAISON" in line)
     assert divider_idx < us_idx, "US liaison must sit under a FOREIGN LIAISON divider"
     # Every UK cabinet row sits above the divider
-    for i, line in enumerate(lines[:divider_idx]):
+    for line in lines[:divider_idx]:
         assert "US National Security Advisor" not in line
 
 
@@ -468,33 +469,35 @@ class _StopPlay(Exception):
 
 
 class _autosave_fixture:
-    """Context manager: park the real saves dir, write a Turn-3 autosave."""
+    """Context manager: point WARGAME_SAVE_ROOT at a temp dir holding a
+    Turn-3 autosave, so the repository's real saves/ is never touched."""
 
     def __enter__(self):
         import os
+        import tempfile
 
-        self.saves_dir = root / "saves"
-        self.backup = None
-        if self.saves_dir.exists():
-            self.backup = self.saves_dir.with_name(
-                f"saves.pytest-backup-ux-{os.getpid()}")
-            self.saves_dir.rename(self.backup)
+        self._tmp = tempfile.TemporaryDirectory(prefix="wargame-saves-")
+        self.save_root = Path(self._tmp.name)
+        self._prev_env = os.environ.get("WARGAME_SAVE_ROOT")
+        os.environ["WARGAME_SAVE_ROOT"] = str(self.save_root)
 
         from engine.persistence import save_game
 
         world = _world(turn=3)
         world.phase = "briefing"
         save_game(world, ["earlier transcript"], "war_game_2025", "autosave",
-                  root, play_mode="classic", narrative_state=None,
+                  self.save_root, play_mode="classic", narrative_state=None,
                   variant="standard")
         return self
 
     def __exit__(self, *exc):
-        import shutil
+        import os
 
-        shutil.rmtree(self.saves_dir, ignore_errors=True)
-        if self.backup is not None:
-            self.backup.rename(self.saves_dir)
+        if self._prev_env is None:
+            os.environ.pop("WARGAME_SAVE_ROOT", None)
+        else:
+            os.environ["WARGAME_SAVE_ROOT"] = self._prev_env
+        self._tmp.cleanup()
         return False
 
 

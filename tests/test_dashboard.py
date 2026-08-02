@@ -292,9 +292,16 @@ def test_dashboard_sitrep_keeps_integrity_with_tuman_trim():
 def test_overlay_speaks_tuman_language():
     """Modal overlays open with a classification strip and close with a
     sonar trace over the return instructions."""
+    import sys
+    from unittest import mock
+
     from cli.dashboard_modal import show_overlay
     from cli.theme import theme_manager
 
+    # Force the non-interactive path so the overlay never blocks on real
+    # stdin (pytest -s from a terminal would otherwise wait on input).
+    # mock.patch rather than the monkeypatch fixture because the module's
+    # direct-execution block calls this test without fixtures.
     class FakeLive:
         def stop(self):
             pass
@@ -303,7 +310,8 @@ def test_overlay_speaks_tuman_language():
             pass
 
     console = Console(width=80, height=24, force_terminal=False)
-    with console.capture() as cap:
+    with mock.patch.object(sys.stdin, "isatty", lambda: False), \
+            console.capture() as cap:
         show_overlay(console, FakeLive(), "SITUATION STATUS",
                      "All quiet on the northern flank.",
                      theme_manager.get_colors())
