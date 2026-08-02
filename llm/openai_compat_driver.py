@@ -20,9 +20,12 @@ Errors are raised to the router, which retries once and then degrades
 gracefully to the mock driver, same as the Gemini driver.
 """
 
+import math
 import os
 import re as _re
 import time
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from random import Random
 from typing import Optional
 
@@ -31,21 +34,31 @@ import requests
 def _retry_delay_seconds(response):
     """Extract a rate-limit recovery delay from a 429 (header or body).
 
-    Returns None when the response names no usable window, in which case
-    the caller falls through to the normal error path.
+    Handles numeric and HTTP-date Retry-After forms; only finite,
+    non-negative delays are returned. Returns None when the response names
+    no usable window, in which case the caller falls through to the normal
+    error path.
     """
     headers = getattr(response, "headers", None) or {}
-    ra = headers.get("retry-after")
+    ra = next((value for name, value in headers.items()
+               if name.lower() == "retry-after"), None)
     if ra:
         try:
-            return float(ra)
-        except (TypeError, ValueError):
+            delay = float(ra)
+            if math.isfinite(delay) and delay >= 0:
+                return delay
+        except (TypeError, ValueError, OverflowError):
+            pass
+        try:
+            retry_at = parsedate_to_datetime(ra)
+            return max(0.0, (retry_at - datetime.now(timezone.utc)).total_seconds())
+        except (TypeError, ValueError, OverflowError):
             pass
     text = getattr(response, "text", "") or ""
-    m = _re.search(r"try again in (?:(\d+)m)?([\d.]+)s", text)
+    m = _re.search(r"try again in (?:(\d+)m)?(\d+(?:\.\d+)?)s", text)
     if m:
-        minutes = int(m.group(1) or 0)
-        return minutes * 60 + float(m.group(2))
+        delay = int(m.group(1) or 0) * 60 + float(m.group(2))
+        return delay if math.isfinite(delay) and delay >= 0 else None
     return None
 
 
