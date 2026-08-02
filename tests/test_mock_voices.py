@@ -478,3 +478,21 @@ def test_mock_pushback_scoped_to_decision_text():
     # Decision actually surging the carrier triggers the CDS warning
     carrier = driver.generate_text(base.format(action="Deploy the carrier group now."), RNG)
     assert "Prince of Wales" in carrier
+
+
+def test_decision_extraction_survives_embedded_quotes():
+    """A decision containing double quotes must not be truncated at the
+    first embedded quote by the interpretation/pushback extractors."""
+    from llm.mock_driver import MockDeterministicDriver
+    from random import Random
+
+    driver = MockDeterministicDriver()
+    action = 'Tell the ally "stand by"; prepare a nuclear strike option'
+    interp = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        Random(1))
+    assert "stand by" in interp and "nuclear strike option" in interp
+    pushback = driver.generate_text(
+        f'Check pushback triggers. THE PM HAS DECIDED: "{action}"\n', Random(1))
+    # 'nuclear' sits after the embedded quote - truncation would miss it
+    assert "NO PUSHBACK" not in pushback

@@ -611,8 +611,11 @@ class MockDeterministicDriver:
         # Decision interpretation: echo the actual decision back as the summary
         # so the OPERATIONAL ORDER panel reflects what the player typed.
         if "interpret this action" in prompt_lower:
-            decided = re.search(r'the prime minister has decided:\s*"(.*?)"', prompt,
-                                re.IGNORECASE | re.DOTALL)
+            # Greedy match to the last quote on the line: decisions are a
+            # single input() line, and non-greedy truncated at any embedded
+            # double quote ('Tell the ally "stand by"; deploy...').
+            decided = re.search(r'the prime minister has decided:\s*"(.*)"', prompt,
+                                re.IGNORECASE)
             summary = " ".join(decided.group(1).split()) if decided else \
                 "Deploy naval and air assets to defensive posture"
             return (f"INTERPRETATION: {summary}\n"
@@ -626,8 +629,8 @@ class MockDeterministicDriver:
         # (force listings, transcript) mentions "deploy"/"carrier" on every
         # turn and would otherwise fire pushback for every decision.
         if "pushback triggers" in prompt_lower:
-            decided = re.search(r'the pm has decided:\s*"(.*?)"', prompt,
-                                re.IGNORECASE | re.DOTALL)
+            decided = re.search(r'the pm has decided:\s*"(.*)"', prompt,
+                                re.IGNORECASE)
             # Fail closed: if the decision can't be extracted, don't scan the
             # whole prompt - its context mentions deploy/carrier every turn
             # and would fire spurious pushback.
@@ -718,7 +721,7 @@ effects:
             narrative = _detect_narrative(prompt_lower)
             if (narrative in _ACTOR_TELLS and code != "RUS"
                     and _stable_index(code + prompt, 2) == 0):
-                public += _ACTOR_TELLS[narrative]
+                public = f"{public.rstrip()} {_ACTOR_TELLS[narrative].lstrip()}"
             return (f"PUBLIC_RESPONSE: {public}\n"
                     "\n"
                     f"PRIVATE_ASSESSMENT: {private}\n"
