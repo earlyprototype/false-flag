@@ -209,6 +209,111 @@ def test_dashboard_conversation_log_limit():
     assert "Message 149" in dashboard.conversation_log[-1]
     print("[PASS] Conversation log limit")
 
+def _world(turn=4, phase="discussion"):
+    world = WorldState(
+        turn=turn,
+        scene=turn,
+        difficulty="standard",
+        metrics=Metrics(
+            escalation_risk=60,
+            domestic_stability=50,
+            alliance_cohesion=40,
+            casualties_mil=2,
+            casualties_civ=0
+        ),
+        flags={},
+        posture={}
+    )
+    world.phase = phase
+    return world
+
+
+def _render(console, renderable) -> str:
+    with console.capture() as cap:
+        console.print(renderable)
+    return cap.get()
+
+
+def test_dashboard_speaks_tuman_language():
+    """The Live chrome carries the Operation Tuman visual language:
+    classification strips, sonar dividers, reference codes, fog trims —
+    while the SITREP table keeps its full labels intact."""
+    console = Console(width=100, force_terminal=False)
+    dashboard = WargameDashboard(_world(turn=4), console)
+
+    # Header: classification strip + masthead rule + turn/phase, ref code
+    header = _render(console, dashboard.render_header())
+    assert "TOP SECRET ── UK EYES ONLY" in header
+    assert "FALSE FLAG" in header and "OPERATION TUMAN" in header
+    assert "TURN 004 │ DISCUSSION" in header
+    assert "COBRA/TU/" in header  # deterministic reference code
+
+    # Footer: quick-help row over the closing strip. Short command set only —
+    # the full list lives in /menu, and the longer string cropped past 80
+    # columns in the no-wrap footer row.
+    footer = _render(console, dashboard.render_footer())
+    for cmd in ("/status", "/menu", "/advise", "/intel", "/decide", "/quit"):
+        assert cmd in footer
+    assert "/resources" not in footer and "/briefing" not in footer
+    assert "TOP SECRET ── UK EYES ONLY" in footer
+
+    # Feed: classification-strip style title + sonar divider between phases
+    dashboard.add_divider("TURN 4 BRIEFING")
+    dashboard.add_message("SYSTEM", "Channel check")
+    main = _render(console, dashboard.render_main())
+    assert "COBRA BRIEFING FEED" in main
+    assert "●" in main and "[ TURN 4 BRIEFING ]" in main  # sonar divider
+    assert "SYSTEM: Channel check" in main
+
+
+def test_dashboard_header_trim_is_seeded_per_turn():
+    """Each turn's chrome differs deterministically (turn number is the seed)."""
+    console = Console(width=100, force_terminal=False)
+    header_t1 = _render(console, WargameDashboard(_world(turn=1), console).render_header())
+    header_t1_again = _render(console, WargameDashboard(_world(turn=1), console).render_header())
+    header_t2 = _render(console, WargameDashboard(_world(turn=2), console).render_header())
+    assert header_t1 == header_t1_again  # deterministic
+    assert header_t1 != header_t2       # per-turn variation
+
+
+def test_dashboard_sitrep_keeps_integrity_with_tuman_trim():
+    """The SITREP sidebar gains a fog trim and reference code without
+    losing any metric labels at its fixed 30-column width."""
+    console = Console(width=30, force_terminal=False)
+    dashboard = WargameDashboard(_world(), console)
+    out = _render(console, dashboard.render_sidebar())
+    assert "SITREP" in out
+    assert "COBRA/TU/" in out
+    for label in ("Risk", "Stability", "Cohesion", "Casualties"):
+        assert label in out, f"{label} truncated in SITREP sidebar"
+    assert "…" not in out
+
+
+def test_overlay_speaks_tuman_language():
+    """Modal overlays open with a classification strip and close with a
+    sonar trace over the return instructions."""
+    from cli.dashboard_modal import show_overlay
+    from cli.theme import theme_manager
+
+    class FakeLive:
+        def stop(self):
+            pass
+
+        def start(self):
+            pass
+
+    console = Console(width=80, height=24, force_terminal=False)
+    with console.capture() as cap:
+        show_overlay(console, FakeLive(), "SITUATION STATUS",
+                     "All quiet on the northern flank.",
+                     theme_manager.get_colors())
+    out = cap.get()
+    assert "COBRA COMMAND ── SITUATION STATUS" in out
+    assert "COBRA/TU/" in out
+    assert "All quiet on the northern flank." in out
+    assert "Press ENTER to return to dashboard" in out
+
+
 if __name__ == "__main__":
     print("Running dashboard unit tests...\n")
     test_dashboard_initialization()
@@ -219,5 +324,9 @@ if __name__ == "__main__":
     test_dashboard_render_main()
     test_dashboard_render_footer()
     test_dashboard_conversation_log_limit()
+    test_dashboard_speaks_tuman_language()
+    test_dashboard_header_trim_is_seeded_per_turn()
+    test_dashboard_sitrep_keeps_integrity_with_tuman_trim()
+    test_overlay_speaks_tuman_language()
     print("\n[SUCCESS] All dashboard tests passed!")
 
