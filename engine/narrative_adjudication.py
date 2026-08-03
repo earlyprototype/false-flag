@@ -32,9 +32,12 @@ from engine.actor_simulation import (
 # Phrases that give the game away outright. Both leaks observed in live play
 # (gpt-oss-120b turn 1, llama-3.3-70b turn 3) used wording from this set —
 # the old prompt asked the model to weigh the "hidden truth", so it said so.
+# Kept in step with the prompt's prohibitions: whatever the adjudicator is
+# told not to say, the scrubber must be able to catch.
 _LEAK_MARKERS = re.compile(
     r"secret narrative|hidden narrative|hidden truth|secret truth|"
-    r"narrative context|true architect|the patsy|answer key",
+    r"narrative context|true (?:architect|author|instigator)|"
+    r"\bpatsy\b|answer key",
     re.IGNORECASE,
 )
 

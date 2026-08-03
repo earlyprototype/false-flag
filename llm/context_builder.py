@@ -49,14 +49,18 @@ def get_last_turn_slice(transcript: FullTranscript, max_lines: int = 120) -> Ful
     turn_slice = transcript[start:]
     if len(turn_slice) <= max_lines:
         return turn_slice
+    # Too small to hold head + marker + tail: spend the whole budget on the
+    # opening, since preserving the turn's inject is the point of this window.
+    if max_lines < 3:
+        return turn_slice[:max_lines]
     budget = max_lines - 1  # the elision marker occupies one line
     head = (budget * 2) // 3
     tail = budget - head
     # A zero-length tail must stay empty; turn_slice[-0:] is the whole list.
     tail_lines = turn_slice[-tail:] if tail else []
-    return (turn_slice[:head]
-            + ["[... mid-turn discussion elided for length ...]"]
-            + tail_lines)
+    return [*turn_slice[:head],
+            "[... mid-turn discussion elided for length ...]",
+            *tail_lines]
 
 def get_advisor_context(transcript: FullTranscript, world_state: WorldState) -> str:
     """

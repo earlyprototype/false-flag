@@ -297,3 +297,22 @@ def test_assessment_prompt_no_longer_invites_the_leak():
     assert "play into or against the hidden truth" not in prompt
     assert "REASONING is displayed to the player" in prompt
     assert "well-reasoned given what the player could actually know" in prompt
+
+
+def test_prohibited_terms_cannot_slip_past_the_scrubber():
+    """Short assertions using the prompt's own banned terms must be caught.
+
+    'Russia is the true author.' is too short to trip the description
+    window, so the marker list has to carry it.
+    """
+    from engine.narrative_adjudication import _scrub_reasoning
+
+    bypasses = [
+        "Russia is the true author of this crisis.",
+        "China is the true instigator here.",
+        "Russia is merely a patsy in this affair.",
+        "The patsy in this crisis is Russia.",
+    ]
+    for text in bypasses:
+        cleaned = _scrub_reasoning(text, _FakeNarrative())
+        assert cleaned == "Your advisors take stock of the response.", text

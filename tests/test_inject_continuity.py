@@ -118,3 +118,24 @@ def test_no_transcript_omits_continuity_rule():
     prompt = build_inject_generation_prompt(_world(), 1, {}, None, None)
     assert "CONTINUITY IS MANDATORY" not in prompt
     assert "LAST TURN" not in prompt
+
+
+def test_tiny_budgets_return_real_turn_lines_not_just_a_marker():
+    """At max_lines 1-2 the window must still carry the turn's opening.
+
+    Spending the entire budget on an elision marker would hand the inject
+    generator no prior event at all — the exact failure #23 exists to stop.
+    """
+    body = ["=== FLASH ALERT ===", "missile launch detected"] + [
+        f"line-{i}" for i in range(40)]
+    transcript = _campaign_transcript(body)
+
+    # Where the turn-3 slice actually begins: the ruler above its header
+    full = get_last_turn_slice(transcript, max_lines=len(transcript))
+
+    for limit in (1, 2):
+        window = get_last_turn_slice(transcript, max_lines=limit)
+        assert len(window) == limit
+        assert not any("elided" in line for line in window)
+        # Head-first: the literal opening lines of the turn
+        assert window == full[:limit]
