@@ -32,9 +32,10 @@ def get_last_turn_slice(transcript: FullTranscript, max_lines: int = 120) -> Ful
 
     Turns longer than max_lines keep their head (the inject and early
     discussion) and tail (the decision and adjudication) around an elision
-    marker, so both the event and its outcome survive. Falls back to the
-    plain tail window when no turn header exists (e.g. synthetic
-    transcripts in tests).
+    marker, so both the event and its outcome survive. The marker is paid
+    for out of the budget, so max_lines is a hard upper bound on the
+    returned length. Falls back to the plain tail window when no turn
+    header exists (e.g. synthetic transcripts in tests).
     """
     if max_lines < 1:
         raise ValueError("max_lines must be at least 1")
@@ -48,11 +49,14 @@ def get_last_turn_slice(transcript: FullTranscript, max_lines: int = 120) -> Ful
     turn_slice = transcript[start:]
     if len(turn_slice) <= max_lines:
         return turn_slice
-    head = (max_lines * 2) // 3
-    tail = max_lines - head
+    budget = max_lines - 1  # the elision marker occupies one line
+    head = (budget * 2) // 3
+    tail = budget - head
+    # A zero-length tail must stay empty; turn_slice[-0:] is the whole list.
+    tail_lines = turn_slice[-tail:] if tail else []
     return (turn_slice[:head]
             + ["[... mid-turn discussion elided for length ...]"]
-            + turn_slice[-tail:])
+            + tail_lines)
 
 def get_advisor_context(transcript: FullTranscript, world_state: WorldState) -> str:
     """

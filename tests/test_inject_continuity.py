@@ -50,7 +50,7 @@ def test_long_turn_keeps_inject_head_and_adjudication_tail():
             + [f"discussion line {i}" for i in range(300)]
             + ["FINAL ADJUDICATION LINE"])
     window = get_last_turn_slice(_campaign_transcript(body), max_lines=120)
-    assert len(window) == 121  # max_lines plus the elision marker
+    assert len(window) == 120  # max_lines is a hard cap, marker included
     assert "missile launch detected" in window
     assert "FINAL ADJUDICATION LINE" in window
     assert any("elided" in line for line in window)
@@ -71,6 +71,14 @@ def test_max_lines_below_one_rejected():
     import pytest
     with pytest.raises(ValueError):
         get_last_turn_slice(["a", "b"], max_lines=0)
+
+
+def test_max_lines_is_a_hard_upper_bound():
+    """The elision marker is paid for out of the budget, not added on top."""
+    transcript = _turn(1, [f"line-{i}" for i in range(40)])
+    for limit in (1, 2, 3, 7, 20):
+        result = get_last_turn_slice(transcript, max_lines=limit)
+        assert len(result) <= limit, f"max_lines={limit} returned {len(result)}"
 
 
 # --- build_inject_generation_prompt ------------------------------------------

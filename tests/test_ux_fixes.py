@@ -138,8 +138,8 @@ def test_diplomatic_call_shows_both_sides_when_input_is_piped():
     )
     assert any(line.startswith("Prime Minister:") for line in printed)
     # Still exactly once per exchange — no double-printing
-    assert (sum(l.startswith("Prime Minister:") for l in printed)
-            == sum(l.startswith("Prime Minister:") for l in transcript))
+    assert (sum(line.startswith("Prime Minister:") for line in printed)
+            == sum(line.startswith("Prime Minister:") for line in transcript))
 
 
 # --- Unknown advisor correction (defect 3) ---------------------------------
