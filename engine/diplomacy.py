@@ -67,9 +67,11 @@ def get_available_countries() -> List[str]:
     """Get list of countries available for diplomatic contact.
     
     Returns:
-        List of country codes (US, France, Germany, Poland, Russia, Ukraine, Ireland)
+        List of country codes (US, France, Germany, Poland, Russia, Ukraine,
+        Ireland, China)
     """
-    return ["US", "France", "Germany", "Poland", "Russia", "Ukraine", "Ireland"]
+    return ["US", "France", "Germany", "Poland", "Russia", "Ukraine",
+            "Ireland", "China"]
 
 
 def check_diplomatic_access(

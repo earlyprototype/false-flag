@@ -645,3 +645,41 @@ def test_call_shows_number_in_classic_and_reading_in_emergent():
     # Both still report that the call ended and how it went
     assert "CALL ENDED" in classic and "CALL ENDED" in emergent
     assert "Taoiseach" in emergent
+
+
+# --- China is reachable on the diplomatic switchboard -----------------------
+
+def test_china_is_callable_and_has_both_counterparts():
+    """China drives a whole hidden narrative (CHINA_PROXY_WAR) but had no
+    diplomatic profile, so the player could never speak to the power secretly
+    running the crisis."""
+    from engine.diplomacy import get_available_countries, load_diplomatic_profiles
+
+    assert "China" in get_available_countries()
+
+    profiles = load_diplomatic_profiles(root)
+    china = profiles["countries"]["China"]
+    assert china["full_name"] == "People's Republic of China"
+    # The embassy always answers; the President is a call granted, not owed
+    assert china["diplomat"]["access_threshold"] == 0
+    assert china["leader"]["access_threshold"] > 0
+    for level in ("leader", "diplomat"):
+        assert china[level]["opening_lines"], f"{level} needs opening lines"
+        assert china[level]["key_concerns"]
+
+
+def test_calling_china_opens_a_real_encounter():
+    from engine.diplomacy import run_diplomatic_encounter
+
+    printed = []
+    transcript, _ = run_diplomatic_encounter(
+        _world(cohesion=100), "China", required=False, context=None,
+        llm_generate=_fake_llm, rng=Random(42), root_path=root,
+        get_player_input=lambda label: "Thank you.", print_fn=printed.append,
+    )
+    combined = "\n".join(printed)
+    # Not the unknown-country failure path
+    assert "no secure channel" not in combined
+    assert "China" in combined
+    assert any("Chinese Ambassador" in line or "President of China" in line
+               for line in transcript)

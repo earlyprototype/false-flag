@@ -1234,7 +1234,9 @@ def play(
                         "POLAND": "Poland", "POLISH": "Poland",
                         "RUSSIA": "Russia", "RUSSIAN": "Russia",
                         "UKRAINE": "Ukraine", "UKRAINIAN": "Ukraine",
-                        "IRELAND": "Ireland", "IRISH": "Ireland"
+                        "IRELAND": "Ireland", "IRISH": "Ireland",
+                        "CHINA": "China", "CHINESE": "China", "PRC": "China",
+                        "BEIJING": "China"
                     }
                 
                     country = country_map.get(country_input, country_input.capitalize())
