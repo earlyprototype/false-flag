@@ -166,7 +166,7 @@ def test_periscope_looks_at_viewer_then_dives():
 
 
 def test_teleprinter_redaction_progresses_to_blackout():
-    frames, final = itl.build_interstitial("teleprinter", seed=2)
+    _frames, final = itl.build_interstitial("teleprinter", seed=2)
     last = render(final)
     assert "P M   E Y E S   O N L Y" in last
     assert "( )" in last, "the tea ring must stain the memo"
@@ -293,7 +293,8 @@ def test_avoid_with_bogus_name_still_selects():
 def test_non_tty_prints_single_still_instantly(monkeypatch):
     _non_tty(monkeypatch)
     for name in itl.VIGNETTE_NAMES:
-        console = Console(file=StringIO(), width=100, force_terminal=False)
+        console = Console(file=StringIO(), width=100, force_terminal=False,
+                          legacy_windows=False)
         started = time.monotonic()
         played = itl.play_interstitial(console=console, seed=13,
                                        escalation=50, name=name)
@@ -315,7 +316,8 @@ def test_non_tty_still_is_characteristic(monkeypatch):
         "radar_room": "FORMAL COMPLAINT LODGED",
     }
     for name, token in tokens.items():
-        console = Console(file=StringIO(), width=100, force_terminal=False)
+        console = Console(file=StringIO(), width=100, force_terminal=False,
+                          legacy_windows=False)
         itl.play_interstitial(console=console, seed=13, escalation=50,
                               name=name)
         assert token in console.file.getvalue(), name
@@ -337,6 +339,7 @@ def test_play_uses_seeded_selection_and_avoid(monkeypatch):
     _non_tty(monkeypatch)
     for seed in range(8):
         expected = itl.choose_interstitial(seed, avoid="tea_round")
-        console = Console(file=StringIO(), width=100, force_terminal=False)
+        console = Console(file=StringIO(), width=100, force_terminal=False,
+                          legacy_windows=False)
         assert itl.play_interstitial(console=console, seed=seed,
                                      avoid="tea_round") == expected

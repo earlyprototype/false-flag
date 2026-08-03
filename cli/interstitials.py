@@ -62,6 +62,7 @@ class _Canvas:
     sprites can enter and exit the frame without any bounds bookkeeping."""
 
     def __init__(self, width: int, height: int):
+        """Build a blank grid of ``width`` x ``height`` transparent cells."""
         self.width = width
         self.height = height
         self.grid: List[List[cin.Cell]] = [
@@ -80,13 +81,16 @@ class _Canvas:
                 line[c] = (ch, style)
 
     def center(self, row: int, s: str, style: Optional[str] = None) -> None:
+        """Paint ``s`` horizontally centred on ``row``."""
         self.put(row, (self.width - len(s)) // 2, s, style)
 
     def hline(self, row: int, ch: str = "─",
               style: Optional[str] = None) -> None:
+        """Rule the full width of ``row`` (opaque: it overwrites scenery)."""
         self.put(row, 0, ch * self.width, style, transparent=False)
 
     def group(self, *top: Renderable) -> Group:
+        """Freeze the grid into a renderable frame, after any ``top`` rows."""
         rows = [cin._row_text(r) for r in self.grid]
         return Group(*top, *rows)
 
@@ -197,6 +201,7 @@ def _tea_stage(seed: Seed, width: int, escalation: int, phase: int,
 
 def _tea_round(seed: Seed, escalation: int,
                width: int) -> Tuple[List[Frame], Renderable]:
+    """The tea trolley crosses COBRA; above escalation 80 it doesn't stop."""
     frames: List[Frame] = []
     start = -_TEA_TW - 8
     end = width + 6
@@ -204,6 +209,7 @@ def _tea_round(seed: Seed, escalation: int,
     phase = 0
 
     def stage(**kw) -> Group:
+        """Build one frame at the current trolley/cup state."""
         return _tea_stage(seed, width, escalation, phase, **kw)
 
     if escalation > 80:
@@ -336,13 +342,16 @@ def _peri_stage(seed: Seed, width: int, escalation: int, phase: int,
 
 def _periscope(seed: Seed, escalation: int,
                width: int) -> Tuple[List[Frame], Renderable]:
+    """A periscope surfaces, sweeps, notices the viewer, and crash-dives."""
     frames: List[Frame] = []
     phase = 0
 
     def stage(**kw) -> Group:
+        """Build one frame of the periscope scene."""
         return _peri_stage(seed, width, escalation, phase, **kw)
 
     def add(duration: float, **kw) -> None:
+        """Append a frame of ``duration`` seconds at the given state."""
         nonlocal phase
         frames.append((stage(**kw), duration))
         phase += 1
@@ -399,7 +408,7 @@ def _memo_redacted(seed: Seed) -> List[str]:
     """
     rng = _rng(seed, "tele-redact")
     out = []
-    for line, frac in zip(_MEMO_LINES, _MEMO_REDACTION):
+    for line, frac in zip(_MEMO_LINES, _MEMO_REDACTION, strict=True):
         words = line.split(" ")
         body = words[1:]                     # the numbering survives
         order = list(range(len(body)))
@@ -450,12 +459,14 @@ def _tele_stage(seed: Seed, width: int, shown: List[str], cursor: Tuple[int,
 
 def _teleprinter(seed: Seed, escalation: int,
                  width: int) -> Tuple[List[Frame], Renderable]:
+    """A JIC memo types out, redacting harder line by line, then is stamped."""
     frames: List[Frame] = []
     lines = _memo_redacted(seed)
     rng = _rng(seed, "tele-chatter")
     shown = ["" for _ in lines]
 
     def stage(cursor=(-1, 0), stamped=False, ring=False) -> Group:
+        """Build one memo frame: cursor position, stamp and ring flags."""
         return _tele_stage(seed, width, list(shown), cursor, stamped, ring)
 
     # Header chatters in almost at once
@@ -549,6 +560,7 @@ def _phone_stage(seed: Seed, width: int, phase: int, ringing: bool,
 
 def _red_phone(seed: Seed, escalation: int,
                width: int) -> Tuple[List[Frame], Renderable]:
+    """The Moscow line rings; the Downing Street cat is sitting on it."""
     frames: List[Frame] = []
     phase = 0
     pw = 30
@@ -559,6 +571,7 @@ def _red_phone(seed: Seed, escalation: int,
     phase = rng.randrange(2)
 
     def add(duration: float, **kw) -> None:
+        """Append a frame of ``duration`` seconds at the given state."""
         nonlocal phase
         frames.append((_phone_stage(seed, width, phase, **kw), duration))
         phase += 1
@@ -609,6 +622,7 @@ def _red_phone(seed: Seed, escalation: int,
 # ---------------------------------------------------------------------------
 
 def _radar_geometry(width: int) -> Tuple[int, int, float, float]:
+    """Scope geometry for ``width``: centre col/row and the two radii."""
     cx = width // 2
     cy = 5                      # scope rows are 1..9, centre row 5
     return cx, cy, 17.0, 4.2    # rx, ry
@@ -669,6 +683,7 @@ def _radar_stage(seed: Seed, width: int, sweep: float,
 
 def _radar_room(seed: Seed, escalation: int,
                 width: int) -> Tuple[List[Frame], Renderable]:
+    """A radar sweep; the closest contact turns out to be a seagull."""
     frames: List[Frame] = []
     rng = _rng(seed, "radar")
     cx, cy, rx, ry = _radar_geometry(width)
@@ -683,6 +698,7 @@ def _radar_room(seed: Seed, escalation: int,
     log_gull = "> CONTACT RECLASSIFIED: GULL (FORMAL COMPLAINT LODGED)"
 
     def near(sweep: float, theta: float) -> bool:
+        """True when the sweep beam is within a blip's angular width."""
         return abs((sweep - theta + math.pi) % (2 * math.pi) - math.pi) < 0.55
 
     n_track = 20

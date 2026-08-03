@@ -54,9 +54,11 @@ def record(name: str, escalation: int) -> None:
     import termios
     fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 100, 0, 0))
     chunks = []
+    timed_out = False
     while True:
         ready, _, _ = select.select([fd], [], [], 15)
         if not ready:
+            timed_out = True
             break
         try:
             data = os.read(fd, 65536)
@@ -65,6 +67,14 @@ def record(name: str, escalation: int) -> None:
         if not data:
             break
         chunks.append(data)
+    if timed_out:
+        # Playback stalled: kill the child rather than blocking forever in
+        # waitpid waiting for a process that is never going to finish.
+        import signal
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
     os.waitpid(pid, 0)
     raw = b"".join(chunks).decode("utf-8", errors="replace")
     frames = re.split(r"\x1b\[\d+F", raw)

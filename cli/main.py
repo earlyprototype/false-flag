@@ -7,6 +7,7 @@ Supports:
 - Stochastic inject generation
 """
 
+import logging
 import re
 import typer
 from pathlib import Path
@@ -38,6 +39,8 @@ from cli.cinematics import (
     setup_banner,
 )
 from cli.interstitials import play_interstitial
+
+logger = logging.getLogger(__name__)
 from cli.formatters import format_advisor_response
 # strip_effect_boxes is re-exported here for backwards compatibility
 # (external code may still do `from cli.main import strip_effect_boxes`).
@@ -2111,7 +2114,12 @@ def play(
                 )
                 typer.echo("")
             except Exception:
-                pass
+                # Never fatal — but a silent pass would hide a real
+                # rendering bug for the life of the campaign.
+                logger.debug(
+                    "Between-turn interstitial failed (turn %s, seed %s)",
+                    world.turn - 1, seed, exc_info=True,
+                )
 
         # Continue to next turn with spacebar
         try:

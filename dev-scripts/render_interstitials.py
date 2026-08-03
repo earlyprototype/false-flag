@@ -86,6 +86,14 @@ def verify(produced: List[Path]) -> None:
 
 def main(only: Optional[Iterable[str]] = None) -> None:
     wanted = set(only) if only else None
+    if wanted is not None:
+        # Without this, a typo renders nothing and then "verifies" the stale
+        # GIFs already on disk — a silent success.
+        unknown = wanted.difference(itl.VIGNETTE_NAMES)
+        if unknown:
+            raise ValueError(
+                f"unknown interstitial(s): {', '.join(sorted(unknown))}"
+            )
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     theme_manager.set_theme("defcon")
     ras = Rasterizer()
