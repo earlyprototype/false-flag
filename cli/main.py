@@ -37,6 +37,7 @@ from cli.cinematics import (
     play_debrief_reveal,
     setup_banner,
 )
+from cli.interstitials import play_interstitial
 from cli.formatters import format_advisor_response
 # strip_effect_boxes is re-exported here for backwards compatibility
 # (external code may still do `from cli.main import strip_effect_boxes`).
@@ -862,6 +863,10 @@ def play(
         "domestic_stability": world.metrics.domestic_stability,
         "alliance_cohesion": world.metrics.alliance_cohesion,
     }
+
+    # Between-turn vignette rotation: remembers the previous pick so the
+    # same joke never plays twice in a row.
+    last_vignette = None
 
     # Main game loop
     while True:
@@ -2092,6 +2097,21 @@ def play(
         console.print(f"[{COLORS['muted']}]TURN {world.turn - 1} COMPLETE ── auto-saved to {save_path.name}[/{COLORS['muted']}]")
         console.print(ae.sonar_divider(seed=f"turn-{world.turn - 1}-close-b"))
         typer.echo("")
+
+        # Between-turn vignette: a beat of Whitehall business-as-usual
+        # before the next briefing. Display-only (skippable; single still
+        # on non-TTY); cosmetic, so it must never break the turn loop.
+        if RICH_ENABLED:
+            try:
+                last_vignette = play_interstitial(
+                    console=console,
+                    seed=f"interstitial-{seed}-{world.turn - 1}",
+                    escalation=world.metrics.escalation_risk,
+                    avoid=last_vignette,
+                )
+                typer.echo("")
+            except Exception:
+                pass
 
         # Continue to next turn with spacebar
         try:

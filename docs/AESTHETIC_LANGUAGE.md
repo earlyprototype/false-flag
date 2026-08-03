@@ -110,3 +110,30 @@ Contracts:
   fall back to the static final frame.
 - The LLM-wait spinner (`cli/spinner.py`) speaks the same language: a sonar
   ping sweeping a short trace (`[·•●······]`), silent on non-TTY.
+
+## Interstitials (`cli/interstitials.py`)
+
+Between-turn vignettes: short (3–6s, skippable) LucasArts-style ASCII
+scenes in the Tuman register — dry Whitehall wit, a character, a timing,
+a punchline. Played by `cli/main.py` after `TURN N COMPLETE`, before the
+next briefing. Preview:
+`.venv/bin/python dev-scripts/interstitials_demo.py [name] [escalation]`;
+approval GIFs: `docs/media/interstitials/*.gif`
+(regenerate with `dev-scripts/render_interstitials.py`).
+
+| Vignette | The bit |
+| --- | --- |
+| `tea_round` | The aide's trolley crosses under the classification strip; cups labelled CDS/NSA/FS/HS/AG; the CDS cup's rattle scales with `escalation` (0–100); a cup is left on the floor: *YOURS, PRIME MINISTER.* Above 80 the aide simply keeps walking — *THE TROLLEY DID NOT STOP.* |
+| `periscope` | Rises from a fog bank, sweeps left, right — then the lens `(●)` points straight at the viewer for a beat before the crash-dive and expanding ripples. *SIGHTING REPORTED — BY BOTH PARTIES.* |
+| `teleprinter` | A JIC memo chatters out (burst-burst-breath rhythm, carriage-return beats) under progressively heavier `█` redaction until the last paragraph is solid black — leaving *PM EYES ONLY* and a tea-ring `( )` stain. |
+| `red_phone` | `[ MOSCOW DIRECT ]` blinks; the Downing Street cat is already sitting on it; a shooing hand secures a relocation of exactly two columns; the blinking stops the exact frame the handset lifts. *LINE OPEN. CAT UNMOVED.* |
+| `radar_room` | Sweep and contact blips; the closing contact resolves to `~v~` and exits screen-left. *CONTACT RECLASSIFIED: GULL (FORMAL COMPLAINT LODGED).* |
+
+API: `play_interstitial(console, seed, escalation, name, avoid)` — seeded
+selection when `name` is None; pass the previous pick as `avoid` so the
+same joke never plays twice in a row (the function returns what it
+played). `build_interstitial(name, seed, escalation)` exposes the frames
+and the characteristic final still for tests and recording. Same
+contracts as the cinematics: deterministic content per seed, any-key
+skip, non-TTY prints the single still instantly, raw-ANSI in-place
+redraw via the cinematics player.
