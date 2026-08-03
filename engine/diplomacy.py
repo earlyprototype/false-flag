@@ -8,6 +8,7 @@ Handles:
 - Outcome assessment and metric updates
 """
 
+import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from pathlib import Path
 from random import Random
@@ -382,9 +383,22 @@ def run_diplomatic_encounter(
     root_path: Optional[Path] = None,
     full_transcript: Optional[List[str]] = None,
     get_player_input: Optional[Callable[[str], str]] = None,
-    print_fn: Optional[Callable[[str], None]] = None
+    print_fn: Optional[Callable[[str], None]] = None,
+    echo_player: Optional[bool] = None
 ) -> Tuple[List[str], int]:
-    """Legacy blocking runner for CLI."""
+    """Legacy blocking runner for CLI.
+
+    Args:
+        echo_player: Whether the player's own lines are printed as part of
+            the call. At a live keyboard the terminal has already echoed
+            them, so repeating them reads as a glitch; but with piped input
+            — recorded sessions, spectator consoles, streamed play — nothing
+            echoes them and the transcript shows only one side of the
+            conversation. Defaults to echoing exactly when stdin is not a
+            TTY.
+    """
+    if echo_player is None:
+        echo_player = not sys.stdin.isatty()
     encounter = DiplomaticEncounter(world, country, context, root_path,
                                     full_transcript=full_transcript)
 
@@ -420,11 +434,9 @@ def run_diplomatic_encounter(
         encounter.process_turn(msg, llm_generate, rng)
         # Print exactly the lines this exchange appended (the previous
         # last-line-twice approach printed every reply twice and never the PM).
-        # The "Prime Minister:" line stays transcript-only — the player just
-        # typed it, echoing it back reads as a glitch.
         if print_fn:
             for line in encounter.transcript[printed_upto:]:
-                if line.startswith("Prime Minister:"):
+                if line.startswith("Prime Minister:") and not echo_player:
                     continue
                 print_fn(line)
         printed_upto = len(encounter.transcript)

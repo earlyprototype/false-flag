@@ -110,13 +110,36 @@ def test_diplomatic_prompt_label_and_no_pm_echo():
         _world(cohesion=100), "Ireland", required=False, context=None,
         llm_generate=_fake_llm, rng=Random(42), root_path=root,
         get_player_input=fake_input, print_fn=printed.append,
+        echo_player=False,
     )
     # Prompt label carries no trailing colon (CLI wrappers add their own)
     assert prompts and all(p == "Response" for p in prompts)
-    # The player's own line is transcript-only, never echoed back
+    # At a live keyboard the terminal already echoed the player's line, so
+    # the call view must not repeat it
     assert transcript, "transcript should not be empty"
     assert any(line.startswith("Prime Minister:") for line in transcript)
     assert not any(line.startswith("Prime Minister:") for line in printed)
+
+
+def test_diplomatic_call_shows_both_sides_when_input_is_piped():
+    """Recorded/spectator playback must show the player's side of the call.
+
+    With piped stdin nothing echoes what the player 'typed', so suppressing
+    those lines left the transcript a one-sided monologue.
+    """
+    from engine.diplomacy import run_diplomatic_encounter
+
+    printed = []
+    transcript, _ = run_diplomatic_encounter(
+        _world(cohesion=100), "Ireland", required=False, context=None,
+        llm_generate=_fake_llm, rng=Random(42), root_path=root,
+        get_player_input=lambda label: "Thank you.", print_fn=printed.append,
+        echo_player=True,
+    )
+    assert any(line.startswith("Prime Minister:") for line in printed)
+    # Still exactly once per exchange — no double-printing
+    assert (sum(l.startswith("Prime Minister:") for l in printed)
+            == sum(l.startswith("Prime Minister:") for l in transcript))
 
 
 # --- Unknown advisor correction (defect 3) ---------------------------------
