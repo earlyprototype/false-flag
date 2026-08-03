@@ -343,7 +343,11 @@ def build_inject_generation_prompt(
     Returns:
         Formatted prompt for LLM to generate plausible next inject
     """
-    from llm.context_builder import get_stochastic_inject_context, generate_summary
+    from llm.context_builder import (
+        get_stochastic_inject_context,
+        get_last_turn_slice,
+        generate_summary,
+    )
     
     objectives = initial_conditions.get("objectives", {})
     red_objectives = initial_conditions.get("red_objectives", {})
@@ -370,8 +374,10 @@ Use these as inspiration, NOT rigid scripts. Adapt based on player's previous ac
         
         summary = generate_summary(transcript, summary_prompt)
         
-        # Get last turn's transcript (approximate - last 50 lines)
-        last_turn_transcript = transcript[-50:] if len(transcript) > 50 else transcript
+        # Slice from the last TURN header so the previous inject — the event
+        # this one must build on — is always in the window, not just the
+        # adjudication tail of the turn (issue #23).
+        last_turn_transcript = get_last_turn_slice(transcript)
         
         # Get full context with narrative secrets
         story_context = get_stochastic_inject_context(summary, last_turn_transcript, world)
@@ -397,6 +403,7 @@ Generate a plausible next event that:
 4. Is consistent with the current world state and conversation history
 5. Responds logically to the player's recent actions (e.g., if they invoked Article 4, Russia might test NATO resolve further)
 6. Subtly advances the hidden narrative (e.g., if China is manipulating Russia, show subtle signs of Chinese involvement)
+7. CONTINUITY IS MANDATORY: the previous turn's event (shown above under LAST TURN) must be acknowledged, advanced, or explicitly resolved. Open threads — impacts, casualties, recoveries, ultimatums, running deadlines — never disappear; if the last event was a missile launch, this inject addresses where it landed and what followed before introducing anything new
 
 Format your inject as YAML:
 ```yaml
