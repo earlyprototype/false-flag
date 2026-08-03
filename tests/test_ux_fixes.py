@@ -614,3 +614,34 @@ def test_sitrep_labels_fit_sidebar_untruncated():
     for label in ("Risk", "Stability", "Cohesion", "Casualties"):
         assert label in out, f"{label} truncated in SITREP sidebar: {out}"
     assert "…" not in out
+
+
+# --- Diplomatic call metric leak in metric-hiding modes --------------------
+
+def test_call_shows_number_in_classic_and_reading_in_emergent():
+    """Immersive/emergent hide metrics; the call sign-off must too.
+
+    "Alliance Cohesion: +10" after a call reintroduced the scoreboard those
+    modes exist to remove — but the signal a call carries is worth keeping,
+    so the delta becomes an in-fiction reading instead of vanishing.
+    """
+    from engine.diplomacy import run_diplomatic_encounter
+
+    def run(show_metrics):
+        printed = []
+        run_diplomatic_encounter(
+            _world(cohesion=100), "Ireland", required=False, context=None,
+            llm_generate=_fake_llm, rng=Random(42), root_path=root,
+            get_player_input=lambda label: "Thank you.",
+            print_fn=printed.append, show_metrics=show_metrics,
+        )
+        return "\n".join(printed)
+
+    classic = run(True)
+    emergent = run(False)
+
+    assert "Alliance Cohesion:" in classic
+    assert "Alliance Cohesion:" not in emergent
+    # Both still report that the call ended and how it went
+    assert "CALL ENDED" in classic and "CALL ENDED" in emergent
+    assert "Taoiseach" in emergent
