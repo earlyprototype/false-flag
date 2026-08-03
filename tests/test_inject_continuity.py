@@ -67,6 +67,12 @@ def test_fallback_without_turn_headers_is_tail_window():
     assert get_last_turn_slice(transcript, max_lines=50) == transcript[-50:]
 
 
+def test_max_lines_below_one_rejected():
+    import pytest
+    with pytest.raises(ValueError):
+        get_last_turn_slice(["a", "b"], max_lines=0)
+
+
 # --- build_inject_generation_prompt ------------------------------------------
 
 def test_previous_inject_survives_into_prompt(monkeypatch):
@@ -86,3 +92,21 @@ def test_previous_inject_survives_into_prompt(monkeypatch):
     assert "Ballistic missile launch detected from the Barents Sea." in prompt
     assert "CONTINUITY IS MANDATORY" in prompt
     assert "LAST TURN (TURN 3) - FOR CONTINUITY" in prompt
+
+
+def test_short_transcript_still_gets_continuity_window():
+    # A compact opening turn (<=10 lines) must still surface its event —
+    # the old `len(transcript) > 10` gate silently dropped it while the
+    # prompt kept demanding continuity.
+    transcript = _turn(1, ["=== FLASH ALERT ===", "Severomorsk explosion"])
+    assert len(transcript) <= 10
+    prompt = build_inject_generation_prompt(_world(), 2, {}, None, transcript)
+    assert "Severomorsk explosion" in prompt
+    assert "CONTINUITY IS MANDATORY" in prompt
+    assert "FOR CONTINUITY" in prompt
+
+
+def test_no_transcript_omits_continuity_rule():
+    prompt = build_inject_generation_prompt(_world(), 1, {}, None, None)
+    assert "CONTINUITY IS MANDATORY" not in prompt
+    assert "LAST TURN" not in prompt

@@ -36,6 +36,8 @@ def get_last_turn_slice(transcript: FullTranscript, max_lines: int = 120) -> Ful
     plain tail window when no turn header exists (e.g. synthetic
     transcripts in tests).
     """
+    if max_lines < 1:
+        raise ValueError("max_lines must be at least 1")
     start = None
     for i in range(len(transcript) - 1, -1, -1):
         if _TURN_HEADER_RE.match(transcript[i].strip()):
