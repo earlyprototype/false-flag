@@ -13,18 +13,21 @@ protocol and works with almost every LLM service in existence.
 |---|---|---|---|---|
 | **Mock mode** (built-in) | $0, offline | None | Zero — it's the default | Canned but in-character per-advisor lines; fine for dev/testing, not reactive |
 | **Ollama / LM Studio** (local) | $0, offline | None (your hardware) | ~10 min, one download | Good with an 8–14B instruct model (Qwen3 8B/14B, Llama 3.1 8B); slower on CPU-only |
-| **OpenRouter `:free` models** | $0 (optional one-time $10) | 20 req/min; **50 req/day** free, 1,000/day after a one-time $10 credit purchase | ~5 min, key signup | Very good — free variants of 70B-class models (e.g. Llama 3.3 70B) |
+| **OpenRouter `:free` models** | $0 (optional one-time $10) | 20 req/min; **50 req/day** free, 1,000/day after a one-time $10 credit purchase — i.e. **3 turns/day**, or ~58 turns/day after the $10, *shared across all users of the key* | ~5 min, key signup | Mid-tier; free endpoints generally need the account-wide training/logging toggle on |
+| **OpenRouter paid, 1M-context class** | ~$0.10/M input | Effectively none (credit-based); set a per-key credit limit | ~5 min, key signup + card | **Best fit** — see "What this game actually costs" below. A 10-turn campaign is ~$0.17 |
 | **Groq** | $0 | ~30 req/min, ~6K tokens/min, ~1K–14.4K req/day per model | ~5 min, key signup, no card | Very good (Llama 3.3 70B) and extremely fast |
 | **Cerebras** | $0 | 30 req/min, ~1M tokens/day, 8K context cap on free tier | ~5 min, key signup, no card | Good (Qwen3 32B, Llama 4 Scout); 8K context can pinch long transcripts |
 | **Mistral La Plateforme** | $0 (Experiment plan) | Low RPM (~2/min community-reported); phone verification; **prompts may train their models** | ~10 min | Good (Mistral Small/Large) but slow under the RPM cap |
 | **Google Gemini** | $0 (reduced) | Flash/Flash-Lite only: ~5–10 req/min, ~100–250 req/day; **Pro removed from free tier (Apr 2026)** | Already wired in | Flash is decent; the old Pro-quality free path is gone |
 | **Anthropic Claude API** | Paid per token | Cheapest current model: Claude Haiku 4.5 at $1/M input, $5/M output | ~5 min, card required | Excellent; a ~50-request game session ≈ **$0.15–0.40** |
 
-Sources checked 2 Aug 2026: OpenRouter docs (openrouter.ai/docs/api-reference/limits),
-Groq/Cerebras/Mistral pricing & rate-limit pages via current third-party trackers
-(pricepertoken.com, tokenmix.ai), Google AI Studio rate-limit reporting, and the
-Anthropic model catalog. Free tiers change often — treat the numbers as indicative
-and check the provider dashboard.
+Sources: OpenRouter rows re-checked **4 Aug 2026** against the live
+`https://openrouter.ai/api/v1/models` and `/models/{id}/endpoints` APIs plus
+openrouter.ai/docs/api-reference/limits and /docs/features/prompt-caching.
+Groq/Cerebras/Mistral rows last checked 2 Aug 2026 via third-party trackers
+(pricepertoken.com, tokenmix.ai); Google AI Studio rate-limit reporting and the
+Anthropic model catalog likewise. Free tiers change often — treat the numbers as
+indicative and check the provider dashboard.
 
 Note on Claude: there is currently no documented way to spend a Claude Code /
 claude.ai *subscription* on arbitrary API calls like this game's — API usage is
@@ -205,39 +208,61 @@ posture, the Attorney General talks legality, etc.). It won't reason about your
 specific decision, but it exercises the entire turn loop, which is what you
 want for development and CI.
 
-### For actually playing: Groq or OpenRouter (free, hosted)
+### For actually playing: OpenRouter + Gemini 2.5 Flash-Lite (paid, pennies)
 
-**Top pick: Groq.** No credit card, ~1,000+ requests/day free (a full game
-uses well under 100), fast enough that advisors answer near-instantly, and the
-free Llama 3.3 70B is genuinely good at in-character strategic advice.
+**Top pick: `google/gemini-2.5-flash-lite` via OpenRouter.** It is the only
+candidate that satisfies all four constraints at once — 1M context, fast, cheap,
+and drop-in with the driver exactly as it is today:
 
-1. Create a key at <https://console.groq.com/keys> (Google/GitHub login, no card).
-2. Copy `config.example.py` to `config.py` and uncomment the Groq preset:
+- 1,048,576 tokens on **every** endpoint OpenRouter routes to (Google and
+  Google AI Studio only), so there is no provider to pin and no chance of
+  silently landing on a 128K route.
+- No reasoning tokens by default, so the `max_tokens=150`/`400` call sites
+  behave and nothing degrades to the mock advisor unnoticed.
+- $0.10/M input, $0.40/M output. A 7-turn campaign is ~$0.10 windowed,
+  ~$0.16 with the full transcript. **Twenty testers, one 10-turn campaign
+  each: $3.39 windowed, $6.69 full-context.**
+- Flash-Lite class is the latency tier this game needs — ~17 calls run
+  sequentially and the browser player waits through every one.
 
-   ```python
-   LLM_PROVIDER = "openai_compat"
-   OPENAI_COMPAT_BASE_URL = "https://api.groq.com/openai/v1"
-   OPENAI_COMPAT_API_KEY = "gsk_..."      # your key
-   OPENAI_COMPAT_MODEL = "llama-3.3-70b-versatile"
-   OPENAI_COMPAT_RPM = 28
-   ```
+1. Create a key at <https://openrouter.ai/keys>.
+2. **Set a per-key credit limit in the OpenRouter dashboard.** For a key shared
+   with testers behind a passphrase, that limit is what actually caps your
+   exposure — `OPENAI_COMPAT_RPM` throttles one browser session, not the link.
+3. Copy `config.example.py` to `config.py` and uncomment PRESET 1.
 
-3. Play:
+**Cheaper alternate:** `qwen/qwen3.5-flash-02-23` at $0.065/$0.26, also 1M
+(single Alibaba endpoint, 100% uptime last 24h) and also reasoning-free —
+about 35% less again, but unbenchmarked, so watch for advisors blurring into
+one voice.
 
-   ```powershell
-   .\.venv\Scripts\python.exe -m cli.main play
-   ```
+**Smarter alternate, needs one driver line:** `openai/gpt-5.6-luna` scores 51.2
+on Artificial Analysis' intelligence index versus 37.8 for Nemotron 3 Ultra,
+for the same $0.10/M input and a 1,050,000-token window. It reasons by
+default, but it is one of the few models that accepts
+`reasoning: {"effort": "none"}` — add that to the payload in
+`llm/openai_compat_driver.py` and it becomes the best value on the board.
+One caveat specific to this game: OpenRouter flags it `is_moderated: true`,
+so a NATO-escalation scenario with strikes and casualties may occasionally
+trip a content filter. `google/gemini-2.5-flash-lite` and
+`qwen/qwen3.5-flash-02-23` are both unmoderated.
 
-**Runner-up: OpenRouter.** One key unlocks dozens of `:free` models
-(`https://openrouter.ai/models?q=%3Afree`). The catch: 50 requests/day on a
-pure-free account, which one long session can exhaust. A one-time $10 credit
-purchase (never expires, you don't have to spend it) raises that to 1,000/day
-permanently — the best "almost free" deal going. Use the OpenRouter preset in
-`config.example.py`.
+**Not recommended for the shared link:** OpenRouter `:free` models. 20 req/min
+and 50 req/day (1,000/day after a one-time $10 credit purchase), counted
+globally per account — at ~17 calls per turn that is three turns a day, or
+about five 10-turn campaigns a day shared across every tester after the $10.
+Free endpoints also generally require the account-wide model-training toggle,
+so testers' prompts may be retained and trained on.
+
+**Groq** remains a good no-card option for solo local play — ~30 req/min and
+1,000+ req/day, extremely fast — but its models top out well below 1M context,
+so a long campaign will still be running on windowed slices.
 
 If an API call fails mid-game (rate limit, network), the game retries once and
 then quietly answers that one prompt from the mock advisor pool — it never
-crashes the session.
+crashes the session. That is deliberate resilience, but note it is *silent*:
+if you pick a model that returns empty completions, the game will look fine
+and quietly stop using the model.
 
 ### For unlimited private play: Ollama (local)
 
