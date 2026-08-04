@@ -110,7 +110,8 @@ def render_event_ledger(event_ledger) -> str:
 _TURN_HEADER_RE = re.compile(r"^TURN \d+$")
 
 
-def get_last_turn_slice(transcript: FullTranscript, max_lines: int = 120) -> FullTranscript:
+def get_last_turn_slice(transcript: FullTranscript, max_lines: int = 120,
+                        max_chars: int = MAX_ADVISOR_TRANSCRIPT_CHARS) -> FullTranscript:
     """Return the transcript lines belonging to the most recent turn.
 
     Slices from the last ``TURN N`` header (including its ruler) so the
@@ -125,6 +126,13 @@ def get_last_turn_slice(transcript: FullTranscript, max_lines: int = 120) -> Ful
     for out of the budget, so max_lines is a hard upper bound on the
     returned length. Falls back to the plain tail window when no turn
     header exists (e.g. synthetic transcripts in tests).
+
+    ``max_lines`` alone does not bound the result: lines range from empty to
+    a full unwrapped paragraph, so 400 of the long ones ran to 792,572
+    characters against a 320,000 budget - the same reason #32 moved the
+    advisor window off a line count. ``max_chars`` is the bound that
+    actually holds, applied after the line window and trimmed from the head
+    so the turn's most recent material survives.
     """
     if max_lines < 1:
         raise ValueError("max_lines must be at least 1")
@@ -147,9 +155,35 @@ def get_last_turn_slice(transcript: FullTranscript, max_lines: int = 120) -> Ful
     tail = budget - head
     # A zero-length tail must stay empty; turn_slice[-0:] is the whole list.
     tail_lines = turn_slice[-tail:] if tail else []
-    return [*turn_slice[:head],
-            "[... mid-turn discussion elided for length ...]",
-            *tail_lines]
+    return _bound_chars([*turn_slice[:head],
+                         "[... mid-turn discussion elided for length ...]",
+                         *tail_lines], max_chars)
+
+
+def _bound_chars(lines: FullTranscript, max_chars: int) -> FullTranscript:
+    """Trim from the head until the block fits ``max_chars``.
+
+    The line window is the wrong unit for a model context, and a turn of
+    long unwrapped paragraphs blows straight through it. Trimming from the
+    head rather than the tail keeps the decision and its adjudication, which
+    is what the next inject has to build on.
+    """
+    if max_chars is None or max_chars < 1:
+        return lines
+    marker = "[... earlier lines elided for length ...]"
+    total = sum(len(line) + 1 for line in lines)
+    if total <= max_chars:
+        return lines
+    budget = max_chars - len(marker) - 1
+    kept: FullTranscript = []
+    running = 0
+    for line in reversed(lines):
+        cost = len(line) + 1
+        if running + cost > budget:
+            break
+        kept.append(line)
+        running += cost
+    return [marker, *reversed(kept)]
 
 def _turn_boundaries(transcript: FullTranscript) -> List[int]:
     """Indices of the ``TURN N`` header lines, each backed up onto its ruler.

@@ -336,6 +336,8 @@ def check_critical_omissions(
         rng: Random number generator
         transcript: Optional full game transcript for conversation history
     
+        llm_batch_fn: Optional batch generator. When supplied the five
+            advisor prompts go out as one group rather than in sequence.
     Returns:
         List of (advisor_role, concern, recommendation) tuples
         Empty list if no critical omissions detected

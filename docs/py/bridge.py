@@ -1181,6 +1181,19 @@ class WebGame:
                 self.set_awaiting(AWAIT_NONE)
                 return
 
+            # endTurn during a pause would run start_briefing() while beats
+            # from the last one are still queued, appending a second briefing
+            # to a sequence already playing and re-applying its effects. The
+            # page disables the control, so this only arrives from a stale
+            # click or another client - put it back on the pause.
+            #
+            # Deliberately narrow. A blanket "reject everything but continue"
+            # is worse than the bug: it silently swallows a decision the
+            # player typed, and it stalled a full game in test.
+            if kind == "endTurn" and was_awaiting == AWAIT_PAUSE and self._paused:
+                self.set_awaiting(AWAIT_PAUSE)
+                return
+
             if kind != "setKey":
                 self.set_awaiting(AWAIT_NONE)  # busy
 
@@ -1200,7 +1213,7 @@ class WebGame:
                 # returns without publishing a state, leaving the page on
                 # AWAIT_NONE with every control disabled. Put it back where
                 # it was. Not an error: pressing space twice is not a fault.
-                if self._paused:
+                if was_awaiting == AWAIT_PAUSE and self._paused:
                     self.play_next()
                 else:
                     self.set_awaiting(was_awaiting)
@@ -1218,6 +1231,11 @@ class WebGame:
         except Exception as exc:  # noqa: BLE001 - the page must never be stranded
             self.error(f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}",
                        fatal=(kind == "newGame"))
+            # Drop whatever the aborted sequence had parked. Recovery hands
+            # back an actionable state, so anything left queued would fire on
+            # the next `continue` - beats from a turn that never finished,
+            # played into one that has moved on.
+            self._paused.clear()
             # Leave the player able to act again rather than frozen.
             if self.gm is not None and not self.gm.is_over():
                 self.set_awaiting(AWAIT_DECISION)

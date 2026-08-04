@@ -31,6 +31,12 @@ def load(path):
         return records
 
     seen = []
+    # zip stops at the shorter input, so a truncated sidecar would silently
+    # leave records unanalysed and a missing middle line would shift every
+    # later pairing. Neither should look like a clean run.
+    if len(records) != len(prompts):
+        raise ValueError(f"{path} has {len(records)} records but "
+                         f"{path}.prompts has {len(prompts)} prompts")
     for record, prompt in zip(records, prompts):
         reusable = 0
         for earlier in seen:
@@ -102,13 +108,16 @@ def main():
 
     wall, busy, sequential = concurrency_profile(records)
     print(f"\nwall {wall:.1f}s | at least one call in flight {busy:.1f}s "
-          f"({busy / wall * 100:.0f}%) | exactly one {sequential:.1f}s "
-          f"({sequential / wall * 100:.0f}%)")
+          f"({busy / wall * 100 if wall else 0:.0f}%) | exactly one {sequential:.1f}s "
+          f"({sequential / wall * 100 if wall else 0:.0f}%)")
 
     duplicate_prefixes = Counter(r["prefix_1k"] for r in records)
-    shared = sum(count for count in duplicate_prefixes.values() if count > 1)
+    # For a prefix seen n times only n-1 calls match an *earlier* call; the
+    # first establishes it. Counting all n reports 2/2 where it means 1/2.
+    shared = sum(count - 1 for count in duplicate_prefixes.values() if count > 1)
     print(f"\ncalls whose first 1,000 chars match an earlier call: "
-          f"{shared}/{len(records)} ({shared / len(records) * 100:.0f}%)")
+          f"{shared}/{len(records)} "
+          f"({shared / len(records) * 100 if records else 0:.0f}%)")
 
     # The cacheable region: leading characters each prompt shares with the
     # closest prompt already sent. This is what a provider bills at the
@@ -118,7 +127,7 @@ def main():
     total_reusable = sum(reusable)
     print(f"total prompt characters sent: {total_chars:,}")
     print(f"of which a prefix cache could match: {total_reusable:,} "
-          f"({total_reusable / total_chars * 100:.1f}%)")
+          f"({total_reusable / total_chars * 100 if total_chars else 0:.1f}%)")
 
     print(f"\n{'call kind':24} {'mean cacheable prefix':>22} {'as % of prompt':>16}")
     by_kind = {}

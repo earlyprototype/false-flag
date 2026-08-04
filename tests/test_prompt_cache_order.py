@@ -180,7 +180,8 @@ def test_an_over_budget_history_keeps_the_opening_and_marks_the_cut():
     """
     transcript = _transcript(turns=40)
     block = render_transcript_block(transcript, max_chars=8000)
-    assert "TURN 1" in block, "the campaign's opening was dropped"
+    assert "TURN 1" in block.splitlines(), \
+        "the campaign's opening was dropped"  # substring also matches TURN 10-19
     assert "TURN 40" in block, "the most recent turn was dropped"
     assert "elided for length" in block
     assert len(block) <= 8000 + len(block.split("\n")[1]) + 400

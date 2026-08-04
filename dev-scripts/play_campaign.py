@@ -18,6 +18,7 @@ Usage:
 
 import argparse
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -59,16 +60,26 @@ def main():
     # look flawless while no LLM answered any of it. Count the fallbacks so
     # the run cannot claim success it did not earn.
     fallbacks = {"single": 0, "batch": 0}
+    _ctx = threading.local()  # the pool means this must be per-thread
     real_single = MockDeterministicDriver.generate_text
     real_batch = MockDeterministicDriver.batch_generate_text
 
     def counted_single(self, prompt, rng, *a, **kw):
-        fallbacks["single"] += 1
+        # The mock's batch_generate_text loops over generate_text, so without
+        # this a batch of N would score N+1 - neither a count of batch calls
+        # nor of logical prompts. Count prompts, once each.
+        if not getattr(_ctx, "in_batch", False):
+            fallbacks["single"] += 1
         return real_single(self, prompt, rng, *a, **kw)
 
     def counted_batch(self, prompts, rng, *a, **kw):
-        fallbacks["batch"] += 1
-        return real_batch(self, prompts, rng, *a, **kw)
+        fallbacks["batch"] += len(prompts)
+        was = getattr(_ctx, "in_batch", False)
+        _ctx.in_batch = True
+        try:
+            return real_batch(self, prompts, rng, *a, **kw)
+        finally:
+            _ctx.in_batch = was
 
     MockDeterministicDriver.generate_text = counted_single
     MockDeterministicDriver.batch_generate_text = counted_batch
@@ -124,7 +135,7 @@ def main():
         print(f"mock driver answered {total} calls (expected: it is the provider)")
     elif total:
         print(f"*** {total} calls FELL BACK to the mock driver "
-              f"({fallbacks['single']} single, {fallbacks['batch']} batch) - "
+              f"({fallbacks['single']} single, {fallbacks['batch']} batched prompts) - "
               f"this campaign was not adjudicated by an LLM throughout ***")
     else:
         print("no calls fell back to the mock driver")

@@ -217,10 +217,19 @@ def test_generator_window_is_widened_beyond_the_advisor_starvation_default():
     assert MAX_INJECT_CONTINUITY_LINES == 400
     assert MAX_INJECT_CONTINUITY_LINES > 120
     # Still bounded, and still no wider than what the advisors carry. The
-    # advisor cap is a character budget now (issue #32) - lines were a poor
-    # proxy for the model context window that actually binds - so the
-    # comparison is made in characters, at this campaign's 393 chars a line.
-    assert MAX_INJECT_CONTINUITY_LINES * 393 <= MAX_ADVISOR_TRANSCRIPT_CHARS
+    # old form of this assertion multiplied the line cap by a campaign's
+    # *average* line length, which proves nothing: lines run from empty to a
+    # full unwrapped paragraph. Measured against a turn of long lines the
+    # line cap alone returned 792,572 characters against a 320,000 budget.
+    # So exercise the real slicer on the worst shape and assert the bound.
+    from llm.context_builder import get_last_turn_slice
+    fat = ["=" * 60, "TURN 1", "=" * 60] + ["X" * 2000] * 5000
+    block = get_last_turn_slice(fat, max_lines=MAX_INJECT_CONTINUITY_LINES)
+    assert len("\n".join(block)) <= MAX_ADVISOR_TRANSCRIPT_CHARS
+
+    # And the ordinary shape still comes back whole, not trimmed.
+    lean = ["=" * 60, "TURN 7", "=" * 60] + [f"line {i}" for i in range(40)]
+    assert get_last_turn_slice(lean, max_lines=MAX_INJECT_CONTINUITY_LINES) == lean
 
 
 def test_widened_window_is_actually_used(monkeypatch):
