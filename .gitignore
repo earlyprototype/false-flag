@@ -45,10 +45,10 @@ saves/
 # own: it is ciphertext, it is meant to be published, and it is the owner's
 # deliberate decision to publish it. It is caught by the blanket *.json above,
 # which is the behaviour we want — you have to ask for it by name:
-#   git add -f docs/play/shared-key.json
+#   git add -f docs/shared-key.json
 # The worked example beside it is committed so the format is documented even
 # on forks that ship no key of their own.
-!docs/play/shared-key.example.json
+!docs/shared-key.example.json
 
 # Logs
 *.log
@@ -96,8 +96,8 @@ user_approval*.txt
 #   python3 dev-scripts/fetch_pyodide.py
 # worker.js prefers this local copy when present and falls back to jsDelivr.
 # To ship a self-hosted, zero-external-request build, force-add it:
-#   git add -f docs/play/pyodide
-docs/play/pyodide/
+#   git add -f docs/pyodide
+docs/pyodide/
 
 # Playwright verification output
 dev-scripts/play-verify/

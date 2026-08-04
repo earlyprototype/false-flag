@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Generate the canned ANSI that ``docs/play/`` needs, from the game itself.
+"""Generate the canned ANSI that ``docs/`` needs, from the game itself.
 
-The playable page (``docs/play/index.html``) renders raw ANSI in the browser.
+The playable page (``docs/index.html``) renders raw ANSI in the browser.
 Two things it shows are not produced by the engine at run time and so have to
 be baked in:
 
-* ``docs/play/assets.js`` - the boot screen. Classification strip, thinning
+* ``docs/assets.js`` - the boot screen. Classification strip, thinning
   fog bands and the FALSE FLAG masthead, rendered by ``cli.aesthetics`` at 78
   columns and frozen as ANSI strings. The page replays them against the
   worker's ``booting`` progress messages, so the wait for Pyodide looks like
   the game's own secure-terminal boot rather than a spinner.
 
-* ``docs/play/stub-data.js`` - a recorded campaign for ``stub-worker.js``,
+* ``docs/stub-data.js`` - a recorded campaign for ``stub-worker.js``,
   the offline stand-in for the real engine worker. Captured from a live
   ``wargame_cli.py play`` run against the mock LLM driver at ``COLUMNS=78``,
   then sliced into the beats the contract sends as ``output`` messages.
@@ -45,7 +45,7 @@ from cli.aesthetics import (  # noqa: E402
     classification_strip, debrief_frame, fog_band, masthead,
 )
 
-OUT = REPO / "docs" / "play"
+OUT = REPO / "docs"
 WIDTH = 78
 SGR = re.compile(r"\x1b\[[0-9;]*m")
 CURSOR = re.compile(r"\x1b\[[0-9;]*[ABCDEFGJKST]")
@@ -195,7 +195,7 @@ def write(name: str, varname: str, payload) -> None:
     text = f"{BANNER}self.{varname} = {body};\n"
     path = OUT / name
     path.write_text(text, encoding="utf-8")
-    print(f"wrote docs/play/{name} ({len(text.encode()) / 1024:.1f} KB)")
+    print(f"wrote docs/{name} ({len(text.encode()) / 1024:.1f} KB)")
 
 
 def main() -> None:

@@ -1,19 +1,16 @@
 /* FALSE FLAG - live ANSI to HTML, in the browser.
  *
  * The engine emits real terminal output: truecolor SGR, the sixteen named
- * ANSI colours, 256-colour indices, and a great deal of box drawing. The
- * site's static pages get this for free from Rich (`Text.from_ansi` ->
- * `export_html`, see dev-scripts/build_site.py); a page that plays the game
- * has to do the same job live, so this is that renderer in JavaScript.
+ * ANSI colours, 256-colour indices, and a great deal of box drawing. This is
+ * the renderer that turns that into HTML, live, as a turn is computed.
  *
- * Two things carry straight over from the build-time version:
+ * Two things it is careful about:
  *
- *  - The Tuman palette. Rich's default export palette renders the sixteen
- *    named colours almost black on the game's ground, so build_site.py
- *    substitutes a TerminalTheme built from the game's own colours. PALETTE
- *    below is that same table, digit for digit, which is why `bold red` comes
- *    back as Operation Tuman orange here exactly as it does on the showcase
- *    pages.
+ *  - The Tuman palette. A terminal emulator's default sixteen render almost
+ *    black on this ground, so PALETTE below maps them onto the game's own
+ *    colours (cli/theme.py's `defcon`) — which is why `bold red` comes back
+ *    as Operation Tuman orange. docs/play.css takes its page-chrome tokens
+ *    from this same table, so the pane and the page around it agree.
  *  - One shared class map. Every distinct style becomes a `.tN` rule in a
  *    single stylesheet instead of an inline `style=` attribute, so a long
  *    transcript stays small and the DOM stays cheap to append to.
@@ -23,11 +20,9 @@
  * are dropped: this pane is a scrolling transcript, not an addressable
  * screen.
  *
- * Verified character for character against Rich's export on every canned
- * capture. One deliberate divergence: on SGR 7 (reverse) with no colour set,
- * Rich leaves the text at the default foreground while this swaps in the
- * ground colour, which is what a terminal does. The game emits no SGR 7, so
- * nothing on screen depends on the difference.
+ * On SGR 7 (reverse) with no colour set this swaps in the ground colour,
+ * which is what a terminal does. The game emits no SGR 7, so nothing on
+ * screen depends on it.
  */
 (function (global) {
   'use strict';

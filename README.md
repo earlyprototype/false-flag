@@ -4,7 +4,7 @@ You are the UK Prime Minister. Russia has just staged an attack and blamed Brita
 
 > Inspired by Sky News' **[The Wargame](https://www.audible.co.uk/podcast/The-Wargame/B0FCLQ7W9B)** podcast. This is an independent project — not affiliated with or endorsed by Sky News, Tortoise, or the podcast's participants.
 
-**[See it without installing anything →](https://earlyprototype.github.io/false-flag/)** — what the game is, the between-turn vignettes, and a full seventeen-turn campaign you can read end to end.
+**[Play it in your browser →](https://earlyprototype.github.io/false-flag/)** — the same engine, compiled to WebAssembly. You need a passphrase (or an OpenRouter key of your own); see [Sharing one key with playtesters](#sharing-one-key-with-playtesters-browser-build) below.
 
 ![Title sequence — the masthead condenses out of the fog of Operation Tuman](docs/media/title_sequence.gif)
 
@@ -83,7 +83,9 @@ See [docs/LLM_PROVIDERS.md](docs/LLM_PROVIDERS.md) for the full provider compari
 
 ## Sharing one key with playtesters (browser build)
 
-`docs/play/` is the same engine compiled to WebAssembly and served as a static site. A player can bring their own OpenRouter key, or play with no key at all against the offline stand-in. There is a third option: **you can publish your own key, encrypted under a passphrase, and hand the passphrase to testers.**
+`docs/` *is* the browser build — the same engine compiled to WebAssembly, served as a static site with nothing else on it. Getting in takes a key. **You can publish your own key, encrypted under a passphrase, and hand the passphrase to testers**; that is the way in the page leads with. A player who would rather spend their own money can paste an OpenRouter key instead.
+
+There is no "play without a key" option. The deterministic offline driver still exists, but only as what the engine falls back to when a live call is refused mid-campaign — and when that happens the page says so, in words, rather than quietly serving canned advisors.
 
 GitHub Pages has no server, so nothing shipped with the page can be a secret — a JavaScript password check is bypassed by opening the console, and a plaintext key in a public repo is a plaintext key forever. So the key is *encrypted*, the ciphertext is published, and the passphrase — which is never published — is the only thing that opens it.
 
@@ -91,19 +93,21 @@ GitHub Pages has no server, so nothing shipped with the page can be a secret —
 
 1. Create a key at [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) that you use for nothing else, and **set a credit limit on it.** Everyone who unlocks the page spends from it. This is not optional; it is the only thing bounding your exposure.
 2. Open `dev-scripts/encrypt-key.html` from disk (`file://`). It is a single self-contained page with no dependencies, no build step and a Content Security Policy that forbids every outbound request the browser can make. It is the only page in this project where *you* type the key in the clear, and it runs on your machine: it holds the key in one variable in one tab, encrypts it there, and writes it nowhere. (It is not the only code that ever holds the key in the clear — see below.)
-3. Press **Generate a passphrase** and use what it gives you. Weak passphrases are refused: the passphrase is the entire security of this scheme.
+3. Press **Generate a passphrase** and use what it gives you. The passphrase is the entire security of this scheme, so anything the page scores under 64 bits is refused.
+
+   If you insist on a passphrase of your own that lands under the floor, the page will encrypt under it — but only after you tick a box, next to a plain statement of what it costs, for that specific passphrase. The tick is withdrawn the moment you edit the passphrase, so the consent is always for the thing actually in the box. Nothing else is weakened: the KDF stays at 600,000 iterations and the blob shape does not change. Understand what you are buying: the file is public and permanent, so a weak passphrase is guessed offline at whatever speed the attacker's hardware allows, and from that point the spend limit on the key is your only real control and revoking it is the only off-switch.
 4. Paste the key, press **Encrypt**. The page decrypts what it just produced and checks it round-trips before offering it to you.
-5. Save the output as `docs/play/shared-key.json` and commit it deliberately:
+5. Save the output as `docs/shared-key.json` and commit it deliberately:
 
    ```bash
-   git add -f docs/play/shared-key.json
+   git add -f docs/shared-key.json
    ```
 
-   The `-f` is required and intended. The repo's `.gitignore` ignores `*.json` wholesale, so this file cannot be committed by accident — but it is not given an ignore rule of its own either, because you *do* need to be able to commit it. `docs/play/shared-key.example.json` is committed as a worked example of the format; it decrypts, with the passphrase `example-passphrase-not-a-secret-1234567890`, to the fake key `sk-or-v1-EXAMPLE-NOT-A-REAL-KEY`.
+   The `-f` is required and intended. The repo's `.gitignore` ignores `*.json` wholesale, so this file cannot be committed by accident — but it is not given an ignore rule of its own either, because you *do* need to be able to commit it. `docs/shared-key.example.json` is committed as a worked example of the format; it decrypts, with the passphrase `example-passphrase-not-a-secret-1234567890`, to the fake key `sk-or-v1-EXAMPLE-NOT-A-REAL-KEY`.
 
 6. Send the passphrase to testers **out of band** — Signal, a phone call, anything that is not the repository, the issue tracker, a commit message or the page itself. A passphrase stored next to the ciphertext buys you nothing.
 
-The play page fetches `shared-key.json` on load. If it is absent — which is what every fork will see — the option is never offered, and the own-key and no-key paths are untouched.
+The play page fetches `shared-key.json` on load. If it is absent — which is what every fork will see — the passphrase panel is never offered at all, and the own-key path becomes the only way in.
 
 ### What the crypto is
 
@@ -115,18 +119,18 @@ PBKDF2-HMAC-SHA256 over a fresh 16-byte random salt, at least 600,000 iterations
 
 A wrong passphrase derives a different AES key and fails on the GCM authentication tag. There is no verifier field, no hint and no password check in the blob, so a wrong guess produces exactly one signal — failure — and the page says only *"that passphrase did not work"*. Attacking the blob therefore costs exactly what guessing the passphrase costs, times the iteration count.
 
-Be exact about what unlocking costs. To make a call to OpenRouter at all, something has to hold the decrypted key: after a successful unlock, `docs/play/app.js` keeps it in a JavaScript variable (`ui.sharedKey`) and passes it to the worker, which puts it in an `Authorization` header. It is therefore in the tab's memory for as long as the tab is open, and anyone who can run code in that tab — a browser extension, a console paste, an XSS bug on the page — can read it. Encryption protects the key *in the repository*, from everyone without the passphrase; it cannot protect it from the tab that is using it.
+Be exact about what unlocking costs. To make a call to OpenRouter at all, something has to hold the decrypted key: after a successful unlock, `docs/app.js` keeps it in a JavaScript variable (`ui.sharedKey`) and passes it to the worker, which puts it in an `Authorization` header. It is therefore in the tab's memory for as long as the tab is open, and anyone who can run code in that tab — a browser extension, a console paste, an XSS bug on the page — can read it. Encryption protects the key *in the repository*, from everyone without the passphrase; it cannot protect it from the tab that is using it.
 
 What the play page does not do: it never writes the decrypted key to `localStorage` or `sessionStorage` or a cookie, never renders it into the DOM (not even masked, unlike your own key), and never logs it. There is deliberately no "remember it" for this path — remembering a key that is not yours defeats the point of locking it up. Closing the tab ends it.
 
 ### Revoking
 
-**Revoke the key at OpenRouter. That is the off-switch.** Deleting `docs/play/shared-key.json` is housekeeping, not revocation: the file's contents stay in git history, in every clone and fork, and on anyone's disk who ever loaded the page. Assume that once you commit the blob it is public forever, and that anyone who ever had the passphrase — including anyone a tester passed it on to — can recover the key from it at any point in the future.
+**Revoke the key at OpenRouter. That is the off-switch.** Deleting `docs/shared-key.json` is housekeeping, not revocation: the file's contents stay in git history, in every clone and fork, and on anyone's disk who ever loaded the page. Assume that once you commit the blob it is public forever, and that anyone who ever had the passphrase — including anyone a tester passed it on to — can recover the key from it at any point in the future.
 
 So, to actually stop it:
 
 1. Delete the key at [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys). The published ciphertext is now worthless.
-2. Delete `docs/play/shared-key.json` and push, so the option stops appearing.
+2. Delete `docs/shared-key.json` and push, so the option stops appearing.
 3. If you still want shared play: issue a *new* key, cap it, and generate a *new* blob with a *new* passphrase. Never reuse the old passphrase — the old blob is still out there and still opens under it.
 
 ### Verifying it
@@ -139,13 +143,21 @@ python -m playwright install chromium     # once; ~150 MB
 python dev-scripts/verify_shared_key.py
 ```
 
-If Chromium already lives somewhere else, point the script at it instead of downloading another copy — `PLAYWRIGHT_BROWSERS_PATH` (it looks for `chromium-*/chrome-linux/chrome` underneath, and defaults to `/opt/pw-browsers`), or `FF_CHROMIUM` for an exact executable:
+If Chromium already lives somewhere else, point the script at it instead of downloading another copy — `PLAYWRIGHT_BROWSERS_PATH` (it looks for `chromium-*/chrome-linux/chrome` or `chromium-*/chrome-linux64/chrome` underneath, and defaults to `/opt/pw-browsers`), or `FF_CHROMIUM` for an exact executable:
 
 ```bash
 PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers .venv/bin/python dev-scripts/verify_shared_key.py
 ```
 
-Drives the encryptor from `file://` with a dummy key, serves the resulting blob to an unmodified play page, plays a turn against a local stand-in for `openrouter.ai`, and asserts that the `Authorization` header carried exactly that dummy key — then dumps `localStorage`, `sessionStorage`, cookies and the whole serialised DOM and asserts the key is in none of them. It also checks that a wrong passphrase fails cleanly, and that with no blob present the option vanishes and the other two paths are unchanged.
+Drives the encryptor from `file://` with a dummy key, serves the resulting blob to an unmodified play page, plays a turn against a local stand-in for `openrouter.ai`, and asserts that the `Authorization` header carried exactly that dummy key — then dumps `localStorage`, `sessionStorage`, cookies and the whole serialised DOM and asserts the key is in none of them. It also checks that:
+
+- a wrong passphrase fails cleanly, with one uninformative sentence;
+- the stand-in endpoint answering **401** and then **429** mid-campaign makes the page say so in plain words — not hang, not fail silently, and not quietly serve canned advisors as if nothing had happened;
+- there is no "play without a key" control anywhere, and no campaign starts without a key;
+- with no blob present the passphrase panel vanishes and the own-key path — now the only way in on a fork — still plays a real turn with the right key in the header;
+- the encryptor still refuses a sub-64-bit passphrase, and the override that allows one is off by default, needs a deliberate tick, and is withdrawn by any edit to the passphrase.
+
+The script never writes `docs/shared-key.json`: the blob it makes is held in memory and served from there, and if your own blob is sitting in the working tree the script's server answers from memory instead of ever opening it.
 
 ## How to Play
 
@@ -240,7 +252,7 @@ false-flag/
 ├── data/scenarios/         # Scenario data (initial conditions + turn injects)
 ├── Game_Mechanics/         # Design notes for the game systems
 ├── tests/                  # Test suite
-├── docs/                   # Documentation & setup guides
+├── docs/                   # The browser build (GitHub Pages root) + setup guides
 ├── scripts/                # Launchers and setup helpers
 ├── dev-scripts/            # Debugging and content-generation tools
 ├── api/, frontend/         # Experimental web UI — not wired into the CLI game yet

@@ -3,14 +3,14 @@
 
 Nothing here is mocked except the model endpoint and the key itself. The
 encryptor page is driven from ``file://`` exactly as the owner would drive it,
-the blob it produces is served to an unmodified ``docs/play/index.html``, and
+the blob it produces is served to an unmodified ``docs/index.html``, and
 the decrypted key is followed all the way to the ``Authorization`` header of a
 real HTTP request made by the browser.
 
     PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers \
         .venv/bin/python dev-scripts/verify_shared_key.py
 
-Four things are proved, in order:
+Seven things are proved, in order:
 
   1  UNLOCK      the encryptor seals a dummy key; the play page decrypts it
                  with the right passphrase and plays a turn against a fake
@@ -19,8 +19,20 @@ Four things are proved, in order:
                  leaves no key material behind.
   3  NO LEAK     after a successful unlock, localStorage, sessionStorage and
                  the whole serialised DOM are dumped and searched for the key.
-  4  ABSENT      with no shared-key.json served, the option does not appear
-                 and the own-key and no-key paths behave exactly as before.
+  4  REFUSED     the endpoint is made to answer 401 and then 429 mid-campaign.
+                 The page must say so in plain words — not hang, not fail
+                 silently, and not quietly serve canned advisors as if
+                 nothing had happened.
+  5  NO WAY IN   there is no "play without a key" control anywhere on the
+                 page, and no campaign can be started without a key. The
+                 offline driver survives only as the engine's fallback when
+                 a live call is refused, which is what check 4 exercises.
+  6  ABSENT      with no shared-key.json served, the passphrase option does
+                 not appear at all and the own-key path is the only way in —
+                 and it still plays a real turn against the endpoint.
+  7  WEAK PASS   the encryptor still refuses a sub-64-bit passphrase, and the
+                 override that allows one is off by default, must be ticked
+                 deliberately, and is withdrawn by any edit to the passphrase.
 
 HOW THE OPENROUTER CALL IS INTERCEPTED
 --------------------------------------
@@ -67,6 +79,10 @@ LLM_PORT = 8793           # TLS, answering as openrouter.ai
 DUMMY_KEY = "sk-or-v1-DUMMY-FOR-TESTING"
 OWN_KEY = "sk-or-v1-A-DIFFERENT-DUMMY-KEY-0000"
 WRONG_PASS = "not-the-passphrase-at-all-9876"
+# The passphrase the owner asked for. It is a well-known slogan and scores far
+# under the 64-bit floor, which is the point: the encryptor must refuse it
+# until a human ticks a box saying they have read what that costs.
+WEAK_PASS = "slavaUkraini"
 
 CORS = {
     "Access-Control-Allow-Origin": "*",
@@ -80,9 +96,16 @@ CORS = {
 
 
 class FakeOpenRouter(http.server.BaseHTTPRequestHandler):
-    """Answers as https://openrouter.ai/api/v1 and records what it was sent."""
+    """Answers as https://openrouter.ai/api/v1 and records what it was sent.
+
+    ``mode`` switches the whole endpoint between answering normally and
+    refusing, so the page's behaviour when a key is exhausted, revoked or
+    rate-limited can be observed rather than assumed. It is a class attribute
+    because the handler is instantiated per request.
+    """
 
     hits = 0
+    mode = "ok"              # 'ok' | '401' | '429'
     auths: ClassVar[list[str]] = []
     paths: ClassVar[list[str]] = []
 
@@ -113,6 +136,20 @@ class FakeOpenRouter(http.server.BaseHTTPRequestHandler):
         FakeOpenRouter.paths.append(self.path)
         n = int(self.headers.get("Content-Length", 0))
         self.rfile.read(n)
+        if FakeOpenRouter.mode == "401":
+            # OpenRouter's shape for a revoked/limit-reached key.
+            self._reply(json.dumps({"error": {
+                "code": 401,
+                "message": "No auth credentials found"}}).encode(), 401)
+            return
+        if FakeOpenRouter.mode == "429":
+            # Deliberately no Retry-After: the driver would otherwise sleep
+            # out the named window before retrying, and this check is about
+            # what the page says, not about how patiently it waits.
+            self._reply(json.dumps({"error": {
+                "code": 429,
+                "message": "Rate limit exceeded"}}).encode(), 429)
+            return
         self._reply(json.dumps({
             "id": "shared-key-verify-1",
             "choices": [{"message": {"role": "assistant",
@@ -157,8 +194,11 @@ class SiteWithBlob(http.server.SimpleHTTPRequestHandler):
     """docs/, plus one file that is never written to the working tree.
 
     The blob is held in memory so this script can never leave a
-    ``docs/play/shared-key.json`` behind — that file is the owner's to create,
-    with his own key, on his own machine.
+    ``docs/shared-key.json`` behind — that file is the owner's to create,
+    with his own key, on his own machine. The interception is also
+    unconditional in the other direction: if the owner's real blob is sitting
+    in the working tree, this handler answers ``/shared-key.json`` from memory
+    (or 404s) and never serves, reads or opens it.
     """
 
     blob: bytes | None = None
@@ -171,7 +211,7 @@ class SiteWithBlob(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_GET(self):
-        if self.path.split("?")[0] == "/play/shared-key.json":
+        if self.path.split("?")[0] == "/shared-key.json":
             if self.blob is None:
                 self.send_error(404, "Not Found")
                 return
@@ -201,9 +241,12 @@ def chromium_path() -> str:
         return explicit
     base = Path(os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "/opt/pw-browsers"))
     for name in sorted((p.name for p in base.glob("chromium-*")), reverse=True):
-        exe = base / name / "chrome-linux" / "chrome"
-        if exe.exists():
-            return str(exe)
+        # Playwright renamed the directory to chrome-linux64 in newer builds;
+        # both layouts turn up under the same PLAYWRIGHT_BROWSERS_PATH.
+        for layout in ("chrome-linux", "chrome-linux64"):
+            exe = base / name / layout / "chrome"
+            if exe.exists():
+                return str(exe)
     raise SystemExit("no Chromium under PLAYWRIGHT_BROWSERS_PATH")
 
 
@@ -249,6 +292,11 @@ def seal_with_the_encryptor(browser, report: dict, failures: list[str]) -> tuple
 
     page.click("#genWords")
     passphrase = page.input_value("#phraseOut")
+    # A generated passphrase must never be shown the override at all.
+    report["weak_box_hidden_for_generated_passphrase"] = page.is_hidden("#weakBox")
+    if not report["weak_box_hidden_for_generated_passphrase"]:
+        failures.append("the weak-passphrase override was offered for a "
+                        "generated passphrase")
     report["generated_passphrase_words"] = len(passphrase.split("-"))
     report["generated_passphrase_bits"] = page.inner_text("#phraseBits")
     # The generated phrase is a test fixture, not a secret; print it so the
@@ -278,6 +326,72 @@ def seal_with_the_encryptor(browser, report: dict, failures: list[str]) -> tuple
             f"{sorted(BLOB_FIELDS)}, got {sorted(b)} — anything else is a "
             "potential wrong-passphrase oracle")
     return passphrase, blob
+
+
+def check_weak_override(browser, report: dict, failures: list[str]) -> None:
+    """The sub-threshold passphrase must cost a deliberate, specific tick.
+
+    Nothing here writes a blob anywhere: the encryptor is driven, the result
+    is read out of the page's own textarea, and the page is closed.
+    """
+    page = browser.new_page()
+    page.on("pageerror", lambda e: report.setdefault("encryptor_errors", []).append(str(e)))
+    page.goto(ENCRYPTOR.as_uri())
+    page.fill("#keyIn", DUMMY_KEY)
+    page.fill("#phraseIn", WEAK_PASS)
+
+    out: dict = {
+        "passphrase": WEAK_PASS,
+        "bits": round(page.evaluate(
+            "window.FF_SEAL.estimateBits(document.getElementById('phraseIn').value)"), 1),
+        "floor_bits": page.evaluate("window.FF_SEAL.minBits"),
+        "override_visible": page.is_visible("#weakBox"),
+        "override_checked_by_default": page.is_checked("#weakOk"),
+        "encrypt_enabled_before_tick": page.is_enabled("#doEncrypt"),
+        "gate_note_before_tick": page.inner_text("#gateNote").strip(),
+        "warning_text": page.inner_text("#weakBox").strip(),
+    }
+
+    page.check("#weakOk")
+    out["encrypt_enabled_after_tick"] = page.is_enabled("#doEncrypt")
+    out["gate_note_after_tick"] = page.inner_text("#gateNote").strip()
+
+    # Editing the passphrase must withdraw the consent given for the old one.
+    page.fill("#phraseIn", WEAK_PASS + "x")
+    out["override_checked_after_edit"] = page.is_checked("#weakOk")
+    out["encrypt_enabled_after_edit"] = page.is_enabled("#doEncrypt")
+
+    # And it really does seal, once accepted: round-trip through the page's
+    # own verification step. The blob is read and dropped, never written.
+    page.fill("#phraseIn", WEAK_PASS)
+    page.check("#weakOk")
+    page.click("#doEncrypt")
+    page.wait_for_selector("#result:not([hidden])", timeout=60_000)
+    blob = json.loads(page.input_value("#blobOut"))
+    out["verdict"] = page.inner_text("#verifyNote").strip()
+    out["blob_iterations"] = blob["iterations"]
+    out["blob_fields"] = sorted(blob)
+    page.close()
+    report["weak_passphrase_override"] = out
+
+    if out["bits"] >= out["floor_bits"]:
+        failures.append(f"{WEAK_PASS!r} scored at or above the floor — the "
+                        "estimator is flattering it")
+    if out["override_checked_by_default"]:
+        failures.append("the weak-passphrase override is ticked by default")
+    if out["encrypt_enabled_before_tick"]:
+        failures.append("a sub-threshold passphrase encrypted without the "
+                        "override being ticked")
+    if not out["override_visible"]:
+        failures.append("the weak-passphrase warning was not shown")
+    if not out["encrypt_enabled_after_tick"]:
+        failures.append("ticking the override did not unlock Encrypt")
+    if out["override_checked_after_edit"] or out["encrypt_enabled_after_edit"]:
+        failures.append("editing the passphrase kept the old consent")
+    if blob["iterations"] < 600_000:
+        failures.append("the override weakened the KDF as well")
+    if sorted(blob) != sorted(BLOB_FIELDS):
+        failures.append(f"the override changed the blob shape: {sorted(blob)}")
 
 
 def _b64len(s: str) -> bytes:
@@ -414,6 +528,9 @@ def main() -> int:
 
         # ---------------------------------------------------- 1. seal a key
         passphrase, blob = seal_with_the_encryptor(browser, report, failures)
+        # ------------------------------- 7. the weak-passphrase override
+        # (run here, while the encryptor is the only thing in flight)
+        check_weak_override(browser, report, failures)
         serve_site(SITE_PORT, blob.encode())
         serve_site(BARE_PORT, None)
 
@@ -423,7 +540,7 @@ def main() -> int:
         page.on("console", lambda m: console.append(f"{m.type}: {m.text}"))
         page.on("pageerror", lambda e: console.append(f"pageerror: {e}"))
 
-        page.goto(f"http://127.0.0.1:{SITE_PORT}/play/index.html")
+        page.goto(f"http://127.0.0.1:{SITE_PORT}/index.html")
         page.wait_for_function("window.FF_PLAY && window.FF_PLAY.sharedOffered === true",
                                timeout=15_000)
         report["shared_panel_visible"] = page.is_visible("#sharedPanel")
@@ -511,6 +628,64 @@ def main() -> int:
                 failures.append("KEY MATERIAL LEAKED after playing: " +
                                 json.dumps(report["after_playing"]["leaks"]))
 
+        # ------------------- 5. the endpoint refuses: 401, then 429
+        #
+        # This is the path that matters most for a shared key: it is spent
+        # from by strangers, so it WILL eventually be revoked, exhausted or
+        # throttled. When that happens the engine falls back to the offline
+        # driver (llm/router.py does this so a turn never dies half-written)
+        # — and a page that let that happen silently would be lying, because
+        # the advisors have stopped reading what the player wrote.
+        if not args.skip_play:
+            for code, must_say in (("401", ("rejected", "spend limit")),
+                                   ("429", ("rate-limit", "429"))):
+                page.evaluate("document.getElementById('alerts').innerHTML = ''")
+                FakeOpenRouter.mode = code
+                hits_before = FakeOpenRouter.hits
+                t0 = time.time()
+                page.click("#endTurn")
+                wait_awaiting(page, ["decision", "confirm"])
+                send_decision(page,
+                              "Put the Typhoons on airborne alert and tell "
+                              "Oslo before the press hear it.")
+                alerts = page.inner_text("#alerts").strip()
+                screen = page.evaluate("window.FF_PLAY.text()")
+                report[f"refused_{code}"] = {
+                    "seconds": round(time.time() - t0, 1),
+                    "endpoint_calls": FakeOpenRouter.hits - hits_before,
+                    "alert_text": alerts,
+                    "in_transcript": any(
+                        must in screen for must in must_say),
+                    "awaiting_after": page.evaluate("window.FF_PLAY.awaiting"),
+                    # The turn resolved, so Decide is correctly disabled until
+                    # the player acknowledges: "can go on" means Continue is
+                    # there, or the campaign has genuinely ended.
+                    "can_go_on": page.is_visible("#endTurn")
+                                 or page.evaluate("window.FF_PLAY.over"),
+                }
+                if not report[f"refused_{code}"]["can_go_on"]:
+                    failures.append(
+                        f"after a {code} there was no way to continue the turn")
+                if not alerts:
+                    failures.append(
+                        f"the page said nothing at all when the endpoint "
+                        f"answered {code} — a silent fallback to canned "
+                        f"advisors is exactly what must not happen")
+                elif not any(must.lower() in alerts.lower() for must in must_say):
+                    failures.append(
+                        f"the {code} message does not say what went wrong "
+                        f"in plain words (wanted one of {must_say!r}): "
+                        f"{alerts!r}")
+                if "offline stand-in" not in alerts:
+                    failures.append(
+                        f"the {code} message does not say the advisors fell "
+                        f"back to the offline stand-in: {alerts!r}")
+                if report[f"refused_{code}"]["awaiting_after"] == "none":
+                    failures.append(
+                        f"the page stranded the player after a {code} — "
+                        f"nothing is accepted and there is no way on")
+            FakeOpenRouter.mode = "ok"
+
         report["console_mentions_key"] = [
             line for line in console
             if DUMMY_KEY in line or passphrase in line
@@ -520,21 +695,37 @@ def main() -> int:
             failures.append("the key or passphrase was logged to the console")
         ctx.close()
 
-        # -------------------------- 5. no blob: the option must not exist,
-        #                               and the other two paths must be intact
+        # -------------------------- 6. no blob: the passphrase option must
+        #                               not exist, and the own-key path must
+        #                               then be the only way in
         ctx2 = browser.new_context(ignore_https_errors=True)
         bare = ctx2.new_page()
-        bare.goto(f"http://127.0.0.1:{BARE_PORT}/play/index.html")
+        bare.goto(f"http://127.0.0.1:{BARE_PORT}/index.html")
         bare.wait_for_function("window.FF_PLAY !== undefined", timeout=15_000)
         bare.wait_for_timeout(1500)   # let the 404 probe resolve
         report["absent_shared_offered"] = bare.evaluate("window.FF_PLAY.sharedOffered")
         report["absent_panel_visible"] = bare.is_visible("#sharedPanel")
         report["absent_start_shared_visible"] = bare.is_visible("#startShared")
 
+        # There must be no way to start a campaign without a key — the
+        # removed control by id, and any button still offering it by name.
+        report["absent_startNoKey_exists"] = bare.evaluate(
+            "document.getElementById('startNoKey') !== null")
+        report["absent_start_buttons_before_key"] = bare.evaluate(
+            """() => [...document.querySelectorAll('#gate button')]
+                 .filter(b => b.offsetParent !== null)
+                 .map(b => b.textContent.trim())""")
+        report["absent_start_hint"] = bare.inner_text("#startHint").strip()
+        report["absent_gate_mentions_playing_without_a_key"] = bool(re.search(
+            r"without (?:a|using it) key|play without",
+            bare.inner_text("#gate"), re.I))
+        if report["absent_startNoKey_exists"]:
+            failures.append("#startNoKey still exists")
+        if report["absent_gate_mentions_playing_without_a_key"]:
+            failures.append("the gate still offers playing without a key")
+
         # own-key path, unchanged
         report["absent_default_keystate"] = bare.inner_text("#keystate").strip()
-        report["absent_startNoKey_primary_before"] = bare.evaluate(
-            "document.getElementById('startNoKey').classList.contains('primary')")
         bare.fill("#apikey", OWN_KEY)
         bare.click("#useKey")
         report["absent_keystate_after_own_key"] = bare.inner_text("#keystate").strip()
@@ -547,6 +738,13 @@ def main() -> int:
             "() => Object.fromEntries(Object.entries(localStorage))")
         bare.click("text=Forget it")
         report["absent_keystate_after_forget"] = bare.inner_text("#keystate").strip()
+        report["absent_start_buttons_after_forget"] = bare.evaluate(
+            """() => [...document.querySelectorAll('#gate button')]
+                 .filter(b => b.offsetParent !== null)
+                 .map(b => b.textContent.trim())""")
+        if any("without" in t.lower()
+               for t in report["absent_start_buttons_after_forget"]):
+            failures.append("a no-key start button reappeared after Forget it")
 
         if report["absent_shared_offered"] or report["absent_panel_visible"] \
                 or report["absent_start_shared_visible"]:
@@ -556,27 +754,29 @@ def main() -> int:
         if OWN_KEY in json.dumps(report["absent_localStorage_after_own_key"]):
             failures.append("an unremembered own key was written to localStorage")
 
-        # no-key path, unchanged: it must still boot and reach a decision
+        # The own-key path is now the only way in on a fork, so prove it
+        # end to end rather than merely proving the button appears: set the
+        # key again, play a turn, and check the endpoint saw THAT key.
         if not args.skip_play:
-            # Taken *before* the click: a request made during boot, before the
-            # engine has settled on the offline stand-in, is exactly the
-            # regression this is here to catch, and a count read afterwards
-            # would have already absorbed it.
+            bare.fill("#apikey", OWN_KEY)
+            bare.click("#useKey")
             hits_before = FakeOpenRouter.hits
+            auths_before = len(FakeOpenRouter.auths)
             t0 = time.time()
-            bare.click("#startNoKey")
+            bare.click("#startWithKey")
             wait_awaiting(bare, ["decision"])
-            report["absent_nokey_boot_seconds"] = round(time.time() - t0, 1)
-            report["absent_nokey_boot_llm_hits"] = FakeOpenRouter.hits - hits_before
-            report["absent_nokey_awaiting"] = bare.evaluate("window.FF_PLAY.awaiting")
-            report["absent_nokey_offline_banner"] = bool(re.search(
-                r"OFFLINE MODE", bare.evaluate("window.FF_PLAY.text()")))
+            report["absent_ownkey_boot_seconds"] = round(time.time() - t0, 1)
             send_decision(bare, "Hold the line and convene COBRA at 0700.")
-            report["absent_nokey_extra_llm_hits"] = FakeOpenRouter.hits - hits_before
-            if report["absent_nokey_boot_llm_hits"] != 0:
-                failures.append("the no-key path contacted an endpoint during boot")
-            if report["absent_nokey_extra_llm_hits"] != 0:
-                failures.append("the no-key path contacted an endpoint")
+            own_auths = sorted(set(FakeOpenRouter.auths[auths_before:]))
+            report["absent_ownkey_llm_hits"] = FakeOpenRouter.hits - hits_before
+            report["absent_ownkey_auth_headers_seen"] = own_auths
+            report["absent_ownkey_awaiting"] = bare.evaluate("window.FF_PLAY.awaiting")
+            if report["absent_ownkey_llm_hits"] == 0:
+                failures.append("the own key never reached an endpoint")
+            if own_auths != [f"Bearer {OWN_KEY}"]:
+                failures.append(
+                    f"the own-key run sent {own_auths!r}, expected only "
+                    f"Bearer {OWN_KEY!r}")
 
         ctx2.close()
         browser.close()

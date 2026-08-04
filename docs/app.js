@@ -61,6 +61,7 @@
   var ui = {
     apiKey: null,        // in memory only unless "remember" was ticked
     sharedBlob: null,    // the published ciphertext, if this deploy has one
+    sharedProbed: false, // has the fetch for it finished, either way?
     sharedKey: null,     // decrypted owner's key — MEMORY ONLY, never stored
     keySource: '',       // 'shared' or 'own' — which key this run is using
     booted: false,
@@ -566,11 +567,46 @@
     return head + '…' + tail;
   }
 
+  /* The markup is written for a fork: no shared key, so the own-key panel is
+     the way in and reads like it. When a blob does turn up, the passphrase
+     panel appears above it and this demotes the own-key panel to the
+     alternative it now is. Doing it this way round means a fork — which never
+     runs this — never shows an "OR:" heading with nothing above it. */
+  function demoteOwnKeyPanel() {
+    if (el.ownCap) {
+      el.ownCap.innerHTML = '';
+      el.ownCap.appendChild(document.createTextNode('──  '));
+      var b = document.createElement('b');
+      b.textContent = 'OR: BRING YOUR OWN KEY';
+      el.ownCap.appendChild(b);
+      el.ownCap.appendChild(document.createTextNode('  ──  YOU DO NOT NEED THIS'));
+    }
+    if (el.ownLede) {
+      // Rebuilt rather than rewritten, so the link to OpenRouter survives.
+      el.ownLede.textContent = '';
+      el.ownLede.appendChild(document.createTextNode(
+        'You do not need this if you have the passphrase. It is here because ' +
+        'some people would rather spend their own money than someone else’s. ' +
+        'FALSE FLAG talks to '));
+      var link = document.createElement('a');
+      link.href = 'https://openrouter.ai/keys';
+      link.rel = 'noopener';
+      link.textContent = 'OpenRouter';
+      el.ownLede.appendChild(link);
+      el.ownLede.appendChild(document.createTextNode(
+        ': you paste the key here, your browser sends it straight to ' +
+        'OpenRouter, and it goes nowhere else. There is no server behind ' +
+        'this page.'));
+    }
+    if (el.ownPanel) el.ownPanel.classList.add('secondary');
+  }
+
   /* Which start buttons exist, and which one is the obvious one to press.
      There is no third button: a key is now the only way in, because the page
      no longer offers the offline stand-in as a *choice*. It remains what the
      engine falls back to if a live call is refused mid-campaign, and the page
-     says so out loud when that happens — see the 'error' branch in attach().
+     says so out loud when that happens — the worker sends {type:'error'} and
+     attach() turns it into a banner.
 
      The shared key is the primary offer. Your own key, if you set one, wins
      over it for the run: it is your money, and you chose to spend it. */
@@ -585,8 +621,11 @@
 
     if (el.startHint) {
       el.startHint.hidden = own || shared;
-      el.startHint.textContent = ui.sharedBlob
-        ? 'Enter the passphrase above to begin.'
+      // Until the probe has answered, this deploy might have a shared key or
+      // might not, and naming the wrong one for a frame is a flicker the
+      // reader has to re-read. Say the thing that is true either way.
+      el.startHint.textContent = !ui.sharedProbed ? 'A key is needed to begin.'
+        : ui.sharedBlob ? 'Enter the passphrase above to begin.'
         : 'Set an OpenRouter key above to begin.';
     }
   }
@@ -611,6 +650,7 @@
     } else {
       el.keystate.textContent = 'No key set.';
     }
+    el.keystate.classList.toggle('idle', !ui.apiKey);
     refreshStart();
   }
 
@@ -712,24 +752,34 @@
   function setSharedState(text, tone) {
     if (!el.sharedState) return;
     el.sharedState.textContent = text;
-    el.sharedState.style.color = tone === 'bad' ? 'var(--red)'
-      : tone === 'work' ? 'var(--dim)' : '';
+    el.sharedState.style.color = tone === 'bad' ? 'var(--red-t)' : '';
+    // 'idle' is the neutral grey the panel starts in; only an actual unlock
+    // gets the success colour.
+    el.sharedState.classList.toggle('idle', tone === 'work' || tone === 'idle');
   }
 
   /* Probe for the blob. No file, a 404, or anything that is not a blob of the
      shape above, and the option is never offered at all — which is what most
      forks of this repository will see. */
   (function probeShared() {
-    if (!el.sharedPanel || !(window.crypto && window.crypto.subtle)) return;
+    if (!el.sharedPanel || !(window.crypto && window.crypto.subtle)) {
+      ui.sharedProbed = true;
+      refreshStart();
+      return;
+    }
+    function settle(blob) {
+      ui.sharedProbed = true;
+      if (blob) {
+        ui.sharedBlob = blob;
+        el.sharedPanel.hidden = false;
+        demoteOwnKeyPanel();
+      }
+      refreshStart();
+    }
     fetch(SHARED_BLOB, { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (j) {
-        if (!wellFormedBlob(j)) return;
-        ui.sharedBlob = j;
-        el.sharedPanel.hidden = false;
-        refreshStart();
-      })
-      .catch(function () { /* no shared key here; nothing to offer */ });
+      .then(function (j) { settle(wellFormedBlob(j) ? j : null); })
+      .catch(function () { settle(null); });
   })();
 
   /* One derivation at a time. The button is disabled while it runs, but the

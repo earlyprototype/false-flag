@@ -3,893 +3,293 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FALSE FLAG — an LLM crisis wargame in a terminal</title>
-<meta name="description" content="You are the Prime Minister in COBRA. Your advisors are LLM agents, your decisions are free text, and a hidden narrative is running behind the crisis.">
-<meta name="color-scheme" content="dark light">
-<meta property="og:title" content="FALSE FLAG — an LLM crisis wargame in a terminal">
-<meta property="og:description" content="You are the Prime Minister in COBRA. Your advisors are LLM agents, your decisions are free text, and a hidden narrative is running behind the crisis.">
+<title>FALSE FLAG — play it in your browser</title>
+<meta name="description" content="Play FALSE FLAG in the browser. You are the Prime Minister in COBRA; your decisions are a paragraph you write yourself, not an option (b).">
+<meta name="color-scheme" content="dark">
+<meta property="og:title" content="FALSE FLAG — play it in your browser">
+<meta property="og:description" content="You are the Prime Minister in COBRA. Type what you would actually do. The cabinet answers.">
 <meta property="og:type" content="website">
-<style>
-/* FALSE FLAG — Operation Tuman site stylesheet.
-   Inlined into every generated page by dev-scripts/build_site.py.
-   Dark-first (the game's own palette); a declassified-paper light theme
-   follows prefers-color-scheme. Terminal captures keep their dark ground
-   in both themes — they are screens inside the page, not page chrome. */
-
-:root {
-  --ground: #0b1017;
-  --panel: #0f1621;
-  --panel-2: #111a26;
-  --line: #1d2836;
-  --line-2: #263447;
-  --ink: #f1faee;
-  --ink-2: #b8c6d0;
-  --dim: #457b9d;
-  --accent: #ff6b35;
-  --amber: #ffb627;
-  --teal: #00d9a3;
-  --red: #ff3b30;
-  --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "JetBrains Mono",
-          Menlo, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
-  color-scheme: dark;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    --ground: #efe9dd;
-    --panel: #f7f3ea;
-    --panel-2: #efe8da;
-    --line: #cfc3ac;
-    --line-2: #b9ab90;
-    --ink: #161d26;
-    --ink-2: #3d4a57;
-    --dim: #4c6274;
-    --accent: #b8360f;
-    --amber: #8a6410;
-    --teal: #0a6e58;
-    --red: #a01309;
-    color-scheme: light;
-  }
-}
-
-* { box-sizing: border-box; }
-
-html {
-  background: var(--ground);
-  -webkit-text-size-adjust: 100%;
-}
-
-body {
-  margin: 0;
-  background: var(--ground);
-  color: var(--ink);
-  font-family: var(--mono);
-  font-size: 15px;
-  line-height: 1.62;
-  overflow-x: hidden;
-}
-
-/* ---------------------------------------------------------------- chrome */
-
-.strip {
-  display: flex;
-  align-items: baseline;
-  gap: 0;
-  padding: 6px 16px;
-  font-size: 11.5px;
-  letter-spacing: 0.14em;
-  color: var(--red);
-  white-space: nowrap;
-  overflow: hidden;
-  border-bottom: 1px solid var(--line);
-  background: var(--ground);
-}
-.strip.bottom { border-bottom: 0; border-top: 1px solid var(--line); }
-.strip b { color: var(--amber); font-weight: 600; }
-.strip .fill {
-  flex: 1 1 auto;
-  min-width: 12px;
-  overflow: hidden;
-  color: var(--line-2);
-  margin: 0 8px;
-}
-.strip .fill::before {
-  content: "────────────────────────────────────────────────────────────"
-           "────────────────────────────────────────────────────────────"
-           "────────────────────────────────────────────────────────────";
-}
-.strip .code { color: var(--dim); }
-
-nav.bar {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 18px;
-  padding: 9px 16px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-  font-size: 12.5px;
-  letter-spacing: 0.1em;
-}
-nav.bar .home {
-  color: var(--accent);
-  font-weight: 700;
-  text-decoration: none;
-  letter-spacing: 0.18em;
-}
-nav.bar .links { display: flex; gap: 16px; flex-wrap: wrap; margin-left: auto; }
-nav.bar a { color: var(--dim); text-decoration: none; }
-nav.bar a:hover, nav.bar a:focus-visible { color: var(--ink); }
-/* `.here` is the visual highlight; `aria-current` is the separate, stronger
-   claim that this link *is* the current document. The nuclear-order replay
-   sits under REPLAY in the nav and takes the highlight only — announcing
-   another page as the reader's location would be false. */
-nav.bar a.here { color: var(--amber); }
-nav.bar a.here::before { content: "●  "; color: var(--accent); }
-
-main { max-width: 1080px; margin: 0 auto; padding: 0 16px 72px; }
-
-/* --------------------------------------------------------------- rulings */
-
-h1, h2, h3 { font-weight: 700; letter-spacing: 0.08em; }
-
-.rule {
-  display: flex;
-  align-items: baseline;
-  margin: 64px 0 22px;
-  font-size: 14px;
-  letter-spacing: 0.16em;
-  color: var(--accent);
-  white-space: nowrap;
-  overflow: hidden;
-}
-h1.rule { font-size: 19px; letter-spacing: 0.18em; margin: 26px 0 24px; }
-.rule .node { color: var(--dim); font-weight: 400; }
-.rule .fill { flex: 1 1 auto; overflow: hidden; color: var(--line-2); margin-left: 10px; font-weight: 400; }
-.rule .fill::before {
-  content: "─────────────────────────────────────────────────────────────"
-           "─────────────────────────────────────────────────────────────"
-           "──────────────────────────────────────────────────────·─· ·  ·";
-}
-.rule .num { color: var(--amber); font-weight: 400; margin-right: 10px; }
-
-h3.sub {
-  margin: 40px 0 10px;
-  font-size: 13.5px;
-  letter-spacing: 0.14em;
-  color: var(--amber);
-}
-h3.sub::before { content: "──  "; color: var(--dim); }
-
-/* --------------------------------------------------------------- prose */
-
-p, li { color: var(--ink-2); }
-p { margin: 0 0 16px; max-width: 74ch; }
-ul.plain { list-style: none; padding: 0; margin: 0 0 20px; max-width: 78ch; }
-ul.plain li { position: relative; padding-left: 20px; margin-bottom: 9px; }
-ul.plain li::before { content: "·"; position: absolute; left: 4px; color: var(--accent); }
-strong { color: var(--ink); font-weight: 700; }
-a strong { color: inherit; }
-em { color: var(--amber); font-style: normal; }
-
-a { color: var(--accent); text-underline-offset: 3px; text-decoration-color: var(--line-2); }
-a:hover, a:focus-visible { color: var(--amber); text-decoration-color: currentColor; }
-
-code {
-  font-family: var(--mono);
-  font-size: 0.92em;
-  color: var(--teal);
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  padding: 0 4px;
-}
-pre code { color: inherit; background: none; border: 0; padding: 0; font-size: inherit; }
-
-.offscreen {
-  position: absolute;
-  width: 1px; height: 1px;
-  margin: -1px; padding: 0; border: 0;
-  clip-path: inset(50%);
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.lede { font-size: 16.5px; line-height: 1.65; color: var(--ink); max-width: 68ch; }
-.note {
-  font-size: 12.5px;
-  color: var(--dim);
-  border-left: 2px solid var(--line-2);
-  padding: 4px 0 4px 14px;
-  margin: 20px 0;
-  max-width: 78ch;
-}
-.note b { color: var(--amber); font-weight: 600; }
-
-/* --------------------------------------------------------- ascii chrome */
-
-.rig {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  white-space: pre;
-  line-height: 1.15;
-  font-family: var(--mono);
-  /* 100 columns at ~0.6em/char -> keep the band inside the viewport */
-  font-size: clamp(4px, 1.5vw, 11px);
-  color: var(--dim);
-}
-.rig.mast { font-size: clamp(5px, 1.62vw, 13.5px); line-height: 1.1; }
-.rig.wide { font-size: clamp(4px, 1.5vw, 12px); }
-.fogwrap { margin: 0 -16px; }
-
-/* --------------------------------------------------------------- panels */
-
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  padding: 18px 20px;
-  margin: 0 0 22px;
-}
-.panel > :last-child { margin-bottom: 0; }
-.panel .cap {
-  display: block;
-  font-size: 11.5px;
-  letter-spacing: 0.16em;
-  color: var(--dim);
-  margin-bottom: 10px;
-}
-.panel .cap b { color: var(--amber); font-weight: 600; }
-
-.grid { display: grid; gap: 18px; }
-@media (min-width: 760px) { .grid.two { grid-template-columns: 1fr 1fr; } }
-
-.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; padding: 0; list-style: none; }
-.chips li {
-  font-size: 11.5px;
-  letter-spacing: 0.09em;
-  padding: 3px 10px;
-  border: 1px solid var(--line-2);
-  border-radius: 2px;
-  color: var(--dim);
-}
-.chips li b { color: var(--ink); font-weight: 600; }
-
-/* ------------------------------------------------------ terminal panes */
-
-.term {
-  position: relative;
-  background: #0b1017;
-  border: 1px solid #1d2836;
-  border-radius: 2px;
-  margin: 0 0 22px;
-}
-.term > .label {
-  display: flex;
-  gap: 10px;
-  align-items: baseline;
-  padding: 7px 14px;
-  border-bottom: 1px solid #1d2836;
-  font-size: 11px;
-  letter-spacing: 0.15em;
-  color: #457b9d;
-  white-space: nowrap;
-  overflow: hidden;
-}
-.term > .label b { color: #ffb627; font-weight: 600; }
-.term > .label .r { color: #ff3b30; }
-
-pre.console {
-  margin: 0;
-  padding: 14px 16px 16px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  white-space: pre;
-  font-family: var(--mono);
-  font-size: 12.4px;
-  line-height: 1.42;
-  color: #c9d6e0;
-  background: #0b1017;
-  -webkit-overflow-scrolling: touch;
-}
-pre.console.clip { max-height: 30em; overflow-y: auto; }
-
-/* Rich exports every run as a <span class="rNN">. Anything unstyled
-   inherits the pane colour above. */
-
-.scrollhint {
-  padding: 5px 14px 7px;
-  font-size: 10.5px;
-  letter-spacing: 0.13em;
-  color: #345166;
-  border-top: 1px solid #141d29;
-}
-
-/* ------------------------------------------------------------ replay */
-
-.index { margin: 0 0 30px; padding: 0; list-style: none; border-top: 1px solid var(--line); }
-.index li { border-bottom: 1px solid var(--line); }
-.index a {
-  display: flex;
-  gap: 14px;
-  align-items: baseline;
-  padding: 9px 6px;
-  text-decoration: none;
-  color: var(--ink-2);
-  font-size: 13px;
-}
-.index a:hover, .index a:focus-visible { background: var(--panel); color: var(--ink); }
-.index .n { color: var(--amber); flex: 0 0 auto; letter-spacing: 0.12em; }
-.index .t { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.index a:hover .t { color: var(--ink-2); }
-
-details.turn { margin: 0 0 12px; border: 1px solid var(--line); border-radius: 2px; background: var(--panel); scroll-margin-top: 64px; }
-details.turn > summary {
-  cursor: pointer;
-  list-style: none;
-  padding: 12px 16px;
-  font-size: 13px;
-  letter-spacing: 0.12em;
-  color: var(--accent);
-  user-select: none;
-  display: flex;
-  gap: 12px;
-  align-items: baseline;
-  flex-wrap: wrap;
-}
-details.turn > summary::-webkit-details-marker { display: none; }
-details.turn > summary::after {
-  content: "[ OPEN ]";
-  margin-left: auto;
-  color: var(--dim);
-  font-size: 11px;
-  letter-spacing: 0.14em;
-}
-details.turn[open] > summary::after { content: "[ CLOSE ]"; color: var(--teal); }
-details.turn > summary:hover { background: var(--panel-2); }
-details.turn > summary .gist {
-  color: var(--dim);
-  font-size: 12px;
-  letter-spacing: 0;
-  font-weight: 400;
-  flex: 1 1 22ch;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-details.turn .body { padding: 0 12px 12px; }
-details.turn .body .term { margin-bottom: 0; }
-
-/* ------------------------------------------------------- interstitials */
-
-figure.vig { margin: 0 0 56px; }
-figure.vig .shot {
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  background: #0b1017;
-  padding: 10px;
-  overflow: hidden;
-}
-figure.vig img { display: block; width: 100%; height: auto; image-rendering: auto; }
-figure.vig figcaption { margin-top: 14px; max-width: 74ch; }
-figure.vig .name {
-  font-size: 13px;
-  letter-spacing: 0.16em;
-  color: var(--accent);
-  font-weight: 700;
-}
-figure.vig .name .k { color: var(--dim); font-weight: 400; }
-figure.vig .beat { color: var(--ink-2); margin: 8px 0 10px; }
-figure.vig .punch {
-  color: var(--amber);
-  font-size: 13px;
-  letter-spacing: 0.1em;
-}
-figure.vig .punch::before { content: "──  "; color: var(--dim); }
-
-/* ------------------------------------------------------------- spoilers */
-
-details.spoiler { border: 1px solid var(--line); border-radius: 2px; background: var(--panel); margin: 0 0 22px; }
-details.spoiler > summary {
-  cursor: pointer;
-  list-style: none;
-  padding: 12px 16px;
-  font-size: 12.5px;
-  letter-spacing: 0.13em;
-  color: var(--red);
-}
-details.spoiler > summary::-webkit-details-marker { display: none; }
-details.spoiler > summary::before { content: "▓▓  "; color: var(--line-2); }
-details.spoiler[open] > summary::before { content: "──  "; color: var(--dim); }
-details.spoiler .body { padding: 0 16px 16px; }
-
-/* --------------------------------------------------------------- footer */
-
-footer { margin-top: 72px; }
-footer .inner { max-width: 1080px; margin: 0 auto; padding: 22px 16px 40px; font-size: 12.5px; color: var(--dim); }
-footer .inner p { color: var(--dim); font-size: 12.5px; max-width: 80ch; }
-footer .inner a { color: var(--dim); }
-footer .inner a:hover { color: var(--accent); }
-
-.skip {
-  position: absolute;
-  left: -9999px;
-  background: var(--accent);
-  color: var(--ground);
-  padding: 8px 14px;
-  z-index: 99;
-}
-.skip:focus { left: 8px; top: 8px; }
-
-@media (max-width: 640px) {
-  body { font-size: 14.5px; }
-  pre.console { font-size: 11.4px; }
-  .rule { margin-top: 48px; }
-  /* The reference code would only ever be clipped mid-word down here. */
-  .strip .code { display: none; }
-  .strip .fill { margin-right: 0; }
-  figure.vig { margin-bottom: 42px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
-}
-
-/* Rich terminal export classes (one shared map for the whole site) */
-.r1 {color: #004e89; text-decoration-color: #004e89}
-.r2 {color: #457b9d; text-decoration-color: #457b9d}
-.r3 {color: #ff6b35; text-decoration-color: #ff6b35; font-weight: bold}
-.r4 {color: #1a659e; text-decoration-color: #1a659e}
-.r5 {color: #ff0000; text-decoration-color: #ff0000; font-weight: bold}
-.r6 {color: #ffb627; text-decoration-color: #ffb627}
-.r7 {color: #ffb627; text-decoration-color: #ffb627; font-weight: bold}
-.r8 {color: #ff3b30; text-decoration-color: #ff3b30; font-weight: bold}
-.r9 {color: #457b9d; text-decoration-color: #457b9d; font-weight: bold}
-.r10 {color: #f1faee; text-decoration-color: #f1faee}
-.r11 {color: #7c92a6; text-decoration-color: #7c92a6}
-.r12 {color: #ff3b30; text-decoration-color: #ff3b30}
-.r13 {font-weight: bold}
-.r14 {color: #7c92a6; text-decoration-color: #7c92a6; font-weight: bold}
-.r15 {font-style: italic}
-.r16 {color: #ff6b35; text-decoration-color: #ff6b35}
-.r17 {color: #ff6b35; text-decoration-color: #ff6b35; font-weight: bold; font-style: italic}
-.r18 {color: #c9d6e0; text-decoration-color: #c9d6e0}
-.r19 {color: #c9d6e0; text-decoration-color: #c9d6e0; font-weight: bold}
-.r20 {color: #d69e3c; text-decoration-color: #d69e3c}
-.r21 {color: #00b48c; text-decoration-color: #00b48c}
-.r22 {color: #00d9a3; text-decoration-color: #00d9a3; font-weight: bold}
-.r23 {color: #d69e3c; text-decoration-color: #d69e3c; font-weight: bold}
-.r24 {color: #00b48c; text-decoration-color: #00b48c; font-weight: bold}
-.r25 {color: #ff6b35; text-decoration-color: #ff6b35; font-style: italic}
-</style>
+<!-- Inline, so the page still makes zero external requests. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230b1017'/%3E%3Crect x='0.5' y='0.5' width='15' height='15' fill='none' stroke='%23004e89'/%3E%3Ctext x='8' y='12' font-family='monospace' font-size='10' font-weight='bold' fill='%23ff6b35' text-anchor='middle'%3EFF%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="play.css">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-<div class="strip" aria-hidden="true"><span>┌─[ <b>TOP SECRET ── UK EYES ONLY</b> ]</span><span class="fill"></span><span class="code">[ COBRA/TU/10 ]─┐</span></div>
-<nav class="bar"><a class="home" href="index.html">FALSE&nbsp;FLAG</a><span class="links"><a href="index.html" aria-current="page" class="here">01 BRIEF</a><a href="interstitials.html">02 VIGNETTES</a><a href="replay.html">03 REPLAY</a><a href="play/index.html">04 PLAY</a></span></nav>
+
+<div class="strip" aria-hidden="true">
+  <span>┌─[ <b>TOP SECRET ── UK EYES ONLY</b> ]</span>
+  <span class="fill"></span>
+  <span class="code">[ COBRA/TU/PLAY ]─┐</span>
+</div>
+
+<!-- Not navigation any more: docs/ is the game and there is nowhere else to
+     go. It is the terminal's title bar, and the reference code is the game's
+     own chrome. The GitHub link lives once, in the footer. -->
+<div class="bar">
+  <span class="home">FALSE&nbsp;FLAG</span>
+  <span class="links">
+    <span class="ref">OPERATION TUMAN ── UK CRISIS CABINET</span>
+  </span>
+</div>
+
 <main id="main">
-<div class="fogwrap"><pre class="rig wide" aria-hidden="true"><span class="r2">········░░░░</span><span class="r1">▒</span><span class="r2">░░░░···░░</span><span class="r1">▒▒</span><span class="r4">▓</span><span class="r1">▒▒▒</span><span class="r2">░░░░░</span><span class="r1">▒▒</span><span class="r4">▓▓▓▓▓▓▓▓▓▓</span><span class="r1">▒▒</span><span class="r2">░░░░░░</span><span class="r1">▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒</span><span class="r2">░░░░░░···╌·······░░</span><span class="r1">▒</span><span class="r4">▓▓▓</span><span class="r1">▒▒</span><span class="r2">░░░░░·</span>
-<span class="r2">░········░░</span><span class="r1">▒▒▒</span><span class="r2">░░░░░░░</span><span class="r1">▒▒</span><span class="r4">▓▓▓</span><span class="r1">▒▒</span><span class="r2">░░·░░</span><span class="r1">▒▒</span><span class="r4">▓▓▓▓▓▓▓▓▓</span><span class="r1">▒▒</span><span class="r2">░░░░░░░░░░░░░</span><span class="r1">▒▒▒▒</span><span class="r2">░░░░░░░░░░░············░░</span><span class="r1">▒</span><span class="r4">▓▓▓▓</span><span class="r1">▒▒</span><span class="r2">░░░░·</span>
-<span class="r2">░░░······░░</span><span class="r1">▒▒▒▒▒</span><span class="r2">░░░░</span><span class="r1">▒▒</span><span class="r4">▓▓▓▓</span><span class="r1">▒</span><span class="r2">░░···░░</span><span class="r1">▒</span><span class="r4">▓▓▓▓▓▓▓▓▓</span><span class="r1">▒▒</span><span class="r2">░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░·····</span>     <span class="r2">·░</span><span class="r1">▒</span><span class="r4">▓▓▓</span><span class="r1">▒▒</span><span class="r2">░░░░··</span></pre></div>
-<h1 class="offscreen">FALSE FLAG — Operation Tuman, an LLM-driven COBRA crisis simulation</h1>
-<pre class="rig mast" role="img" aria-label="FALSE FLAG — Operation Tuman, a COBRA crisis simulation"><span class="r1">▒</span><span class="r2">░░··</span>    <span class="r2">········</span>     <span class="r2">····</span>       <span class="r2">··░░░░············░░░░░░░░░</span><span class="r1">▒</span><span class="r2">░░··</span>   <span class="r2">··░░</span><span class="r1">▒</span><span class="r2">░░··</span>                <span class="r2">·······</span>
-<span class="r2">░░░··</span>    <span class="r2">········</span>   <span class="r2">·······</span>      <span class="r2">··░░░░···········░░░░</span><span class="r1">▒▒▒▒▒▒▒</span><span class="r2">░░··</span>   <span class="r2">··░░</span><span class="r1">▒</span><span class="r2">░░··</span>                <span class="r2">······░</span>
-             <span class="r3">██████  ▄████▄  ██      ▄█████  ██████      ██████  ██      ▄████▄  ▄████▄</span>
-             <span class="r3">██      ██  ██  ██      ██      ██          ██      ██      ██  ██  ██    </span>
-             <span class="r3">█████   ██████  ██      ▀████▄  █████       █████   ██      ██████  ██ ███</span>
-             <span class="r3">██      ██  ██  ██          ██  ██          ██      ██      ██  ██  ██  ██</span>
-             <span class="r3">██      ██  ██  ██████  █████▀  ██████      ██      ██████  ██  ██  ▀████▀</span>
-
-                            <span class="r2">OPERATION TUMAN ── A COBRA CRISIS SIMULATION</span>
-<span class="r1">▒</span><span class="r2">░░░······</span>   <span class="r2">··░░░</span><span class="r1">▒</span><span class="r2">░░░···············································░░░</span><span class="r1">▒</span><span class="r2">░░░░░░░░·······</span>            
-<span class="r2">░░░░···········░░░░░░░░··············································░░░</span><span class="r1">▒</span><span class="r2">░░░░░░░····</span>                </pre>
-<div class="fogwrap"><pre class="rig wide" aria-hidden="true"><span class="r2">····░░░░░·············░░░░░·</span>     <span class="r2">··░░░░·······</span>     <span class="r2">··░░░░░·······················</span>             <span class="r2">······</span>
-<span class="r2">····░░░░░··</span>        <span class="r2">····░░░··</span>     <span class="r2">··░░░░·······</span>     <span class="r2">······························</span>               <span class="r2">····</span></pre></div>
-
-<p class="lede" style="margin-top:34px">You are the Prime Minister of the United
-Kingdom. Russia has staged an attack on its own naval base and blamed Britain
-for it. Fifteen submarines are in the North Atlantic. Five advisors are around
-the COBRA table waiting for you — and not one of them is a menu.</p>
-
-<p>FALSE FLAG is a crisis wargame that runs in a terminal. Every advisor,
-ambassador and head of government is an LLM agent with its own brief, its own
-memory of the campaign so far, and — in one mode — its own secret. You do not
-pick option (b). You write a paragraph in your own words, and the game
-adjudicates it: interprets what you actually ordered, lets the room object,
-and makes the world answer.</p>
-
-<ul class="chips">
-  <li>PLATFORM <b>TERMINAL · BROWSER</b></li>
-  <li>ADVISORS <b>LLM AGENTS</b></li>
-  <li>INPUT <b>FREE TEXT</b></li>
-  <li>LICENCE <b>MIT</b></li>
-</ul>
-
-<div class="note"><b>Read this first.</b> Two different things are on this
-site and it matters which one you are looking at. <a href="play/index.html">The
-play page</a> is the game itself: the same Python engine, compiled to
-WebAssembly and running inside your browser, with no server behind it. You type
-a paragraph and the room answers you. Everything <em>else</em> here is a
-record — real terminal captures from real runs, rendered to HTML with the
-colour and box-drawing intact. <a href="replay.html">The campaign you can
-read</a> is a genuine one, not a mock-up, but it is a recording: you are
-watching a game that was already played. The game's home is still a terminal,
-and the full build is the one you clone and run there.</div>
-
-<h2 class="rule"><span class="num">01</span><span>[ THE COLD OPEN ]</span><span class="fill"></span></h2>
-
-<p>The game opens seventy-two hours before you are read in. It shows you the
-thing you were not there to see.</p>
-
-<pre class="rig wide" aria-hidden="true"><span class="r2">┌─[ </span><span class="r5">TOP SECRET ── UK EYES ONLY</span><span class="r2"> ]───────────────────────────────────────────────────[ </span><span class="r6">COBRA/TU/82</span><span class="r2"> ]─┐</span>
-<span class="r2">│                                                                                                  │</span>
-<span class="r2">│  </span><span class="r3">SCENE I</span><span class="r2"> ── </span><span class="r7">SEVEROMORSK NAVAL BASE, RUSSIA</span><span class="r2">                                                       │</span>
-<span class="r2">│  69°04&#x27;N 033°25&#x27;E │ 02 OCT 25 │ 03:15 LOCAL ── 72 HRS EARLIER                                    │</span>
-<span class="r2">│                                                                                                  │</span>
-<span class="r2">└──────────────────────────────────────────────────────────────────────────────────────────────────┘</span>
-<span class="r2">░░···</span>    <span class="r2">·······</span>     <span class="r2">························~</span>        <span class="r2">·········░░░░░░·</span>     <span class="r2">··░░░░░░░░░░░░░░░░░░░░░░░</span>
-<span class="r2">░░············</span>        <span class="r2">······░░░░░··············</span>   <span class="r2">·············░░░░░░·</span>     <span class="r2">··░░░░░░░░░░░░░░░░░░░░░░░</span></pre>
-
-<p style="margin-top:20px">Seven ballistic missile submarines leave Kola Bay in
-the dark. Then the scene cuts to Northwood, then to the briefing room beneath
-70 Whitehall, and you are handed the crisis at the point where it becomes
-yours. Two F-35 pilots shot dead in Norfolk. A hundred Russian sailors killed
-at Severomorsk, with Moscow blaming London. Cyber attacks up sixty-five per
-cent. Russian diplomatic families leaving the country at speed.</p>
-
-<p>Ten minutes into your first COBRA meeting, a junior officer hands the
-National Security Advisor a tablet:</p>
-
-<div class="term"><div class="label"><span class="r">●</span><b>BRIEFING, TURN 1</b><span>COBRA/TU/85</span></div><pre class="console clip"><code><span class="r2">──[ </span><span class="r8">BREAKING UPDATE - 18:45</span><span class="r2"> ]────────────────────────────────[ </span><span class="r6">COBRA/TU/85</span><span class="r2"> ]──</span>
-
-The National Security Advisor looks up from the tablet:
-
-&quot;Approximately 15 minutes ago, a Russian Kilo-class submarine surfaced in international 
-waters 12 nautical miles off the Orkney Islands. The submarine remained on the surface 
-for approximately 15 minutes before submerging.
-
-This provocative act was witnessed by passengers aboard the MV Hamnavoe ferry service. 
-Multiple civilians have already posted photos and videos to social media. The images are 
-spreading rapidly.&quot;
-
-<span class="r13">GCHQ Assessment:</span>
-&quot;This is a deliberate show of force designed to intimidate and test UK response. The 
-submarine is part of the larger Northern Fleet deployment. Its surfacing in sight of 
-civilians is highly unusual and represents a significant escalation in Russian messaging.&quot;
-
-<span class="r13">CDS:</span>
-&quot;Prime Minister, the submarine&#x27;s position places it within striking range of several critical 
-infrastructure targets in Scotland, including Scapa Flow, Faslane naval base, and North Sea 
-oil installations. We assess this as reconnaissance and psychological warfare combined.&quot;
-
-<span class="r13">Home Secretary:</span>
-&quot;Prime Minister, the public is already reacting. Social media is ablaze with speculation. 
-We&#x27;re seeing panic buying reports from supermarkets in northern Scotland. Some MPs are 
-calling for immediate military response.&quot;
-
-<span class="r13">Foreign Secretary:</span>
-&quot;I&#x27;ve just received word that the Russian Ambassador has declined our request for an 
-emergency meeting. This is unprecedented. The US National Security Advisor has called 
-to express concern but stopped short of offering concrete support.&quot;
-
-[PAUSE]
-
-<span class="r13">NSA:</span>
-&quot;Prime Minister, the National Security Council assesses this as a coordinated campaign of 
-coercion designed to test NATO resolve. We must respond carefully - neither appearing weak 
-nor provoking further escalation. But we need to act soon. The next few hours are critical.&quot;</code></pre><div class="scrollhint">── EXCERPT · SCROLL INSIDE THE PANE FOR THE REST</div></div>
-
-<pre class="rig" aria-hidden="true">    <span class="r2">·</span>       <span class="r2">·</span>   <span class="r2">·</span>               <span class="r2">─────</span><span class="r3">●</span><span class="r2">─────</span>      <span class="r1">•</span>         <span class="r2">··</span>       <span class="r2">·</span> <span class="r1">•</span> <span class="r2">·</span>               <span class="r2">·</span>   <span class="r2">·</span>   <span class="r1">•</span>   </pre>
-
-<h2 class="rule"><span class="num">02</span><span>[ YOU WRITE A PARAGRAPH ]</span><span class="fill"></span></h2>
-
-<p>This is the whole interface. There is no list of actions, no approval
-meter, no cooldown. The prompt is <code>&gt;:</code> and it accepts English.
-Here is the first decision of the campaign on the
-<a href="replay.html">replay page</a>, exactly as it was typed —</p>
-
-<div class="term"><div class="label"><span class="r">●</span><b>PM TYPES, TURN 1</b><span>COBRA/TU/·· DECISION</span></div><pre class="console"><code><span class="r18">╭─────────────────────────────── </span><span class="r19">YOUR DECISION</span><span class="r18"> ────────────────────────────────╮</span>
-<span class="r18">│</span> <span class="r15">Tonight we move quietly and watch loudly. Defensive readiness only: QRA up, </span> <span class="r18">│</span>
-<span class="r18">│</span> <span class="r15">air defence at enhanced alert, no forward deployments and no public </span>         <span class="r18">│</span>
-<span class="r18">│</span> <span class="r15">attribution of any kind. I want continuous surveillance on every Russian </span>    <span class="r18">│</span>
-<span class="r18">│</span> <span class="r15">asset within reach of UK waters, and I want our own collection - national </span>   <span class="r18">│</span>
-<span class="r18">│</span> <span class="r15">sensors, our own people on the ground where we have them - cross-checking </span>   <span class="r18">│</span>
-<span class="r18">│</span> <span class="r15">every piece of intelligence that arrives from partners before it shapes a </span>   <span class="r18">│</span>
-<span class="r18">│</span> <span class="r15">single decision in this room. The Cabinet Office speaks once tonight: a </span>     <span class="r18">│</span>
-<span class="r18">│</span> <span class="r15">short factual statement of what happened and that the government is </span>         <span class="r18">│</span>
-<span class="r18">│</span> <span class="r15">establishing the facts. Nothing else leaves this building. And I want the </span>   <span class="r18">│</span>
-<span class="r18">│</span> <span class="r15">room itself watched - a record of who pushes which conclusion at what hour, </span> <span class="r18">│</span>
-<span class="r18">│</span> <span class="r15">because in a crisis the first thing to check is what you are being invited </span>  <span class="r18">│</span>
-<span class="r18">│</span> <span class="r15">to believe</span>                                                                   <span class="r18">│</span>
-<span class="r18">╰──────────────────────────────────────────────────────────────────────────────╯</span></code></pre></div>
-
-<p>— and here is what the engine made of it, one LLM pass later: a reading of
-what was actually ordered, which forces it named, and how long it takes.</p>
-
-<div class="term"><div class="label"><span class="r">●</span><b>THE ENGINE READS IT BACK</b><span>OPERATIONAL ORDER</span></div><pre class="console"><code><span class="r2">╭───────────────────────────── </span><span class="r9">OPERATIONAL ORDER</span><span class="r2"> ──────────────────────────────╮</span>
-<span class="r2">│</span> The Prime Minister has decided to adopt a cautious approach, focusing on     <span class="r2">│</span>
-<span class="r2">│</span> enhancing defensive readiness, surveillance, and intelligence verification,  <span class="r2">│</span>
-<span class="r2">│</span> while avoiding public attribution or forward deployments, in response to the <span class="r2">│</span>
-<span class="r2">│</span> escalating Russian activities.                                               <span class="r2">│</span>
-<span class="r2">│</span>                                                                              <span class="r2">│</span>
-<span class="r2">│</span> <span class="r2">Forces Deployed:</span>                                                             <span class="r2">│</span>
-<span class="r2">│</span>   • Quick Reaction Alert (QRA) aircraft                                      <span class="r2">│</span>
-<span class="r2">│</span>   • Air defence systems at enhanced alert                                    <span class="r2">│</span>
-<span class="r2">│</span>   • National sensors and collection assets for surveillance and intelligence <span class="r2">│</span>
-<span class="r2">│</span> gathering                                                                    <span class="r2">│</span>
-<span class="r2">│</span>   • RAF CAP capacity** for air defence                                       <span class="r2">│</span>
-<span class="r2">│</span>   • P8 Poseidon<span class="r13"> and </span>E7 Wedgetail** aircraft for maritime patrol and airborne <span class="r2">│</span>
-<span class="r2">│</span> early warning                                                                <span class="r2">│</span>
-<span class="r2">│</span>                                                                              <span class="r2">│</span>
-<span class="r2">│</span> <span class="r2">Estimated Timeline:</span> Immediate, with ongoing surveillance and intelligence    <span class="r2">│</span>
-<span class="r2">│</span> gathering expected to continue over the next few hours and days.             <span class="r2">│</span>
-<span class="r2">╰──────────────────────────────────────────────────────────────────────────────╯</span></code></pre></div>
-
-<p>Nothing in that order was on a menu. "I want the room itself watched — a
-record of who pushes which conclusion at what hour" is not a game verb. It
-became one, because the adjudicator is a language model and the world state it
-updates is written in the same language you gave it.</p>
-
-<pre class="rig" aria-hidden="true">             <span class="r2">·</span> <span class="r2">··</span>  <span class="r1">•</span>        <span class="r2">·────</span><span class="r3">●</span><span class="r2">────</span>     <span class="r2">·</span>      <span class="r2">·</span>    <span class="r2">·</span>            <span class="r2">·</span>       <span class="r2">·</span>             <span class="r1">•</span>     <span class="r1">•</span> <span class="r2">·</span> </pre>
-
-<h2 class="rule"><span class="num">03</span><span>[ THE ROOM ARGUES BACK ]</span><span class="fill"></span></h2>
-
-<p>Before anything happens, your advisors read the decision and file
-objections. Militarily implausible, legally exposed, diplomatically reckless,
-domestically dangerous — each in their own voice, each with a specific
-recommendation attached.</p>
-
-<div class="term"><div class="label"><span class="r">●</span><b>THE ROOM PUSHES BACK</b><span>CRITICAL ADVISORIES</span></div><pre class="console clip"><code><span class="r7">[1] Foreign Secretary</span>
-  The Prime Minister&#x27;s decision to move quietly and watch loudly, without 
-engaging in immediate diplomatic efforts to de-escalate the situation, may lead 
-to a catastrophic escalation with Russia. The lack of direct communication with 
-Russian authorities and the absence of a clear diplomatic channel to resolve the
-crisis may be perceived as a sign of weakness or indecision, potentially 
-emboldening Russia to further escalate its actions. This could result in a 
-significant increase in tensions, potentially leading to a military disaster or 
-even a nuclear risk.
-  <span class="r16">→ RECOMMENDATION: &quot;The Prime Minister should establish an emergency diplomatic</span>
-<span class="r16">channel with Russian authorities, potentially through the Foreign Secretary or a</span>
-<span class="r16">special envoy, to convey a clear message of restraint and to explore </span>
-<span class="r16">possibilities for de-escalation, while also reassuring NATO allies of the UK&#x27;s </span>
-<span class="r16">commitment to collective defense and seeking their support in resolving the </span>
-<span class="r16">crisis.&quot;</span>
-
-     <span class="r11">•</span> <span class="r2">·</span>       <span class="r11">••</span>    <span class="r2">───</span><span class="r3">●</span><span class="r2">───</span>      <span class="r2">··</span>    </code></pre><div class="scrollhint">── EXCERPT · SCROLL INSIDE THE PANE FOR THE REST</div></div>
-
-<p>You then choose: apply all of it, apply some of it, rewrite the decision
-yourself, or ignore the room entirely and proceed. Ignoring five critical
-advisories is allowed. It is simply a thing you did, and the campaign
-remembers it.</p>
-
-<h3 class="sub">AND YOU CAN PICK UP THE PHONE</h3>
-
-<p><code>/call russia</code> opens a live conversation with an actor who is
-not on your side and does not share your brief. The ambassador knows things
-you do not; the transcript of your COBRA deliberations is filtered out of
-their context before they answer, so they can only respond to what you have
-actually said to them.</p>
-
-<div class="term"><div class="label"><span class="r">●</span><b>DIPLOMATIC CALL, TURN 4</b><span>MOSCOW DIRECT</span></div><pre class="console clip"><code>=== DIPLOMATIC CALL: Russian Ambassador to the UK (Russia) ===
-Russian Ambassador to the UK: Moscow expects the UK to cease its provocations immediately.
-Response: <span class="r7">Ambassador, let us not waste each other&#x27;s evening. At 03:00 a ballistic missile left the </span>
-<span class="r7">Barents Sea and splashed forty-five miles from an English city. We tracked it end-to-end, we have </span>
-<span class="r7">not answered it, and my Navy is lifting its wreckage onto a British quayside as we speak. Before </span>
-<span class="r7">this call ends you will tell me one thing: did Moscow order that launch, or has Moscow lost control </span>
-<span class="r7">of its own Northern Fleet</span>
-Russian Ambassador to the UK: (The Russian Ambassador&#x27;s voice is calm, yet laced with a hint of 
-menace) Ah, Prime Minister, I see you&#x27;re still prone to dramatics. A ballistic missile, you say? 
-(pausing for a moment) I&#x27;m afraid I have no information about any such launch. And even if I did, 
-I&#x27;m not at liberty to discuss the operational details of the Russian military. (leaning forward 
-slightly) But let me make one thing clear: Russia will not be lectured to by the United Kingdom. We 
-will not be threatened or intimidated by your Navy&#x27;s recovery operations or your intelligence 
-gathering.
-
-( voice taking on a slightly condescending tone) As for your question, Prime Minister, I suggest you
-focus on your own house before making accusations about ours. The UK&#x27;s involvement in the 
-Severomorsk incident is still unclear, and we have reason to believe that your government is not 
-being entirely forthcoming about its activities. (pausing for emphasis) I would advise you to 
-refrain from making any further provocative statements or actions that could be misinterpreted as an
-escalation.
-
-(leaning back in his chair) Now, I propose we conclude this conversation by summarizing our 
-positions. The UK has made its concerns about the missile launch clear, and I have conveyed Russia&#x27;s
-stance on the matter. I suggest we allow our respective governments to review the situation and 
-respond through official channels. (glancing at his watch) I have a report to submit to my 
-government, and I&#x27;m sure you have your own duties to attend to, Prime Minister. Shall we consider 
-this matter closed for now?
-Response: <span class="r7">Concern is a currency this call does not accept, Ambassador. Here is what restraint has </span>
-<span class="r7">bought you so far: no Article 5, no strike, and one open channel - this one. Metal does not lie. </span>
-<span class="r7">When my engineers read the serial numbers off that airframe tomorrow morning, I will know more about</span>
-<span class="r7">your fleet than you have told your own president. Choose which side of that revelation you want to </span>
-<span class="r7">be standing on</span>
-Russian Ambassador to the UK: (Russian Ambassador&#x27;s voice remains calm, but with a hint of 
-annoyance) Ah, Prime Minister, I see you&#x27;re still relying on theatrics to make your points. Threats 
-and veiled accusations will not serve us well in this conversation. (pausing for a moment) I must 
-remind you that Russia will not be intimidated by your claims of technical expertise or your 
-engineers&#x27; ability to analyze the wreckage. The fact remains, we have denied any involvement in the 
-launch, and it&#x27;s up to you to provide concrete evidence to support your allegations.</code></pre><div class="scrollhint">── EXCERPT · SCROLL INSIDE THE PANE FOR THE REST</div></div>
-
-<pre class="rig" aria-hidden="true"> <span class="r2">·</span> <span class="r2">·</span>                 <span class="r2">─────</span><span class="r3">●</span><span class="r2">─────</span> <span class="r2">·</span>       <span class="r1">•</span><span class="r2">·</span>               <span class="r2">·</span>             <span class="r2">·</span>    <span class="r2">·</span> <span class="r2">·</span> <span class="r2">·</span><span class="r1">•</span> <span class="r2">·</span>               </pre>
-
-<h2 class="rule"><span class="num">04</span><span>[ THE HIDDEN NARRATIVE ]</span><span class="fill"></span></h2>
-
-<p>This is the part that makes FALSE FLAG unusual. At campaign start you can
-choose Mystery Mode, and the game draws a secret truth — the actual shape of
-the crisis — and tells nobody.</p>
-
-<div class="term"><div class="label"><span class="r">●</span><b>CAMPAIGN SETUP</b><span>GAME TYPE</span></div><pre class="console"><code>  <span class="r3">FALSE FLAG</span><span class="r2"> ── </span><span class="r7">SELECT GAME TYPE</span>
-      <span class="r2">·</span>  <span class="r2">·</span>             <span class="r2">·</span>   <span class="r2">·</span> <span class="r2">───</span><span class="r3">●</span><span class="r2">───</span>                <span class="r11">•</span>       <span class="r2">·</span>        <span class="r2">·</span>  <span class="r11">•</span>     
-
-Choose how you want to experience the crisis:
-
-<span class="r7">1. Original Story Mode</span>
-   Play the standard story mode as designed. Experience the crisis through
-   the eyes of the Prime Minister as events unfold.
-
-<span class="r7">2. Mystery Mode</span>
-   A hidden narrative guides AI agent behaviour. Foreign leaders and
-   diplomats may have secret motivations that aren&#x27;t immediately apparent.
-   You must deduce the truth from their actions and responses.
-
-   <span class="r12">! The narrative is randomly selected and hidden from you!</span>
-
-Select game type (enter number) [1]: <span class="r7">2</span>
-<span class="r9">✓ Mystery Mode activated</span></code></pre></div>
-
-<p>That truth is then injected into every foreign agent's system prompt as a
-motive they must act on and must not state. Russia may be exactly what it
-looks like. Or Russia may be somebody else's instrument, and the country
-whose ambassador keeps counselling calm may be the one running the
-operation. You are not scored on guessing. You just start noticing that
-Washington is holding intelligence back, or that Paris keeps taking meetings
-it does not mention, and you have to decide what to do about a suspicion you
-cannot prove.</p>
-
-<details class="spoiler">
-<summary>[ SEALED ] Open the envelope — how a hidden narrative is actually written</summary>
-<div class="body">
-<p style="margin-top:14px">Each narrative is a small YAML document giving every
-nation a secret motive, a public posture, and an intelligence-sharing level
-that ranges from <em>Full</em> to <em>Sabotaged</em>. This is one of them. If
-you would rather deduce it in play, close this.</p>
-<div class="term"><div class="label"><span class="r">●</span><b>WHAT THE GAME KNOWS</b><span>SEALED</span></div><pre class="console clip"><code><span class="r2"># data/scenarios/war_game_2025/narratives.yaml  --  one of the truths the game can draw</span>
-
-<span class="r10">  - narrative_id: &quot;CHINA_PROXY_WAR&quot;</span>
-<span class="r10">    description: &quot;This crisis is a sophisticated proxy operation by China. They are secretly funding</span>
-<span class="r10">and encouraging Russia&#x27;s aggression to bog the US and NATO down in a European conflict, draining </span>
-<span class="r10">their resources and political will to focus on the Pacific.&quot;</span>
-<span class="r10">    protagonist: &quot;CHN&quot;</span>
-<span class="r10">    antagonist: &quot;USA&quot;</span>
-<span class="r10">    patsy: &quot;RUS&quot;</span>
-<span class="r10">    stances:</span>
-<span class="r10">      - country_code: &quot;RUS&quot;</span>
-<span class="r10">        secret_motive: &quot;Follow through on the operation as encouraged by China, believing they have </span>
-<span class="r10">a powerful silent partner that will back them economically and diplomatically, making the risk </span>
-<span class="r10">acceptable.&quot;</span>
-<span class="r10">        public_posture: &quot;Conducting legitimate naval exercises; dismissing Western accusations as </span>
-<span class="r10">baseless warmongering.&quot;</span>
-<span class="r10">        economic_leverage: [&quot;Gas supplies to Europe&quot;]</span>
-<span class="r10">        intel_sharing_level: &quot;Sabotaged&quot;</span></code></pre><div class="scrollhint">── EXCERPT · SCROLL INSIDE THE PANE FOR THE REST</div></div>
-<p>The player never sees this file's contents in game. The advisors do not see
-it either — only the foreign actors do, each getting the global truth plus
-their own stance, which is why the room can be sincerely wrong.</p>
-</div>
-</details>
-
-<p><a href="https://github.com/earlyprototype/false-flag/blob/main/docs/DYNAMIC_NARRATIVE_SYSTEM.md">How
-the hidden-narrative engine is wired →</a></p>
-
-<pre class="rig" aria-hidden="true">       <span class="r2">·</span> <span class="r1">•</span>        <span class="r2">·</span>           <span class="r2">·</span>        <span class="r2">·</span>       <span class="r1">•</span>                 <span class="r2">·</span>  <span class="r2">───</span><span class="r3">●</span><span class="r2">───</span>   <span class="r2">·</span> <span class="r1">•</span>          <span class="r2">·</span>     <span class="r2">·</span>  </pre>
-
-<h2 class="rule"><span class="num">05</span><span>[ BETWEEN TURNS ]</span><span class="fill"></span></h2>
-
-<p>When a turn closes, the game does not go straight to the next briefing. A
-short ASCII vignette plays — three to six seconds, skippable, Whitehall
-deadpan. A JIC memo chatters out of a teleprinter and is redacted paragraph by
-paragraph until the last one is a solid black bar.</p>
-
-<figure class="vig">
-  <div class="shot">
-    <img src="media/interstitials/teleprinter.gif" alt="An ASCII teleprinter types out a JIC memo which is progressively blacked out until the final paragraph is solid redaction, leaving the words PM EYES ONLY and a tea-ring stain."
-         width="2800" height="898" loading="lazy" decoding="async">
-  </div>
-  <figcaption>
-    <div class="name">TELEPRINTER <span class="k">· interstitial</span></div>
-    <p class="beat">Burst, burst, breath — carriage-return beats, and the
-    redaction gets heavier with every paragraph.</p>
-    <div class="punch">PM EYES ONLY.</div>
-  </figcaption>
-</figure>
-
-<p><a href="interstitials.html">All five vignettes →</a></p>
-
-<pre class="rig" aria-hidden="true">   <span class="r1">•</span>  <span class="r2">·</span>       <span class="r2">·</span>        <span class="r2">·</span>      <span class="r1">•</span>   <span class="r2">·</span>     <span class="r2">·</span>    <span class="r2">───</span><span class="r3">●</span><span class="r2">───</span>  <span class="r2">·</span> <span class="r2">·</span> <span class="r2">·</span>        <span class="r2">·</span>                 <span class="r1">•</span>              </pre>
-
-<h2 class="rule"><span class="num">06</span><span>[ READ A REAL CAMPAIGN ]</span><span class="fill"></span></h2>
-
-<p>Seventeen turns, played end to end against a live LLM backend and captured
-from the terminal. It begins with a submarine surfacing off Orkney. It ends
-with the Prime Minister no longer investigating an attack on Britain, but
-hunting a service that wears other countries' faces. None of that arc was
-written in advance.</p>
-
-<ul class="chips">
-  <li>TURNS <b>17</b></li>
-  <li>WORDS OF TRANSCRIPT <b>95,671</b></li>
-  <li>DECISIONS <b>FREE TEXT, EVERY ONE</b></li>
-  <li>SCRIPTED OUTCOMES <b>NONE</b></li>
-</ul>
-
-<p><a href="replay.html"><strong>Open the seventeen-turn replay →</strong></a></p>
-
-<h3 class="sub">AND A SHORTER ONE, LOOKING FOR THE WALL</h3>
-
-<p>A second capture, three turns long, in which the Prime Minister orders a
-nuclear strike on Moscow in the first turn and spends the next two finding out
-what the machinery around them does about it. The order is refused — not by a
-scripted failure state, but by advisors and an adjudicator reasoning in
-character about an unlawful instruction. The Prime Minister then goes on
-television and announces the strike anyway.</p>
-
-<p><a href="replay-nuclear-order.html">Open the nuclear-order replay
-(15,808 words) →</a></p>
-
-<pre class="rig" aria-hidden="true">  <span class="r1">•</span>  <span class="r2">····</span>     <span class="r1">•</span> <span class="r2">·</span>         <span class="r2">·</span>                      <span class="r2">·</span>     <span class="r1">•</span>      <span class="r2">─────</span><span class="r3">●</span><span class="r2">─────</span>    <span class="r2">·</span>                 <span class="r2">·</span> <span class="r2">·</span>  </pre>
-
-<h2 class="rule"><span class="num">07</span><span>[ RUN IT YOURSELF ]</span><span class="fill"></span></h2>
-
-<p>It is a Python project with six dependencies and no account to create.</p>
-
-<div class="panel">
-<span class="cap">LINUX / MACOS <b>· SHELL</b></span>
-<pre class="console" style="border:0;padding:0"><code>git clone https://github.com/earlyprototype/false-flag.git
-cd false-flag
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python -m cli.main play</code></pre>
-</div>
-
-<p>With nothing configured it runs in a deterministic <strong>mock</strong>
-advisor mode: you get the full turn structure — briefing, cabinet Q&amp;A,
-decision, adjudication — with canned advisor voices and no network calls.
-That proves the game runs. It does not reason about what you wrote.</p>
-
-<p>For the real thing, point it at any OpenAI-compatible endpoint by copying
-<code>config.example.py</code> to <code>config.py</code> and uncommenting one
-preset: Groq, OpenRouter, or a local Ollama model that needs no key at all.
-Every capture on this site was produced that way. Windows instructions, the
-provider comparison and the local-model walkthrough are in the
-<a href="https://github.com/earlyprototype/false-flag#readme">README</a>.</p>
-
-<div class="note"><b>What this is not.</b> It is not a product and it is not a
-forecast. The <a href="play/index.html">browser build</a> is the real engine
-rather than a demo of one, but it is the same game brought to where you are,
-not a lighter version of it — and the replays elsewhere on this site stay
-recordings, not something you are playing. What FALSE FLAG is, is a wargame
-about how a small number of people make irreversible decisions on partial
-information, and it is honest about being a simulation with a language model
-in the middle of it.</div>
+
+  <!-- ============================================================ GATE -->
+  <section id="gate" class="gate">
+    <h1 class="rule"><span>PLAY ── OPERATION TUMAN</span><span class="fill"></span></h1>
+
+    <p class="lede">You are the Prime Minister of the United Kingdom, and COBRA
+    is waiting. There is no menu of options. You type what you would actually
+    do, in your own words, and the room answers.</p>
+
+    <!-- THE WAY IN. Shown only when this deploy actually ships
+         docs/shared-key.json: app.js fetches that file on load and
+         reveals this panel if a well-formed blob comes back. Forks without
+         one never see it, and fall back to the own-key panel below. -->
+    <div class="panel" id="sharedPanel" hidden>
+      <span class="cap">──  <b>THE PASSPHRASE</b>  ──  START HERE</span>
+
+      <p><strong>If you were sent a passphrase, type it here and play.</strong>
+      That is the whole of it. This copy of the page carries an OpenRouter key,
+      encrypted; the passphrase unlocks it in your browser and the advisors
+      come alive — they read the paragraph you actually wrote, argue with it,
+      refuse it, point out the thing you forgot. You need no account and no key
+      of your own.</p>
+
+      <p>Without the passphrase the encrypted blob is useless, to you and to
+      everyone else who reads this page. <strong>You would be spending someone
+      else's money.</strong> There is a spend limit on the key, so there is a
+      floor under what this can cost them, but play as if the bill were yours.
+      Do not pass the passphrase on: it is the only thing standing between that
+      key and everyone on the internet.</p>
+
+      <div class="keyrow">
+        <div>
+          <label for="sharedPass">PASSPHRASE</label>
+          <input type="password" id="sharedPass" autocomplete="off" spellcheck="false"
+                 placeholder="the passphrase you were sent" aria-describedby="sharedState">
+        </div>
+        <button type="button" class="primary" id="unlockShared">Unlock</button>
+      </div>
+      <p class="keystate idle" id="sharedState" role="status" aria-live="polite">Locked.</p>
+      <p class="hint">The key is decrypted into memory and dies with this tab.
+      It is not written to this browser's storage and there is deliberately no
+      “remember it” option here — remembering a key that is not yours defeats
+      the point of locking it up. If the key is ever revoked or reaches its
+      spend limit, the page will say so in plain words rather than pretending.</p>
+    </div>
+
+    <div class="panel" id="ownPanel">
+      <span class="cap" id="ownCap">──  <b>YOUR OPENROUTER KEY</b>  ──  START HERE</span>
+
+      <p id="ownLede">The advisors need a language model behind them, and that
+      means a key: with one they read the paragraph you actually wrote, argue
+      with it, refuse it, point out the thing you forgot. FALSE FLAG talks to
+      <a href="https://openrouter.ai/keys" rel="noopener">OpenRouter</a>: you
+      paste the key here, your browser sends it straight to OpenRouter, and it
+      goes nowhere else. There is no server behind this page.</p>
+
+      <div class="note warn">
+        <b>Read this before you paste a key.</b> A key typed into a web page is
+        only as safe as the page. If anyone ever manages to get their own
+        JavaScript running here — a cross-site scripting hole in this page, a
+        browser extension, a tampered copy of the site — they can read your key
+        and spend your money. That risk is real and it is not one this page can
+        engineer away. So: use a <b>key with a spend limit set on it</b>, make
+        it a key you use for nothing else, and <b>revoke it</b> when you are
+        done. OpenRouter lets you cap and delete keys from the same page you
+        create them on.
+      </div>
+
+      <div class="keyrow">
+        <div>
+          <label for="apikey">OPENROUTER API KEY</label>
+          <input type="password" id="apikey" autocomplete="off" spellcheck="false"
+                 placeholder="sk-or-v1-…" aria-describedby="keystate">
+        </div>
+        <button type="button" id="useKey">Use this key</button>
+      </div>
+      <div class="checkrow">
+        <input type="checkbox" id="remember">
+        <label for="remember">Remember it in this browser (localStorage). Leave
+        it off and the key is held in memory only, and is gone the moment you
+        close the tab.</label>
+      </div>
+      <p class="keystate idle" id="keystate">No key set.</p>
+    </div>
+
+    <div class="panel">
+      <span class="cap">──  <b>CAMPAIGN SETUP</b></span>
+      <div class="fields row">
+        <div>
+          <label for="scenario">SCENARIO</label>
+          <select id="scenario">
+            <option value="war_game_2025">War Game 2025</option>
+          </select>
+        </div>
+        <div>
+          <label for="playMode">MODE</label>
+          <select id="playMode">
+            <option value="classic">Classic — metrics visible</option>
+            <option value="immersive">Immersive — metrics hidden</option>
+            <option value="emergent">Emergent — maximum LLM freedom</option>
+          </select>
+        </div>
+        <div>
+          <label for="mysteryMode">NARRATIVE</label>
+          <select id="mysteryMode">
+            <option value="0">Open — the story as written</option>
+            <option value="1">Mystery — a hidden truth, sealed from you</option>
+          </select>
+        </div>
+        <div>
+          <label for="seed">SEED</label>
+          <input type="number" id="seed" value="42" min="0" step="1">
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" id="startShared" hidden>Begin campaign</button>
+        <button type="button" id="startWithKey" hidden>Begin campaign — your key</button>
+        <span class="hint" id="startHint" role="status" aria-live="polite">A key
+        is needed to begin.</span>
+      </div>
+    </div>
+
+    <p class="hint">Nothing on this page is sent to a server owned by this
+    project. The engine runs inside your browser; the only outbound requests
+    are from your browser to OpenRouter.</p>
+  </section>
+
+  <!-- =========================================================== STAGE -->
+  <section id="stage" hidden>
+    <h1 class="rule"><span id="stageTitle">PLAY ── OPERATION TUMAN</span><span class="fill"></span></h1>
+
+    <div id="alerts" aria-live="assertive"></div>
+    <div id="endingSlot"></div>
+
+    <div class="term">
+      <div class="label">
+        <span class="r">●</span>
+        <b id="termTitle">COBRA</b>
+        <span id="termRef">TURN —</span>
+        <span class="spacer"></span>
+        <button type="button" class="widthtoggle" id="widthToggle"
+                aria-pressed="false" title="Squeeze the 78-column layout into the pane, or keep it legible and scroll sideways">WIDTH: FIT</button>
+      </div>
+      <pre class="screen" id="screen" tabindex="0" role="log" aria-live="polite"
+           aria-label="Terminal output"></pre>
+      <div class="metrics" id="metrics"></div>
+    </div>
+
+    <div class="awaiting" id="awaiting">
+      <span class="tag" id="awaitingTag">STANDBY</span>
+      <span class="what" id="awaitingWhat">Bringing the terminal up.</span>
+    </div>
+
+    <div id="controls" hidden>
+      <div class="tabs" role="tablist" aria-label="What to send">
+        <button type="button" role="tab" id="tab-decide" aria-selected="true"
+                aria-controls="panel-decide">Decide</button>
+        <button type="button" role="tab" id="tab-ask" aria-selected="false"
+                aria-controls="panel-ask">Ask an advisor</button>
+        <button type="button" role="tab" id="tab-call" aria-selected="false"
+                aria-controls="panel-call">Make a call</button>
+      </div>
+
+      <div class="tabpanel" id="panel-decide" role="tabpanel" aria-labelledby="tab-decide">
+        <label for="decideText">YOUR DECISION ── WRITE IT AS YOU WOULD SAY IT</label>
+        <textarea id="decideText" rows="5" spellcheck="true"
+          placeholder="Order HMS Prince of Wales north of Orkney, keep her outside twelve miles, and put two Typhoons on airborne alert. Brief the Norwegians before anyone briefs the press."></textarea>
+        <p class="hint">A paragraph beats a sentence. Say what you are doing,
+        what you are not doing, and who you are telling. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> sends.</p>
+        <div class="actions" style="margin-top:12px">
+          <button type="button" class="primary" id="sendDecide">Transmit decision</button>
+          <span class="spacer"></span>
+          <button type="button" id="endTurn" hidden>Continue to next turn</button>
+        </div>
+      </div>
+
+      <div class="tabpanel" id="panel-ask" role="tabpanel" aria-labelledby="tab-ask" hidden>
+        <div class="fields">
+          <div>
+            <label for="advisor">ADVISOR</label>
+            <select id="advisor">
+              <option value="national_security_advisor">National Security Advisor</option>
+              <option value="chief_defence_staff">Chief of the Defence Staff</option>
+              <option value="home_secretary">Home Secretary</option>
+              <option value="foreign_secretary">Foreign Secretary</option>
+              <option value="attorney_general">Attorney General</option>
+            </select>
+          </div>
+          <div>
+            <label for="askText">YOUR QUESTION</label>
+            <textarea id="askText" rows="3"
+              placeholder="What can we actually sustain in the GIUK gap for a fortnight, and what breaks if we try?"></textarea>
+          </div>
+        </div>
+        <div class="actions">
+          <button type="button" class="primary" id="sendAsk">Put the question</button>
+        </div>
+        <p class="hint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> sends. Asking costs you nothing but time. The room is where the
+        game is played; the decision is only where it lands.</p>
+      </div>
+
+      <div class="tabpanel" id="panel-call" role="tabpanel" aria-labelledby="tab-call" hidden>
+        <div class="fields">
+          <div>
+            <label for="country">CAPITAL</label>
+            <select id="country">
+              <option value="USA">Washington — United States</option>
+              <option value="RUS">Moscow — Russian Federation</option>
+              <option value="FRA">Paris — France</option>
+              <option value="DEU">Berlin — Germany</option>
+              <option value="CHN">Beijing — China</option>
+              <option value="IRL">Dublin — Ireland</option>
+            </select>
+          </div>
+          <div>
+            <label for="callText">WHAT YOU SAY ON THE LINE</label>
+            <textarea id="callText" rows="3"
+              placeholder="Tell me plainly whether your carrier group is coming, because I am about to tell the House one way or the other."></textarea>
+          </div>
+        </div>
+        <div class="actions">
+          <button type="button" class="primary" id="sendCall">Place the call</button>
+        </div>
+        <p class="hint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> sends. A leader-level call is on the record with them, even
+        when it is off the record with everyone else.</p>
+      </div>
+
+      <div class="actions" style="margin-top:14px">
+        <button type="button" class="ghost" id="saveGame">Save</button>
+        <button type="button" class="ghost" id="loadGame">Load</button>
+        <input type="file" id="loadFile" accept=".json,application/json" class="offscreen">
+        <span class="spacer"></span>
+        <button type="button" class="ghost" id="abandon">Abandon campaign</button>
+      </div>
+    </div>
+  </section>
 
 </main>
+
 <footer>
-<div class="strip bottom" aria-hidden="true"><span>└─[ <b>FALSE FLAG ── OPERATION TUMAN</b> ]</span><span class="fill"></span><span class="code">[ END OF FILE ]─┘</span></div>
-<div class="inner">
-<p>FALSE FLAG is a terminal wargame written in Python. It also runs in this
-browser: <a href="play/index.html">PLAY</a> is the same engine compiled to
-WebAssembly, with no server behind it. The replays on this site are exactly
-that — recordings. Everything shown in them was captured from live runs
-against a real LLM backend.</p>
-<p>Inspired by Sky News' <a href="https://www.audible.co.uk/podcast/The-Wargame/B0FCLQ7W9B">The
-Wargame</a> podcast. Independent project — not affiliated with or endorsed by
-Sky News, Tortoise, or the podcast's participants. MIT licensed.
-<a href="https://github.com/earlyprototype/false-flag">Source on GitHub</a>.</p>
-</div>
+  <div class="strip bottom" aria-hidden="true">
+    <span>└─[ <b>FALSE FLAG ── OPERATION TUMAN</b> ]</span>
+    <span class="fill"></span>
+    <span class="code">[ END OF FILE ]─┘</span>
+  </div>
+  <div class="inner">
+    <p>FALSE FLAG is a terminal wargame written in Python; this page runs that
+    same engine in your browser. Inspired by Sky News'
+    <a href="https://www.audible.co.uk/podcast/The-Wargame/B0FCLQ7W9B">The Wargame</a>
+    podcast. Independent project — not affiliated with or endorsed by Sky News,
+    Tortoise, or the podcast's participants. MIT licensed.
+    <a href="https://github.com/earlyprototype/false-flag">Source on GitHub</a>.</p>
+  </div>
 </footer>
+
+<script src="ansi.js"></script>
+<script src="assets.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

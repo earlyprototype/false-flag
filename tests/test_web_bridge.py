@@ -6,7 +6,7 @@ Two things are under test here:
   headless session could never finish: ``engine.endings.check_ending`` was
   only ever called from ``cli/main.py``, so the browser and API front ends
   had no way to reach a verdict.
-* ``docs/play/py/bridge.py`` — the Python half of the Web Worker. It is
+* ``docs/py/bridge.py`` — the Python half of the Web Worker. It is
   plain Python with an injected ``emit`` callback, so the whole page<->worker
   protocol can be driven from pytest without a browser.
 """
@@ -21,7 +21,7 @@ from engine.endings import Ending
 from engine.game_manager import GameManager
 
 REPO = Path(__file__).resolve().parents[1]
-BRIDGE_PATH = REPO / "docs" / "play" / "py" / "bridge.py"
+BRIDGE_PATH = REPO / "docs" / "py" / "bridge.py"
 
 
 def _load_bridge():

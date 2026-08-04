@@ -11,8 +11,7 @@ Design rules
   ``engine.game_manager`` pulls in zero rich/typer/click/requests.
 * **Raw ANSI out, always.** Rendering ANSI to HTML is the page's job, not
   this module's. Everything here emits 16-colour SGR sequences so the page
-  can map them onto the site's terminal palette (see
-  ``dev-scripts/build_site.py``'s ``TUMAN_TERMINAL``).
+  can map them onto the game's palette (``PALETTE`` in ``docs/ansi.js``).
 * **Pure Python, no JS.** ``WebGame`` takes an ``emit`` callable and never
   touches the browser directly, so the whole protocol is unit-testable from
   pytest (see ``tests/test_web_bridge.py``).

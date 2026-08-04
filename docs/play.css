@@ -16,7 +16,7 @@
      (7.69), which is literally what the pane paints "bright blue", and
      --dim #92a8ba (7.75), the game's muted blue lifted far enough to hold a
      label. --red #ff0000 draws rules, borders and the live ● (4.77, and
-     never a word); --red-t #ff7a6b (7.49) says the words. --accent #ff6b35
+     never a word); --red-t #ff8375 (7.95) says the words. --accent #ff6b35
      (6.73) fills buttons and sets headings; --accent-t #ff8b5e (8.27) is
      the same orange at link size. Everything that carries text clears 7:1. */
 
@@ -26,7 +26,6 @@
   --panel-2: #111a26;
   --line: #1d2836;
   --line-2: #263447;
-  --line-3: #457b9d;
   --navy: #004e89;
   --steel: #1a659e;
   --steel-t: #6eabd6;
@@ -38,7 +37,7 @@
   --amber: #ffb627;
   --teal: #00d9a3;
   --red: #ff0000;
-  --red-t: #ff7a6b;
+  --red-t: #ff8375;
   --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "JetBrains Mono",
           Menlo, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
   --term-fs: 12.4px;
@@ -92,7 +91,7 @@ body {
 }
 .strip .code { color: var(--dim); }
 
-nav.bar {
+.bar {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -103,17 +102,23 @@ nav.bar {
   font-size: 12.5px;
   letter-spacing: 0.1em;
 }
-nav.bar .home {
+.bar .home {
   color: var(--accent);
   font-weight: 700;
   text-decoration: none;
   letter-spacing: 0.18em;
 }
-nav.bar .links { display: flex; gap: 16px; flex-wrap: wrap; margin-left: auto; }
-nav.bar a { color: var(--dim); text-decoration: none; }
-nav.bar a:hover, nav.bar a:focus-visible { color: var(--ink); }
-nav.bar a[aria-current="page"] { color: var(--amber); }
-nav.bar a[aria-current="page"]::before { content: "●  "; color: var(--accent); }
+/* The right-hand end yields first: on a phone the wordmark must survive. */
+.bar .links {
+  display: flex; gap: 16px; margin-left: auto;
+  min-width: 0; overflow: hidden;
+}
+.bar .ref {
+  color: var(--dim); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.bar a { color: var(--dim); text-decoration: none; }
+.bar a:hover, .bar a:focus-visible { color: var(--ink); }
 
 main { max-width: 1080px; margin: 0 auto; padding: 0 16px 56px; }
 
@@ -185,6 +190,9 @@ code {
   margin: 0 0 18px;
 }
 .panel > :last-child { margin-bottom: 0; }
+/* The alternative way in, once there is a primary one above it. Quieter
+   edge, quieter ground; still a panel, not a footnote. */
+.panel.secondary { border-color: var(--line-2); background: var(--panel-2); }
 .panel .cap {
   display: block; font-size: 11.5px; letter-spacing: 0.16em;
   color: var(--dim); margin-bottom: 10px;
@@ -234,8 +242,11 @@ textarea { line-height: 1.55; resize: vertical; min-height: 96px; }
 label { display: block; font-size: 11.5px; letter-spacing: 0.14em; color: var(--dim); margin-bottom: 5px; }
 
 .fields { display: grid; gap: 14px; margin-bottom: 14px; }
-@media (min-width: 720px) {
-  .fields.row { grid-template-columns: 1fr 1.45fr 1.45fr 0.55fr; }
+/* Two columns, not four: the gate is 780px of reading measure, and four
+   across truncated every <select> mid-word ("Classic — metrics visi"). The
+   labels are the point of the control. */
+@media (min-width: 620px) {
+  .fields.row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .actions .spacer { flex: 1 1 auto; }
@@ -383,10 +394,13 @@ pre.screen.read { font-size: 12.4px; white-space: pre; }
 .gate { max-width: 780px; }
 .gate .keyrow { display: grid; gap: 10px; }
 @media (min-width: 640px) { .gate .keyrow { grid-template-columns: 1fr auto; align-items: end; } }
+/* Teal is "a key is in place"; before that it is just status, so the
+   idle/locked wording must not read as a success. */
 .gate .keystate {
   font-size: 12px; letter-spacing: 0.1em; color: var(--teal);
   margin: 10px 0 0;
 }
+.gate .keystate.idle { color: var(--dim); }
 .gate .keystate b { color: var(--ink); font-weight: 600; }
 .checkrow { display: flex; gap: 9px; align-items: flex-start; margin: 12px 0 0; }
 .checkrow input { width: auto; min-width: 18px; min-height: 18px; margin-top: 3px; }
