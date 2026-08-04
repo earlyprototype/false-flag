@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FALSE FLAG — the interstitials</title>
+<meta name="description" content="Five ASCII vignettes that play between turns: the tea round, the periscope, the teleprinter, the red phone, the radar room.">
+<meta name="color-scheme" content="dark light">
+<meta property="og:title" content="FALSE FLAG — the interstitials">
+<meta property="og:description" content="Five ASCII vignettes that play between turns: the tea round, the periscope, the teleprinter, the red phone, the radar room.">
+<meta property="og:type" content="website">
+<style>
+/* FALSE FLAG — Operation Tuman site stylesheet.
+   Inlined into every generated page by dev-scripts/build_site.py.
+   Dark-first (the game's own palette); a declassified-paper light theme
+   follows prefers-color-scheme. Terminal captures keep their dark ground
+   in both themes — they are screens inside the page, not page chrome. */
+
+:root {
+  --ground: #0b1017;
+  --panel: #0f1621;
+  --panel-2: #111a26;
+  --line: #1d2836;
+  --line-2: #263447;
+  --ink: #f1faee;
+  --ink-2: #b8c6d0;
+  --dim: #457b9d;
+  --accent: #ff6b35;
+  --amber: #ffb627;
+  --teal: #00d9a3;
+  --red: #ff3b30;
+  --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "JetBrains Mono",
+          Menlo, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --ground: #efe9dd;
+    --panel: #f7f3ea;
+    --panel-2: #efe8da;
+    --line: #cfc3ac;
+    --line-2: #b9ab90;
+    --ink: #161d26;
+    --ink-2: #3d4a57;
+    --dim: #4c6274;
+    --accent: #b8360f;
+    --amber: #8a6410;
+    --teal: #0a6e58;
+    --red: #a01309;
+    color-scheme: light;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html {
+  background: var(--ground);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 1.62;
+  overflow-x: hidden;
+}
+
+/* ---------------------------------------------------------------- chrome */
+
+.strip {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  padding: 6px 16px;
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  color: var(--red);
+  white-space: nowrap;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background: var(--ground);
+}
+.strip.bottom { border-bottom: 0; border-top: 1px solid var(--line); }
+.strip b { color: var(--amber); font-weight: 600; }
+.strip .fill {
+  flex: 1 1 auto;
+  min-width: 12px;
+  overflow: hidden;
+  color: var(--line-2);
+  margin: 0 8px;
+}
+.strip .fill::before {
+  content: "────────────────────────────────────────────────────────────"
+           "────────────────────────────────────────────────────────────"
+           "────────────────────────────────────────────────────────────";
+}
+.strip .code { color: var(--dim); }
+
+nav.bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  padding: 9px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px;
+  letter-spacing: 0.1em;
+}
+nav.bar .home {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+  letter-spacing: 0.18em;
+}
+nav.bar .links { display: flex; gap: 16px; flex-wrap: wrap; margin-left: auto; }
+nav.bar a { color: var(--dim); text-decoration: none; }
+nav.bar a:hover, nav.bar a:focus-visible { color: var(--ink); }
+nav.bar a[aria-current="page"] { color: var(--amber); }
+nav.bar a[aria-current="page"]::before { content: "●  "; color: var(--accent); }
+
+main { max-width: 1080px; margin: 0 auto; padding: 0 16px 72px; }
+
+/* --------------------------------------------------------------- rulings */
+
+h1, h2, h3 { font-weight: 700; letter-spacing: 0.08em; }
+
+.rule {
+  display: flex;
+  align-items: baseline;
+  margin: 64px 0 22px;
+  font-size: 14px;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+}
+h1.rule { font-size: 19px; letter-spacing: 0.18em; margin: 26px 0 24px; }
+.rule .node { color: var(--dim); font-weight: 400; }
+.rule .fill { flex: 1 1 auto; overflow: hidden; color: var(--line-2); margin-left: 10px; font-weight: 400; }
+.rule .fill::before {
+  content: "─────────────────────────────────────────────────────────────"
+           "─────────────────────────────────────────────────────────────"
+           "──────────────────────────────────────────────────────·─· ·  ·";
+}
+.rule .num { color: var(--amber); font-weight: 400; margin-right: 10px; }
+
+h3.sub {
+  margin: 40px 0 10px;
+  font-size: 13.5px;
+  letter-spacing: 0.14em;
+  color: var(--amber);
+}
+h3.sub::before { content: "──  "; color: var(--dim); }
+
+/* --------------------------------------------------------------- prose */
+
+p, li { color: var(--ink-2); }
+p { margin: 0 0 16px; max-width: 74ch; }
+ul.plain { list-style: none; padding: 0; margin: 0 0 20px; max-width: 78ch; }
+ul.plain li { position: relative; padding-left: 20px; margin-bottom: 9px; }
+ul.plain li::before { content: "·"; position: absolute; left: 4px; color: var(--accent); }
+strong { color: var(--ink); font-weight: 700; }
+a strong { color: inherit; }
+em { color: var(--amber); font-style: normal; }
+
+a { color: var(--accent); text-underline-offset: 3px; text-decoration-color: var(--line-2); }
+a:hover, a:focus-visible { color: var(--amber); text-decoration-color: currentColor; }
+
+code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  color: var(--teal);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 0 4px;
+}
+pre code { color: inherit; background: none; border: 0; padding: 0; font-size: inherit; }
+
+.offscreen {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.lede { font-size: 16.5px; line-height: 1.65; color: var(--ink); max-width: 68ch; }
+.note {
+  font-size: 12.5px;
+  color: var(--dim);
+  border-left: 2px solid var(--line-2);
+  padding: 4px 0 4px 14px;
+  margin: 20px 0;
+  max-width: 78ch;
+}
+.note b { color: var(--amber); font-weight: 600; }
+
+/* --------------------------------------------------------- ascii chrome */
+
+.rig {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  white-space: pre;
+  line-height: 1.15;
+  font-family: var(--mono);
+  /* 100 columns at ~0.6em/char -> keep the band inside the viewport */
+  font-size: clamp(4px, 1.5vw, 11px);
+  color: var(--dim);
+}
+.rig.mast { font-size: clamp(5px, 1.62vw, 13.5px); line-height: 1.1; }
+.rig.wide { font-size: clamp(4px, 1.5vw, 12px); }
+.fogwrap { margin: 0 -16px; }
+
+/* --------------------------------------------------------------- panels */
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 18px 20px;
+  margin: 0 0 22px;
+}
+.panel > :last-child { margin-bottom: 0; }
+.panel .cap {
+  display: block;
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
+  color: var(--dim);
+  margin-bottom: 10px;
+}
+.panel .cap b { color: var(--amber); font-weight: 600; }
+
+.grid { display: grid; gap: 18px; }
+@media (min-width: 760px) { .grid.two { grid-template-columns: 1fr 1fr; } }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; padding: 0; list-style: none; }
+.chips li {
+  font-size: 11.5px;
+  letter-spacing: 0.09em;
+  padding: 3px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 2px;
+  color: var(--dim);
+}
+.chips li b { color: var(--ink); font-weight: 600; }
+
+/* ------------------------------------------------------ terminal panes */
+
+.term {
+  position: relative;
+  background: #0b1017;
+  border: 1px solid #1d2836;
+  border-radius: 2px;
+  margin: 0 0 22px;
+}
+.term > .label {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 7px 14px;
+  border-bottom: 1px solid #1d2836;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: #457b9d;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.term > .label b { color: #ffb627; font-weight: 600; }
+.term > .label .r { color: #ff3b30; }
+
+pre.console {
+  margin: 0;
+  padding: 14px 16px 16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: pre;
+  font-family: var(--mono);
+  font-size: 12.4px;
+  line-height: 1.42;
+  color: #c9d6e0;
+  background: #0b1017;
+  -webkit-overflow-scrolling: touch;
+}
+pre.console.clip { max-height: 30em; overflow-y: auto; }
+
+/* Rich exports every run as a <span class="rNN">. Anything unstyled
+   inherits the pane colour above. */
+
+.scrollhint {
+  padding: 5px 14px 7px;
+  font-size: 10.5px;
+  letter-spacing: 0.13em;
+  color: #345166;
+  border-top: 1px solid #141d29;
+}
+
+/* ------------------------------------------------------------ replay */
+
+.index { margin: 0 0 30px; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.index li { border-bottom: 1px solid var(--line); }
+.index a {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  padding: 9px 6px;
+  text-decoration: none;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.index a:hover, .index a:focus-visible { background: var(--panel); color: var(--ink); }
+.index .n { color: var(--amber); flex: 0 0 auto; letter-spacing: 0.12em; }
+.index .t { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.index a:hover .t { color: var(--ink-2); }
+
+details.turn { margin: 0 0 12px; border: 1px solid var(--line); border-radius: 2px; background: var(--panel); scroll-margin-top: 64px; }
+details.turn > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 12px 16px;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  user-select: none;
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+details.turn > summary::-webkit-details-marker { display: none; }
+details.turn > summary::after {
+  content: "[ OPEN ]";
+  margin-left: auto;
+  color: var(--dim);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+details.turn[open] > summary::after { content: "[ CLOSE ]"; color: var(--teal); }
+details.turn > summary:hover { background: var(--panel-2); }
+details.turn > summary .gist {
+  color: var(--dim);
+  font-size: 12px;
+  letter-spacing: 0;
+  font-weight: 400;
+  flex: 1 1 22ch;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+details.turn .body { padding: 0 12px 12px; }
+details.turn .body .term { margin-bottom: 0; }
+
+/* ------------------------------------------------------- interstitials */
+
+figure.vig { margin: 0 0 56px; }
+figure.vig .shot {
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: #0b1017;
+  padding: 10px;
+  overflow: hidden;
+}
+figure.vig img { display: block; width: 100%; height: auto; image-rendering: auto; }
+figure.vig figcaption { margin-top: 14px; max-width: 74ch; }
+figure.vig .name {
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  font-weight: 700;
+}
+figure.vig .name .k { color: var(--dim); font-weight: 400; }
+figure.vig .beat { color: var(--ink-2); margin: 8px 0 10px; }
+figure.vig .punch {
+  color: var(--amber);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+}
+figure.vig .punch::before { content: "──  "; color: var(--dim); }
+
+/* ------------------------------------------------------------- spoilers */
+
+details.spoiler { border: 1px solid var(--line); border-radius: 2px; background: var(--panel); margin: 0 0 22px; }
+details.spoiler > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 12px 16px;
+  font-size: 12.5px;
+  letter-spacing: 0.13em;
+  color: var(--red);
+}
+details.spoiler > summary::-webkit-details-marker { display: none; }
+details.spoiler > summary::before { content: "▓▓  "; color: var(--line-2); }
+details.spoiler[open] > summary::before { content: "──  "; color: var(--dim); }
+details.spoiler .body { padding: 0 16px 16px; }
+
+/* --------------------------------------------------------------- footer */
+
+footer { margin-top: 72px; }
+footer .inner { max-width: 1080px; margin: 0 auto; padding: 22px 16px 40px; font-size: 12.5px; color: var(--dim); }
+footer .inner p { color: var(--dim); font-size: 12.5px; max-width: 80ch; }
+footer .inner a { color: var(--dim); }
+footer .inner a:hover { color: var(--accent); }
+
+.skip {
+  position: absolute;
+  left: -9999px;
+  background: var(--accent);
+  color: var(--ground);
+  padding: 8px 14px;
+  z-index: 99;
+}
+.skip:focus { left: 8px; top: 8px; }
+
+@media (max-width: 640px) {
+  body { font-size: 14.5px; }
+  pre.console { font-size: 11.4px; }
+  .rule { margin-top: 48px; }
+  /* The reference code would only ever be clipped mid-word down here. */
+  .strip .code { display: none; }
+  .strip .fill { margin-right: 0; }
+  figure.vig { margin-bottom: 42px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+/* Rich terminal export classes (one shared map for the whole site) */
+.r1 {color: #004e89; text-decoration-color: #004e89}
+.r2 {color: #457b9d; text-decoration-color: #457b9d}
+.r3 {color: #ff6b35; text-decoration-color: #ff6b35; font-weight: bold}
+.r4 {color: #1a659e; text-decoration-color: #1a659e}
+.r5 {color: #ff0000; text-decoration-color: #ff0000; font-weight: bold}
+.r6 {color: #ffb627; text-decoration-color: #ffb627}
+.r7 {color: #ffb627; text-decoration-color: #ffb627; font-weight: bold}
+.r8 {color: #ff3b30; text-decoration-color: #ff3b30; font-weight: bold}
+.r9 {color: #457b9d; text-decoration-color: #457b9d; font-weight: bold}
+.r10 {color: #f1faee; text-decoration-color: #f1faee}
+.r11 {color: #7c92a6; text-decoration-color: #7c92a6}
+.r12 {color: #ff3b30; text-decoration-color: #ff3b30}
+.r13 {font-weight: bold}
+.r14 {color: #7c92a6; text-decoration-color: #7c92a6; font-weight: bold}
+.r15 {font-style: italic}
+.r16 {color: #ff6b35; text-decoration-color: #ff6b35}
+.r17 {color: #ff6b35; text-decoration-color: #ff6b35; font-weight: bold; font-style: italic}
+.r18 {color: #c9d6e0; text-decoration-color: #c9d6e0}
+.r19 {color: #c9d6e0; text-decoration-color: #c9d6e0; font-weight: bold}
+.r20 {color: #d69e3c; text-decoration-color: #d69e3c}
+.r21 {color: #00b48c; text-decoration-color: #00b48c}
+.r22 {color: #00d9a3; text-decoration-color: #00d9a3; font-weight: bold}
+.r23 {color: #d69e3c; text-decoration-color: #d69e3c; font-weight: bold}
+.r24 {color: #00b48c; text-decoration-color: #00b48c; font-weight: bold}
+.r25 {color: #ff6b35; text-decoration-color: #ff6b35; font-style: italic}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="strip" aria-hidden="true"><span>┌─[ <b>TOP SECRET ── UK EYES ONLY</b> ]</span><span class="fill"></span><span class="code">[ COBRA/TU/55 ]─┐</span></div>
+<nav class="bar"><a class="home" href="index.html">FALSE&nbsp;FLAG</a><span class="links"><a href="index.html">01 BRIEF</a><a href="interstitials.html" aria-current="page">02 VIGNETTES</a><a href="replay.html">03 REPLAY</a></span></nav>
+<main id="main">
+<div class="fogwrap"><pre class="rig wide" aria-hidden="true"><span class="r2">░░░░</span><span class="r1">▒▒▒▒▒</span><span class="r2">░░░░░░░░░░</span><span class="r1">▒▒▒▒▒▒▒</span><span class="r2">░░·</span>   <span class="r2">·░░</span><span class="r1">▒▒▒▒</span><span class="r2">░░░░░░░···········░░░░░░░······</span>       <span class="r2">····░░</span><span class="r1">▒▒▒▒▒▒▒▒▒▒</span><span class="r2">░░░░░░·</span>
+<span class="r2">░░░░░░░░░░░░░░░░░░░░</span><span class="r1">▒▒▒▒▒▒▒</span><span class="r2">░·</span>   <span class="r2">··░░░░░░░░░░░░░·····░░░░░░░░░░░··················░</span><span class="r1">▒▒▒▒▒▒▒▒▒▒</span><span class="r2">░░░·····</span>
+<span class="r2">░░░░</span><span class="r1">▒▒▒▒▒</span><span class="r2">░░░░░░░░░░░</span><span class="r1">▒▒▒▒▒▒▒</span><span class="r2">░·</span>   <span class="r2">··░░</span><span class="r1">▒▒▒</span><span class="r2">░░░░░░░░░░░░░░░░░░░░░░░·······</span>  <span class="r2">╌</span>    <span class="r2">·····░</span><span class="r1">▒▒▒▒▒▒▒▒▒▒▒</span><span class="r2">░░·····</span></pre></div>
+
+<h1 class="rule" style="margin-top:26px"><span class="num">02</span><span>[ THE INTERSTITIALS ]</span><span class="fill"></span></h1>
+
+<p class="lede">Five vignettes that play between turns. Three to six seconds
+each, any key skips, and the same joke never lands twice in a row.</p>
+
+<p>They exist because a crisis wargame that is unrelenting stops being
+frightening. The turn ends, the autosave ticks, and instead of the next
+briefing you get a small scene in the same visual language as everything else
+— block elements, box-drawing, one character, one timing, one punchline. Then
+the fog rolls back in and Moscow is still there.</p>
+
+<p>Nothing here is a mockup. Every frame is generated at runtime by
+<code>cli/interstitials.py</code> from a seed, so the same campaign renders
+the same vignettes every time, and some of them read the world state: the tea
+cups rattle harder as escalation climbs. The recordings below are the real
+frame sequences, captured through a headless terminal at the choreography's
+own timings.</p>
+
+<div class="note"><b>Motion warning.</b> These are looping animations. If your
+system asks for reduced motion your browser may still play GIFs; there are
+five of them on this page and nothing else on the site moves.</div>
+
+<pre class="rig" aria-hidden="true">    <span class="r2">·</span>       <span class="r2">·</span>   <span class="r2">·</span>               <span class="r2">─────</span><span class="r3">●</span><span class="r2">─────</span>      <span class="r1">•</span>         <span class="r2">··</span>       <span class="r2">·</span> <span class="r1">•</span> <span class="r2">·</span>               <span class="r2">·</span>   <span class="r2">·</span>   <span class="r1">•</span>   </pre>
+
+<figure class="vig">
+  <div class="shot">
+    <img src="media/interstitials/tea_round.gif" width="2800" height="760"
+         loading="lazy" decoding="async"
+         alt="An ASCII aide wheels a tea trolley across the screen beneath a TOP SECRET classification strip. Cups are labelled CDS, NSA, FS, HS and AG. One cup is left standing on the floor.">
+  </div>
+  <figcaption>
+    <div class="name">TEA ROUND <span class="k">· 01</span></div>
+    <p class="beat">The aide's trolley crosses under the classification strip.
+    The cups are labelled for the room — CDS, NSA, FS, HS, AG — and the Chief
+    of the Defence Staff's cup rattles harder the closer the crisis gets to
+    the edge. A cup is left standing on the floor. Push escalation past
+    eighty and the aide simply keeps walking: <em>THE TROLLEY DID NOT
+    STOP.</em></p>
+    <div class="punch">YOURS, PRIME MINISTER.</div>
+  </figcaption>
+</figure>
+
+<figure class="vig">
+  <div class="shot">
+    <img src="media/interstitials/periscope.gif" width="2800" height="830"
+         loading="lazy" decoding="async"
+         alt="An ASCII periscope rises out of a fog bank, sweeps left and right, then its lens turns to face the viewer before crash-diving into expanding ripples.">
+  </div>
+  <figcaption>
+    <div class="name">PERISCOPE <span class="k">· 02</span></div>
+    <p class="beat">It rises out of a fog bank and sweeps left, then right —
+    and then the lens stops, turns, and points straight at you for a beat
+    before the crash-dive and the expanding ripples. The gag is the beat. You
+    were being observed by the thing you were observing.</p>
+    <div class="punch">SIGHTING REPORTED — BY BOTH PARTIES.</div>
+  </figcaption>
+</figure>
+
+<figure class="vig">
+  <div class="shot">
+    <img src="media/interstitials/teleprinter.gif" width="2800" height="898"
+         loading="lazy" decoding="async"
+         alt="An ASCII teleprinter types out a JIC memo. Each paragraph is redacted more heavily with block characters until the last is solid black, leaving only the words PM EYES ONLY and a tea-ring stain.">
+  </div>
+  <figcaption>
+    <div class="name">TELEPRINTER <span class="k">· 03</span></div>
+    <p class="beat">A JIC memo chatters out in the proper rhythm — burst,
+    burst, breath, carriage return — under redaction that gets heavier with
+    every paragraph, until the final one is a solid black bar. What survives
+    is the header, the classification, and a tea-ring somebody left on the
+    page.</p>
+    <div class="punch">PM EYES ONLY.</div>
+  </figcaption>
+</figure>
+
+<figure class="vig">
+  <div class="shot">
+    <img src="media/interstitials/red_phone.gif" width="2800" height="760"
+         loading="lazy" decoding="async"
+         alt="An ASCII red telephone labelled MOSCOW DIRECT blinks for attention. A cat is sitting on it. A hand shoos the cat, which moves exactly two columns. The blinking stops the frame the handset lifts.">
+  </div>
+  <figcaption>
+    <div class="name">RED PHONE <span class="k">· 04</span></div>
+    <p class="beat"><code>[ MOSCOW DIRECT ]</code> is blinking. The Downing
+    Street cat is already sitting on it. A shooing hand secures a relocation
+    of exactly two columns, and the blinking stops on the precise frame the
+    handset lifts. Nobody's dignity survives, and the call still connects.</p>
+    <div class="punch">LINE OPEN. CAT UNMOVED.</div>
+  </figcaption>
+</figure>
+
+<figure class="vig">
+  <div class="shot">
+    <img src="media/interstitials/radar_room.gif" width="2800" height="966"
+         loading="lazy" decoding="async"
+         alt="An ASCII radar sweep with contact blips. The closing contact resolves into a small bird shape and exits the screen to the left.">
+  </div>
+  <figcaption>
+    <div class="name">RADAR ROOM <span class="k">· 05</span></div>
+    <p class="beat">The sweep goes round, contacts bloom, and one of them is
+    closing. It resolves, at the last possible moment, into three characters
+    of seagull and leaves the screen to the left. Somewhere a formal complaint
+    is being drafted.</p>
+    <div class="punch">CONTACT RECLASSIFIED: GULL (FORMAL COMPLAINT LODGED).</div>
+  </figcaption>
+</figure>
+
+<pre class="rig" aria-hidden="true">             <span class="r2">·</span> <span class="r2">··</span>  <span class="r1">•</span>        <span class="r2">·────</span><span class="r3">●</span><span class="r2">────</span>     <span class="r2">·</span>      <span class="r2">·</span>    <span class="r2">·</span>            <span class="r2">·</span>       <span class="r2">·</span>             <span class="r1">•</span>     <span class="r1">•</span> <span class="r2">·</span> </pre>
+
+<h2 class="rule"><span class="node">──●──</span><span>&nbsp;[ THE SAME LANGUAGE EVERYWHERE ]</span><span class="fill"></span></h2>
+
+<p>The vignettes are not a separate art style bolted on. They are drawn with
+the same primitives as the title sequence, the turn banners and the section
+dividers on this page: a seeded fog generator, classification strips, sonar
+traces, and a character set that never leaves box-drawing, block elements and
+geometric shapes. No emoji, anywhere, ever. The rule that keeps it coherent is
+that every surface takes a seed, and the same seed always draws the same
+thing — so a saved campaign replays identically, down to the fog.</p>
+
+<p>The dividers above and the fog bands on this page were generated by the
+game's own <code>cli/aesthetics.py</code> when this page was built. So was the
+masthead on the <a href="index.html">front page</a>.</p>
+
+<p><a href="https://github.com/earlyprototype/false-flag/blob/main/docs/AESTHETIC_LANGUAGE.md">The
+full aesthetic reference →</a><br>
+<a href="replay.html">Watch the language in use across seventeen turns →</a></p>
+
+</main>
+<footer>
+<div class="strip bottom" aria-hidden="true"><span>└─[ <b>FALSE FLAG ── OPERATION TUMAN</b> ]</span><span class="fill"></span><span class="code">[ END OF FILE ]─┘</span></div>
+<div class="inner">
+<p>FALSE FLAG is a terminal wargame written in Python. This site is a window
+onto it — a record of play, not a playable build. Everything shown here was
+captured from live runs against a real LLM backend.</p>
+<p>Inspired by Sky News' <a href="https://www.audible.co.uk/podcast/The-Wargame/B0FCLQ7W9B">The
+Wargame</a> podcast. Independent project — not affiliated with or endorsed by
+Sky News, Tortoise, or the podcast's participants. MIT licensed.
+<a href="https://github.com/earlyprototype/false-flag">Source on GitHub</a>.</p>
+</div>
+</footer>
+</body>
+</html>
