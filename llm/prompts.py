@@ -378,6 +378,7 @@ def build_inject_generation_prompt(
         get_stochastic_inject_context,
         get_last_turn_slice,
         generate_summary,
+        render_event_ledger,
         MAX_INJECT_CONTINUITY_LINES,
     )
     
@@ -426,8 +427,13 @@ Use these as inspiration, NOT rigid scripts. Adapt based on player's previous ac
         story_context = get_stochastic_inject_context(
             summary, last_turn_transcript, world, event_ledger=event_ledger)
     else:
-        # No history yet (first inject of a campaign)
+        # No history yet (first inject of a campaign). A ledger can still
+        # exist here if a caller omits the transcript, and rule 8 below
+        # would then name a block that was never rendered.
         story_context = build_world_state_summary(world)
+        ledger_block = render_event_ledger(event_ledger)
+        if ledger_block:
+            story_context = f"{story_context}\n\n{ledger_block}"
 
     # Each rule names a context section, so each is issued only when its
     # section exists — a rule pointing at an absent block is the same class

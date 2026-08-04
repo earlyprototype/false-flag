@@ -24,6 +24,7 @@ from llm.context_builder import (
 )
 from models.narrative_state import NarrativeState, PlayedEvent
 from models.world import Metrics, WorldState
+from random import Random
 
 
 def _state(turn=5):
@@ -259,3 +260,62 @@ def test_scenario_library_path_executes(monkeypatch):
     assert "Potential scenarios:" in prompt
     assert "submarine_incursion" not in prompt.split("Potential scenarios:")[1][:200]
     assert "carrier_shadowing" in prompt
+
+
+# --- disposition recording reaches every adjudication path -------------------
+
+def test_disposition_closes_the_most_recently_staged_event():
+    """Not a turn-keyed lookup: narrative_state.turn is synced to the world
+    turn only *after* adjudication, so keying on it finds the previous
+    turn's event and leaves the current one permanently open."""
+    from engine.narrative_adjudication import record_event_disposition
+
+    ns = _state(turn=1)          # still lagging: world is on turn 2
+    ns.record_played_event(1, "Severomorsk accusation")
+    ns.record_played_event(2, "Akula submarine surfaces off Orkney")
+
+    record_event_disposition(
+        ns, "The Royal Navy escorts the Akula submarine out of UK waters.")
+
+    assert ns.event_ledger[1].disposition == "resolved"   # turn 2, the live one
+    assert ns.event_ledger[0].disposition == "open"       # turn 1 untouched
+
+
+def test_actor_simulation_path_also_records_disposition(monkeypatch):
+    """Campaigns with an actor system route through
+    adjudicate_with_actor_simulation — recording only in the narrative path
+    left the ledger permanently open in real play."""
+    import engine.narrative_adjudication as na
+
+    seen = []
+    monkeypatch.setattr(na, "record_event_disposition",
+                        lambda ns, action: seen.append(action))
+    # Keep the rest of the pipeline cheap and offline
+    monkeypatch.setattr(na, "identify_relevant_actors", lambda *a, **k: [])
+    monkeypatch.setattr(na, "calculate_effects_from_responses", lambda *a, **k: {})
+    monkeypatch.setattr(na, "generate_character_responses", lambda *a, **k: [])
+
+    from models.state_actors import StateActorSystem
+    ns = _state()
+    ns.record_played_event(1, "Akula surfaced off Orkney")
+
+    na.adjudicate_with_actor_simulation(
+        ns, StateActorSystem(), "escort the submarine out", "interp",
+        lambda *a, **k: "QUALITY: good\n\nREASONING: fine.\n", Random(1))
+
+    assert seen, "actor path must record the event disposition"
+
+
+def test_ledger_renders_even_without_a_transcript(monkeypatch):
+    """Rule 8 names the EVENTS ALREADY PLAYED block, so that block must
+    exist whenever the rule is issued."""
+    import llm.context_builder as cb
+    monkeypatch.setattr(cb, "generate_summary", lambda t, p: "stub")
+    from llm.prompts import build_inject_generation_prompt
+
+    prompt = build_inject_generation_prompt(
+        _world(), 8, {}, None, None,
+        event_ledger=[PlayedEvent(turn=7, title="Akula off Orkney",
+                                  disposition="resolved", note="escorted out")])
+    assert "EVENTS ALREADY PLAYED" in prompt
+    assert "DO NOT RESTAGE RESOLVED EVENTS" in prompt
