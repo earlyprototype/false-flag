@@ -704,9 +704,17 @@
       .catch(function () { /* no shared key here; nothing to offer */ });
   })();
 
+  /* One derivation at a time. The button is disabled while it runs, but the
+     Enter key on the passphrase field is not covered by that — a second Enter
+     would start a second PBKDF2 run, capture 'Working…' as the label to
+     restore, and leave the button reading 'Working…' for good. */
+  var unlockBusy = false;
+
   function unlockShared() {
+    if (unlockBusy) return;
     var pass = el.sharedPass.value;
     if (!ui.sharedBlob || !pass) { el.sharedPass.focus(); return; }
+    unlockBusy = true;
     var button = el.unlockShared;
     var label = button.textContent;
     button.disabled = true;
@@ -727,6 +735,7 @@
       setSharedState('That passphrase did not work.', 'bad');
       refreshStart();
     }).then(function () {
+      unlockBusy = false;
       if (!button.hidden) {
         button.disabled = false;
         button.textContent = label;

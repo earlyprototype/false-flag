@@ -8,3 +8,7 @@ terminaltexteffects==0.13.0
 blessed==1.20.0
 pytest
 ruff
+# dev-scripts/verify_shared_key.py drives the browser build headlessly.
+# The package alone is not enough — it also needs a browser binary:
+#   python -m playwright install chromium
+playwright>=1.44

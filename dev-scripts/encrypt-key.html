@@ -154,8 +154,10 @@ your account without ever holding your key.</p>
   <code>file://</code>. It loads nothing and sends nothing — the Content
   Security Policy in its <code>&lt;head&gt;</code> forbids every outbound
   request the browser can make. Your key is typed here, encrypted here, and
-  never leaves this tab. It is the only place in this project that ever sees
-  the key in the clear.
+  never leaves this tab. This is the only page in this project where you type
+  the key in the clear — but not the only code that ever holds it in the
+  clear: once a tester unlocks the blob, the play page necessarily keeps the
+  decrypted key in memory for that tab in order to call OpenRouter with it.
 </div>
 
 <div class="note warn">
@@ -312,9 +314,11 @@ your account without ever holding your key.</p>
 <script>
 /* FALSE FLAG — shared key encryptor.
  *
- * Runs from file://, offline, with no dependencies. It is the only place in
- * this project that ever holds the plaintext API key, and it holds it in one
- * variable in one tab for as long as the tab is open.
+ * Runs from file://, offline, with no dependencies. It is the only page where
+ * the owner types the plaintext API key, and it holds it in one variable in
+ * one tab for as long as the tab is open. It is not the only code that ever
+ * holds the key in the clear: docs/play/app.js holds the *decrypted* key in
+ * memory after an unlock, because the call cannot be made otherwise.
  *
  * Nothing here writes to localStorage, sessionStorage, IndexedDB, cookies or
  * the console. Do not add anything that does.
@@ -324,8 +328,14 @@ your account without ever holding your key.</p>
 
   var MIN_ITERS = 600000;
   var MIN_BITS = 64;          // refuse to encrypt below this estimate
-  var GEN_WORDS = 7;          // ~79 bits against the list below
-  var GEN_CHARS = 24;         // ~124 bits over a 34-symbol alphabet
+  var GEN_WORDS = 7;          // ~79 bits against the 2,579-word list below
+  var GEN_CHARS = 24;         // 120 bits over the 32-symbol alphabet below
+
+  // Nothing on this page works without WebCrypto; recorded once so the gate
+  // can keep saying so instead of re-enabling Encrypt behind the warning.
+  var HAS_SUBTLE = !!(window.crypto && window.crypto.subtle);
+  var NO_SUBTLE = 'This browser exposes no WebCrypto here. Open the file ' +
+                  'over file:// or http://localhost in a current browser.';
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -591,7 +601,10 @@ your account without ever holding your key.</p>
   }
 
   // -------------------------------------------------------------- strength
-  var WORDSET = WORDS.reduce(function (a, w) { a[w] = 1; return a; }, {});
+  // Null-prototype: a passphrase containing 'constructor' or 'toString' must
+  // not match an inherited property and be priced as a dictionary word.
+  var WORDSET = WORDS.reduce(function (a, w) { a[w] = 1; return a; },
+                             Object.create(null));
   var MAXWORD = WORDS.reduce(function (m, w) { return Math.max(m, w.length); }, 0);
 
   /* A pessimistic floor on how hard the passphrase is to guess.
@@ -715,7 +728,8 @@ your account without ever holding your key.</p>
     var bits = $('phraseOut').value.trim() ? 999 : estimateBits(pass);
     var why = '';
 
-    if (!key) why = 'Enter the API key.';
+    if (!HAS_SUBTLE) why = NO_SUBTLE;
+    else if (!key) why = 'Enter the API key.';
     else if (/\s/.test(key)) why = 'That key contains whitespace — check the paste.';
     else if (!pass) why = 'Generate or type a passphrase.';
     else if (bits < MIN_BITS) why = 'The passphrase is too weak.';
@@ -771,7 +785,7 @@ your account without ever holding your key.</p>
     $('keyIn').type = this.checked ? 'text' : 'password';
   });
 
-  function copyFrom(box, button, label) {
+  function copyFrom(box, button) {
     box.focus();
     box.select();
     var done = false;
@@ -836,10 +850,9 @@ your account without ever holding your key.</p>
     }
   });
 
-  if (!(window.crypto && crypto.subtle)) {
-    $('gateNote').textContent =
-      'This browser exposes no WebCrypto here. Open the file over file:// or ' +
-      'http://localhost in a current browser.';
+  if (!HAS_SUBTLE) {
+    // The generators need crypto.getRandomValues; the gate note itself comes
+    // from refreshGate(), which keeps Encrypt dead no matter what is typed.
     $('genWords').disabled = true;
     $('genChars').disabled = true;
   }

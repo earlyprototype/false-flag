@@ -207,7 +207,10 @@ def chromium_path() -> str:
     raise SystemExit("no Chromium under PLAYWRIGHT_BROWSERS_PATH")
 
 
-def seal_with_the_encryptor(browser, report: dict) -> tuple[str, str]:
+BLOB_FIELDS = {"v", "kdf", "iterations", "salt", "iv", "ct"}
+
+
+def seal_with_the_encryptor(browser, report: dict, failures: list[str]) -> tuple[str, str]:
     """Drive dev-scripts/encrypt-key.html from file:// and take the blob."""
     page = browser.new_page()
     page.on("pageerror", lambda e: report.setdefault("encryptor_errors", []).append(str(e)))
@@ -230,6 +233,18 @@ def seal_with_the_encryptor(browser, report: dict) -> tuple[str, str]:
             "note": page.inner_text("#gateNote"),
         })
     report["weak_passphrases_refused"] = weak
+    # Recording the refusal is not enough: assert it. The key is already in
+    # #keyIn, so the only thing that can be holding the gate shut is the
+    # passphrase — check both that the estimator rates it below the floor and
+    # that the gate is actually shut.
+    accepted = [w["passphrase"] for w in weak if w["encrypt_enabled"]]
+    if accepted:
+        failures.append("the encryptor offered to encrypt under weak "
+                        "passphrases: " + json.dumps(accepted))
+    overrated = [w["passphrase"] for w in weak if w["bits"] >= 64]
+    if overrated:
+        failures.append("weak passphrases scored at or above the 64-bit "
+                        "floor: " + json.dumps(overrated))
     page.fill("#phraseIn", "")
 
     page.click("#genWords")
@@ -255,8 +270,13 @@ def seal_with_the_encryptor(browser, report: dict) -> tuple[str, str]:
     # ciphertext = plaintext + 16-byte GCM tag
     assert len(_b64len(b["ct"])) == len(DUMMY_KEY) + 16, "ct length"
     assert DUMMY_KEY not in blob and passphrase not in blob, "blob leaks plaintext"
-    assert not any(k in b for k in ("check", "verifier", "hint", "hash")), \
-        "the blob must carry no wrong-passphrase oracle"
+    # An allowlist, not a blacklist: any field beyond these six is a potential
+    # wrong-passphrase oracle, whatever it happens to be called.
+    if set(b) != BLOB_FIELDS:
+        failures.append(
+            "the blob's fields must be exactly "
+            f"{sorted(BLOB_FIELDS)}, got {sorted(b)} — anything else is a "
+            "potential wrong-passphrase oracle")
     return passphrase, blob
 
 
@@ -275,14 +295,41 @@ def leak_scan(page, needles: dict[str, str]) -> dict:
         const k = sessionStorage.key(i); ss[k] = sessionStorage.getItem(k); } } catch (e) {}
       const inputs = [...document.querySelectorAll('input,textarea')]
         .map(n => n.id + '=' + n.value);
+      // FF_PLAY is the page's own automation surface and is supposed to expose
+      // booleans and screen text only. Read every property it exposes (its
+      // getters included) and call its zero-argument accessors, so a
+      // regression that hung the key off it is caught by value and not merely
+      // noted by name.
+      const ff = {};
+      try {
+        const src = window.FF_PLAY || {};
+        // Own properties, plus anything on a prototype of its own — but stop
+        // at Object.prototype, whose methods are not FF_PLAY's surface.
+        const names = new Set(Object.getOwnPropertyNames(src));
+        for (let proto = Object.getPrototypeOf(src);
+             proto && proto !== Object.prototype;
+             proto = Object.getPrototypeOf(proto)) {
+          Object.getOwnPropertyNames(proto).forEach(n => names.add(n));
+        }
+        names.delete('constructor');
+        for (const k of names) {
+          let v;
+          try { v = src[k]; } catch (e) { v = '<<threw>>'; }
+          if (typeof v === 'function') {
+            try { v = v.length === 0 ? v.call(src) : '<<takes arguments>>'; }
+            catch (e) { v = '<<threw>>'; }
+          }
+          try { ff[k] = JSON.parse(JSON.stringify(v === undefined ? null : v)); }
+          catch (e) { ff[k] = String(v); }
+        }
+      } catch (e) {}
       return {
         localStorage: ls,
         sessionStorage: ss,
         cookie: document.cookie,
         dom: document.documentElement.outerHTML,
         inputValues: inputs,
-        ffPlay: Object.keys(window.FF_PLAY).concat(
-          Object.getOwnPropertyNames(Object.getPrototypeOf(window.FF_PLAY) || {})),
+        ffPlay: ff,
       };
     }""")
     haystacks = {
@@ -291,6 +338,7 @@ def leak_scan(page, needles: dict[str, str]) -> dict:
         "cookies": dump["cookie"],
         "DOM": dump["dom"],
         "input values": " ".join(dump["inputValues"]),
+        "FF_PLAY": json.dumps(dump["ffPlay"]),
     }
     found = {}
     for what, needle in needles.items():
@@ -303,6 +351,11 @@ def leak_scan(page, needles: dict[str, str]) -> dict:
         "cookies": dump["cookie"],
         "dom_bytes": len(dump["dom"]),
         "input_values": dump["inputValues"],
+        # Scanned in full above; abbreviated here so the transcript FF_PLAY.text()
+        # returns does not swamp the report.
+        "ff_play": {k: (v[:120] + f"…<{len(v)} chars>" if isinstance(v, str)
+                        and len(v) > 120 else v)
+                    for k, v in dump["ffPlay"].items()},
         "leaks": found,
     }
 
@@ -360,7 +413,7 @@ def main() -> int:
         )
 
         # ---------------------------------------------------- 1. seal a key
-        passphrase, blob = seal_with_the_encryptor(browser, report)
+        passphrase, blob = seal_with_the_encryptor(browser, report, failures)
         serve_site(SITE_PORT, blob.encode())
         serve_site(BARE_PORT, None)
 
@@ -396,6 +449,8 @@ def main() -> int:
             failures.append("a wrong passphrase unlocked the key")
         if report["wrong_passphrase_message"] != "That passphrase did not work.":
             failures.append("the wrong-passphrase message is not the flat one")
+        if not report["wrong_passphrase_start_button_hidden"]:
+            failures.append("#startShared was exposed after a failed unlock")
         if any(report["after_wrong_passphrase"]["leaks"].values()):
             failures.append("material found after a failed unlock: " +
                             json.dumps(report["after_wrong_passphrase"]["leaks"]))
@@ -503,16 +558,23 @@ def main() -> int:
 
         # no-key path, unchanged: it must still boot and reach a decision
         if not args.skip_play:
+            # Taken *before* the click: a request made during boot, before the
+            # engine has settled on the offline stand-in, is exactly the
+            # regression this is here to catch, and a count read afterwards
+            # would have already absorbed it.
+            hits_before = FakeOpenRouter.hits
             t0 = time.time()
             bare.click("#startNoKey")
             wait_awaiting(bare, ["decision"])
             report["absent_nokey_boot_seconds"] = round(time.time() - t0, 1)
+            report["absent_nokey_boot_llm_hits"] = FakeOpenRouter.hits - hits_before
             report["absent_nokey_awaiting"] = bare.evaluate("window.FF_PLAY.awaiting")
             report["absent_nokey_offline_banner"] = bool(re.search(
                 r"OFFLINE MODE", bare.evaluate("window.FF_PLAY.text()")))
-            hits_before = FakeOpenRouter.hits
             send_decision(bare, "Hold the line and convene COBRA at 0700.")
             report["absent_nokey_extra_llm_hits"] = FakeOpenRouter.hits - hits_before
+            if report["absent_nokey_boot_llm_hits"] != 0:
+                failures.append("the no-key path contacted an endpoint during boot")
             if report["absent_nokey_extra_llm_hits"] != 0:
                 failures.append("the no-key path contacted an endpoint")
 

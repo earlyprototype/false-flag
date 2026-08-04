@@ -90,7 +90,7 @@ GitHub Pages has no server, so nothing shipped with the page can be a secret —
 ### Generating the blob
 
 1. Create a key at [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) that you use for nothing else, and **set a credit limit on it.** Everyone who unlocks the page spends from it. This is not optional; it is the only thing bounding your exposure.
-2. Open `dev-scripts/encrypt-key.html` from disk (`file://`). It is a single self-contained page with no dependencies, no build step and a Content Security Policy that forbids every outbound request the browser can make. It is the only place in this project that ever sees the key in the clear, and it runs on your machine.
+2. Open `dev-scripts/encrypt-key.html` from disk (`file://`). It is a single self-contained page with no dependencies, no build step and a Content Security Policy that forbids every outbound request the browser can make. It is the only page in this project where *you* type the key in the clear, and it runs on your machine: it holds the key in one variable in one tab, encrypts it there, and writes it nowhere. (It is not the only code that ever holds the key in the clear — see below.)
 3. Press **Generate a passphrase** and use what it gives you. Weak passphrases are refused: the passphrase is the entire security of this scheme.
 4. Paste the key, press **Encrypt**. The page decrypts what it just produced and checks it round-trips before offering it to you.
 5. Save the output as `docs/play/shared-key.json` and commit it deliberately:
@@ -115,7 +115,9 @@ PBKDF2-HMAC-SHA256 over a fresh 16-byte random salt, at least 600,000 iterations
 
 A wrong passphrase derives a different AES key and fails on the GCM authentication tag. There is no verifier field, no hint and no password check in the blob, so a wrong guess produces exactly one signal — failure — and the page says only *"that passphrase did not work"*. Attacking the blob therefore costs exactly what guessing the passphrase costs, times the iteration count.
 
-On the page, the decrypted key is held in memory for that tab and nothing else: never `localStorage`, never `sessionStorage`, never rendered into the DOM, never logged. There is deliberately no "remember it" for this path — remembering a key that is not yours defeats the point of locking it up. Closing the tab ends it.
+Be exact about what unlocking costs. To make a call to OpenRouter at all, something has to hold the decrypted key: after a successful unlock, `docs/play/app.js` keeps it in a JavaScript variable (`ui.sharedKey`) and passes it to the worker, which puts it in an `Authorization` header. It is therefore in the tab's memory for as long as the tab is open, and anyone who can run code in that tab — a browser extension, a console paste, an XSS bug on the page — can read it. Encryption protects the key *in the repository*, from everyone without the passphrase; it cannot protect it from the tab that is using it.
+
+What the play page does not do: it never writes the decrypted key to `localStorage` or `sessionStorage` or a cookie, never renders it into the DOM (not even masked, unlike your own key), and never logs it. There is deliberately no "remember it" for this path — remembering a key that is not yours defeats the point of locking it up. Closing the tab ends it.
 
 ### Revoking
 
@@ -128,6 +130,16 @@ So, to actually stop it:
 3. If you still want shared play: issue a *new* key, cap it, and generate a *new* blob with a *new* passphrase. Never reuse the old passphrase — the old blob is still out there and still opens under it.
 
 ### Verifying it
+
+Needs Playwright and a Chromium binary (`playwright` is in `requirements-dev.txt`; the browser is a separate download):
+
+```bash
+pip install -r requirements-dev.txt
+python -m playwright install chromium     # once; ~150 MB
+python dev-scripts/verify_shared_key.py
+```
+
+If Chromium already lives somewhere else, point the script at it instead of downloading another copy — `PLAYWRIGHT_BROWSERS_PATH` (it looks for `chromium-*/chrome-linux/chrome` underneath, and defaults to `/opt/pw-browsers`), or `FF_CHROMIUM` for an exact executable:
 
 ```bash
 PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers .venv/bin/python dev-scripts/verify_shared_key.py
