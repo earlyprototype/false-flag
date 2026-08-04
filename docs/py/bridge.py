@@ -423,6 +423,17 @@ class WebGame:
         """Park beats to be played one space-bar press apart."""
         self._paused.extend(beats)
 
+    def start_briefing(self) -> None:
+        """Run a briefing *through the queue*, so its pause state is emitted.
+
+        ``play_next`` is the only thing that publishes ``AWAIT_PAUSE``. A
+        briefing that splits parks its report beat, so calling
+        ``run_briefing`` directly left the page on ``AWAIT_NONE`` with a beat
+        pending — input blocked, reload the only way out.
+        """
+        self.queue(self.run_briefing)
+        self.play_next()
+
     def play_next(self) -> None:
         """Play the next parked beat.
 
@@ -585,9 +596,14 @@ class WebGame:
             play_mode=play_mode,
             seed=seed,
             mystery_mode=mystery,
-            # A browser session has no "quit and grade me" affordance, so
-            # every mode must be able to reach a terminal ending.
-            endings=True,
+            # Leave the rule to the engine: Classic has the win/lose
+            # thresholds its menu promises, Immersive and Emergent are
+            # open-ended by design (cli/main.py:1964). This used to force
+            # endings on in every mode so a browser session could always
+            # reach a debrief — but that silently converted an open-ended
+            # mode into a ten-turn one, which is not the front end's call
+            # to make.
+            endings=None,
         )
         self._call_seen = 0
         self._paused.clear()
@@ -618,8 +634,15 @@ class WebGame:
         pen.raw(_c(DIM, f"  CAMPAIGN   {cfg.get('name', gm.variant)}"))
         pen.raw(_c(DIM, f"  MODE       {gm.play_mode.upper()}"
                         f"{'  ·  MYSTERY' if gm.mystery_mode else ''}"))
-        pen.raw(_c(DIM, f"  LENGTH     {gm.campaign_final_turn} turns "
-                        f"({cfg.get('scripted_turns', '?')} scripted)"))
+        # Only Classic is graded at a final turn; announcing a length in the
+        # open-ended modes promises an ending that will never come.
+        if gm.endings_enabled:
+            pen.raw(_c(DIM, f"  LENGTH     {gm.campaign_final_turn} turns "
+                            f"({cfg.get('scripted_turns', '?')} scripted)"))
+        else:
+            pen.raw(_c(DIM, f"  LENGTH     open-ended "
+                            f"({cfg.get('scripted_turns', '?')} scripted, then "
+                            f"it keeps going)"))
         pen.raw(_c(DIM, f"  SEED       {gm.seed}"))
         pen.raw(_c(DIM, f"  MODEL      {'live endpoint' if self.provider() == 'openai_compat' else 'offline (deterministic)'}"))
         pen.blank()
@@ -668,7 +691,9 @@ class WebGame:
             scenario=gm.scenario_id,
             variant=gm.variant,
             seed=gm.seed,
-            finalTurn=gm.campaign_final_turn,
+            # None in the open-ended modes: the page renders "TURN 4 / 10"
+            # from this, and there is no 10 to render.
+            finalTurn=gm.campaign_final_turn if gm.endings_enabled else None,
             vibes=vibes,
             advisors=ADVISORS,
             # Only channels the current alliance standing actually opens.
@@ -702,7 +727,10 @@ class WebGame:
 
         pen = AnsiPen(self.width)
         pen.blank()
-        pen.banner(f"TURN {gm.world.turn} OF {gm.campaign_final_turn}", AMBER)
+        pen.banner(
+            f"TURN {gm.world.turn} OF {gm.campaign_final_turn}"
+            if gm.endings_enabled else f"TURN {gm.world.turn}",
+            AMBER)
         pen.blank()
 
         # The narrator bridge lands in the transcript as "[Narrator] ..."
@@ -1058,7 +1086,7 @@ class WebGame:
             # itself a choice, and the Cabinet acts on it.
             self.decide("No new orders. Hold current posture and await developments.")
             return
-        self.run_briefing()
+        self.start_briefing()
 
     # -- ending ------------------------------------------------------------
 
@@ -1137,7 +1165,7 @@ class WebGame:
         if self.gm.is_over():
             self._emit_ending()
         else:
-            self.run_briefing()
+            self.start_briefing()
 
     # -- dispatch ----------------------------------------------------------
 
@@ -1167,7 +1195,15 @@ class WebGame:
             elif kind == "endTurn":
                 self.end_turn(was_awaiting)
             elif kind == "continue":
-                self.play_next()
+                # `handle` has already marked the session busy. With nothing
+                # queued — a double space-press, a stale click — play_next
+                # returns without publishing a state, leaving the page on
+                # AWAIT_NONE with every control disabled. Put it back where
+                # it was. Not an error: pressing space twice is not a fault.
+                if self._paused:
+                    self.play_next()
+                else:
+                    self.set_awaiting(was_awaiting)
             elif kind == "setKey":
                 self.set_key(msg.get("key"), msg.get("baseUrl"), msg.get("model"),
                              msg.get("source"))

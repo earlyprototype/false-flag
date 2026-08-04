@@ -328,9 +328,66 @@ def test_loading_mid_cold_open_does_not_leak_beats_into_the_resumed_game():
 
 
 def test_a_continue_with_nothing_queued_does_not_strand_the_page():
+    """A double space-press must not disable every control.
+
+    handle() marks the session busy before dispatch, so a `continue` that
+    finds an empty queue has to put the awaiting state back itself.
+    """
     game, rec = make_game()      # already played through to the decision
     game.handle({"type": "continue"})
-    assert rec.last("awaiting")["kind"] != "pause"
+    assert rec.last("awaiting")["kind"] == "decision"
+
+
+def _force_split_briefing(game):
+    """Make the next briefing carry the NSA handover, as a real one would."""
+    real = game.gm.get_turn_briefing
+
+    def splitting(*args, **kwargs):
+        inject = real(*args, **kwargs)
+        inject["description"] = (
+            "The room is windowless and tense.\n"
+            "The National Security Advisor clears their throat and begins:\n"
+            '"Prime Minister, in the past 48 hours..."'
+        )
+        return inject
+
+    game.gm.get_turn_briefing = splitting
+
+
+def test_a_split_briefing_from_end_turn_still_pauses():
+    """run_briefing() must not be called directly, or the page strands.
+
+    play_next() is the only thing that publishes AWAIT_PAUSE. A briefing that
+    parks its report beat and is started outside the queue left the page on
+    AWAIT_NONE with a beat pending — every control disabled, reload the only
+    way out.
+    """
+    game, rec = make_game()
+    _force_split_briefing(game)
+
+    game.handle({"type": "decide", "text": "Hold current posture."})
+    rec.clear()                  # turn 1's YOUR MOVE is already on the record
+    game.handle({"type": "endTurn"})
+
+    assert rec.last("awaiting")["kind"] == "pause"
+    assert "YOUR MOVE" not in rec.ansi(), "the turn opened before the report"
+
+    game.handle({"type": "continue"})
+    assert rec.last("awaiting")["kind"] == "decision"
+
+
+def test_a_split_briefing_after_a_load_still_pauses():
+    donor, donor_rec = make_game()
+    donor.handle({"type": "save"})
+    blob = donor_rec.last("save")["data"]
+
+    game, rec = make_game()
+    _force_split_briefing(game)
+    game.handle({"type": "load", "data": blob})
+
+    assert rec.last("awaiting")["kind"] == "pause"
+    game.handle({"type": "continue"})
+    assert rec.last("awaiting")["kind"] == "decision"
 
 
 def test_output_is_raw_ansi_not_html():

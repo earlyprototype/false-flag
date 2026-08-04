@@ -67,10 +67,22 @@ def test_beats_are_json_safe_for_the_worker_boundary():
     assert json.loads(payload)[0]["numeral"] == "I"
 
 
-def test_a_section_that_is_only_a_rule_is_dropped():
-    sections = split_intro_sections(["=" * 20, "", "=" * 20, "real text"])
-    scenes = [Scene(body=s) for s in sections]
-    assert any("real text" in "\n".join(s.body) for s in scenes)
+def test_a_section_that_is_only_a_rule_is_dropped(monkeypatch):
+    """The masthead section carries no text; it must not become a blank beat."""
+    import engine.opening as opening
+
+    script = ["# FALSE FLAG", "=" * 20, "", "=" * 20, "real text"]
+    monkeypatch.setattr(opening, "get_intro_lines", lambda *a, **k: script)
+
+    scenes = opening.get_opening_scenes()
+    assert len(scenes) == 1, f"expected one beat, got {[s.body for s in scenes]}"
+    assert "real text" in "\n".join(scenes[0].body)
+
+
+def test_split_intro_sections_divides_on_the_rules():
+    sections = split_intro_sections(["a", "=" * 20, "b", "=" * 20, "c"])
+    assert len(sections) == 3
+    assert sections[0] == ["a"]
 
 
 # ----------------------------------------------------------- the briefing
