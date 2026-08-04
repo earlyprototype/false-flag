@@ -69,6 +69,7 @@ from engine.sim_loop import (
 )
 from engine.narrative_adjudication import adjudicate_with_narrative
 from engine.intro import get_intro_lines
+from engine.opening import get_opening_scenes, parse_intro_scene, split_briefing
 from engine.endings import check_ending, build_debrief_lines, EPILOGUE_TURNS
 from engine.persistence import save_game, load_game
 from engine.initial_conditions import load_initial_conditions
@@ -518,17 +519,6 @@ def select_narrative(scenario_id: str) -> Optional[NarrativeConfig]:
             console.print(f"[{COLORS['danger']}]Invalid input. Please enter a number.[/{COLORS['danger']}]")
 
 
-# Coordinates/timestamps for the intro scene cards, keyed by scene numeral.
-# Titles are parsed from assets/placeholders/intro_stage.md so editing the
-# asset stays authoritative; the geography is presentation-layer flavour.
-_INTRO_SCENE_META = {
-    "I": ("69°04'N 033°25'E", "02 OCT 25 │ 03:15 LOCAL ── 72 HRS EARLIER"),
-    "II": ("51°38'N 000°28'W", "05 OCT 25 │ 16:45 LONDON"),
-    "III": ("51°30'N 000°07'W", "05 OCT 25 │ 17:00 LONDON"),
-}
-
-_SCENE_HEADER_RE = re.compile(r"SCENE\s+([IVXLC]+)\s*:\s*(.+)")
-
 _RULE_HEADER_RE = re.compile(r"=+\s*(.*?)\s*=+")
 
 
@@ -553,44 +543,10 @@ def print_briefing_line(line: str) -> None:
         typer.echo(line)
 
 
-def _parse_intro_scene(scene_lines: list) -> tuple:
-    """Split one intro section into (body_lines, scene_header or None).
-
-    Consumes the ``## SCENE N: TITLE`` line (and its date/time subheading)
-    into a header tuple for the animated scene card; drops the ``====``
-    rules and the top-level ``#`` title (the title sequence replaced it).
-    """
-    header = None
-    body = []
-    # After the "## SCENE" line, skip its date/time "## " subheading (shown
-    # on the scene card instead). An explicit flag rather than a "body is
-    # still empty" check: blank lines between the two headings land in body
-    # and would otherwise let the timestamp through as scene text.
-    awaiting_subheading = False
-    for line in scene_lines:
-        stripped = line.strip()
-        if "===" in stripped:
-            continue
-        if stripped.startswith("## SCENE"):
-            match = _SCENE_HEADER_RE.match(stripped[2:].strip())
-            if match:
-                numeral, title = match.group(1), match.group(2).strip()
-                location, timestamp = _INTRO_SCENE_META.get(numeral, ("", ""))
-                header = (numeral, title, location, timestamp)
-                awaiting_subheading = True
-                continue
-        if awaiting_subheading and stripped:
-            awaiting_subheading = False
-            if stripped.startswith("## "):
-                continue  # date/time subheading - shown on the scene card
-        if stripped.startswith("# "):
-            continue  # plain-text masthead - replaced by the title sequence
-        body.append(line)
-    while body and not body[0].strip():
-        body.pop(0)
-    while body and not body[-1].strip():
-        body.pop()
-    return body, header
+# The intro's structure now lives in engine/opening.py, so the browser build
+# — which does not bundle cli/ — plays the same cold open. Re-exported here
+# because this module was its home.
+_parse_intro_scene = parse_intro_scene
 
 
 @app.command(rich_help_panel="GAMEPLAY")
@@ -682,37 +638,15 @@ def play(
     
     # Display intro with pauses
     if intro_only or load_save is None:
-        intro_lines = get_intro_lines(200)
-
-        # Split intro into sections (scenes)
-        # Scene markers are lines with "## SCENE"
-        current_section = []
-        sections = []
-
-        for line in intro_lines:
-            if "===" in line and current_section:
-                # Start of new scene - save previous and start new
-                sections.append(current_section)
-                current_section = [line]
-            else:
-                current_section.append(line)
-
-        # Only add final section if it has content beyond just a separator
-        if current_section and len([line for line in current_section if line.strip() and "===" not in line]) > 0:
-            sections.append(current_section)
-
-        # Display each scene: animated scene card, then the body streamed
+        # Display each beat: animated scene card, then the body streamed
         # through the existing typewriter
-        for scene in sections:
-            body, scene_header = _parse_intro_scene(scene)
-            if not body and scene_header is None:
-                # e.g. the bare title section - the title sequence covers it
-                continue
+        for scene in get_opening_scenes(200):
+            body = scene.body
             typer.clear()
-            if scene_header is not None:
-                numeral, scene_title, location, timestamp = scene_header
-                play_scene_stamp(numeral, scene_title, location, timestamp,
-                                 seed=f"intro-scene-{numeral}",
+            if scene.has_card:
+                play_scene_stamp(scene.numeral, scene.title, scene.location,
+                                 scene.timestamp,
+                                 seed=f"intro-scene-{scene.numeral}",
                                  console=console)
                 typer.echo("")
 
@@ -973,23 +907,16 @@ def play(
         play_turn_transition(world.turn, console=console)
         typer.echo("")
 
-        # Split briefing into scene-setting and actual briefing
-        # Look for "The National Security Advisor" or similar transition line
-        # BUT: for Turn 1 of new games, don't split - show everything in one flow
-        scene_setting_end = -1
-        if not (first_briefing_as_intro and world.turn == 1):
-            for i, line in enumerate(briefing_display):
-                if "National Security Advisor" in line and ("clears" in line or "begins" in line):
-                    scene_setting_end = i
-                    break
+        # Split briefing into scene-setting and the intelligence report, so a
+        # pause can separate the room from the news. Turn 1 of a new game is
+        # deliberately unsplit: it runs straight on from YOUR ROLE.
+        scene_setting, report = split_briefing(
+            briefing_display,
+            flows_from_intro=(first_briefing_as_intro and world.turn == 1))
 
         # Display scene-setting part with streaming
         skip_rest = False
-        for i, line in enumerate(briefing_display):
-            # Stop at the transition line
-            if scene_setting_end > 0 and i >= scene_setting_end:
-                break
-                
+        for line in scene_setting:
             if skip_rest:
                 # User pressed SPACE - print rest instantly
                 print_briefing_line(line)
@@ -1014,14 +941,14 @@ def play(
                 print_briefing_line(line)
         
         # Pause after scene-setting (only if we found a split point)
-        if scene_setting_end > 0:
+        if report:
             typer.echo("")
             wait_for_space("Press SPACE (or Enter) to continue...")
-            
+
             # Display rest of briefing (the actual intelligence report)
             typer.echo("")
-            for i in range(scene_setting_end, len(briefing_display)):
-                print_briefing_line(briefing_display[i])
+            for line in report:
+                print_briefing_line(line)
         
         transcript.extend(briefing_lines)
         

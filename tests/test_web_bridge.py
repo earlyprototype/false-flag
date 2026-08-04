@@ -226,12 +226,26 @@ class Recorder:
         self.msgs.clear()
 
 
+def play_through_pauses(game, rec, limit=20):
+    """Advance past any paced beats to whatever the player can act on next.
+
+    The opening and each briefing arrive a beat at a time (engine/opening.py);
+    most tests here are about what happens once the player can act again.
+    """
+    for _ in range(limit):
+        if rec.last("awaiting")["kind"] != "pause":
+            return
+        game.handle({"type": "continue"})
+    raise AssertionError(f"still paused after {limit} beats")
+
+
 def make_game(**config):
     rec = Recorder()
     game = bridge.WebGame(rec)
     cfg = {"scenario": "fast_start", "playMode": "classic", "seed": 3}
     cfg.update(config)
     game.handle({"type": "newGame", "config": cfg})
+    play_through_pauses(game, rec)
     return game, rec
 
 
@@ -245,6 +259,78 @@ def test_new_game_emits_output_state_and_awaiting():
     assert state["metricsVisible"] is True
     assert state["metrics"]["escalation_risk"] > 0
     assert state["finalTurn"] == game.gm.campaign_final_turn
+
+
+def make_unpaced_game(**config):
+    """A game parked on the first beat of the cold open, as the page finds it."""
+    rec = Recorder()
+    game = bridge.WebGame(rec)
+    cfg = {"scenario": "fast_start", "playMode": "classic", "seed": 3}
+    cfg.update(config)
+    game.handle({"type": "newGame", "config": cfg})
+    return game, rec
+
+
+def test_the_cold_open_plays_before_the_first_briefing():
+    """The campaign used to open on the briefing: five crises, no lead-in."""
+    game, rec = make_unpaced_game()
+
+    assert rec.last("awaiting")["kind"] == "pause"
+    opening = rec.ansi()
+    assert "SEVEROMORSK" in opening, "the cold open did not play"
+    assert "TURN 1" not in opening, "the briefing arrived before the cold open"
+
+
+def test_each_continue_advances_exactly_one_beat():
+    game, rec = make_unpaced_game()
+    seen = [rec.ansi()]
+
+    for _ in range(3):
+        game.handle({"type": "continue"})
+        seen.append(rec.ansi())
+
+    assert "NORTHWOOD" in seen[1]
+    assert "COBRA" in seen[2]
+    assert "YOUR ROLE" in seen[3]
+    assert rec.last("awaiting")["kind"] == "pause", "still mid-opening"
+    assert "TURN 1" not in seen[3], "the briefing must wait its turn"
+
+
+def test_the_briefing_pauses_between_the_room_and_the_report():
+    """The room is set, then the news — not both at once."""
+    game, rec = make_unpaced_game()
+    for _ in range(4):           # through the four cold-open beats
+        game.handle({"type": "continue"})
+
+    assert "TURN 1" in rec.ansi()
+    assert rec.last("awaiting")["kind"] == "pause"
+    assert "YOUR MOVE" not in rec.ansi(), "the turn opened before the report"
+
+    game.handle({"type": "continue"})
+    assert rec.last("awaiting")["kind"] == "decision"
+    assert "YOUR MOVE" in rec.ansi()
+
+
+def test_loading_mid_cold_open_does_not_leak_beats_into_the_resumed_game():
+    """Beats queued by the abandoned campaign must not fire into the new one."""
+    donor, donor_rec = make_game()
+    donor.handle({"type": "save"})
+    blob = donor_rec.last("save")["data"]
+
+    game, rec = make_unpaced_game()          # parked on the first beat
+    assert rec.last("awaiting")["kind"] == "pause"
+    game.handle({"type": "load", "data": blob})
+
+    rec.clear()
+    game.handle({"type": "continue"})
+    assert "SEVEROMORSK" not in rec.ansi(), "a stale beat fired into the resumed game"
+    assert "NORTHWOOD" not in rec.ansi(), "a stale beat fired into the resumed game"
+
+
+def test_a_continue_with_nothing_queued_does_not_strand_the_page():
+    game, rec = make_game()      # already played through to the decision
+    game.handle({"type": "continue"})
+    assert rec.last("awaiting")["kind"] != "pause"
 
 
 def test_output_is_raw_ansi_not_html():

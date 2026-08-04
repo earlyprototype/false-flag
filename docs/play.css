@@ -360,6 +360,12 @@ pre.screen.read { font-size: 12.4px; white-space: pre; }
 }
 .awaiting.over { border-left-color: var(--red); }
 .awaiting.over .tag { color: var(--red-t); }
+/* A paced beat is waiting on the reader. The whole bar is the tap target,
+   because touch devices have no space bar. */
+.awaiting.paused { cursor: pointer; }
+.awaiting.paused .tag::after {
+  content: " ▸"; animation: pulse 1400ms steps(2, end) infinite;
+}
 @keyframes pulse { 50% { opacity: 0.25; } }
 
 /* ----------------------------------------------------------------- tabs */

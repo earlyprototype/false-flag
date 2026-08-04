@@ -241,6 +241,7 @@ AWAIT_NONE = "none"          # busy, booting, or the campaign is over
 AWAIT_DECISION = "decision"  # the turn is open: decide / ask / call
 AWAIT_QUESTION = "question"  # a diplomatic call is live; next `call` continues it
 AWAIT_CONFIRM = "confirm"    # decision resolved; send endTurn to advance
+AWAIT_PAUSE = "pause"        # a beat has played; send `continue` for the next
 
 # Player-facing labels for the advisors the question router understands.
 ADVISORS = [
@@ -397,6 +398,10 @@ class WebGame:
         # Which key is behind the live endpoint, so a refusal can be described
         # to the right person. '' until setKey says.
         self.key_source = ""
+        # Beats waiting on the space bar. The engine is synchronous inside the
+        # worker, so a paced sequence cannot block for input: it emits one
+        # beat, parks the rest here, and resumes on the next `continue`.
+        self._paused: List[Callable[[], None]] = []
 
     # -- plumbing ---------------------------------------------------------
 
@@ -411,6 +416,67 @@ class WebGame:
     def set_awaiting(self, kind: str) -> None:
         self.awaiting = kind
         self.emit(type="awaiting", kind=kind)
+
+    # -- pacing ------------------------------------------------------------
+
+    def queue(self, *beats: Callable[[], None]) -> None:
+        """Park beats to be played one space-bar press apart."""
+        self._paused.extend(beats)
+
+    def play_next(self) -> None:
+        """Play the next parked beat.
+
+        A beat may park more of its own (the briefing does), so the decision
+        to pause is taken after it runs. The last beat in a sequence is
+        responsible for setting the awaiting state it hands back to — which
+        is why this does not set one when the queue empties.
+        """
+        if not self._paused:
+            return
+        beat = self._paused.pop(0)
+        beat()
+        if self._paused:
+            self.set_awaiting(AWAIT_PAUSE)
+
+    def _emit_scene(self, scene: Any) -> None:
+        """Render one beat of the cold open.
+
+        The CLI draws an animated scene card and streams the body through a
+        typewriter; here the card is static and the body arrives whole. Both
+        read from the same ``engine.opening`` beats, so the pacing — where
+        the breaks fall — is identical even though the rendering is not.
+        """
+        pen = AnsiPen(self.width)
+        pen.blank()
+        if scene.has_card:
+            pen.section(f"SCENE {scene.numeral} ── {scene.title}", ACCENT)
+            meta = "  ·  ".join(p for p in (scene.location, scene.timestamp) if p)
+            if meta:
+                pen.raw(_c(DIM, "  " + meta))
+            pen.blank()
+
+        # Headings inside the body ("## YOUR ROLE") become section rules;
+        # everything between them is prose to be re-wrapped to this width.
+        prose: List[str] = []
+
+        def flush() -> None:
+            if prose:
+                pen.wrap("\n".join(prose), colour=INK)
+                prose.clear()
+
+        for line in scene.body:
+            stripped = line.strip()
+            if stripped.startswith("## "):
+                flush()
+                pen.blank()
+                pen.section(stripped[3:], AMBER)
+                pen.blank()
+            else:
+                prose.append(line)
+        flush()
+
+        pen.blank()
+        self.out(pen)
 
     def error(self, message: str, fatal: bool = False) -> None:
         self.emit(type="error", message=message, fatal=bool(fatal))
@@ -524,10 +590,21 @@ class WebGame:
             endings=True,
         )
         self._call_seen = 0
+        self._paused.clear()
 
         self._emit_masthead()
         self.push_state()
-        self.run_briefing()
+
+        # The cold open: four beats, one space-bar press apart, then turn 1
+        # flows on from YOUR ROLE. Without it the campaign opened on the
+        # briefing — five simultaneous crises and no idea who anyone was.
+        from engine.opening import get_opening_scenes
+
+        beats: List[Callable[[], None]] = [
+            (lambda s=scene: self._emit_scene(s)) for scene in get_opening_scenes(200)
+        ]
+        self.queue(*beats, self.run_briefing)
+        self.play_next()
 
     def _emit_masthead(self) -> None:
         gm = self.gm
@@ -643,9 +720,37 @@ class WebGame:
         title = str(inject.get("title") or "NO NEW DEVELOPMENTS")
         pen.raw(_c(channel_colour, f"[{channel}]") + " " + _c(ACCENT, BOLD + title.upper()))
         pen.blank()
-        pen.wrap(inject.get("description") or
-                 "The morning brief carries no new developments.", colour=INK)
+
+        # The briefing sets the room, then hands over to the National Security
+        # Advisor for the intelligence itself. A pause between the two stops
+        # several simultaneous crises reading as one wall of text.
+        #
+        # Unlike the CLI this splits turn 1 as well. There the whole of turn 1
+        # is paced by the typewriter it streams through; here nothing paces a
+        # block of text but the break itself.
+        from engine.opening import split_briefing
+
+        description = str(inject.get("description") or
+                          "The morning brief carries no new developments.")
+        scene_setting, report = split_briefing(description.split("\n"))
+
+        pen.wrap("\n".join(scene_setting), colour=INK)
         pen.blank()
+        self.out(pen)
+
+        finish = lambda: self._finish_briefing(report, new_lines, before)  # noqa: E731
+        if report:
+            self.queue(finish)
+        else:
+            finish()
+
+    def _finish_briefing(self, report: List[str], new_lines: List[str],
+                         before: Dict[str, int]) -> None:
+        """The second half of a briefing: the report, then hand back to the player."""
+        pen = AnsiPen(self.width)
+        if report:
+            pen.wrap("\n".join(report), colour=INK)
+            pen.blank()
 
         # Scenario effects are declared as ranges ("10..15") and resolved at
         # apply time, so report the change that actually landed rather than
@@ -1016,6 +1121,9 @@ class WebGame:
             data = json.loads(data)
         self.gm = GameManager.from_dict(data)
         self._call_seen = 0
+        # Loading mid-beat abandons whatever the old campaign had queued;
+        # left in place those beats would fire into the resumed one.
+        self._paused.clear()
 
         pen = AnsiPen(self.width)
         pen.blank()
@@ -1033,7 +1141,7 @@ class WebGame:
 
     # -- dispatch ----------------------------------------------------------
 
-    NEEDS_GAME = {"decide", "ask", "call", "endTurn", "save"}
+    NEEDS_GAME = {"decide", "ask", "call", "endTurn", "save", "continue"}
 
     def handle(self, msg: Dict[str, Any]) -> None:
         """Route one page->worker message. Never raises."""
@@ -1058,6 +1166,8 @@ class WebGame:
                 self.call(msg.get("country"), msg.get("text"), was_awaiting)
             elif kind == "endTurn":
                 self.end_turn(was_awaiting)
+            elif kind == "continue":
+                self.play_next()
             elif kind == "setKey":
                 self.set_key(msg.get("key"), msg.get("baseUrl"), msg.get("model"),
                              msg.get("source"))
