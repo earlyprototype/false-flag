@@ -502,11 +502,28 @@ def test_every_pool_inject_can_carry_a_tell():
 # is honoured, and the same seed still replays the same campaign.
 
 
+def _pool_size():
+    from llm.mock_driver import _INJECT_POOL
+    return len(_INJECT_POOL)
+
+
+def _gated_titles():
+    """Events the pool reserves for a campaign that is already hot."""
+    from llm.mock_driver import _INJECT_POOL
+    return {e["title"] for e in _INJECT_POOL if e["min_escalation"] > 30}
+
+
 def _campaign_titles(seed, turns=8, escalation=75, first_turn=4):
     """Titles drawn over consecutive stochastic turns, ledger and all.
 
     Mirrors what engine.sim_loop feeds the generator each turn: a growing
-    transcript and the recent slice of the event ledger.
+    transcript and the **whole** event ledger. It used to pass ``ledger[-6:]``,
+    which stopped matching production at b5ef8f2: the window was removed
+    because the ledger is one line per event, so truncating it makes an older
+    event invisible to the generator and re-opens the restaging bug the ledger
+    exists to close. A test that keeps the window tests a code path nothing
+    runs — and hides the guarantee the removal bought (see
+    ``test_stochastic_injects_move_the_story_on``).
     """
     from llm.prompts import build_inject_generation_prompt
     from models.narrative_state import PlayedEvent
@@ -520,7 +537,7 @@ def _campaign_titles(seed, turns=8, escalation=75, first_turn=4):
         world.metrics.escalation_risk = escalation
         prompt = build_inject_generation_prompt(
             world, turn, {}, None, list(transcript),
-            event_ledger=ledger[-6:] or None)
+            event_ledger=list(ledger) or None)
         data = _parse_inject_yaml(driver.generate_text(prompt, rng))
         titles.append(data["title"])
         ledger.append(PlayedEvent(turn=turn, title=data["title"],
@@ -533,9 +550,26 @@ def _campaign_titles(seed, turns=8, escalation=75, first_turn=4):
 
 
 def test_stochastic_injects_move_the_story_on():
-    """A campaign's stochastic turns must not replay one event."""
-    titles = _campaign_titles(seed=3)
-    assert len(set(titles)) == len(titles), f"repeated inject in a campaign: {titles}"
+    """No event is staged twice in a campaign shorter than the pool.
+
+    With the whole ledger in the prompt this is a property of the selection
+    contract, not luck on one seed. ``_select_inject``'s first two passes both
+    exclude everything the prompt already mentions, and the ledger mentions
+    every title staged so far — so while either pass has a candidate left, the
+    draw cannot repeat. Both empty only when the prompt names all
+    ``len(_INJECT_POOL)`` events, which needs that many prior turns.
+
+    So the bound is exactly the pool size, and it is asserted here at the
+    bound and across many seeds. (Beyond it the pigeonhole takes over and a
+    repeat is correct behaviour; ``test_exhausted_pool_still_produces_an_inject``
+    covers what happens then.)
+    """
+    pool = _pool_size()
+    for seed in range(24):
+        for turns in (8, pool):
+            titles = _campaign_titles(seed=seed, turns=turns)
+            assert len(set(titles)) == turns, (
+                f"seed {seed} restaged an event in {turns} turns: {titles}")
 
 
 def test_consecutive_injects_always_differ():
@@ -603,19 +637,57 @@ def test_exhausted_pool_still_produces_an_inject():
 
 
 def test_calm_campaigns_are_not_handed_the_sharpest_events():
-    """Escalation gates the events that only make sense in a hot crisis."""
-    from llm.mock_driver import _INJECT_POOL
+    """Escalation gates the events that only make sense in a hot crisis.
 
-    gated = {e["title"] for e in _INJECT_POOL if e["min_escalation"] > 30}
+    Bounded deliberately: the gate holds for as long as there is an ungated
+    event left to draw. A campaign longer than the ungated pool is a different
+    contract, covered by the test below.
+    """
+    gated = _gated_titles()
     assert gated, "pool should reserve some events for a hot campaign"
+    ungated_turns = _pool_size() - len(gated)
+
     drawn = set()
-    for seed in range(8):
-        drawn.update(_campaign_titles(seed=seed, turns=6, escalation=25))
+    for seed in range(12):
+        drawn.update(_campaign_titles(seed=seed, turns=ungated_turns,
+                                      escalation=25))
     assert not (drawn & gated), f"calm campaign drew {drawn & gated}"
+    # The bound is worth stating: a calm campaign that long uses up every
+    # ungated event, so this is the last turn at which the gate can hold.
+    assert len(drawn) == ungated_turns
+
     hot = set()
-    for seed in range(8):
+    for seed in range(12):
         hot.update(_campaign_titles(seed=seed, turns=6, escalation=85))
     assert hot & gated, "a hot campaign should be able to draw them"
+
+
+def test_escalation_is_the_first_constraint_relaxed_when_the_pool_runs_dry():
+    """Past the ungated pool, a calm campaign is handed a sharp event anyway.
+
+    ``_select_inject`` relaxes its constraints least-important-first, and the
+    escalation gate is the least important of the three. So once a calm
+    campaign has used every event its escalation admits, the next draw does
+    NOT repeat and does NOT come back empty — it reaches past the gate.
+
+    The previous test could never reach this: at six turns the first candidate
+    pass still had three ungated events left, so the gate was never put under
+    any pressure and the assertion held for free. This one runs the campaign
+    past the ungated pool on purpose, which is the only way the relaxation
+    branch is executed at all.
+    """
+    gated = _gated_titles()
+    pool = _pool_size()
+    ungated_turns = pool - len(gated)
+
+    for seed in range(12):
+        titles = _campaign_titles(seed=seed, turns=pool, escalation=25)
+        # Nothing repeated, nothing empty — the gate gave way, not the ledger.
+        assert len(set(titles)) == pool, f"seed {seed} repeated: {titles}"
+        assert all(t.strip() for t in titles)
+        # And it gave way only after the ungated events were spent.
+        assert not (set(titles[:ungated_turns]) & gated)
+        assert set(titles[ungated_turns:]) <= gated
 
 
 def test_mock_pushback_scoped_to_decision_text():

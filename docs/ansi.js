@@ -213,8 +213,8 @@
                                     this._sheet.cssRules.length);
     } catch (e) {
       // A malformed declaration should degrade to unstyled text, never throw
-      // in the middle of a turn.
-      this._classes[css] = name;
+      // in the middle of a turn. The name is already cached above, so the
+      // failed rule is not retried on every subsequent chunk.
     }
     return name;
   };
@@ -232,7 +232,6 @@
     if (text === null || text === undefined) return '';
     text = String(text).replace(/\r\n/g, '\n').replace(/\r/g, '');
     var out = [];
-    var open = false;
     var self = this;
 
     function emit(chunk) {
@@ -243,7 +242,6 @@
       } else {
         out.push(escapeHtml(chunk));
       }
-      open = true;
     }
 
     var last = 0, m;
@@ -258,7 +256,6 @@
       }
     }
     if (last < text.length) emit(text.slice(last));
-    void open;
     return out.join('');
   };
 

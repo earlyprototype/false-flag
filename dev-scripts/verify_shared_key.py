@@ -10,7 +10,7 @@ real HTTP request made by the browser.
     PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers \
         .venv/bin/python dev-scripts/verify_shared_key.py
 
-Seven things are proved, in order:
+Eight things are proved, in order:
 
   1  UNLOCK      the encryptor seals a dummy key; the play page decrypts it
                  with the right passphrase and plays a turn against a fake
@@ -33,6 +33,13 @@ Seven things are proved, in order:
   7  WEAK PASS   the encryptor still refuses a sub-64-bit passphrase, and the
                  override that allows one is off by default, must be ticked
                  deliberately, and is withdrawn by any edit to the passphrase.
+  8  NO ORACLE   a blob carrying one extra field — a decryptable, otherwise
+                 perfect blob with a "hint" bolted on — is not offered at all.
+                 The blob is public, so any field beyond the ciphertext hands
+                 out for free something only the passphrase should buy. The
+                 encryptor refuses to write one (check 1 asserts its output is
+                 exactly the six fields), but the encryptor is not what a
+                 hostile or careless blob meets: the page is.
 
 HOW THE OPENROUTER CALL IS INTERCEPTED
 --------------------------------------
@@ -75,6 +82,7 @@ ENCRYPTOR = ROOT / "dev-scripts" / "encrypt-key.html"
 SITE_PORT = 8791          # docs/, with a shared-key.json injected
 BARE_PORT = 8792          # docs/, with no shared-key.json at all
 LLM_PORT = 8793           # TLS, answering as openrouter.ai
+EXTRA_PORT = 8794         # docs/, with a shared-key.json carrying a 7th field
 
 DUMMY_KEY = "sk-or-v1-DUMMY-FOR-TESTING"
 OWN_KEY = "sk-or-v1-A-DIFFERENT-DUMMY-KEY-0000"
@@ -533,6 +541,12 @@ def main() -> int:
         check_weak_override(browser, report, failures)
         serve_site(SITE_PORT, blob.encode())
         serve_site(BARE_PORT, None)
+        # Check 8's blob: byte-for-byte the good one, plus a seventh field.
+        # It would decrypt perfectly — that is the point. The page must refuse
+        # to offer it because of the field, not because of the crypto.
+        over_full = dict(json.loads(blob))
+        over_full["hint"] = "the passphrase is three words about the weather"
+        serve_site(EXTRA_PORT, json.dumps(over_full).encode())
 
         ctx = browser.new_context(ignore_https_errors=True)
         page = ctx.new_page()
@@ -779,6 +793,50 @@ def main() -> int:
                     f"Bearer {OWN_KEY!r}")
 
         ctx2.close()
+
+        # ----------------- 8. an over-full blob is not offered at all
+        #
+        # The "no oracle in the blob" property has to be enforced where the
+        # blob is consumed. Anything the file carries beyond the six fields
+        # is readable by everyone who can read the file, so a `hint` — or a
+        # verifier, or a key prefix, or a checksum — gives away for free
+        # something only the passphrase is supposed to buy. This blob is
+        # otherwise flawless: same ciphertext, same salt, same iterations,
+        # and the real passphrase would open it.
+        ctx3 = browser.new_context(ignore_https_errors=True)
+        extra = ctx3.new_page()
+        extra.goto(f"http://127.0.0.1:{EXTRA_PORT}/index.html")
+        extra.wait_for_function("window.FF_PLAY !== undefined", timeout=15_000)
+        extra.wait_for_timeout(1500)   # let the probe fetch and reject it
+        report["extra_field_blob"] = {
+            "served": sorted(over_full),
+            "shared_offered": extra.evaluate("window.FF_PLAY.sharedOffered"),
+            "panel_visible": extra.is_visible("#sharedPanel"),
+            "start_shared_visible": extra.is_visible("#startShared"),
+            "start_hint": extra.inner_text("#startHint").strip(),
+            # The own-key panel is only demoted to "OR: ..." when a shared key
+            # is on offer. Still being the primary way in is the page saying,
+            # in its own layout, that it saw no usable blob.
+            "own_panel_demoted": extra.evaluate(
+                "document.getElementById('ownPanel')"
+                ".classList.contains('secondary')"),
+        }
+        # Nothing may be derived from it either: an unlock attempt must be
+        # impossible because the panel was never shown.
+        if report["extra_field_blob"]["shared_offered"]:
+            failures.append(
+                "a blob with an extra field was accepted and offered — the "
+                "'no oracle in the blob' rule is enforced only in the "
+                "encryptor, which is not what a hostile blob meets")
+        if report["extra_field_blob"]["panel_visible"] \
+                or report["extra_field_blob"]["start_shared_visible"]:
+            failures.append(
+                "the passphrase panel appeared for a blob with an extra field")
+        if report["extra_field_blob"]["own_panel_demoted"]:
+            failures.append(
+                "the page rearranged itself around a blob it must have rejected")
+        ctx3.close()
+
         browser.close()
 
     shutil.rmtree(tmp, ignore_errors=True)

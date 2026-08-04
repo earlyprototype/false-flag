@@ -63,6 +63,8 @@
     sharedBlob: null,    // the published ciphertext, if this deploy has one
     sharedProbed: false, // has the fetch for it finished, either way?
     sharedKey: null,     // decrypted owner's key — MEMORY ONLY, never stored
+    keyForRun: null,     // the key this campaign runs on, set in beginCampaign
+                         // and read in onReady — MEMORY ONLY, never stored
     keySource: '',       // 'shared' or 'own' — which key this run is using
     booted: false,
     bootBuf: null,       // the boot frame, replaced in place until ready
@@ -720,6 +722,17 @@
     for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
     return out;
   }
+
+  /* Exactly these six fields, no more and no fewer.
+     The blob is public, so anything it carries beyond the ciphertext is an
+     answer given away for free — a `hint`, a `keyPrefix`, a verifier or a
+     checksum all tell someone holding the file something about the passphrase
+     or the key that only the passphrase should be able to tell them. The
+     encryptor already refuses to write such a field, but the encryptor is not
+     what a hostile or careless blob meets: this is. Enforce it here, where
+     the file is actually consumed, and an over-full blob is simply not
+     offered. */
+  var BLOB_FIELDS = ['v', 'kdf', 'iterations', 'salt', 'iv', 'ct'];
 
   function wellFormedBlob(j) {
     return !!j && j.v === 1 && j.kdf === 'PBKDF2-SHA256' &&

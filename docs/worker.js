@@ -26,7 +26,13 @@
  *   {type:'ask',     advisor, text}     question to an adviser
  *   {type:'call',    country, text}     diplomatic call (repeat to continue it)
  *   {type:'endTurn'}
- *   {type:'setKey',  key}               '' or null => offline mock driver
+ *   {type:'setKey',  key, source}       '' or null key => offline mock driver.
+ *                                       `source` is 'shared' (the owner's key,
+ *                                       unlocked with a passphrase) or 'own'
+ *                                       (a key the player pasted); it is what
+ *                                       lets bridge.py word a refusal for the
+ *                                       right person. Optional `baseUrl` and
+ *                                       `model` override the endpoint.
  *   {type:'save'} / {type:'load', data}
  *
  * PROTOCOL — worker to page
@@ -259,7 +265,11 @@ self.onmessage = (event) => {
       if (!booted) {
         if (msg.type === 'setKey') {
           // Remember it; the page usually sends the key before booting.
-          pendingKey = { key: msg.key, baseUrl: msg.baseUrl, model: msg.model };
+          // Every field of the message is kept, `source` included: it is the
+          // difference between telling a player their own key was rejected
+          // and telling them only the passphrase publisher can fix it.
+          pendingKey = { key: msg.key, baseUrl: msg.baseUrl, model: msg.model,
+                         source: msg.source };
           return;
         }
         await boot();

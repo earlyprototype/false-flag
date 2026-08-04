@@ -55,6 +55,29 @@ BOLD = "\x1b[1m"
 ITALIC = "\x1b[3m"
 
 DEFAULT_WIDTH = 84
+MIN_WIDTH = 40
+MAX_WIDTH = 200
+
+
+def clamp_width(width: Any, default: int = DEFAULT_WIDTH) -> int:
+    """A column width that every consumer of it can survive.
+
+    ``AnsiPen`` has always clamped its own copy, but ``WebGame.width`` is used
+    raw in two other places — ``str.center(self.width)`` and
+    ``textwrap.wrap(..., self.width - 2)``. The second raises ``ValueError``
+    for a width below 3, and it runs in the ``finally`` of ``handle``, which
+    is documented to never raise; the escape would surface to the player as a
+    worker-level fault instead of a game error. So clamp once, at the point
+    the config is read, to the same bounds ``AnsiPen`` uses.
+
+    A width that is not a number at all (``"wide"``, ``None``, a dict) falls
+    back to ``default`` rather than blowing up a whole newGame.
+    """
+    try:
+        value = int(width)
+    except (TypeError, ValueError):
+        value = default
+    return max(MIN_WIDTH, min(MAX_WIDTH, value))
 
 
 def _c(colour: str, text: str) -> str:
@@ -123,7 +146,7 @@ class AnsiPen:
     """Accumulates ANSI text at a fixed column width."""
 
     def __init__(self, width: int = DEFAULT_WIDTH):
-        self.width = max(40, min(200, int(width)))
+        self.width = clamp_width(width)
         self._parts: List[str] = []
 
     def raw(self, text: str = "") -> "AnsiPen":
@@ -459,7 +482,11 @@ class WebGame:
 
     def new_game(self, config: Optional[Dict[str, Any]] = None) -> None:
         config = dict(config or {})
-        self.width = int(config.get("width") or DEFAULT_WIDTH)
+        # Clamped here, not at each use: `self.width` is read raw by
+        # `_emit_ending` (str.center) and `_report_llm_faults` (textwrap.wrap,
+        # which rejects a width below 1), and the latter runs in `handle`'s
+        # `finally`, where an exception would break the "never raises" contract.
+        self.width = clamp_width(config.get("width") or DEFAULT_WIDTH)
 
         scenario = (config.get("scenario") or "war_game_2025").strip()
         variant = (config.get("variant") or "standard").strip()

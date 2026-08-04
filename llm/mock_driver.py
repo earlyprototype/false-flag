@@ -11,6 +11,7 @@ _INJECT_POOL rather than replaying one hardcoded event, so an offline
 campaign develops instead of looping.
 """
 
+import json
 import re
 import zlib
 from random import Random
@@ -1088,7 +1089,14 @@ def _select_inject(prompt: str, prompt_lower: str, rng: Random) -> dict:
 
 
 def _render_inject(entry: dict, turn: int, tell: str = "") -> str:
-    """Render a pool entry as the fenced YAML the inject parser expects."""
+    """Render a pool entry as the fenced YAML the inject parser expects.
+
+    The title goes through ``json.dumps``: a JSON string literal is also a
+    valid YAML double-quoted scalar, so a title containing a quote or a
+    backslash escapes itself instead of breaking the document. Every title in
+    the pool today is plain prose, so this is hardening against the next one
+    rather than a fix for a live defect.
+    """
     description = entry["description"].strip("\n")
     if tell:
         description = f"{description}\n\n{tell}"
@@ -1098,7 +1106,7 @@ def _render_inject(entry: dict, turn: int, tell: str = "") -> str:
                         for metric, delta in entry["effects"])
     return ("```yaml\n"
             f"id: turn_{turn:03d}_inject\n"
-            f"title: \"{entry['title']}\"\n"
+            f"title: {json.dumps(entry['title'])}\n"
             "description: |\n"
             f"{body}\n"
             f"channel: {entry['channel']}\n"
