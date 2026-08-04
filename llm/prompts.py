@@ -343,7 +343,11 @@ def build_inject_generation_prompt(
     Returns:
         Formatted prompt for LLM to generate plausible next inject
     """
-    from llm.context_builder import get_stochastic_inject_context, generate_summary
+    from llm.context_builder import (
+        get_stochastic_inject_context,
+        get_last_turn_slice,
+        generate_summary,
+    )
     
     objectives = initial_conditions.get("objectives", {})
     red_objectives = initial_conditions.get("red_objectives", {})
@@ -360,24 +364,37 @@ Realistic scenario patterns (adapt based on player decisions):
 Use these as inspiration, NOT rigid scripts. Adapt based on player's previous actions.
 """
     
-    # Use the new context builder for narrative-aware story generation
-    if transcript and len(transcript) > 10:
-        # Generate a high-level summary for inject generation
-        summary_prompt = """Summarize the story so far in 3-4 sentences, focusing on:
+    # Use the new context builder for narrative-aware story generation.
+    # Any non-empty transcript gets the LAST TURN continuity window — a
+    # compact early turn still contains the event the next inject must
+    # build on. Only the LLM summary is reserved for longer histories.
+    if transcript:
+        if len(transcript) > 10:
+            summary_prompt = """Summarize the story so far in 3-4 sentences, focusing on:
 1. The most significant event of the last turn
 2. The player's recent major decisions
 3. The current geopolitical tensions and diplomatic relationships"""
-        
-        summary = generate_summary(transcript, summary_prompt)
-        
-        # Get last turn's transcript (approximate - last 50 lines)
-        last_turn_transcript = transcript[-50:] if len(transcript) > 50 else transcript
-        
+            summary = generate_summary(transcript, summary_prompt)
+        else:
+            summary = "The campaign has just begun; the full history appears below."
+
+        # Slice from the last TURN header so the previous inject — the event
+        # this one must build on — is always in the window, not just the
+        # adjudication tail of the turn (issue #23).
+        last_turn_transcript = get_last_turn_slice(transcript)
+
         # Get full context with narrative secrets
         story_context = get_stochastic_inject_context(summary, last_turn_transcript, world)
     else:
-        # Fallback for early turns
+        # No history yet (first inject of a campaign)
         story_context = build_world_state_summary(world)
+
+    # The continuity rule references the LAST TURN section, so it is only
+    # issued when that section exists.
+    continuity_rule = ""
+    if transcript:
+        continuity_rule = """
+7. CONTINUITY IS MANDATORY: the previous turn's event (shown above under LAST TURN) must be acknowledged, advanced, or explicitly resolved. Open threads — impacts, casualties, recoveries, ultimatums, running deadlines — never disappear; if the last event was a missile launch, this inject addresses where it landed and what followed before introducing anything new"""
     
     prompt = f"""You are the Games Master for a UK-Russia crisis wargame. Generate the next inject/event for turn {turn_number}.
 
@@ -396,7 +413,7 @@ Generate a plausible next event that:
 3. Challenges the UK player with new information or threats
 4. Is consistent with the current world state and conversation history
 5. Responds logically to the player's recent actions (e.g., if they invoked Article 4, Russia might test NATO resolve further)
-6. Subtly advances the hidden narrative (e.g., if China is manipulating Russia, show subtle signs of Chinese involvement)
+6. Subtly advances the hidden narrative (e.g., if China is manipulating Russia, show subtle signs of Chinese involvement){continuity_rule}
 
 Format your inject as YAML:
 ```yaml

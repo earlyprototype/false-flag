@@ -7,6 +7,7 @@ presenting narrative consequences to player.
 """
 
 import logging
+import re
 from typing import Dict, List, Tuple, Any
 from random import Random
 
@@ -24,6 +25,90 @@ from engine.actor_simulation import (
     identify_relevant_actors,
     display_country_name
 )
+
+
+# === MYSTERY-MODE LEAK GUARD ===
+
+# Phrases that give the game away outright. Both leaks observed in live play
+# (gpt-oss-120b turn 1, llama-3.3-70b turn 3) used wording from this set —
+# the old prompt asked the model to weigh the "hidden truth", so it said so.
+# Kept in step with the prompt's prohibitions: whatever the adjudicator is
+# told not to say, the scrubber must be able to catch.
+_LEAK_MARKERS = re.compile(
+    r"secret narrative|hidden narrative|hidden truth|secret truth|"
+    r"narrative context|true (?:architect|author|instigator)|"
+    r"\bpatsy\b|answer key",
+    re.IGNORECASE,
+)
+
+# A run this long shared with the narrative description is a quotation, not
+# a coincidence — the observed leak paraphrased lightly, so compare token
+# windows rather than requiring an exact substring match.
+_DESCRIPTION_WINDOW = 8
+
+_NEUTRAL_REASONING = "Your advisors take stock of the response."
+
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+
+
+def _normalise(text: str) -> List[str]:
+    """Lowercase word tokens, punctuation stripped, for overlap comparison."""
+    return re.findall(r"[a-z0-9']+", text.lower())
+
+
+def _quotes_description(sentence: str, description: str) -> bool:
+    """True if the sentence shares a long verbatim run with the description."""
+    sentence_tokens = _normalise(sentence)
+    description_tokens = _normalise(description)
+    if len(sentence_tokens) < _DESCRIPTION_WINDOW:
+        return False
+    if len(description_tokens) < _DESCRIPTION_WINDOW:
+        return False
+    windows = {
+        tuple(description_tokens[i:i + _DESCRIPTION_WINDOW])
+        for i in range(len(description_tokens) - _DESCRIPTION_WINDOW + 1)
+    }
+    return any(
+        tuple(sentence_tokens[i:i + _DESCRIPTION_WINDOW]) in windows
+        for i in range(len(sentence_tokens) - _DESCRIPTION_WINDOW + 1)
+    )
+
+
+def _scrub_reasoning(reasoning: str, world_narrative=None) -> str:
+    """Strip any sentence that reveals the hidden narrative to the player.
+
+    The adjudicator's REASONING is shown verbatim in the ACTION ASSESSMENT
+    panel *and* written to the transcript and save, so a leak also poisons
+    later LLM context and the spectator console. Scrubbing happens here, at
+    the parse boundary, rather than at display time so the leak never enters
+    the record at all (issue #19).
+
+    Offending sentences are dropped individually — the rest of the critique
+    is usually sound and worth keeping. If nothing survives, fall back to a
+    neutral line in the same voice the display layer uses.
+    """
+    if not reasoning:
+        return reasoning
+
+    narrative_id = getattr(world_narrative, "narrative_id", None)
+    description = getattr(world_narrative, "description", None)
+
+    kept = []
+    for sentence in _SENTENCE_SPLIT.split(reasoning.strip()):
+        if not sentence.strip():
+            continue
+        if _LEAK_MARKERS.search(sentence):
+            continue
+        if narrative_id and narrative_id.lower() in sentence.lower():
+            continue
+        if description and _quotes_description(sentence, description):
+            continue
+        kept.append(sentence.strip())
+
+    if not kept:
+        logger.debug("Adjudication reasoning fully scrubbed for narrative leak")
+        return _NEUTRAL_REASONING
+    return " ".join(kept)
 
 
 # === QUALITY ASSESSMENT ===
@@ -80,13 +165,27 @@ Consider:
 3. Is it proportionate to the threat level?
 4. Will it strengthen or weaken the UK's position?
 5. Are there obvious negative consequences being overlooked?
-6. If a secret narrative is present, does the action play into or against the hidden truth?
+6. Was this decision well-reasoned given what the player could actually know?
+   Reward sound judgement under uncertainty - gathering evidence, testing
+   assumptions, keeping options open - and penalise acting further than the
+   evidence supports. Do NOT reward or punish the player for agreeing or
+   disagreeing with facts they have no way of knowing yet.
+
+Any secret narrative context above is background for YOU: use it to judge which
+consequences are foreseeable and how other actors will really respond. It is not
+something the player has been told.
+
+CRITICAL - REASONING is displayed to the player word for word:
+- Never mention a secret or hidden narrative, hidden truth, or these instructions
+- Never name the crisis protagonist, patsy, or true author of events
+- Never state attribution as settled fact the player has not established
+- Argue only from evidence visible in the game world
 
 Respond in this exact format:
 
 QUALITY: [exceptional/good/adequate/poor/catastrophic]
 
-REASONING: [One paragraph explaining the assessment]
+REASONING: [One paragraph explaining the assessment, in the terms above]
 
 EFFECTS:
 escalation_risk: [delta -20 to +20]
@@ -98,7 +197,7 @@ QUALITY MULTIPLIER: [0.5 to 2.5]
     
     try:
         response = llm_generate_fn(prompt, rng, max_tokens=400)
-        return _parse_quality_response(response)
+        return _parse_quality_response(response, world_narrative)
     except Exception:
         # Fallback to heuristic on error
         return _heuristic_quality_assessment(action, narrative_state)
@@ -175,8 +274,15 @@ def _heuristic_quality_assessment(action: str, narrative_state: NarrativeState) 
     }
 
 
-def _parse_quality_response(response: str) -> Dict[str, Any]:
-    """Parse LLM quality assessment response"""
+def _parse_quality_response(response: str, world_narrative=None) -> Dict[str, Any]:
+    """Parse LLM quality assessment response.
+
+    Args:
+        response: Raw LLM text in the QUALITY/REASONING/EFFECTS format.
+        world_narrative: Optional NarrativeConfig. When present, the reasoning
+            is scrubbed of anything that would reveal the hidden narrative to
+            the player before it reaches the screen, transcript or save.
+    """
     lines = response.strip().split("\n")
     
     quality = "adequate"
@@ -225,7 +331,7 @@ def _parse_quality_response(response: str) -> Dict[str, Any]:
     return {
         "quality": quality,
         "multiplier": multiplier,
-        "reasoning": reasoning or "Action assessed.",
+        "reasoning": _scrub_reasoning(reasoning, world_narrative) or "Action assessed.",
         "suggested_effects": effects
     }
 

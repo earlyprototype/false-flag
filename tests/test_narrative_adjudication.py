@@ -160,3 +160,159 @@ def test_strip_effect_boxes_removes_numbers_keeps_narrative():
     ]
     out = strip_effect_boxes(lines)
     assert out == ["Some narrative line.", "More narrative.", "Final line."]
+
+
+# --- Mystery-mode leak guard (issue #19) -----------------------------------
+
+class _FakeNarrative:
+    """Stand-in for NarrativeConfig carrying only what the scrubber reads."""
+    narrative_id = "RUSSIA_AGGRESSION"
+    description = (
+        "The crisis is exactly as it appears: Russia is undertaking a major "
+        "aggressive military operation to challenge NATO and assert dominance "
+        "in the North Atlantic. Their motives are expansionist and "
+        "opportunistic."
+    )
+
+    def to_llm_context(self, target_country_code=None):
+        return (
+            "SECRET NARRATIVE CONTEXT (DO NOT REVEAL DIRECTLY)\n"
+            f"GLOBAL TRUTH: {self.description}"
+        )
+
+
+# Verbatim from live play — the two leaks that prompted issue #19.
+_LEAK_GPT_OSS = (
+    "The decision undercuts the opportunity to present a firm deterrent "
+    "against the genuine Russian threat identified in the secret narrative."
+)
+_LEAK_LLAMA = (
+    "The Prime Minister's behavior is consistent with someone who is either "
+    "uninformed or unconcerned about the secret narrative, as this action "
+    "plays directly into the hands of the hidden truth, which is that Russia "
+    "is undertaking a major aggressive military operation to challenge NATO "
+    "and assert dominance in the North Atlantic."
+)
+
+
+def test_historical_leaks_are_scrubbed():
+    from engine.narrative_adjudication import _scrub_reasoning
+
+    for leaked in (_LEAK_GPT_OSS, _LEAK_LLAMA):
+        cleaned = _scrub_reasoning(leaked, _FakeNarrative())
+        lowered = cleaned.lower()
+        assert "secret narrative" not in lowered
+        assert "hidden truth" not in lowered
+        assert "assert dominance in the north atlantic" not in lowered
+        assert "russia_aggression" not in lowered
+
+
+def test_clean_reasoning_passes_through_unchanged():
+    from engine.narrative_adjudication import _scrub_reasoning
+
+    clean = (
+        "The action addresses the most critical issues and is proportionate "
+        "to the threat level. However, it leaves the domestic picture "
+        "unattended."
+    )
+    assert _scrub_reasoning(clean, _FakeNarrative()) == clean
+
+
+def test_only_the_offending_sentence_is_dropped():
+    from engine.narrative_adjudication import _scrub_reasoning
+
+    mixed = (
+        "The decision is proportionate and buys time for verification. "
+        "It also plays into the hidden truth of the crisis. "
+        "Domestic messaging remains the weak point."
+    )
+    cleaned = _scrub_reasoning(mixed, _FakeNarrative())
+    assert "proportionate and buys time" in cleaned
+    assert "Domestic messaging remains the weak point." in cleaned
+    assert "hidden truth" not in cleaned.lower()
+
+
+def test_narrative_id_and_paraphrased_description_are_caught():
+    from engine.narrative_adjudication import _scrub_reasoning
+
+    by_id = "This aligns with the RUSSIA_AGGRESSION scenario as drawn."
+    assert "russia_aggression" not in _scrub_reasoning(by_id, _FakeNarrative()).lower()
+
+    # Paraphrase: leading clause altered, the identifying run intact
+    paraphrased = (
+        "In reality Russia is undertaking a major aggressive military "
+        "operation to challenge NATO and assert dominance in the North "
+        "Atlantic."
+    )
+    assert "assert dominance" not in _scrub_reasoning(
+        paraphrased, _FakeNarrative()).lower()
+
+
+def test_fully_leaked_reasoning_degrades_to_neutral_line():
+    from engine.narrative_adjudication import _scrub_reasoning
+
+    cleaned = _scrub_reasoning(_LEAK_GPT_OSS, _FakeNarrative())
+    assert cleaned  # never empty — the panel still needs prose
+    assert cleaned == "Your advisors take stock of the response."
+
+
+def test_non_mystery_play_is_untouched():
+    """Original Story Mode has no narrative; nothing should be scrubbed."""
+    from engine.narrative_adjudication import _scrub_reasoning
+
+    text = "A firm response to the hidden truth of the matter."
+    # Static markers still apply (they are always a giveaway), but a
+    # description-based match cannot fire without a narrative.
+    assert _scrub_reasoning("A proportionate, well-evidenced response.", None) \
+        == "A proportionate, well-evidenced response."
+    assert "hidden truth" not in _scrub_reasoning(text, None).lower()
+
+
+def test_parse_scrubs_reasoning_before_returning():
+    """The leak must not reach the transcript or save, not just the screen."""
+    from engine.narrative_adjudication import _parse_quality_response
+
+    response = f"QUALITY: poor\n\nREASONING: {_LEAK_LLAMA}\n"
+    parsed = _parse_quality_response(response, _FakeNarrative())
+    assert "secret narrative" not in parsed["reasoning"].lower()
+    assert "hidden truth" not in parsed["reasoning"].lower()
+    assert parsed["quality"] == "poor"  # grading itself is unaffected
+
+
+def test_assessment_prompt_no_longer_invites_the_leak():
+    from engine.narrative_adjudication import assess_action_quality
+
+    captured = {}
+
+    def capture(prompt, rng, **kwargs):
+        captured["prompt"] = prompt
+        return "QUALITY: good\n\nREASONING: Sound under uncertainty.\n"
+
+    assess_action_quality(
+        "Hold position and gather evidence", make_state(), "interp",
+        llm_generate_fn=capture, world_narrative=_FakeNarrative(),
+        rng=Random(1),
+    )
+    prompt = captured["prompt"]
+    assert "play into or against the hidden truth" not in prompt
+    assert "REASONING is displayed to the player" in prompt
+    assert "well-reasoned given what the player could actually know" in prompt
+
+
+def test_prohibited_terms_cannot_slip_past_the_scrubber():
+    """Short assertions using the prompt's own banned terms must be caught.
+
+    'Russia is the true author.' is too short to trip the description
+    window, so the marker list has to carry it.
+    """
+    from engine.narrative_adjudication import _scrub_reasoning
+
+    bypasses = [
+        "Russia is the true author of this crisis.",
+        "China is the true instigator here.",
+        "Russia is merely a patsy in this affair.",
+        "The patsy in this crisis is Russia.",
+    ]
+    for text in bypasses:
+        cleaned = _scrub_reasoning(text, _FakeNarrative())
+        assert cleaned == "Your advisors take stock of the response.", text

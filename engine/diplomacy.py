@@ -8,6 +8,7 @@ Handles:
 - Outcome assessment and metric updates
 """
 
+import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from pathlib import Path
 from random import Random
@@ -42,13 +43,35 @@ def load_diplomatic_profiles(root_path: Optional[Path] = None) -> Dict[str, Any]
         return {}
 
 
+def _relationship_reading(title: str, delta: int) -> str:
+    """Describe where a call left the relationship, without the number.
+
+    Metric-hiding modes still want the signal a call carries — whether the
+    line just opened or just closed — so the delta becomes a reading of the
+    room rather than a scoreboard entry.
+    """
+    if delta >= 8:
+        return f"{title} rings off warmer than they came on; something was won here."
+    if delta >= 3:
+        return f"{title} sounds readier to work with you than before the call."
+    if delta > 0:
+        return f"{title} gives little away, but the line stays open."
+    if delta == 0:
+        return f"{title} ends where they began; nothing gained, nothing lost."
+    if delta > -5:
+        return f"{title} is cooler at the end of the call than at the start."
+    return f"{title} rings off hard; that conversation cost you something."
+
+
 def get_available_countries() -> List[str]:
     """Get list of countries available for diplomatic contact.
     
     Returns:
-        List of country codes (US, France, Germany, Poland, Russia, Ukraine, Ireland)
+        List of country codes (US, France, Germany, Poland, Russia, Ukraine,
+        Ireland, China)
     """
-    return ["US", "France", "Germany", "Poland", "Russia", "Ukraine", "Ireland"]
+    return ["US", "France", "Germany", "Poland", "Russia", "Ukraine",
+            "Ireland", "China"]
 
 
 def check_diplomatic_access(
@@ -265,11 +288,13 @@ class DiplomaticEncounter:
     """Stateful manager for a diplomatic conversation (API friendly)."""
     
     def __init__(self, world: WorldState, country: str, context: Optional[str], root_path: Optional[Path] = None,
-                 full_transcript: Optional[List[str]] = None):
+                 full_transcript: Optional[List[str]] = None,
+                 show_metrics: bool = True):
         self.world = world
         self.country = country
         self.context = context
         self.root_path = root_path
+        self.show_metrics = show_metrics
         # Full game transcript feeds get_diplomatic_context (public events plus
         # the secret narrative truth); without it the conversation prompt falls
         # back to a bare turn/escalation stub and Mystery mode never colours
@@ -350,21 +375,40 @@ class DiplomaticEncounter:
         
         return self.transcript
 
-    def end(self, llm_generate: Callable, rng: Random) -> List[str]:
-        """End the encounter and assess outcome."""
+    def end(self, llm_generate: Callable, rng: Random,
+            show_metrics: Optional[bool] = None) -> List[str]:
+        """End the encounter and assess outcome.
+
+        Args:
+            show_metrics: Whether the raw alliance-cohesion delta appears in
+                the call's closing lines. Immersive and emergent modes hide
+                metrics everywhere else, so "Alliance Cohesion: +10" leaked
+                the scoreboard those modes exist to remove; they get an
+                in-fiction reading of where the call left the relationship
+                instead. Defaults to the value the encounter was built with.
+                The delta is always recorded in ``outcome`` and always
+                applied to world state.
+        """
         self.active = False
-        
+
         # Assess outcome
         assessment, delta = assess_diplomatic_outcome(
             self.world, self.country, self.history, llm_generate, rng
         )
-        
+
         self.outcome = {
             "assessment": assessment,
             "cohesion_delta": delta
         }
-        
-        self.transcript.append(f"\n=== CALL ENDED ===\n{assessment}\nAlliance Cohesion: {delta:+d}")
+
+        if show_metrics is None:
+            show_metrics = self.show_metrics
+        closing = f"\n=== CALL ENDED ===\n{assessment}"
+        if show_metrics:
+            closing += f"\nAlliance Cohesion: {delta:+d}"
+        else:
+            closing += f"\n{_relationship_reading(self.title, delta)}"
+        self.transcript.append(closing)
         
         # Update world metric
         self.world.metrics.alliance_cohesion = max(0, min(100, self.world.metrics.alliance_cohesion + delta))
@@ -382,11 +426,26 @@ def run_diplomatic_encounter(
     root_path: Optional[Path] = None,
     full_transcript: Optional[List[str]] = None,
     get_player_input: Optional[Callable[[str], str]] = None,
-    print_fn: Optional[Callable[[str], None]] = None
+    print_fn: Optional[Callable[[str], None]] = None,
+    echo_player: Optional[bool] = None,
+    show_metrics: bool = True
 ) -> Tuple[List[str], int]:
-    """Legacy blocking runner for CLI."""
+    """Legacy blocking runner for CLI.
+
+    Args:
+        echo_player: Whether the player's own lines are printed as part of
+            the call. At a live keyboard the terminal has already echoed
+            them, so repeating them reads as a glitch; but with piped input
+            — recorded sessions, spectator consoles, streamed play — nothing
+            echoes them and the transcript shows only one side of the
+            conversation. Defaults to echoing exactly when stdin is not a
+            TTY.
+    """
+    if echo_player is None:
+        echo_player = not sys.stdin.isatty()
     encounter = DiplomaticEncounter(world, country, context, root_path,
-                                    full_transcript=full_transcript)
+                                    full_transcript=full_transcript,
+                                    show_metrics=show_metrics)
 
     if not encounter.active:
         # Surface the in-fiction failure (unknown country / no access) —
@@ -420,17 +479,15 @@ def run_diplomatic_encounter(
         encounter.process_turn(msg, llm_generate, rng)
         # Print exactly the lines this exchange appended (the previous
         # last-line-twice approach printed every reply twice and never the PM).
-        # The "Prime Minister:" line stays transcript-only — the player just
-        # typed it, echoing it back reads as a glitch.
         if print_fn:
             for line in encounter.transcript[printed_upto:]:
-                if line.startswith("Prime Minister:"):
+                if line.startswith("Prime Minister:") and not echo_player:
                     continue
                 print_fn(line)
         printed_upto = len(encounter.transcript)
 
     if encounter.active:
-        encounter.end(llm_generate, rng)
+        encounter.end(llm_generate, rng, show_metrics=show_metrics)
 
     # Print anything appended after the loop (e.g. the end-of-call assessment
     # when the exchange limit was hit) exactly once

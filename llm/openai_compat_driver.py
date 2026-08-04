@@ -20,11 +20,47 @@ Errors are raised to the router, which retries once and then degrades
 gracefully to the mock driver, same as the Gemini driver.
 """
 
+import math
 import os
+import re as _re
+import time
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from random import Random
 from typing import Optional
 
 import requests
+
+def _retry_delay_seconds(response):
+    """Extract a rate-limit recovery delay from a 429 (header or body).
+
+    Handles numeric and HTTP-date Retry-After forms; only finite,
+    non-negative delays are returned. Returns None when the response names
+    no usable window, in which case the caller falls through to the normal
+    error path.
+    """
+    headers = getattr(response, "headers", None) or {}
+    ra = next((value for name, value in headers.items()
+               if name.lower() == "retry-after"), None)
+    if ra:
+        try:
+            delay = float(ra)
+            if math.isfinite(delay) and delay >= 0:
+                return delay
+        except (TypeError, ValueError, OverflowError):
+            pass
+        try:
+            retry_at = parsedate_to_datetime(ra)
+            return max(0.0, (retry_at - datetime.now(timezone.utc)).total_seconds())
+        except (TypeError, ValueError, OverflowError):
+            pass
+    text = getattr(response, "text", "") or ""
+    m = _re.search(r"try again in (?:(\d+)m)?(\d+(?:\.\d+)?)s", text)
+    if m:
+        delay = int(m.group(1) or 0) * 60 + float(m.group(2))
+        return delay if math.isfinite(delay) and delay >= 0 else None
+    return None
+
 
 # Seconds before a hung request is abandoned (matches the Gemini driver).
 # Overridable for slow local backends — CPU-only Ollama inference routinely
@@ -158,6 +194,19 @@ class OpenAICompatDriver:
                 json=payload,
                 timeout=REQUEST_TIMEOUT,
             )
+            if response.status_code == 429:
+                # Rate-limited: the provider names its recovery window
+                # (Retry-After header, or "try again in Xs" in the body).
+                # Waiting it out beats an instant doomed retry.
+                delay = _retry_delay_seconds(response)
+                if delay is not None and delay <= 120:
+                    time.sleep(delay + 0.5)
+                    response = requests.post(
+                        f"{self.base_url}/chat/completions",
+                        headers=self._headers(),
+                        json=payload,
+                        timeout=REQUEST_TIMEOUT,
+                    )
             if response.status_code != 200:
                 raise RuntimeError(
                     f"HTTP {response.status_code}: {_truncate(response.text)}"

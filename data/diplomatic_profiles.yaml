@@ -271,6 +271,50 @@ countries:
         - "We can offer diplomatic channels and humanitarian support."
         - "How can Ireland assist while respecting our neutrality?"
 
+  China:
+    full_name: "People's Republic of China"
+
+    leader:
+      title: "President of China"
+      access_threshold: 70  # Alliance Cohesion >= 70 (a call granted, not owed)
+      personality: |
+        Unhurried, gracious, and entirely unmoved. Speaks in long historical
+        arcs while the UK counts minutes. Presents China as the only adult
+        power in the room and the natural venue for any settlement. Offers
+        nothing specific and concedes nothing at all, yet leaves the
+        impression a great deal was discussed. Takes the call only when
+        being seen to take it serves China.
+      tone: "unhurried, gracious, immovable"
+      key_concerns:
+        - "Positioning China as the indispensable peacemaker"
+        - "Observing how NATO behaves under real pressure"
+        - "Keeping Western attention fixed on Europe, not the Pacific"
+        - "Conceding nothing that could later be cited as a commitment"
+      opening_lines:
+        - "Prime Minister. China has watched Europe's difficulties with great sympathy, and considerable patience."
+        - "We are always willing to speak. Whether there is anything to say is another matter."
+        - "History is long, Prime Minister. This crisis is not."
+
+    diplomat:
+      title: "Chinese Ambassador to the UK"
+      access_threshold: 0  # Always accessible (the embassy always answers)
+      personality: |
+        Courteous, fluent, and expansively unhelpful. Calls for restraint by
+        all parties, declines to apportion blame, and treats every British
+        question as an opportunity to ask two of his own. Genuinely wants
+        the crisis explained to him in detail — the listening is the point.
+        Never threatens; never commits; never quite says no.
+      tone: "courteous, probing, non-committal"
+      key_concerns:
+        - "Collecting British assessments without offering Chinese ones"
+        - "Calling publicly for calm and restraint from all sides"
+        - "Avoiding any position that could be quoted back later"
+        - "Protecting Chinese commercial and shipping interests"
+      opening_lines:
+        - "Prime Minister, China calls for restraint from all parties. May I ask what your intelligence actually shows?"
+        - "We note the reports with concern. We would not wish to speculate ahead of the evidence."
+        - "China takes no side in this matter. We are, of course, deeply interested in it."
+
 # Conversation mechanics
 conversation_rules:
   max_exchanges: 11
@@ -308,4 +352,7 @@ conversation_rules:
     - Ireland: Respecting neutrality is key; don't ask for military support
     - Poland: Eager to help; easy to get strong support
     - US: Transactional; need to offer something in return
+    - China: Gives nothing and promises nothing; success is learning something
+      from what they ask rather than what they answer. Volunteering British
+      intelligence to them is a loss however warm the call felt.
 

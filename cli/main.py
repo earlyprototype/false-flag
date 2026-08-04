@@ -7,6 +7,7 @@ Supports:
 - Stochastic inject generation
 """
 
+import logging
 import re
 import typer
 from pathlib import Path
@@ -37,6 +38,9 @@ from cli.cinematics import (
     play_debrief_reveal,
     setup_banner,
 )
+from cli.interstitials import play_interstitial
+
+logger = logging.getLogger(__name__)
 from cli.formatters import format_advisor_response
 # strip_effect_boxes is re-exported here for backwards compatibility
 # (external code may still do `from cli.main import strip_effect_boxes`).
@@ -863,6 +867,10 @@ def play(
         "alliance_cohesion": world.metrics.alliance_cohesion,
     }
 
+    # Between-turn vignette rotation: remembers the previous pick so the
+    # same joke never plays twice in a row.
+    last_vignette = None
+
     # Main game loop
     while True:
         # Refresh colors at start of loop in case theme changed
@@ -1234,7 +1242,9 @@ def play(
                         "POLAND": "Poland", "POLISH": "Poland",
                         "RUSSIA": "Russia", "RUSSIAN": "Russia",
                         "UKRAINE": "Ukraine", "UKRAINIAN": "Ukraine",
-                        "IRELAND": "Ireland", "IRISH": "Ireland"
+                        "IRELAND": "Ireland", "IRISH": "Ireland",
+                        "CHINA": "China", "CHINESE": "China", "PRC": "China",
+                        "BEIJING": "China"
                     }
                 
                     country = country_map.get(country_input, country_input.capitalize())
@@ -1253,7 +1263,10 @@ def play(
                         root_path=root,
                         full_transcript=transcript,
                         get_player_input=lambda prompt: typer.prompt(prompt).strip(),
-                        print_fn=typer.echo  # Print in real-time
+                        print_fn=typer.echo,  # Print in real-time
+                        # Immersive/emergent hide metrics everywhere else; the
+                        # call's closing line follows the same rule
+                        show_metrics=play_mode == "classic"
                     )
                 
                     # Transcript already printed, just save it
@@ -2087,6 +2100,26 @@ def play(
         console.print(f"[{COLORS['muted']}]TURN {world.turn - 1} COMPLETE ── auto-saved to {save_path.name}[/{COLORS['muted']}]")
         console.print(ae.sonar_divider(seed=f"turn-{world.turn - 1}-close-b"))
         typer.echo("")
+
+        # Between-turn vignette: a beat of Whitehall business-as-usual
+        # before the next briefing. Display-only (skippable; single still
+        # on non-TTY); cosmetic, so it must never break the turn loop.
+        if RICH_ENABLED:
+            try:
+                last_vignette = play_interstitial(
+                    console=console,
+                    seed=f"interstitial-{seed}-{world.turn - 1}",
+                    escalation=world.metrics.escalation_risk,
+                    avoid=last_vignette,
+                )
+                typer.echo("")
+            except Exception:
+                # Never fatal — but a silent pass would hide a real
+                # rendering bug for the life of the campaign.
+                logger.debug(
+                    "Between-turn interstitial failed (turn %s, seed %s)",
+                    world.turn - 1, seed, exc_info=True,
+                )
 
         # Continue to next turn with spacebar
         try:

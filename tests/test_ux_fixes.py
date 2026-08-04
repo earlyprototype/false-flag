@@ -110,13 +110,36 @@ def test_diplomatic_prompt_label_and_no_pm_echo():
         _world(cohesion=100), "Ireland", required=False, context=None,
         llm_generate=_fake_llm, rng=Random(42), root_path=root,
         get_player_input=fake_input, print_fn=printed.append,
+        echo_player=False,
     )
     # Prompt label carries no trailing colon (CLI wrappers add their own)
     assert prompts and all(p == "Response" for p in prompts)
-    # The player's own line is transcript-only, never echoed back
+    # At a live keyboard the terminal already echoed the player's line, so
+    # the call view must not repeat it
     assert transcript, "transcript should not be empty"
     assert any(line.startswith("Prime Minister:") for line in transcript)
     assert not any(line.startswith("Prime Minister:") for line in printed)
+
+
+def test_diplomatic_call_shows_both_sides_when_input_is_piped():
+    """Recorded/spectator playback must show the player's side of the call.
+
+    With piped stdin nothing echoes what the player 'typed', so suppressing
+    those lines left the transcript a one-sided monologue.
+    """
+    from engine.diplomacy import run_diplomatic_encounter
+
+    printed = []
+    transcript, _ = run_diplomatic_encounter(
+        _world(cohesion=100), "Ireland", required=False, context=None,
+        llm_generate=_fake_llm, rng=Random(42), root_path=root,
+        get_player_input=lambda label: "Thank you.", print_fn=printed.append,
+        echo_player=True,
+    )
+    assert any(line.startswith("Prime Minister:") for line in printed)
+    # Still exactly once per exchange — no double-printing
+    assert (sum(line.startswith("Prime Minister:") for line in printed)
+            == sum(line.startswith("Prime Minister:") for line in transcript))
 
 
 # --- Unknown advisor correction (defect 3) ---------------------------------
@@ -591,3 +614,72 @@ def test_sitrep_labels_fit_sidebar_untruncated():
     for label in ("Risk", "Stability", "Cohesion", "Casualties"):
         assert label in out, f"{label} truncated in SITREP sidebar: {out}"
     assert "…" not in out
+
+
+# --- Diplomatic call metric leak in metric-hiding modes --------------------
+
+def test_call_shows_number_in_classic_and_reading_in_emergent():
+    """Immersive/emergent hide metrics; the call sign-off must too.
+
+    "Alliance Cohesion: +10" after a call reintroduced the scoreboard those
+    modes exist to remove — but the signal a call carries is worth keeping,
+    so the delta becomes an in-fiction reading instead of vanishing.
+    """
+    from engine.diplomacy import run_diplomatic_encounter
+
+    def run(show_metrics):
+        printed = []
+        run_diplomatic_encounter(
+            _world(cohesion=100), "Ireland", required=False, context=None,
+            llm_generate=_fake_llm, rng=Random(42), root_path=root,
+            get_player_input=lambda label: "Thank you.",
+            print_fn=printed.append, show_metrics=show_metrics,
+        )
+        return "\n".join(printed)
+
+    classic = run(True)
+    emergent = run(False)
+
+    assert "Alliance Cohesion:" in classic
+    assert "Alliance Cohesion:" not in emergent
+    # Both still report that the call ended and how it went
+    assert "CALL ENDED" in classic and "CALL ENDED" in emergent
+    assert "Taoiseach" in emergent
+
+
+# --- China is reachable on the diplomatic switchboard -----------------------
+
+def test_china_is_callable_and_has_both_counterparts():
+    """China drives a whole hidden narrative (CHINA_PROXY_WAR) but had no
+    diplomatic profile, so the player could never speak to the power secretly
+    running the crisis."""
+    from engine.diplomacy import get_available_countries, load_diplomatic_profiles
+
+    assert "China" in get_available_countries()
+
+    profiles = load_diplomatic_profiles(root)
+    china = profiles["countries"]["China"]
+    assert china["full_name"] == "People's Republic of China"
+    # The embassy always answers; the President is a call granted, not owed
+    assert china["diplomat"]["access_threshold"] == 0
+    assert china["leader"]["access_threshold"] > 0
+    for level in ("leader", "diplomat"):
+        assert china[level]["opening_lines"], f"{level} needs opening lines"
+        assert china[level]["key_concerns"]
+
+
+def test_calling_china_opens_a_real_encounter():
+    from engine.diplomacy import run_diplomatic_encounter
+
+    printed = []
+    transcript, _ = run_diplomatic_encounter(
+        _world(cohesion=100), "China", required=False, context=None,
+        llm_generate=_fake_llm, rng=Random(42), root_path=root,
+        get_player_input=lambda label: "Thank you.", print_fn=printed.append,
+    )
+    combined = "\n".join(printed)
+    # Not the unknown-country failure path
+    assert "no secure channel" not in combined
+    assert "China" in combined
+    assert any("Chinese Ambassador" in line or "President of China" in line
+               for line in transcript)

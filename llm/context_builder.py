@@ -17,6 +17,51 @@ FullTranscript = List[str]
 # Maximum transcript lines embedded in advisor context (keeps prompts bounded)
 MAX_ADVISOR_TRANSCRIPT_LINES = 500
 
+# Pattern for the turn header line the sim loop writes between '=' rulers
+_TURN_HEADER_RE = re.compile(r"^TURN \d+$")
+
+
+def get_last_turn_slice(transcript: FullTranscript, max_lines: int = 120) -> FullTranscript:
+    """Return the transcript lines belonging to the most recent turn.
+
+    Slices from the last ``TURN N`` header (including its ruler) so the
+    turn's opening inject — the event the next inject must build on — is
+    always inside the continuity window. A fixed tail window of the
+    transcript captures only the adjudication end of a long turn, which is
+    how a ballistic missile can vanish from the story (issue #23).
+
+    Turns longer than max_lines keep their head (the inject and early
+    discussion) and tail (the decision and adjudication) around an elision
+    marker, so both the event and its outcome survive. The marker is paid
+    for out of the budget, so max_lines is a hard upper bound on the
+    returned length. Falls back to the plain tail window when no turn
+    header exists (e.g. synthetic transcripts in tests).
+    """
+    if max_lines < 1:
+        raise ValueError("max_lines must be at least 1")
+    start = None
+    for i in range(len(transcript) - 1, -1, -1):
+        if _TURN_HEADER_RE.match(transcript[i].strip()):
+            start = max(0, i - 1)  # include the ruler above the header
+            break
+    if start is None:
+        return transcript[-max_lines:]
+    turn_slice = transcript[start:]
+    if len(turn_slice) <= max_lines:
+        return turn_slice
+    # Too small to hold head + marker + tail: spend the whole budget on the
+    # opening, since preserving the turn's inject is the point of this window.
+    if max_lines < 3:
+        return turn_slice[:max_lines]
+    budget = max_lines - 1  # the elision marker occupies one line
+    head = (budget * 2) // 3
+    tail = budget - head
+    # A zero-length tail must stay empty; turn_slice[-0:] is the whole list.
+    tail_lines = turn_slice[-tail:] if tail else []
+    return [*turn_slice[:head],
+            "[... mid-turn discussion elided for length ...]",
+            *tail_lines]
+
 def get_advisor_context(transcript: FullTranscript, world_state: WorldState) -> str:
     """
     Returns the game transcript (capped at the most recent

@@ -390,3 +390,46 @@ def test_real_http_round_trip_against_local_stub(monkeypatch):
         server.shutdown()
         thread.join(timeout=5)
         server.server_close()
+
+
+def test_429_with_named_window_waits_and_retries(monkeypatch):
+    """A 429 naming its recovery window is retried after that delay; the
+    retry's success response is returned instead of an error."""
+    driver = make_driver(monkeypatch)
+    calls = []
+    ok = FakeResponse(payload={
+        "choices": [{"message": {"content": "recovered"}}]})
+    limited = FakeResponse(
+        status_code=429,
+        payload={"error": {"message": "try again in 1.2s"}})
+
+    def post(*a, **k):
+        calls.append(1)
+        return limited if len(calls) == 1 else ok
+
+    slept = []
+    monkeypatch.setattr(openai_compat_driver.requests, "post", post)
+    monkeypatch.setattr(openai_compat_driver.time, "sleep",
+                        lambda s: slept.append(s))
+    assert driver.generate_text("p", Random(1)) == "recovered"
+    assert len(calls) == 2
+    assert slept == [1.7]
+
+
+def test_retry_delay_parses_header_forms_and_rejects_garbage():
+    from llm.openai_compat_driver import _retry_delay_seconds
+
+    class R:
+        def __init__(self, headers=None, text=""):
+            self.headers = headers or {}
+            self.text = text
+
+    assert _retry_delay_seconds(R({"Retry-After": "7"})) == 7.0
+    http_date = _retry_delay_seconds(
+        R({"retry-after": "Wed, 21 Oct 2093 07:28:00 GMT"}))
+    assert http_date is not None and http_date > 0
+    assert _retry_delay_seconds(R({"retry-after": "-5"})) is None
+    assert _retry_delay_seconds(R({"retry-after": "nonsense"})) is None
+    assert _retry_delay_seconds(R(text="try again in 1.2.3s")) is None
+    assert _retry_delay_seconds(R(text="try again in 2m5.5s")) == 125.5
+    assert _retry_delay_seconds(R()) is None
