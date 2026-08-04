@@ -326,27 +326,35 @@ def run_turn_briefing(
         # Generate atmospheric bridge if we have history (Turn > 1)
         if world.turn > 1 and full_transcript:
             try:
-                from cli.rich_ui import console, RICH_ENABLED
-                from cli.theme import COLORS
-                
                 bridge_text = generate_narrator_bridge(
-                    world, 
-                    full_transcript, 
-                    inject.get("title", "Unknown Event"), 
+                    world,
+                    full_transcript,
+                    inject.get("title", "Unknown Event"),
                     rng
                 )
-                
+
                 if bridge_text:
                     # Add to transcript
                     transcript.append(f"\n[Narrator] {bridge_text}\n")
-                    
-                    # Display to user with dramatic formatting
-                    if RICH_ENABLED and not suppress_display:
-                        console.print("")
-                        console.print(f"[{COLORS['secondary']} italic]{bridge_text}[/{COLORS['secondary']} italic]")
-                        console.print("")
-                        # Dramatic pause
-                        time.sleep(2.5)
+
+                    # Display to user with dramatic formatting. The Rich
+                    # imports belong to the display branch only: hoisting them
+                    # to the top of the try meant any caller without cli/ on
+                    # the path (headless GameManager, API server, the browser
+                    # build) lost the bridge entirely to an ImportError.
+                    if not suppress_display:
+                        try:
+                            from cli.rich_ui import console, RICH_ENABLED
+                            from cli.theme import COLORS
+                        except ImportError:
+                            pass
+                        else:
+                            if RICH_ENABLED:
+                                console.print("")
+                                console.print(f"[{COLORS['secondary']} italic]{bridge_text}[/{COLORS['secondary']} italic]")
+                                console.print("")
+                                # Dramatic pause
+                                time.sleep(2.5)
             except Exception:
                 # Fail gracefully (don't crash game on narrative flavor)
                 pass

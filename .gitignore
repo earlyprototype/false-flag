@@ -82,3 +82,13 @@ user_approval*.txt
 
 # Claude Code session tooling (worktrees, local settings)
 .claude/
+
+# Browser build: the Pyodide runtime (~16.5 MB) is fetched, not committed.
+#   python3 dev-scripts/fetch_pyodide.py
+# worker.js prefers this local copy when present and falls back to jsDelivr.
+# To ship a self-hosted, zero-external-request build, force-add it:
+#   git add -f docs/play/pyodide
+docs/play/pyodide/
+
+# Playwright verification output
+dev-scripts/play-verify/

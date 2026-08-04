@@ -74,6 +74,36 @@ def get_available_countries() -> List[str]:
             "Ireland", "China"]
 
 
+# The switchboard keys off the names in data/diplomatic_profiles.yaml, but
+# callers reasonably reach for ISO codes or plain country names. The scenario's
+# own diplomatic_contacts list uses ISO-3 ("USA", "DEU"), so a front end that
+# offers those as buttons must be able to dial them.
+COUNTRY_ALIASES = {
+    "US": "US", "USA": "US", "AMERICA": "US", "UNITED STATES": "US",
+    "FRA": "France", "FRANCE": "France", "FRENCH": "France",
+    "DEU": "Germany", "GER": "Germany", "GERMANY": "Germany", "GERMAN": "Germany",
+    "POL": "Poland", "POLAND": "Poland", "POLISH": "Poland",
+    "RUS": "Russia", "RUSSIA": "Russia", "RUSSIAN": "Russia", "MOSCOW": "Russia",
+    "UKR": "Ukraine", "UKRAINE": "Ukraine", "UKRAINIAN": "Ukraine",
+    "IRL": "Ireland", "IRE": "Ireland", "IRELAND": "Ireland", "IRISH": "Ireland",
+    "CHN": "China", "CHINA": "China", "CHINESE": "China", "PRC": "China",
+    "BEIJING": "China",
+}
+
+
+def normalize_country(name: Optional[str]) -> str:
+    """Resolve a country code or name onto a diplomatic-profile key.
+
+    Unknown values are returned title-cased and unchanged in substance, so
+    the caller still gets the in-fiction "no such head of state on the
+    exchange" refusal rather than a crash.
+    """
+    if not name:
+        return ""
+    key = str(name).strip()
+    return COUNTRY_ALIASES.get(key.upper(), key.capitalize() if key.islower() else key)
+
+
 def check_diplomatic_access(
     world: WorldState,
     country: str,
