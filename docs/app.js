@@ -735,7 +735,13 @@
   var BLOB_FIELDS = ['v', 'kdf', 'iterations', 'salt', 'iv', 'ct'];
 
   function wellFormedBlob(j) {
-    return !!j && j.v === 1 && j.kdf === 'PBKDF2-SHA256' &&
+    if (!j || typeof j !== 'object' || Array.isArray(j)) return false;
+    var keys = Object.keys(j);
+    if (keys.length !== BLOB_FIELDS.length) return false;
+    for (var i = 0; i < BLOB_FIELDS.length; i++) {
+      if (keys.indexOf(BLOB_FIELDS[i]) === -1) return false;
+    }
+    return j.v === 1 && j.kdf === 'PBKDF2-SHA256' &&
       typeof j.salt === 'string' && typeof j.iv === 'string' &&
       typeof j.ct === 'string' && j.ct.length > 0 &&
       typeof j.iterations === 'number' && isFinite(j.iterations) &&
