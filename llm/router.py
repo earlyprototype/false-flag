@@ -370,9 +370,12 @@ def batch_generate_text(
             # while this function had no callers. Claiming up front keeps the
             # limit honest and still lets the group go out concurrently
             # whenever the limit is not actually binding.
-            if rate_limiter:
-                for _ in prompts:
-                    rate_limiter.wait_if_needed(verbose=False)
+            def claim_slots():
+                if rate_limiter:
+                    for _ in prompts:
+                        rate_limiter.wait_if_needed(verbose=False)
+
+            claim_slots()
             kwargs = batch_kwargs(driver.batch_generate_text)
             # Retry once on failure, then fall back to the mock driver so a
             # runtime API error never crashes the game
@@ -381,6 +384,11 @@ def batch_generate_text(
             except Exception:
                 time.sleep(2)  # Short backoff before retrying once
                 try:
+                    # The retry re-sends every prompt, so it has to be
+                    # accounted for too. The first batch failure is most often
+                    # the rate limit itself, which makes this the dispatch
+                    # most likely to breach it.
+                    claim_slots()
                     return driver.batch_generate_text(prompts, rng, **kwargs)
                 except Exception as e:
                     print(f"[WARNING] LLM batch call failed ({type(e).__name__}: {e}); "

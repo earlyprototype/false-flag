@@ -54,7 +54,16 @@ def generate_group(
         kwargs["max_tokens"] = max_tokens
 
     if llm_batch_fn is not None:
-        return llm_batch_fn(prompts, rng, **kwargs)
+        results = list(llm_batch_fn(prompts, rng, **kwargs))
+        # Every caller pairs this with its input using zip, so a short list
+        # silently drops the trailing advisors or actors rather than failing.
+        # The sequential path below always returns len(prompts); the batch
+        # path has to promise the same thing.
+        if len(results) != len(prompts):
+            print(f"[WARN] batch returned {len(results)} responses for "
+                  f"{len(prompts)} prompts")
+            results = (results + [""] * len(prompts))[:len(prompts)]
+        return results
 
     results = []
     for prompt in prompts:

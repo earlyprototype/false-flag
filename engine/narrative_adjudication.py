@@ -548,6 +548,14 @@ def generate_character_responses(
     responses = []
     for char, text in zip(chars, raw):
         cleaned = (text or "").strip().strip('"')
+        # The batch path reports a per-prompt failure as "[ERROR: ...]" text
+        # rather than raising, and the string is truthy - so without this it
+        # survives as the advisor's spoken line and the player watches a
+        # cabinet minister read out an HTTP status. The single-call path could
+        # not produce this: a failed call raised and the caller substituted
+        # the fallback. actor_simulation guards the same marker.
+        if cleaned.startswith("[ERROR:"):
+            cleaned = ""
         # Same fallback the single-call path used when a response was refused
         responses.append((char.name, cleaned or f"[{char.name}] Understood, Prime Minister."))
     return responses

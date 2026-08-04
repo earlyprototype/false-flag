@@ -287,3 +287,44 @@ def test_max_tokens_is_not_forced_on_a_driver_that_cannot_take_it(monkeypatch):
     assert router.batch_generate_text(["a"], Random(1), show_spinner=False,
                                       max_tokens=150) == ["batched"]
     assert driver.calls == 1
+
+
+def test_a_batch_error_never_becomes_an_advisor_line():
+    """The batch path reports a failed prompt as "[ERROR: ...]" text rather
+    than raising. It is truthy, so without an explicit guard it survives as
+    the advisor's spoken line and the player reads an HTTP status attributed
+    to a cabinet minister. The single-call path could not produce this."""
+    import engine.narrative_adjudication as na
+
+    from models.narrative_state import NarrativeState
+
+    def batch(prompts, rng, **kw):
+        return ["[ERROR: 429 Too Many Requests]"] * len(prompts)
+
+    from models.narrative_state import CharacterAttitude
+    ns = NarrativeState(hidden_metrics=Metrics(escalation_risk=60,
+                                               domestic_stability=40,
+                                               alliance_cohesion=50), turn=2)
+    # _select_responding_characters always seats the NSA, and the loop skips
+    # any id absent from characters - without one the test proves nothing.
+    ns.characters["uk_nsa"] = CharacterAttitude(
+        character_id="uk_nsa", name="National Security Adviser", trust=50)
+    out = na.generate_character_responses(
+        "hold the line", {"quality": "good", "reasoning": "fine"}, {}, ns,
+        lambda *a, **k: "unused", Random(1), llm_batch_fn=batch)
+
+    for name, line in out:
+        assert "[ERROR:" not in line, f"{name} spoke a driver error: {line!r}"
+        assert line.endswith("Understood, Prime Minister."), line
+
+
+def test_a_short_batch_result_does_not_drop_advisors():
+    """Callers zip the result against their input, so a short list silently
+    loses the trailing advisors instead of failing."""
+    from llm.fanout import generate_group
+
+    out = generate_group(["a", "b", "c"], lambda *a, **k: "x", Random(1),
+                         llm_batch_fn=lambda p, r, **kw: ["only one"])
+    assert len(out) == 3, out
+    assert out[0] == "only one"
+    assert out[1] == "" and out[2] == ""
