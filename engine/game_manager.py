@@ -99,7 +99,8 @@ class GameManager:
             self.transcript,
             turn_filename=turn_filename,
             suppress_display=True,
-            silent_effects=True
+            silent_effects=True,
+            narrative_state=self.narrative_state  # Feeds the event ledger (issue #25)
         )
 
         self.transcript.extend(lines)

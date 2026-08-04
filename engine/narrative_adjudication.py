@@ -111,6 +111,49 @@ def _scrub_reasoning(reasoning: str, world_narrative=None) -> str:
     return " ".join(kept)
 
 
+# === EVENT DISPOSITION (issue #25) ===
+
+# Verbs that describe closing a situation out, not merely responding to it.
+_CLOSURE_VERBS = (
+    "escort", "expel", "remove", "recover", "recovered", "salvage",
+    "neutralise", "neutralize", "contain", "restore", "restored",
+    "evacuate", "evacuated", "arrest", "detain", "secure", "seal",
+    "resolve", "resolved", "conclude", "complete", "shut down", "stand down",
+)
+
+_STOPWORDS = frozenset({
+    "the", "a", "an", "of", "off", "on", "in", "at", "to", "and", "or",
+    "for", "from", "by", "with", "is", "was", "has", "have", "been",
+})
+
+
+def _significant_words(text: str) -> set:
+    """Content words, lowercased - used for cheap title/action overlap."""
+    return {w for w in re.findall(r"[a-z']+", (text or "").lower())
+            if len(w) > 3 and w not in _STOPWORDS}
+
+
+def infer_event_disposition(title: str, action: str) -> str:
+    """Guess how the player left the event titled ``title``.
+
+    Deliberately conservative. A false "resolved" suppresses a live thread
+    from future injects, which is worse than the repetition the ledger
+    exists to prevent - so closure is only claimed when the decision both
+    refers to the event and uses language of ending it. Everything else is
+    "advanced" (engaged with) or "open" (not addressed).
+    """
+    title_words = _significant_words(title)
+    if not title_words:
+        return "open"
+    action_lower = (action or "").lower()
+    overlap = title_words & _significant_words(action)
+    if not overlap:
+        return "open"
+    if any(verb in action_lower for verb in _CLOSURE_VERBS):
+        return "resolved"
+    return "advanced"
+
+
 # === QUALITY ASSESSMENT ===
 
 def assess_action_quality(
@@ -693,6 +736,22 @@ def adjudicate_with_narrative(
             updated = clamp(current + delta)
             setattr(narrative_state.hidden_metrics, metric, updated)
     
+    # 3b. Record how this turn's event was left, so the inject generator
+    # does not restage a thread the player already closed (issue #25).
+    try:
+        ledger = getattr(narrative_state, "event_ledger", None)
+        if ledger:
+            current = next((e for e in ledger if e.turn == narrative_state.turn),
+                           None)
+            if current is not None:
+                disposition = infer_event_disposition(current.title, action)
+                if disposition != "open":
+                    narrative_state.close_event(
+                        narrative_state.turn, disposition,
+                        _truncate_decision(action, 90))
+    except Exception:  # pragma: no cover - bookkeeping must never break a turn
+        logger.debug("Could not set event disposition", exc_info=True)
+
     # 4. Generate character responses
     character_responses = generate_character_responses(
         action, quality_assessment, final_effects, narrative_state, llm_generate_fn, rng

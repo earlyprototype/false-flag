@@ -922,7 +922,8 @@ def play(
             # after this call and the briefing is streamed from the transcript,
             # so the panel only ever produced a duplicate copy of every event.
             suppress_display=True,
-            replay=resume_replay  # Loaded mid-turn save: show briefing, don't re-apply it
+            replay=resume_replay,  # Loaded mid-turn save: show briefing, don't re-apply it
+            narrative_state=narrative_state  # Feeds the event ledger (issue #25)
         )
 
         if not resume_replay:

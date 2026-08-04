@@ -17,6 +17,59 @@ FullTranscript = List[str]
 # Maximum transcript lines embedded in advisor context (keeps prompts bounded)
 MAX_ADVISOR_TRANSCRIPT_LINES = 500
 
+# Continuity window for inject generation. The generator is the component
+# most responsible for the story hanging together, yet it ran on 120 lines
+# while advisors got 500 (issue #25). Widened - but still bounded: a real
+# campaign transcript reaches ~1,850 lines / 727 KB by turn 18, past the
+# context window of the models used in play, and a turn makes ~15 calls.
+MAX_INJECT_CONTINUITY_LINES = 400
+
+# Cap on a ledger title so one long headline cannot stretch the column
+_LEDGER_TITLE_MAX = 60
+
+
+def _ledger_field(entry, key: str, default=""):
+    """Read a ledger field from a PlayedEvent or a plain dict."""
+    if isinstance(entry, dict):
+        return entry.get(key, default)
+    return getattr(entry, key, default)
+
+
+def render_event_ledger(event_ledger) -> str:
+    """Render the EVENTS ALREADY PLAYED block, or '' when there is nothing.
+
+    States each past event's disposition outright. The rolling summary only
+    *implies* that a thread was closed, and inferring it from prose is what
+    failed in live play - the same submarine surfaced four turns running,
+    once after the player had it escorted out of UK waters (issue #25).
+    """
+    if not event_ledger:
+        return ""
+
+    def _title(entry) -> str:
+        text = str(_ledger_field(entry, "title", "")).strip()
+        if len(text) > _LEDGER_TITLE_MAX:
+            text = text[:_LEDGER_TITLE_MAX - 3] + "..."
+        return text
+
+    titles = [_title(e) for e in event_ledger]
+    width = max(len(t) for t in titles)
+
+    lines = [
+        "=" * 60,
+        "EVENTS ALREADY PLAYED - do not re-introduce these",
+        "=" * 60,
+    ]
+    for entry, title in zip(event_ledger, titles):
+        turn = _ledger_field(entry, "turn", "?")
+        disposition = str(_ledger_field(entry, "disposition", "open")).upper()
+        note = str(_ledger_field(entry, "note", "")).strip()
+        line = f"Turn {turn} | {title.ljust(width)} | {disposition}"
+        if note:
+            line += f" - {note}"
+        lines.append(line)
+    return "\n".join(lines)
+
 # Pattern for the turn header line the sim loop writes between '=' rulers
 _TURN_HEADER_RE = re.compile(r"^TURN \d+$")
 
@@ -126,10 +179,17 @@ def get_decision_interpreter_context(current_turn_transcript: List[str], world_s
     
     return "\n".join(context_parts)
 
-def get_stochastic_inject_context(summary: str, last_turn_transcript: List[str], world_state: WorldState) -> str:
+def get_stochastic_inject_context(summary: str, last_turn_transcript: List[str],
+                                  world_state: WorldState,
+                                  event_ledger=None) -> str:
     """
     Returns a high-level summary, the last turn's transcript, and narrative secrets.
     Used for creative story generation.
+
+    Args:
+        event_ledger: Optional sequence of played events (PlayedEvent objects
+            or dicts). When present, their dispositions are stated explicitly
+            so resolved threads are not restaged (issue #25).
     """
     context_parts = []
     
@@ -155,12 +215,18 @@ def get_stochastic_inject_context(summary: str, last_turn_transcript: List[str],
     context_parts.append(summary)
     context_parts.append("")
     
+    # What has already been staged, and how each thread was left
+    ledger_block = render_event_ledger(event_ledger)
+    if ledger_block:
+        context_parts.append(ledger_block)
+        context_parts.append("")
+
     # Add last turn's transcript for continuity
     context_parts.append("=" * 60)
     context_parts.append(f"LAST TURN (TURN {world_state.turn - 1}) - FOR CONTINUITY")
     context_parts.append("=" * 60)
     context_parts.extend(last_turn_transcript)
-    
+
     return "\n".join(context_parts)
 
 def get_diplomatic_context(transcript: FullTranscript, world_state: WorldState, target_country_code: str) -> str:

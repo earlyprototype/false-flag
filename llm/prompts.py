@@ -4,6 +4,7 @@ Provides structured prompts that incorporate world state, initial conditions,
 and character information to generate contextually appropriate responses.
 """
 
+import re
 from typing import Any, Dict, List, Optional
 
 from models.world import WorldState
@@ -324,12 +325,42 @@ Your response:"""
     return prompt
 
 
+def _drop_used_scenarios(scenarios: List[Any], event_ledger) -> List[Any]:
+    """Remove library scenarios that a played event already covers.
+
+    Matched on distinctive word overlap with ledger titles - the library
+    entries are short id-like strings, so this is deliberately loose rather
+    than exact. Never returns empty: if everything matched, the pool is left
+    intact rather than handing the generator nothing to work from.
+    """
+    if not scenarios or not event_ledger:
+        return scenarios
+
+    stop = {"the", "a", "an", "of", "off", "on", "in", "at", "to", "and",
+            "or", "for", "from", "by", "with", "attack", "crisis", "event"}
+
+    def words(text: str) -> set:
+        return {w for w in re.findall(r"[a-z]+", str(text).lower())
+                if len(w) > 3 and w not in stop}
+
+    used = set()
+    for entry in event_ledger:
+        title = entry.get("title", "") if isinstance(entry, dict) else getattr(entry, "title", "")
+        used |= words(title)
+    if not used:
+        return scenarios
+
+    remaining = [s for s in scenarios if not (words(s) & used)]
+    return remaining or scenarios
+
+
 def build_inject_generation_prompt(
     world: WorldState,
     turn_number: int,
     initial_conditions: Dict[str, Any],
     scenario_library: Dict[str, Any] = None,
-    transcript: Optional[List[str]] = None
+    transcript: Optional[List[str]] = None,
+    event_ledger=None
 ) -> str:
     """Build LLM prompt to generate next inject/event.
     
@@ -347,6 +378,7 @@ def build_inject_generation_prompt(
         get_stochastic_inject_context,
         get_last_turn_slice,
         generate_summary,
+        MAX_INJECT_CONTINUITY_LINES,
     )
     
     objectives = initial_conditions.get("objectives", {})
@@ -355,11 +387,17 @@ def build_inject_generation_prompt(
     # Include scenario library context if available
     library_context = ""
     if scenario_library:
+        potential = (list(scenario_library.get('naval_scenarios', []))
+                     + list(scenario_library.get('infrastructure_scenarios', []))
+                     + list(scenario_library.get('diplomatic_scenarios', [])))
+        # Shrink the pool as scenarios get used: re-offering the same naval
+        # set-piece every turn is part of why one kept coming back (issue #25)
+        potential = _drop_used_scenarios(potential, event_ledger)
         library_context = f"""
 Realistic scenario patterns (adapt based on player decisions):
 - Russian strategy: {scenario_library.get('escalation_patterns', {}).get('russian_strategy', {})}
 - UK constraints: {scenario_library.get('escalation_patterns', {}).get('uk_constraints', {})}
-- Potential scenarios: {list(scenario_library.get('naval_scenarios', [])) + list(scenario_library.get('infrastructure_scenarios', [])) + list(scenario_library.get('diplomatic_scenarios', []))}
+- Potential scenarios: {potential}
 
 Use these as inspiration, NOT rigid scripts. Adapt based on player's previous actions.
 """
@@ -381,20 +419,26 @@ Use these as inspiration, NOT rigid scripts. Adapt based on player's previous ac
         # Slice from the last TURN header so the previous inject — the event
         # this one must build on — is always in the window, not just the
         # adjudication tail of the turn (issue #23).
-        last_turn_transcript = get_last_turn_slice(transcript)
+        last_turn_transcript = get_last_turn_slice(
+            transcript, max_lines=MAX_INJECT_CONTINUITY_LINES)
 
         # Get full context with narrative secrets
-        story_context = get_stochastic_inject_context(summary, last_turn_transcript, world)
+        story_context = get_stochastic_inject_context(
+            summary, last_turn_transcript, world, event_ledger=event_ledger)
     else:
         # No history yet (first inject of a campaign)
         story_context = build_world_state_summary(world)
 
-    # The continuity rule references the LAST TURN section, so it is only
-    # issued when that section exists.
+    # Each rule names a context section, so each is issued only when its
+    # section exists — a rule pointing at an absent block is the same class
+    # of bug as the continuity gap it is meant to close.
     continuity_rule = ""
     if transcript:
-        continuity_rule = """
+        continuity_rule += """
 7. CONTINUITY IS MANDATORY: the previous turn's event (shown above under LAST TURN) must be acknowledged, advanced, or explicitly resolved. Open threads — impacts, casualties, recoveries, ultimatums, running deadlines — never disappear; if the last event was a missile launch, this inject addresses where it landed and what followed before introducing anything new"""
+    if event_ledger:
+        continuity_rule += """
+8. DO NOT RESTAGE RESOLVED EVENTS: anything listed above under EVENTS ALREADY PLAYED has happened. Never re-introduce one as a fresh discovery. An entry marked RESOLVED is closed — write a *consequence* of how it ended, or something genuinely new, but do not stage it again. If a submarine was escorted out of UK waters last turn, it is not discovered in those same waters this turn. Entries marked OPEN may be advanced, never merely restated"""
     
     prompt = f"""You are the Games Master for a UK-Russia crisis wargame. Generate the next inject/event for turn {turn_number}.
 

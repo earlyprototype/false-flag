@@ -884,7 +884,8 @@ def play(
             turn_filename=turn_filename,
             silent_effects=is_turn1_intro or play_mode != "classic",  # Hide raw-number effect boxes for Turn 1 intro and non-classic modes
             suppress_display=is_turn1_intro,  # Suppress panel so we can stream the text
-            replay=resume_replay  # Loaded mid-turn save: show briefing, don't re-apply it
+            replay=resume_replay,  # Loaded mid-turn save: show briefing, don't re-apply it
+            narrative_state=narrative_state  # Feeds the event ledger (issue #25)
         )
 
         if not resume_replay:

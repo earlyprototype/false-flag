@@ -43,10 +43,27 @@ class CharacterAttitude(BaseModel):
     stance_summary: str = ""
 
 
+class PlayedEvent(BaseModel):
+    """One inject that has been staged, and what became of it.
+
+    The rolling ``situation_summary`` compresses several turns into a few
+    sentences, so whether a thread was *closed* survives only as prose the
+    generator has to infer. That inference failed in live play - the same
+    submarine surfaced on four consecutive turns, one of them after the
+    player had it escorted out of UK waters (issue #25). The ledger states
+    the disposition outright instead.
+    """
+
+    turn: int
+    title: str
+    disposition: Literal["open", "advanced", "resolved"] = "open"
+    note: str = ""  # one line: what the player did about it
+
+
 class NarrativeState(BaseModel):
     """
     Narrative-focused game state with hidden metrics.
-    
+
     Hidden metrics guide LLM behavior and trigger events.
     Player sees vibes, character attitudes, and narrative summaries.
     """
@@ -64,6 +81,11 @@ class NarrativeState(BaseModel):
     
     # Recent dramatic events
     recent_events: List[str] = Field(default_factory=list)
+
+    # Ledger of injects staged so far and how each was left. Append-only,
+    # oldest first. Absent from saves written before issue #25; defaults to
+    # empty so old campaigns load unchanged.
+    event_ledger: List[PlayedEvent] = Field(default_factory=list)
     
     # Character attitudes and relationships
     characters: Dict[str, CharacterAttitude] = Field(default_factory=dict)
@@ -275,6 +297,45 @@ Game Time: {self.game_time} (Turn {self.turn})
         # Keep only last 10 events
         if len(self.recent_events) > 10:
             self.recent_events = self.recent_events[-10:]
+
+    def record_played_event(self, turn: int, title: str) -> None:
+        """Log an inject as staged on ``turn``, disposition still open.
+
+        Re-recording the same turn overwrites rather than duplicating, so a
+        retried or regenerated inject leaves one entry.
+        """
+        title = (title or "").strip() or f"Turn {turn} development"
+        for entry in self.event_ledger:
+            if entry.turn == turn:
+                entry.title = title
+                return
+        self.event_ledger.append(PlayedEvent(turn=turn, title=title))
+
+    def close_event(self, turn: int, disposition: str, note: str = "") -> None:
+        """Set how the event staged on ``turn`` was left.
+
+        Unknown dispositions are ignored rather than coerced: a wrong
+        "resolved" would suppress a live thread, which is worse than the
+        repetition this ledger exists to prevent.
+        """
+        if disposition not in ("open", "advanced", "resolved"):
+            return
+        for entry in self.event_ledger:
+            if entry.turn == turn:
+                entry.disposition = disposition
+                if note:
+                    entry.note = note.strip()
+                return
+
+    def recent_played_events(self, n: int = 6) -> List["PlayedEvent"]:
+        """The last ``n`` ledger entries, oldest first.
+
+        Named to avoid colliding with the ``recent_events`` field above,
+        which holds player-facing event prose rather than dispositions.
+        """
+        if n <= 0:
+            return []
+        return self.event_ledger[-n:]
     
     def add_crisis(self, crisis: str):
         """Add active crisis indicator"""
