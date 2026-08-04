@@ -39,10 +39,20 @@ def generate_group(
         max_tokens: Optional output cap applied to every prompt.
 
     Returns:
-        One response per prompt, in order. A prompt whose call fails on the
-        sequential path yields an empty string rather than losing the rest of
-        the group; the batch path's failures are absorbed by the router,
-        which retries once and then answers from the mock driver.
+        One response per prompt, in order.
+
+        The two paths mark a failure differently, and a caller has to test
+        for both. On the sequential path a failed call yields an empty
+        string, rather than losing the rest of the group. On the batch path
+        the live driver catches each prompt's exception inside its thread
+        pool and returns ``"[ERROR: ...]"`` in that prompt's slot - so it
+        never raises, and the router's retry-then-mock fallback never sees
+        it. That fallback covers only a batch call that fails as a whole.
+
+        The marker matters because it is truthy and well-formed enough to
+        survive: fed to a parser that shrugs at unrecognised text, it can
+        end up quoted as an advisor's line. See the guard in
+        ``engine/narrative_adjudication.py``.
     """
     if not prompts:
         return []

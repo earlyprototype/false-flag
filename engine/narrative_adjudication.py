@@ -750,10 +750,10 @@ def adjudicate_with_narrative(
         rng: Random number generator
         llm_generate_fn: Optional LLM function
         world_narrative: Optional NarrativeConfig for secret truth context
-    
         llm_batch_fn: Optional batch generator, forwarded to
             generate_character_responses so the advisor reactions go out
             as one group.
+
     Returns:
         (final_effects, character_responses, quality_reasoning)
     """
@@ -817,9 +817,22 @@ def adjudicate_with_actor_simulation(
     5. Update actor relationships
     6. Generate character (advisor) responses
     7. Generate narrative summary
-            llm_batch_fn: Optional batch generator, forwarded to both
+
+    Args:
+        narrative_state: Current narrative state (modified in place)
+        actor_system: The state actors available to respond
+        action: Player action text
+        interpretation: LLM interpretation
+        rng: Random number generator
+        llm_generate_fn: Function to call the LLM
+        world_narrative: Optional NarrativeConfig for secret truth context
+        llm_batch_fn: Optional batch generator, forwarded to both
             simulate_actor_responses and generate_character_responses.
-"""
+
+    Returns:
+        (final_effects, actor_responses, character_responses, reasoning),
+        where reasoning is the actor-response summary.
+    """
     
     # 1. Identify which actors should respond
     relevant_actor_ids = identify_relevant_actors(action, actor_system, max_actors=3)
