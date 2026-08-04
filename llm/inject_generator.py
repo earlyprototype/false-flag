@@ -39,7 +39,8 @@ def generate_inject(
     initial_conditions: Dict[str, Any],
     rng: Random,
     root_path: Optional[Path] = None,
-    transcript: Optional[List[str]] = None
+    transcript: Optional[List[str]] = None,
+    event_ledger=None
 ) -> Optional[Dict[str, Any]]:
     """Generate a plausible inject for the given turn using LLM.
     
@@ -60,7 +61,9 @@ def generate_inject(
     # Load scenario library to inform LLM generation
     scenario_library = _load_scenario_library(root_path)
     
-    prompt = build_inject_generation_prompt(world, turn_number, initial_conditions, scenario_library, transcript)
+    prompt = build_inject_generation_prompt(
+        world, turn_number, initial_conditions, scenario_library, transcript,
+        event_ledger=event_ledger)
     
     # Failures are logged, never printed: the player-facing fallback is the
     # caller's diegetic quiet-turn inject (engine.sim_loop).

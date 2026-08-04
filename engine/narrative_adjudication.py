@@ -111,6 +111,75 @@ def _scrub_reasoning(reasoning: str, world_narrative=None) -> str:
     return " ".join(kept)
 
 
+# === EVENT DISPOSITION (issue #25) ===
+
+# Verbs that describe closing a situation out, not merely responding to it.
+_CLOSURE_VERBS = (
+    "escort", "expel", "remove", "recover", "recovered", "salvage",
+    "neutralise", "neutralize", "contain", "restore", "restored",
+    "evacuate", "evacuated", "arrest", "detain", "secure", "seal",
+    "resolve", "resolved", "conclude", "complete", "shut down", "stand down",
+)
+
+_STOPWORDS = frozenset({
+    "the", "a", "an", "of", "off", "on", "in", "at", "to", "and", "or",
+    "for", "from", "by", "with", "is", "was", "has", "have", "been",
+})
+
+
+def _significant_words(text: str) -> set:
+    """Content words, lowercased - used for cheap title/action overlap."""
+    return {w for w in re.findall(r"[a-z']+", (text or "").lower())
+            if len(w) > 3 and w not in _STOPWORDS}
+
+
+def record_event_disposition(narrative_state, action: str) -> None:
+    """Set how the event under adjudication was left by ``action``.
+
+    Closes the *most recently staged* entry rather than looking one up by
+    turn number. ``narrative_state.turn`` is synchronised with the world
+    turn only after adjudication, so a turn-keyed lookup finds the previous
+    turn's event; and the ledger is append-only with one entry per turn, so
+    the last entry is always the one being adjudicated.
+
+    Must be called from every adjudication path - actor-enabled campaigns
+    route through ``adjudicate_with_actor_simulation``, so recording in the
+    narrative path alone left the ledger permanently open in real play.
+    """
+    try:
+        ledger = getattr(narrative_state, "event_ledger", None)
+        if not ledger:
+            return
+        current = ledger[-1]
+        disposition = infer_event_disposition(current.title, action)
+        if disposition != "open":
+            narrative_state.close_event(
+                current.turn, disposition, _truncate_decision(action, 90))
+    except Exception:  # pragma: no cover - bookkeeping must never break a turn
+        logger.debug("Could not set event disposition", exc_info=True)
+
+
+def infer_event_disposition(title: str, action: str) -> str:
+    """Guess how the player left the event titled ``title``.
+
+    Deliberately conservative. A false "resolved" suppresses a live thread
+    from future injects, which is worse than the repetition the ledger
+    exists to prevent - so closure is only claimed when the decision both
+    refers to the event and uses language of ending it. Everything else is
+    "advanced" (engaged with) or "open" (not addressed).
+    """
+    title_words = _significant_words(title)
+    if not title_words:
+        return "open"
+    action_lower = (action or "").lower()
+    overlap = title_words & _significant_words(action)
+    if not overlap:
+        return "open"
+    if any(verb in action_lower for verb in _CLOSURE_VERBS):
+        return "resolved"
+    return "advanced"
+
+
 # === QUALITY ASSESSMENT ===
 
 def assess_action_quality(
@@ -693,6 +762,9 @@ def adjudicate_with_narrative(
             updated = clamp(current + delta)
             setattr(narrative_state.hidden_metrics, metric, updated)
     
+    # 3b. Record how this turn's event was left (issue #25)
+    record_event_disposition(narrative_state, action)
+
     # 4. Generate character responses
     character_responses = generate_character_responses(
         action, quality_assessment, final_effects, narrative_state, llm_generate_fn, rng
@@ -760,6 +832,11 @@ def adjudicate_with_actor_simulation(
     
     # 4. Also run quality assessment for player skill
     quality_assessment = assess_action_quality(action, narrative_state, interpretation, llm_generate_fn, world_narrative, rng)
+
+    # Record how this turn's event was left. Actor-enabled campaigns route
+    # here rather than through adjudicate_with_narrative, so this path needs
+    # the same bookkeeping or the ledger never closes (issue #25).
+    record_event_disposition(narrative_state, action)
     base_effects = determine_base_effects(action, narrative_state)
     quality_effects = apply_quality_scaling(base_effects, quality_assessment, narrative_state)
     

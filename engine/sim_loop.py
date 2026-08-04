@@ -270,7 +270,8 @@ def run_turn_briefing(
     turn_filename: Optional[str] = None,
     silent_effects: bool = False,
     suppress_display: bool = False,
-    replay: bool = False
+    replay: bool = False,
+    narrative_state: Optional[Any] = None
 ) -> Tuple[Optional[Dict[str, Any]], List[str]]:
     """Run briefing phase: load and display inject, handle mandatory diplomatic encounters.
 
@@ -314,7 +315,13 @@ def run_turn_briefing(
     # transition, and "[Stochastically generated inject]" leaked to players.
     if inject is None and stochastic_injects:
         initial_conditions = load_initial_conditions(scenario_id, root_path)
-        inject = generate_inject(world, world.turn, initial_conditions, rng, root_path, full_transcript)
+        # The ledger tells the generator which threads are already closed, so
+        # a resolved event is not restaged as a fresh one (issue #25).
+        event_ledger = (narrative_state.recent_played_events()
+                        if narrative_state is not None else None)
+        inject = generate_inject(world, world.turn, initial_conditions, rng,
+                                 root_path, full_transcript,
+                                 event_ledger=event_ledger)
         if inject is None:
             # Generation failed: details are logged by the generator; keep the
             # fiction intact with a quiet turn instead of surfacing errors
@@ -322,6 +329,16 @@ def run_turn_briefing(
             inject = _quiet_turn_inject(world.turn)
     
     if inject:
+        # Log the staged event; its disposition is set at adjudication once
+        # we know what the player did about it.
+        if narrative_state is not None:
+            try:
+                narrative_state.record_played_event(
+                    world.turn, inject.get("title", ""))
+            except AttributeError:
+                # Older narrative state without a ledger: nothing to record
+                pass
+
         # === STEP 1: NARRATOR INTRO BRIDGE ===
         # Generate atmospheric bridge if we have history (Turn > 1)
         if world.turn > 1 and full_transcript:
