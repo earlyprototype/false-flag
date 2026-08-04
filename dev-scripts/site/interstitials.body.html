@@ -1,0 +1,128 @@
+<div class="fogwrap"><pre class="rig wide" aria-hidden="true">{{fog_vig}}</pre></div>
+
+<h1 class="rule" style="margin-top:26px"><span class="num">02</span><span>[ THE INTERSTITIALS ]</span><span class="fill"></span></h1>
+
+<p class="lede">Five vignettes that play between turns. Three to six seconds
+each, any key skips, and the same joke never lands twice in a row.</p>
+
+<p>They exist because a crisis wargame that is unrelenting stops being
+frightening. The turn ends, the autosave ticks, and instead of the next
+briefing you get a small scene in the same visual language as everything else
+— block elements, box-drawing, one character, one timing, one punchline. Then
+the fog rolls back in and Moscow is still there.</p>
+
+<p>Nothing here is a mockup. Every frame is generated at runtime by
+<code>cli/interstitials.py</code> from a seed, so the same campaign renders
+the same vignettes every time, and some of them read the world state: the tea
+cups rattle harder as escalation climbs. The recordings below are the real
+frame sequences, captured through a headless terminal at the choreography's
+own timings.</p>
+
+<div class="note"><b>Motion warning.</b> These are looping animations. If your
+system asks for reduced motion your browser may still play GIFs; there are
+five of them on this page and nothing else on the site moves.</div>
+
+<pre class="rig" aria-hidden="true">{{sonar_0}}</pre>
+
+<figure class="vig">
+  <div class="shot">
+    <img src="media/interstitials/tea_round.gif" width="2800" height="760"
+         loading="lazy" decoding="async"
+         alt="An ASCII aide wheels a tea trolley across the screen beneath a TOP SECRET classification strip. Cups are labelled CDS, NSA, FS, HS and AG. One cup is left standing on the floor.">
+  </div>
+  <figcaption>
+    <div class="name">TEA ROUND <span class="k">· 01</span></div>
+    <p class="beat">The aide's trolley crosses under the classification strip.
+    The cups are labelled for the room — CDS, NSA, FS, HS, AG — and the Chief
+    of the Defence Staff's cup rattles harder the closer the crisis gets to
+    the edge. A cup is left standing on the floor. Push escalation past
+    eighty and the aide simply keeps walking: <em>THE TROLLEY DID NOT
+    STOP.</em></p>
+    <div class="punch">YOURS, PRIME MINISTER.</div>
+  </figcaption>
+</figure>
+
+<figure class="vig">
+  <div class="shot">
+    <img src="media/interstitials/periscope.gif" width="2800" height="830"
+         loading="lazy" decoding="async"
+         alt="An ASCII periscope rises out of a fog bank, sweeps left and right, then its lens turns to face the viewer before crash-diving into expanding ripples.">
+  </div>
+  <figcaption>
+    <div class="name">PERISCOPE <span class="k">· 02</span></div>
+    <p class="beat">It rises out of a fog bank and sweeps left, then right —
+    and then the lens stops, turns, and points straight at you for a beat
+    before the crash-dive and the expanding ripples. The gag is the beat. You
+    were being observed by the thing you were observing.</p>
+    <div class="punch">SIGHTING REPORTED — BY BOTH PARTIES.</div>
+  </figcaption>
+</figure>
+
+<figure class="vig">
+  <div class="shot">
+    <img src="media/interstitials/teleprinter.gif" width="2800" height="898"
+         loading="lazy" decoding="async"
+         alt="An ASCII teleprinter types out a JIC memo. Each paragraph is redacted more heavily with block characters until the last is solid black, leaving only the words PM EYES ONLY and a tea-ring stain.">
+  </div>
+  <figcaption>
+    <div class="name">TELEPRINTER <span class="k">· 03</span></div>
+    <p class="beat">A JIC memo chatters out in the proper rhythm — burst,
+    burst, breath, carriage return — under redaction that gets heavier with
+    every paragraph, until the final one is a solid black bar. What survives
+    is the header, the classification, and a tea-ring somebody left on the
+    page.</p>
+    <div class="punch">PM EYES ONLY.</div>
+  </figcaption>
+</figure>
+
+<figure class="vig">
+  <div class="shot">
+    <img src="media/interstitials/red_phone.gif" width="2800" height="760"
+         loading="lazy" decoding="async"
+         alt="An ASCII red telephone labelled MOSCOW DIRECT blinks for attention. A cat is sitting on it. A hand shoos the cat, which moves exactly two columns. The blinking stops the frame the handset lifts.">
+  </div>
+  <figcaption>
+    <div class="name">RED PHONE <span class="k">· 04</span></div>
+    <p class="beat"><code>[ MOSCOW DIRECT ]</code> is blinking. The Downing
+    Street cat is already sitting on it. A shooing hand secures a relocation
+    of exactly two columns, and the blinking stops on the precise frame the
+    handset lifts. Nobody's dignity survives, and the call still connects.</p>
+    <div class="punch">LINE OPEN. CAT UNMOVED.</div>
+  </figcaption>
+</figure>
+
+<figure class="vig">
+  <div class="shot">
+    <img src="media/interstitials/radar_room.gif" width="2800" height="966"
+         loading="lazy" decoding="async"
+         alt="An ASCII radar sweep with contact blips. The closing contact resolves into a small bird shape and exits the screen to the left.">
+  </div>
+  <figcaption>
+    <div class="name">RADAR ROOM <span class="k">· 05</span></div>
+    <p class="beat">The sweep goes round, contacts bloom, and one of them is
+    closing. It resolves, at the last possible moment, into three characters
+    of seagull and leaves the screen to the left. Somewhere a formal complaint
+    is being drafted.</p>
+    <div class="punch">CONTACT RECLASSIFIED: GULL (FORMAL COMPLAINT LODGED).</div>
+  </figcaption>
+</figure>
+
+<pre class="rig" aria-hidden="true">{{sonar_1}}</pre>
+
+<h2 class="rule"><span class="node">──●──</span><span>&nbsp;[ THE SAME LANGUAGE EVERYWHERE ]</span><span class="fill"></span></h2>
+
+<p>The vignettes are not a separate art style bolted on. They are drawn with
+the same primitives as the title sequence, the turn banners and the section
+dividers on this page: a seeded fog generator, classification strips, sonar
+traces, and a character set that never leaves box-drawing, block elements and
+geometric shapes. No emoji, anywhere, ever. The rule that keeps it coherent is
+that every surface takes a seed, and the same seed always draws the same
+thing — so a saved campaign replays identically, down to the fog.</p>
+
+<p>The dividers above and the fog bands on this page were generated by the
+game's own <code>cli/aesthetics.py</code> when this page was built. So was the
+masthead on the <a href="index.html">front page</a>.</p>
+
+<p><a href="https://github.com/earlyprototype/false-flag/blob/main/docs/AESTHETIC_LANGUAGE.md">The
+full aesthetic reference →</a><br>
+<a href="replay.html">Watch the language in use across seventeen turns →</a></p>

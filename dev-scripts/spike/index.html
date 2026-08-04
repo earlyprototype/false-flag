@@ -1,0 +1,260 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>false-flag Pyodide spike</title></head>
+<body>
+<h1>false-flag Pyodide feasibility spike</h1>
+<pre id="log"></pre>
+<script src="pyodide/pyodide.js"></script>
+<script>
+window.RESULTS = [];
+window.DONE = false;
+const logEl = document.getElementById('log');
+function step(name, status, detail, ms) {
+  const r = {name, status, detail: String(detail).slice(0, 4000), ms};
+  window.RESULTS.push(r);
+  logEl.textContent += `[${status}] ${name}${ms !== undefined ? ' ('+ms+'ms)' : ''}\n${detail ? '    ' + String(detail).slice(0,2000).replace(/\n/g,'\n    ') + '\n' : ''}`;
+  console.log(JSON.stringify(r));
+}
+async function run(name, fn) {
+  const t0 = performance.now();
+  try {
+    const out = await fn();
+    step(name, 'OK', out === undefined ? '' : out, Math.round(performance.now() - t0));
+    return out;
+  } catch (e) {
+    step(name, 'FAIL', (e && e.message) || e, Math.round(performance.now() - t0));
+    return null;
+  }
+}
+
+(async () => {
+  let py;
+  await run('1. loadPyodide 0.27.7', async () => {
+    py = await loadPyodide({ indexURL: 'pyodide/' });
+    return py.runPython('import sys; sys.version');
+  });
+
+  await run('2. loadPackage pydantic + pyyaml (bundled, native)', async () => {
+    await py.loadPackage(['pydantic', 'pyyaml']);
+    return py.runPython(`
+import pydantic, pydantic_core, yaml, typing_extensions, annotated_types, importlib.metadata as md
+f"pydantic={pydantic.VERSION} pydantic_core={pydantic_core.__version__} yaml={yaml.__version__} typing_extensions={md.version('typing_extensions')} annotated_types={md.version('annotated_types')} yaml_C_loader={yaml.__with_libyaml__}"
+`);
+  });
+
+  await run('2b. pydantic_core is a real compiled extension?', async () =>
+    py.runPython(`
+import pydantic_core._pydantic_core as m
+m.__file__
+`));
+
+  await run('3. micropip.install("typer") from PyPI (pure-python wheel)', async () => {
+    await py.loadPackage('micropip');
+    return await py.runPythonAsync(`
+import micropip
+await micropip.install("typer==0.12.4")
+import typer
+f"typer={typer.__version__}"
+`);
+  });
+
+  await run('3b. micropip.install("pydantic==2.7.3") — the exact pin', async () =>
+    await py.runPythonAsync(`
+import micropip
+await micropip.install("pydantic==2.7.3")
+"installed"
+`));
+
+  await run('4. fetch + unpack game.zip into /game', async () => {
+    const buf = await (await fetch('game.zip')).arrayBuffer();
+    py.FS.mkdir('/game');
+    py.unpackArchive(buf, 'zip', { extractDir: '/game' });
+    py.globals.set('js_origin', location.origin);
+    return py.runPython(`
+import sys, os
+sys.path.insert(0, "/game")
+os.environ["WARGAME_LLM"] = "mock"
+str(sorted(os.listdir("/game")))
+`);
+  });
+
+  await run('5. import models.world (pydantic models)', async () =>
+    py.runPython(`
+from models.world import WorldState, Metrics
+w = WorldState(turn=1, scene=1, difficulty="standard", narrative=None,
+               metrics=Metrics(escalation_risk=60, domestic_stability=50,
+                               alliance_cohesion=40, casualties_mil=2, casualties_civ=0),
+               flags={}, posture={}, phase="briefing")
+f"WorldState ok: turn={w.turn} escalation={w.metrics.escalation_risk}"
+`));
+
+  await run('6. import engine.game_manager (checks cli/rich/typer leakage)', async () =>
+    py.runPython(`
+import sys
+before = set(sys.modules)
+from engine.game_manager import GameManager
+after = set(sys.modules) - before
+leaked = sorted(m for m in after if m.split(".")[0] in ("cli", "rich", "typer", "requests", "click"))
+f"imported ok. third-party leaked into import graph: {leaked or 'NONE'}"
+`));
+
+  await run('7. construct GameManager (loads YAML from /game/data)', async () =>
+    py.runPython(`
+gm = GameManager(seed=7)
+globals()["gm"] = gm
+f"root={gm.root_path} actor_system={'loaded' if gm.world.actor_system else 'NONE'} chars={len(gm.narrative_state.characters)}"
+`));
+
+  await run('8. get_turn_briefing()', async () =>
+    py.runPython(`
+b = gm.get_turn_briefing()
+f"title={b.get('title')!r} keys={sorted(b.keys())}"
+`));
+
+  await run('9. resolve_decision() end-to-end with MOCK driver (no network)', async () =>
+    py.runPython(`
+r = gm.resolve_decision("Deploy a Type 45 destroyer to escort the convoy and issue a public statement.")
+f"effects={r['effects']} error={r['error']!r} advisors={len(r['advisor_reactions'])} intl={len(r['international_reactions'])} turn_now={gm.world.turn}"
+`));
+
+  await run('9b. second turn (state persists)', async () =>
+    py.runPython(`
+b2 = gm.get_turn_briefing()
+r2 = gm.resolve_decision("Convene NATO Article 4 consultations.")
+f"turn2 title={b2.get('title')!r} effects={r2['effects']} now_turn={gm.world.turn}"
+`));
+
+  await run('10. import requests + pyodide_http.patch_all()', async () => {
+    await py.loadPackage(['requests', 'pyodide-http']);
+    return py.runPython(`
+import pyodide_http, requests
+pyodide_http.patch_all()
+f"requests={requests.__version__} patched"
+`);
+  });
+
+  await run('10b. requests.get through pyodide-http (same-origin, proves patch works)', async () =>
+    py.runPython(`
+import requests
+resp = requests.get(js_origin + "/probe.json", timeout=10)
+f"status={resp.status_code} body={resp.text[:80]}"
+`));
+
+  await run('11. openai_compat_driver imports under Pyodide', async () =>
+    py.runPython(`
+import llm.openai_compat_driver as d
+[n for n in dir(d) if not n.startswith("_")][:12]
+`));
+
+  // control: does this browser have ANY outbound network? distinguishes
+  // "CORS refused" from "sandbox has no egress"
+  await run('11b. CONTROL: fetch a known CORS-open endpoint', async () => {
+    const r = await fetch('https://api.github.com/zen');
+    return `HTTP ${r.status} — browser egress works. body=${(await r.text()).slice(0,80)}`;
+  });
+
+  await run('12. CORS: POST to OpenRouter /chat/completions from page origin', async () => {
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer sk-or-v1-INVALID-SPIKE-PROBE'},
+      body: JSON.stringify({model: 'openai/gpt-4o-mini', messages: [{role:'user', content:'hi'}]})
+    });
+    const t = await resp.text();
+    return `HTTP ${resp.status} — CORS preflight PASSED (request reached server). body=${t.slice(0,300)}`;
+  });
+
+  await run('12b. same POST via patched requests (inside Python)', async () =>
+    py.runPython(`
+import requests, json
+r = requests.post("https://openrouter.ai/api/v1/chat/completions",
+                  headers={"Authorization": "Bearer sk-or-v1-INVALID-SPIKE-PROBE",
+                           "Content-Type": "application/json"},
+                  data=json.dumps({"model":"openai/gpt-4o-mini","messages":[{"role":"user","content":"hi"}]}),
+                  timeout=20)
+f"status={r.status_code} body={r.text[:200]}"
+`));
+
+  // ---- decisive test: the game's UNMODIFIED OpenAICompatDriver, using
+  // requests -> pyodide-http -> XHR, against a genuinely cross-origin
+  // (different port) endpoint that advertises the same CORS headers
+  // OpenRouter really sends. This is the exact code path real play uses.
+  await run('13. real OpenAICompatDriver: cross-origin POST w/ Authorization', async () =>
+    py.runPython(`
+import os
+os.environ["OPENAI_COMPAT_BASE_URL"] = "http://127.0.0.1:8778/v1"
+os.environ["OPENAI_COMPAT_MODEL"]    = "openai/gpt-4o-mini"
+os.environ["OPENAI_COMPAT_API_KEY"]  = "sk-or-v1-user-supplied-key"
+from llm.openai_compat_driver import OpenAICompatDriver
+d = OpenAICompatDriver()
+from random import Random
+out = d.generate_text("You are the UK Chief of the Defence Staff. Advise.", Random(1))
+f"driver={d!r} -> {out}"
+`));
+
+  await run('14. FULL TURN driven by openai_compat provider (not mock)', async () =>
+    py.runPython(`
+import os
+os.environ["WARGAME_LLM"] = "openai_compat"
+import llm.router as R
+R._driver_cache.clear()
+from engine.game_manager import GameManager
+gm2 = GameManager(seed=11)
+b = gm2.get_turn_briefing()
+r = gm2.resolve_decision("Order the carrier group north and brief the Cabinet.")
+f"provider={R._get_provider()} title={b.get('title')!r} error={r['error']!r} reasoning={str(r['reasoning'])[:150]!r}"
+`));
+
+  // did the turn REALLY hit the endpoint, or did the router silently
+  // degrade to the mock driver? the server counts POSTs.
+  await run('14b. VERIFY: POSTs actually received by the LLM endpoint', async () => {
+    const r = await fetch('http://127.0.0.1:8778/hits');
+    return `endpoint received ${(await r.json()).hits} chat/completions POSTs from Pyodide`;
+  });
+
+  // ---- completeness: can a WHOLE game be played to a terminal ending?
+  // note GameManager does NOT expose endings; check_ending must be called
+  // by the caller (this is a real gap in the headless driver).
+  await run('15. FULL PLAYTHROUGH to a terminal ending (mock driver)', async () =>
+    py.runPython(`
+import os, time
+os.environ["WARGAME_LLM"] = "mock"
+import llm.router as R
+R._driver_cache.clear()
+from engine.game_manager import GameManager
+from engine.endings import check_ending, EPILOGUE_TURNS
+
+t0 = time.time()
+gm3 = GameManager(seed=3, play_mode="classic")
+final_turn = gm3.scenario_config.get("scripted_turns", 6) + EPILOGUE_TURNS
+log = []
+ending = None
+for i in range(20):
+    b = gm3.get_turn_briefing()
+    r = gm3.resolve_decision("Hold the line, reinforce air defence, and seek allied consultation.")
+    log.append(f"T{gm3.world.turn-1}:{b.get('title','?')[:28]}")
+    ending = check_ending(gm3.world, final_turn)
+    if ending:
+        break
+el = time.time() - t0
+(f"turns_played={len(log)} elapsed={el:.2f}s "
+ f"ending={(ending.ending_id, ending.verdict, ending.title) if ending else 'NONE'} "
+ f"final_metrics=esc:{gm3.world.metrics.escalation_risk} "
+ f"stab:{gm3.world.metrics.domestic_stability} coh:{gm3.world.metrics.alliance_cohesion}")
+`));
+
+  await run('16. save_game() to Pyodide MEMFS + reload', async () =>
+    py.runPython(`
+p = gm3.save_game("browser-spike")
+import os
+size = os.path.getsize(p)
+from engine.game_manager import GameManager
+gm4 = GameManager.load_game(p)
+f"saved={p} bytes={size} reloaded_turn={gm4.world.turn} (MEMFS: lost on refresh unless persisted to IndexedDB/localStorage)"
+`));
+
+  window.DONE = true;
+  step('== SPIKE COMPLETE ==', 'INFO', '');
+})();
+</script>
+</body>
+</html>

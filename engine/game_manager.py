@@ -10,9 +10,16 @@ import os
 
 from models.world import WorldState, Metrics
 from models.narrative_state import NarrativeState, create_initial_narrative_state
+from engine.endings import (
+    EPILOGUE_TURNS, Ending, build_debrief_lines, check_ending, get_ending,
+)
 from engine.flags import update_world_flags
 from engine.initial_conditions import load_initial_conditions
-from engine.scenario_loader import get_scenario_config, get_turn_filename
+from engine.scenario_loader import (
+    get_scenario_config,
+    get_turn_filename,
+    load_narrative_configs,
+)
 from engine.sim_loop import run_turn_briefing, run_turn_decision, run_turn_discussion
 
 # Environment flag to disable Rich output in engine modules
@@ -26,33 +33,76 @@ class GameManager:
         variant: str = "standard",
         difficulty: str = "standard",
         play_mode: str = "immersive",
-        seed: int = 42
+        seed: int = 42,
+        mystery_mode: bool = False,
+        endings: Optional[bool] = None
     ):
+        """Create a headless game session.
+
+        Args:
+            scenario_id: Scenario identifier (e.g. "war_game_2025")
+            variant: Scenario variant ("standard", "fast_start", ...)
+            difficulty: Difficulty key applied to inject effects
+            play_mode: "classic" | "immersive" | "emergent"
+            seed: RNG seed (determinism)
+            mystery_mode: If True, draw a hidden narrative truth from the
+                scenario's narratives.yaml, the way the CLI's Mystery Mode
+                does. The drawn narrative is never surfaced to the player.
+            endings: Whether terminal win/lose checks apply. ``None`` keeps
+                the CLI's rule (classic mode only); pass True to grade any
+                mode, which is what a session with no "quit" affordance
+                (browser, API) needs so a campaign can actually finish.
+        """
         self.scenario_id = scenario_id
         self.variant = variant
         self.difficulty = difficulty
         self.play_mode = play_mode
         self.seed = seed
+        self.mystery_mode = mystery_mode
         self.rng = Random(seed)
-        
+
+        # Terminal conditions. The CLI only grades classic campaigns; other
+        # front ends (browser, API) need to opt in explicitly.
+        self.endings_enabled = (play_mode == "classic") if endings is None else bool(endings)
+        self.ending: Optional[Ending] = None
+
         from engine.persistence import _default_root
         self.root_path = _default_root()
         self.transcript: List[str] = []
         self.active_encounter = None
-        
+
         # Initialize World
         self._init_world()
-        
+
+        # Campaign-start metrics, so the debrief can report deltas from the
+        # beginning of the campaign rather than from wherever it ended.
+        self.initial_metrics_snapshot = {
+            "escalation_risk": self.world.metrics.escalation_risk,
+            "domestic_stability": self.world.metrics.domestic_stability,
+            "alliance_cohesion": self.world.metrics.alliance_cohesion,
+        }
+
     def _init_world(self):
         """Initialize world state, actor system, and narrative state."""
         self.initial_conditions = load_initial_conditions(self.scenario_id, self.root_path)
         initial_metrics = self.initial_conditions.get("initial_metrics", {})
-        
+
+        # Mystery Mode: draw a hidden narrative truth that colours actor
+        # behaviour. Original Story Mode leaves this None.
+        selected_narrative = None
+        if self.mystery_mode:
+            try:
+                narratives = load_narrative_configs(self.scenario_id, self.root_path)
+                if narratives:
+                    selected_narrative = self.rng.choice(narratives)
+            except Exception as e:  # pragma: no cover - malformed scenario data
+                print(f"Warning: Could not load narratives for mystery mode: {e}")
+
         self.world = WorldState(
             turn=1,
             scene=1,
             difficulty=self.difficulty,
-            narrative=None,  # Default to Original mode for now
+            narrative=selected_narrative,  # The secret truth (Mystery Mode only)
             metrics=Metrics(
                 escalation_risk=initial_metrics.get("escalation_risk", 60),
                 domestic_stability=initial_metrics.get("domestic_stability", 50),
@@ -178,10 +228,46 @@ class GameManager:
             "timeline": "Immediate" # Placeholder
         }
 
+    # CAMPAIGN TERMINATION ----------------------------------------------
+
+    @property
+    def campaign_final_turn(self) -> int:
+        """Turn on which the campaign is graded if no threshold ending fires.
+
+        Mirrors cli/main.py: the scripted turns plus a short stochastic
+        epilogue.
+        """
+        stochastic_from = self.scenario_config.get("stochastic_from", 7)
+        epilogue = self.scenario_config.get("epilogue_turns", EPILOGUE_TURNS)
+        return (stochastic_from - 1) + epilogue
+
+    def check_campaign_ending(self) -> Optional[Ending]:
+        """Return the terminal Ending if the campaign is over, else None.
+
+        Must be called while ``world.turn`` still names the turn that has
+        just been adjudicated (i.e. before the turn counter advances), which
+        is how the CLI loop orders it.
+        """
+        if not self.endings_enabled:
+            return None
+        return check_ending(self.world, final_turn=self.campaign_final_turn)
+
+    def get_debrief_lines(self) -> List[str]:
+        """Plain-text after-action debrief for the ending that fired."""
+        if not self.ending:
+            return []
+        return build_debrief_lines(
+            self.world, self.ending, self.initial_metrics_snapshot, self.transcript
+        )
+
+    def is_over(self) -> bool:
+        """True once a terminal ending has fired."""
+        return self.ending is not None
+
     def resolve_decision(self, action_text: str) -> Dict[str, Any]:
         """Commit and resolve a decision (Adjudication phase)."""
         # 1. Final Interpretation (commit to transcript)
-        interpretation, _, _, decision_lines = run_turn_decision(
+        interpretation, pushback, critical_concerns, decision_lines = run_turn_decision(
             self.world,
             self.scenario_id,
             action_text,
@@ -240,6 +326,12 @@ class GameManager:
         # Keep narrative state clock in sync before the turn advances
         self.narrative_state.turn = self.world.turn
 
+        # Terminal conditions are checked against the turn that just played,
+        # before the counter advances — same ordering as the CLI loop. Without
+        # this a headless session (browser, API) could never finish a campaign.
+        if self.ending is None:
+            self.ending = self.check_campaign_ending()
+
         # Update Phase & Turn
         self.world.turn += 1
         self.world.phase = "briefing"
@@ -252,6 +344,18 @@ class GameManager:
             "effects": final_effects,
             "advisor_reactions": character_responses,
             "international_reactions": [r.dict() for r in actor_responses] if actor_responses else [],
+            "pushback": [{"role": r, "concern": c} for r, c in (pushback or [])],
+            "critical_concerns": [
+                {"role": r, "concern": c, "recommendation": rec}
+                for r, c, rec in (critical_concerns or [])
+            ],
+            "ending": {
+                "ending_id": self.ending.ending_id,
+                "title": self.ending.title,
+                "verdict": self.ending.verdict,
+                "narrative": self.ending.narrative,
+                "debrief": self.get_debrief_lines(),
+            } if self.ending else None,
             "error": error
         }
 
@@ -363,15 +467,37 @@ class GameManager:
 
     # PHASE 3: DIPLOMACY METHODS ---------------------------------------
 
+    def list_diplomatic_channels(self) -> List[Dict[str, Any]]:
+        """Contacts the current alliance standing actually opens a line to."""
+        from engine.diplomacy import list_available_diplomatic_contacts
+
+        return [
+            {"country": country, "access": access, "title": title}
+            for country, access, title in
+            list_available_diplomatic_contacts(self.world, self.root_path)
+        ]
+
     def start_diplomacy(self, country_code: str) -> Dict[str, Any]:
-        """Start a diplomatic encounter."""
-        from engine.diplomacy import DiplomaticEncounter
-        
+        """Start a diplomatic encounter.
+
+        ``country_code`` may be an ISO code ("USA", "DEU"), a country name,
+        or a switchboard key; they are all resolved to the same channel.
+        """
+        from engine.diplomacy import DiplomaticEncounter, normalize_country
+
+        country_code = normalize_country(country_code)
+
+        # The full transcript feeds get_diplomatic_context (public events plus
+        # the secret narrative truth); without it Mystery Mode never colours
+        # foreign leaders' responses. Raw metric numbers must stay out of the
+        # call in metric-hiding modes.
         self.active_encounter = DiplomaticEncounter(
-            self.world, 
-            country_code, 
-            "Player initiated call", 
-            self.root_path
+            self.world,
+            country_code,
+            "Player initiated call",
+            self.root_path,
+            full_transcript=self.transcript,
+            show_metrics=self.play_mode == "classic"
         )
         transcript = self.active_encounter.start(self.rng)
         return {
@@ -398,21 +524,16 @@ class GameManager:
 
     # SAVE / LOAD SYSTEM -----------------------------------------------
 
-    def save_game(self, save_name: str) -> str:
-        """Save current game state to file."""
-        import json
+    def to_dict(self, save_name: str = "session") -> Dict[str, Any]:
+        """Serialise the whole session to a plain dict.
+
+        Split out of save_game so front ends without a filesystem (the
+        browser build stores saves in localStorage) can round-trip a session
+        through exactly the same representation as a save file.
+        """
         from datetime import datetime
-        
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        # Sanitize filename
-        safe_name = "".join(c for c in save_name if c.isalnum() or c in (' ', '-', '_')).strip().replace(' ', '_')
-        filename = f"{safe_name}_{timestamp}.json"
-        
-        save_dir = self.root_path / "saves"
-        save_dir.mkdir(exist_ok=True)
-        save_path = save_dir / filename
-        
-        data = {
+
+        return {
             "metadata": {
                 "save_name": save_name,
                 "timestamp": datetime.now().isoformat(),
@@ -423,49 +544,84 @@ class GameManager:
                 "variant": self.variant,
                 "difficulty": self.difficulty,
                 "play_mode": self.play_mode,
-                "seed": self.seed
+                "seed": self.seed,
+                "mystery_mode": self.mystery_mode,
+                "endings": self.endings_enabled
             },
             "state": {
                 "world": self.world.dict(),
                 "narrative_state": self.narrative_state.dict(),
-                "transcript": self.transcript
+                "transcript": self.transcript,
+                "initial_metrics": self.initial_metrics_snapshot,
+                "ending_id": self.ending.ending_id if self.ending else None
             }
         }
-        
+
+    def save_game(self, save_name: str) -> str:
+        """Save current game state to file."""
+        import json
+        from datetime import datetime
+
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        # Sanitize filename
+        safe_name = "".join(c for c in save_name if c.isalnum() or c in (' ', '-', '_')).strip().replace(' ', '_')
+        filename = f"{safe_name}_{timestamp}.json"
+
+        save_dir = self.root_path / "saves"
+        save_dir.mkdir(exist_ok=True)
+        save_path = save_dir / filename
+
         with open(save_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, default=str)
-            
+            json.dump(self.to_dict(save_name), f, indent=2, default=str)
+
         return str(save_path)
 
     @classmethod
-    def load_game(cls, save_path: str) -> 'GameManager':
-        """Load game from file."""
-        import json
-        
-        with open(save_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            
+    def from_dict(cls, data: Dict[str, Any]) -> 'GameManager':
+        """Rebuild a session from the dict produced by to_dict."""
         config = data["config"]
         state = data["state"]
-        
-        # Create instance
+
+        # Create instance. mystery_mode is replayed so the reconstructed
+        # session knows it is a Mystery campaign; the drawn narrative itself
+        # is restored verbatim from the saved world below, not re-rolled.
         manager = cls(
             scenario_id=config["scenario_id"],
             variant=config.get("variant", "standard"),
             difficulty=config.get("difficulty", "standard"),
             play_mode=config.get("play_mode", "immersive"),
-            seed=config["seed"]
+            seed=config["seed"],
+            mystery_mode=config.get("mystery_mode", False),
+            endings=config.get("endings")
         )
-        
+
         # Restore state
         from models.world import WorldState
-        
+
         # Note: WorldState.parse_obj will handle nested ActorSystem if model structure matches
         manager.world = WorldState.parse_obj(state["world"])
         manager.narrative_state = NarrativeState.parse_obj(state["narrative_state"])
         manager.transcript = state["transcript"]
-        
+        if state.get("initial_metrics"):
+            manager.initial_metrics_snapshot = state["initial_metrics"]
+
+        # A campaign that ended must load as ended. Without this the restored
+        # session reports is_over() == False, and a front end that resumes on
+        # that answer (the browser build does) drops the player back into a
+        # graded, finished game instead of showing them the ending.
+        manager.ending = get_ending(state.get("ending_id"))
+
         return manager
+
+    @classmethod
+    def load_game(cls, save_path: str) -> 'GameManager':
+        """Load game from file."""
+        import json
+
+        with open(save_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        return cls.from_dict(data)
 
     def list_saves(self) -> List[Dict[str, Any]]:
         """List available save files."""

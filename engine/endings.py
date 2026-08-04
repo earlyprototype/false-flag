@@ -29,6 +29,87 @@ class Ending:
         self.narrative = narrative
 
 
+# Every ending the game can reach, keyed by the id that gets persisted in a
+# save file. A save stores only the id, so this table is what lets a finished
+# campaign be reconstructed as finished (see GameManager.from_dict); adding an
+# ending anywhere else would make it unloadable.
+ENDINGS: Dict[str, Ending] = {
+    e.ending_id: e
+    for e in (
+        Ending(
+            "war",
+            "THE GUNS OF OCTOBER",
+            "defeat",
+            "The escalation spiral has passed the point of no return. Russian "
+            "and NATO forces are exchanging fire in the North Atlantic, and "
+            "the first strikes against the British mainland are under way. "
+            "Whatever happens next is no longer a crisis — it is a war, and "
+            "history will ask whether it had to happen.",
+        ),
+        Ending(
+            "collapse",
+            "A GOVERNMENT FALLS",
+            "defeat",
+            "The country has stopped listening. Panic buying, blackouts and "
+            "street disorder have outrun every reassurance, and this morning "
+            "the Cabinet concluded the Government can no longer command the "
+            "confidence of the House. Your resignation is expected by noon. "
+            "The crisis will be someone else's to finish.",
+        ),
+        Ending(
+            "isolation",
+            "ALONE IN THE STORM",
+            "defeat",
+            "One by one, the capitals stopped returning calls. NATO's "
+            "consultations have collapsed into recrimination, Washington is "
+            "publicly 'reviewing its commitments', and Moscow knows it. The "
+            "United Kingdom now faces a superpower's coercion campaign "
+            "alone — which was the object of the exercise all along.",
+        ),
+        Ending(
+            "resolution",
+            "THE LINE HELD",
+            "victory",
+            "The submarines are returning north. With the alliance intact "
+            "and the escalation contained, Moscow's coercion campaign has "
+            "quietly run out of road. There will be inquiries, and the "
+            "dead will not come back — but the United Kingdom faced down "
+            "a superpower without a war, and NATO is stronger for it.",
+        ),
+        Ending(
+            "uneasy_peace",
+            "AN UNEASY PEACE",
+            "partial",
+            "The immediate crisis has passed, but nobody is calling it a "
+            "victory. The alliance held — barely — and the North Atlantic "
+            "remains a more dangerous place than it was a month ago. The "
+            "next test will come, and both sides know it.",
+        ),
+        Ending(
+            "weakness",
+            "TESTED AND FOUND WANTING",
+            "defeat",
+            "The shooting never started, but the verdict is in. Allies hedge, "
+            "adversaries probe, and the country doubts itself. Moscow set out "
+            "to demonstrate that NATO's resolve was hollow — and the record "
+            "of these weeks will be taught, for years, as the proof.",
+        ),
+    )
+}
+
+
+def get_ending(ending_id: Optional[str]) -> Optional[Ending]:
+    """Look an Ending up by the id stored in a save file.
+
+    Returns None for a missing/unknown id rather than raising: a save written
+    by a future build that added an ending should still load as a playable
+    session instead of failing outright.
+    """
+    if not ending_id:
+        return None
+    return ENDINGS.get(str(ending_id))
+
+
 def check_ending(world: WorldState, final_turn: int) -> Optional[Ending]:
     """Check whether the campaign has reached a terminal state.
 
@@ -43,73 +124,21 @@ def check_ending(world: WorldState, final_turn: int) -> Optional[Ending]:
     m = world.metrics
 
     if m.escalation_risk >= 100:
-        return Ending(
-            "war",
-            "THE GUNS OF OCTOBER",
-            "defeat",
-            "The escalation spiral has passed the point of no return. Russian "
-            "and NATO forces are exchanging fire in the North Atlantic, and "
-            "the first strikes against the British mainland are under way. "
-            "Whatever happens next is no longer a crisis — it is a war, and "
-            "history will ask whether it had to happen.",
-        )
+        return ENDINGS["war"]
 
     if m.domestic_stability <= 0:
-        return Ending(
-            "collapse",
-            "A GOVERNMENT FALLS",
-            "defeat",
-            "The country has stopped listening. Panic buying, blackouts and "
-            "street disorder have outrun every reassurance, and this morning "
-            "the Cabinet concluded the Government can no longer command the "
-            "confidence of the House. Your resignation is expected by noon. "
-            "The crisis will be someone else's to finish.",
-        )
+        return ENDINGS["collapse"]
 
     if m.alliance_cohesion <= 0:
-        return Ending(
-            "isolation",
-            "ALONE IN THE STORM",
-            "defeat",
-            "One by one, the capitals stopped returning calls. NATO's "
-            "consultations have collapsed into recrimination, Washington is "
-            "publicly 'reviewing its commitments', and Moscow knows it. The "
-            "United Kingdom now faces a superpower's coercion campaign "
-            "alone — which was the object of the exercise all along.",
-        )
+        return ENDINGS["isolation"]
 
     if world.turn >= final_turn:
         # Scenario complete: grade the resolution
         if m.escalation_risk < 50 and m.alliance_cohesion >= 50:
-            return Ending(
-                "resolution",
-                "THE LINE HELD",
-                "victory",
-                "The submarines are returning north. With the alliance intact "
-                "and the escalation contained, Moscow's coercion campaign has "
-                "quietly run out of road. There will be inquiries, and the "
-                "dead will not come back — but the United Kingdom faced down "
-                "a superpower without a war, and NATO is stronger for it.",
-            )
+            return ENDINGS["resolution"]
         if m.escalation_risk < 70 and m.alliance_cohesion >= 30:
-            return Ending(
-                "uneasy_peace",
-                "AN UNEASY PEACE",
-                "partial",
-                "The immediate crisis has passed, but nobody is calling it a "
-                "victory. The alliance held — barely — and the North Atlantic "
-                "remains a more dangerous place than it was a month ago. The "
-                "next test will come, and both sides know it.",
-            )
-        return Ending(
-            "weakness",
-            "TESTED AND FOUND WANTING",
-            "defeat",
-            "The shooting never started, but the verdict is in. Allies hedge, "
-            "adversaries probe, and the country doubts itself. Moscow set out "
-            "to demonstrate that NATO's resolve was hollow — and the record "
-            "of these weeks will be taught, for years, as the proof.",
-        )
+            return ENDINGS["uneasy_peace"]
+        return ENDINGS["weakness"]
 
     return None
 

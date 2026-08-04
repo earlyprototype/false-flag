@@ -1,0 +1,227 @@
+<div class="fogwrap"><pre class="rig wide" aria-hidden="true">{{fog_hero}}</pre></div>
+<h1 class="offscreen">FALSE FLAG — Operation Tuman, an LLM-driven COBRA crisis simulation</h1>
+<pre class="rig mast" role="img" aria-label="FALSE FLAG — Operation Tuman, a COBRA crisis simulation">{{mast}}</pre>
+<div class="fogwrap"><pre class="rig wide" aria-hidden="true">{{fog_thin}}</pre></div>
+
+<p class="lede" style="margin-top:34px">You are the Prime Minister of the United
+Kingdom. Russia has staged an attack on its own naval base and blamed Britain
+for it. Fifteen submarines are in the North Atlantic. Five advisors are around
+the COBRA table waiting for you — and not one of them is a menu.</p>
+
+<p>FALSE FLAG is a crisis wargame that runs in a terminal. Every advisor,
+ambassador and head of government is an LLM agent with its own brief, its own
+memory of the campaign so far, and — in one mode — its own secret. You do not
+pick option (b). You write a paragraph in your own words, and the game
+adjudicates it: interprets what you actually ordered, lets the room object,
+and makes the world answer.</p>
+
+<ul class="chips">
+  <li>PLATFORM <b>TERMINAL · BROWSER</b></li>
+  <li>ADVISORS <b>LLM AGENTS</b></li>
+  <li>INPUT <b>FREE TEXT</b></li>
+  <li>LICENCE <b>MIT</b></li>
+</ul>
+
+<div class="note"><b>Read this first.</b> Two different things are on this
+site and it matters which one you are looking at. <a href="play/index.html">The
+play page</a> is the game itself: the same Python engine, compiled to
+WebAssembly and running inside your browser, with no server behind it. You type
+a paragraph and the room answers you. Everything <em>else</em> here is a
+record — real terminal captures from real runs, rendered to HTML with the
+colour and box-drawing intact. <a href="replay.html">The campaign you can
+read</a> is a genuine one, not a mock-up, but it is a recording: you are
+watching a game that was already played. The game's home is still a terminal,
+and the full build is the one you clone and run there.</div>
+
+<h2 class="rule"><span class="num">01</span><span>[ THE COLD OPEN ]</span><span class="fill"></span></h2>
+
+<p>The game opens seventy-two hours before you are read in. It shows you the
+thing you were not there to see.</p>
+
+<pre class="rig wide" aria-hidden="true">{{scene}}</pre>
+
+<p style="margin-top:20px">Seven ballistic missile submarines leave Kola Bay in
+the dark. Then the scene cuts to Northwood, then to the briefing room beneath
+70 Whitehall, and you are handed the crisis at the point where it becomes
+yours. Two F-35 pilots shot dead in Norfolk. A hundred Russian sailors killed
+at Severomorsk, with Moscow blaming London. Cyber attacks up sixty-five per
+cent. Russian diplomatic families leaving the country at speed.</p>
+
+<p>Ten minutes into your first COBRA meeting, a junior officer hands the
+National Security Advisor a tablet:</p>
+
+{{TERM_BRIEF}}
+
+<pre class="rig" aria-hidden="true">{{sonar_0}}</pre>
+
+<h2 class="rule"><span class="num">02</span><span>[ YOU WRITE A PARAGRAPH ]</span><span class="fill"></span></h2>
+
+<p>This is the whole interface. There is no list of actions, no approval
+meter, no cooldown. The prompt is <code>&gt;:</code> and it accepts English.
+Here is the first decision of the campaign on the
+<a href="replay.html">replay page</a>, exactly as it was typed —</p>
+
+{{TERM_DECISION}}
+
+<p>— and here is what the engine made of it, one LLM pass later: a reading of
+what was actually ordered, which forces it named, and how long it takes.</p>
+
+{{TERM_ORDER}}
+
+<p>Nothing in that order was on a menu. "I want the room itself watched — a
+record of who pushes which conclusion at what hour" is not a game verb. It
+became one, because the adjudicator is a language model and the world state it
+updates is written in the same language you gave it.</p>
+
+<pre class="rig" aria-hidden="true">{{sonar_1}}</pre>
+
+<h2 class="rule"><span class="num">03</span><span>[ THE ROOM ARGUES BACK ]</span><span class="fill"></span></h2>
+
+<p>Before anything happens, your advisors read the decision and file
+objections. Militarily implausible, legally exposed, diplomatically reckless,
+domestically dangerous — each in their own voice, each with a specific
+recommendation attached.</p>
+
+{{TERM_ADVISORY}}
+
+<p>You then choose: apply all of it, apply some of it, rewrite the decision
+yourself, or ignore the room entirely and proceed. Ignoring five critical
+advisories is allowed. It is simply a thing you did, and the campaign
+remembers it.</p>
+
+<h3 class="sub">AND YOU CAN PICK UP THE PHONE</h3>
+
+<p><code>/call russia</code> opens a live conversation with an actor who is
+not on your side and does not share your brief. The ambassador knows things
+you do not; the transcript of your COBRA deliberations is filtered out of
+their context before they answer, so they can only respond to what you have
+actually said to them.</p>
+
+{{TERM_CALL}}
+
+<pre class="rig" aria-hidden="true">{{sonar_2}}</pre>
+
+<h2 class="rule"><span class="num">04</span><span>[ THE HIDDEN NARRATIVE ]</span><span class="fill"></span></h2>
+
+<p>This is the part that makes FALSE FLAG unusual. At campaign start you can
+choose Mystery Mode, and the game draws a secret truth — the actual shape of
+the crisis — and tells nobody.</p>
+
+{{TERM_MYSTERY}}
+
+<p>That truth is then injected into every foreign agent's system prompt as a
+motive they must act on and must not state. Russia may be exactly what it
+looks like. Or Russia may be somebody else's instrument, and the country
+whose ambassador keeps counselling calm may be the one running the
+operation. You are not scored on guessing. You just start noticing that
+Washington is holding intelligence back, or that Paris keeps taking meetings
+it does not mention, and you have to decide what to do about a suspicion you
+cannot prove.</p>
+
+<details class="spoiler">
+<summary>[ SEALED ] Open the envelope — how a hidden narrative is actually written</summary>
+<div class="body">
+<p style="margin-top:14px">Each narrative is a small YAML document giving every
+nation a secret motive, a public posture, and an intelligence-sharing level
+that ranges from <em>Full</em> to <em>Sabotaged</em>. This is one of them. If
+you would rather deduce it in play, close this.</p>
+{{TERM_NARRATIVE}}
+<p>The player never sees this file's contents in game. The advisors do not see
+it either — only the foreign actors do, each getting the global truth plus
+their own stance, which is why the room can be sincerely wrong.</p>
+</div>
+</details>
+
+<p><a href="https://github.com/earlyprototype/false-flag/blob/main/docs/DYNAMIC_NARRATIVE_SYSTEM.md">How
+the hidden-narrative engine is wired →</a></p>
+
+<pre class="rig" aria-hidden="true">{{sonar_3}}</pre>
+
+<h2 class="rule"><span class="num">05</span><span>[ BETWEEN TURNS ]</span><span class="fill"></span></h2>
+
+<p>When a turn closes, the game does not go straight to the next briefing. A
+short ASCII vignette plays — three to six seconds, skippable, Whitehall
+deadpan. A JIC memo chatters out of a teleprinter and is redacted paragraph by
+paragraph until the last one is a solid black bar.</p>
+
+<figure class="vig">
+  <div class="shot">
+    <img src="media/interstitials/teleprinter.gif" alt="An ASCII teleprinter types out a JIC memo which is progressively blacked out until the final paragraph is solid redaction, leaving the words PM EYES ONLY and a tea-ring stain."
+         width="2800" height="898" loading="lazy" decoding="async">
+  </div>
+  <figcaption>
+    <div class="name">TELEPRINTER <span class="k">· interstitial</span></div>
+    <p class="beat">Burst, burst, breath — carriage-return beats, and the
+    redaction gets heavier with every paragraph.</p>
+    <div class="punch">PM EYES ONLY.</div>
+  </figcaption>
+</figure>
+
+<p><a href="interstitials.html">All five vignettes →</a></p>
+
+<pre class="rig" aria-hidden="true">{{sonar_4}}</pre>
+
+<h2 class="rule"><span class="num">06</span><span>[ READ A REAL CAMPAIGN ]</span><span class="fill"></span></h2>
+
+<p>Seventeen turns, played end to end against a live LLM backend and captured
+from the terminal. It begins with a submarine surfacing off Orkney. It ends
+with the Prime Minister no longer investigating an attack on Britain, but
+hunting a service that wears other countries' faces. None of that arc was
+written in advance.</p>
+
+<ul class="chips">
+  <li>TURNS <b>17</b></li>
+  <li>WORDS OF TRANSCRIPT <b>{{C4_WORDS}}</b></li>
+  <li>DECISIONS <b>FREE TEXT, EVERY ONE</b></li>
+  <li>SCRIPTED OUTCOMES <b>NONE</b></li>
+</ul>
+
+<p><a href="replay.html"><strong>Open the seventeen-turn replay →</strong></a></p>
+
+<h3 class="sub">AND A SHORTER ONE, LOOKING FOR THE WALL</h3>
+
+<p>A second capture, three turns long, in which the Prime Minister orders a
+nuclear strike on Moscow in the first turn and spends the next two finding out
+what the machinery around them does about it. The order is refused — not by a
+scripted failure state, but by advisors and an adjudicator reasoning in
+character about an unlawful instruction. The Prime Minister then goes on
+television and announces the strike anyway.</p>
+
+<p><a href="replay-nuclear-order.html">Open the nuclear-order replay
+({{C5_WORDS}} words) →</a></p>
+
+<pre class="rig" aria-hidden="true">{{sonar_5}}</pre>
+
+<h2 class="rule"><span class="num">07</span><span>[ RUN IT YOURSELF ]</span><span class="fill"></span></h2>
+
+<p>It is a Python project with six dependencies and no account to create.</p>
+
+<div class="panel">
+<span class="cap">LINUX / MACOS <b>· SHELL</b></span>
+<pre class="console" style="border:0;padding:0"><code>git clone https://github.com/earlyprototype/false-flag.git
+cd false-flag
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python -m cli.main play</code></pre>
+</div>
+
+<p>With nothing configured it runs in a deterministic <strong>mock</strong>
+advisor mode: you get the full turn structure — briefing, cabinet Q&amp;A,
+decision, adjudication — with canned advisor voices and no network calls.
+That proves the game runs. It does not reason about what you wrote.</p>
+
+<p>For the real thing, point it at any OpenAI-compatible endpoint by copying
+<code>config.example.py</code> to <code>config.py</code> and uncommenting one
+preset: Groq, OpenRouter, or a local Ollama model that needs no key at all.
+Every capture on this site was produced that way. Windows instructions, the
+provider comparison and the local-model walkthrough are in the
+<a href="https://github.com/earlyprototype/false-flag#readme">README</a>.</p>
+
+<div class="note"><b>What this is not.</b> It is not a product and it is not a
+forecast. The <a href="play/index.html">browser build</a> is the real engine
+rather than a demo of one, but it is the same game brought to where you are,
+not a lighter version of it — and the replays elsewhere on this site stay
+recordings, not something you are playing. What FALSE FLAG is, is a wargame
+about how a small number of people make irreversible decisions on partial
+information, and it is honest about being a simulation with a language model
+in the middle of it.</div>
