@@ -147,6 +147,15 @@ class _Handler(BaseHTTPRequestHandler):
             # inflated a 47s campaign to 195s. Measurement must not perturb
             # what it measures.
             self.server.promptfile.write(json.dumps(prompt) + "\n")
+            # Flushed here, before the record that describes it. The two
+            # sidecars are paired positionally, so the order the bytes reach
+            # disk decides what a reader can trust: flush the record first and
+            # the log runs ahead of the prompts, and a read mid-run - or after
+            # a kill landing between the two flushes - sees a record whose
+            # prompt is still in a buffer. This way round the invariant holds
+            # both ways: every record on disk has its prompt already on disk,
+            # and any excess prompts are simply the request in flight.
+            self.server.promptfile.flush()
 
             record = {
                 "seq": self.server.seq,
@@ -163,12 +172,6 @@ class _Handler(BaseHTTPRequestHandler):
             }
             self.server.logfile.write(json.dumps(record) + "\n")
             self.server.logfile.flush()
-            # Flush the sidecar too. Only the record file was flushed, so a
-            # log read while the server is still up (or after a kill) had more
-            # records than prompts - 149 against 146 on a ten-turn campaign -
-            # and analyse_calls paired them positionally. It now refuses that
-            # file rather than analysing a prefix of the run and looking clean.
-            self.server.promptfile.flush()
 
         payload = json.dumps({
             "id": f"fake-{record['seq']}",

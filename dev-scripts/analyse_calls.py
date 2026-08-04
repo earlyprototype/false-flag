@@ -34,9 +34,16 @@ def load(path):
     # zip stops at the shorter input, so a truncated sidecar would silently
     # leave records unanalysed and a missing middle line would shift every
     # later pairing. Neither should look like a clean run.
-    if len(records) != len(prompts):
+    #
+    # The server writes and flushes a prompt before writing its record, so
+    # fewer prompts than records means the pairing is broken - a lost or
+    # truncated line - and the file is refused. More prompts than records is
+    # the benign direction: a request that was logged between the two writes,
+    # or a read taken while the server is still up. Those trailing prompts
+    # have no record to pair with and are dropped.
+    if len(prompts) < len(records):
         raise ValueError(f"{path} has {len(records)} records but "
-                         f"{path}.prompts has {len(prompts)} prompts")
+                         f"{path}.prompts has only {len(prompts)} prompts")
     for record, prompt in zip(records, prompts):
         reusable = 0
         for earlier in seen:
