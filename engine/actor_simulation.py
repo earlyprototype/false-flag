@@ -221,8 +221,11 @@ def identify_relevant_actors(action: str, actor_system: StateActorSystem, max_ac
     if not relevant:
         relevant = ["USA", "FRA", "POL"]  # Default key actors
     
-    # Deduplicate
-    relevant = list(set(relevant))
+    # Deduplicate, preserving order. list(set(...)) varies with PYTHONHASHSEED,
+    # so the international responses came back in a different order on every
+    # process - including replays of the same seed, and including the tie-break
+    # in the relationship sort below.
+    relevant = list(dict.fromkeys(relevant))
     
     # Limit to max_actors, prioritize by relationship_uk
     if len(relevant) > max_actors:
