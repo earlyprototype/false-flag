@@ -87,6 +87,39 @@
       <p class="keystate" id="keystate">No key set — the advisors will use the offline stand-in.</p>
     </div>
 
+    <!-- Shown only when this deploy actually ships docs/play/shared-key.json.
+         app.js fetches that file on load and reveals this panel if a
+         well-formed blob comes back; forks without one never see it. -->
+    <div class="panel" id="sharedPanel" hidden>
+      <span class="cap">──  <b>OR: PLAY ON THE OWNER'S KEY</b>  ──  PASSPHRASE REQUIRED</span>
+
+      <p>This copy of the page carries the owner's OpenRouter key, encrypted.
+      If you were sent a passphrase, type it here and the advisors come alive
+      without you needing a key of your own. Without the passphrase the
+      encrypted blob is useless, to you and to everyone else who reads this
+      page.</p>
+
+      <p><strong>You would be spending someone else's money.</strong> They have
+      put a credit limit on the key, so there is a floor under what this can
+      cost them, but play as if the bill were yours. Do not pass the passphrase
+      on: it is the only thing standing between that key and everyone on the
+      internet.</p>
+
+      <div class="keyrow">
+        <div>
+          <label for="sharedPass">PASSPHRASE</label>
+          <input type="password" id="sharedPass" autocomplete="off" spellcheck="false"
+                 placeholder="the passphrase you were sent" aria-describedby="sharedState">
+        </div>
+        <button type="button" id="unlockShared">Unlock</button>
+      </div>
+      <p class="keystate" id="sharedState">Locked.</p>
+      <p class="hint">The key is decrypted into memory and dies with this tab.
+      It is not written to this browser's storage and there is deliberately no
+      “remember it” option here — remembering a key that is not yours defeats
+      the point of locking it up.</p>
+    </div>
+
     <div class="panel">
       <span class="cap">──  <b>CAMPAIGN SETUP</b></span>
       <div class="fields row">
@@ -119,6 +152,7 @@
       <div class="actions">
         <button type="button" class="primary" id="startNoKey">Play without a key</button>
         <button type="button" id="startWithKey" hidden>Begin campaign</button>
+        <button type="button" id="startShared" hidden>Begin campaign — shared key</button>
       </div>
     </div>
 

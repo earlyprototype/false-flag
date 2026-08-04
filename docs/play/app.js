@@ -45,6 +45,7 @@
   var el = {};
   [
     'gate', 'stage', 'apikey', 'remember', 'useKey', 'keystate',
+    'sharedPanel', 'sharedPass', 'unlockShared', 'sharedState', 'startShared',
     'scenario', 'playMode', 'mysteryMode', 'seed', 'startNoKey', 'startWithKey',
     'screen', 'metrics', 'termTitle', 'termRef', 'widthToggle',
     'awaiting', 'awaitingTag', 'awaitingWhat', 'controls',
@@ -58,6 +59,8 @@
 
   var ui = {
     apiKey: null,        // in memory only unless "remember" was ticked
+    sharedBlob: null,    // the published ciphertext, if this deploy has one
+    sharedKey: null,     // decrypted owner's key — MEMORY ONLY, never stored
     booted: false,
     bootBuf: null,       // the boot frame, replaced in place until ready
     fatal: false,
@@ -545,6 +548,22 @@
     return head + '…' + tail;
   }
 
+  /* Which start buttons exist, and which one is the obvious one to press.
+     Your own key wins over the shared key when you have set both; the shared
+     key wins over nothing. Only ever one primary. */
+  function refreshStart() {
+    var own = !!ui.apiKey;
+    var shared = !!(el.startShared && ui.sharedKey);
+    el.startWithKey.hidden = !own;
+    if (el.startShared) el.startShared.hidden = !shared;
+
+    el.startNoKey.textContent = (own || shared)
+      ? 'Play without using it' : 'Play without a key';
+    el.startNoKey.classList.toggle('primary', !own && !shared);
+    el.startWithKey.classList.toggle('primary', own);
+    if (el.startShared) el.startShared.classList.toggle('primary', shared && !own);
+  }
+
   function showKeyState() {
     if (ui.apiKey) {
       el.keystate.innerHTML = '';
@@ -562,16 +581,10 @@
         clearKey();
       });
       el.keystate.appendChild(drop);
-      el.startWithKey.hidden = false;
-      el.startNoKey.textContent = 'Play without using it';
-      el.startNoKey.classList.remove('primary');
-      el.startWithKey.classList.add('primary');
     } else {
       el.keystate.textContent = 'No key set — the advisors will use the offline stand-in.';
-      el.startWithKey.hidden = true;
-      el.startNoKey.textContent = 'Play without a key';
-      el.startNoKey.classList.add('primary');
     }
+    refreshStart();
   }
 
   function clearKey() {
@@ -609,6 +622,125 @@
     showKeyState();
   })();
 
+  // ----------------------------------------------------------- shared key
+  /* A deploy may ship the owner's OpenRouter key encrypted under a passphrase
+   * he hands out separately (see dev-scripts/encrypt-key.html and the README).
+   * The page is static — GitHub Pages has no server and can keep no secret —
+   * so the only honest way to do this is to publish ciphertext and let the
+   * passphrase, which is never published, be the thing that opens it.
+   *
+   *   PBKDF2-HMAC-SHA256(passphrase, salt, iterations) -> AES-256-GCM key
+   *
+   * A wrong passphrase derives a different AES key, the GCM tag does not
+   * verify, and subtle.decrypt rejects. That rejection is the *only* check:
+   * there is no verifier field, no plaintext canary and no format assertion
+   * on the result, because any of those would answer questions an attacker
+   * with the public blob is entitled to no answer to. All this page ever says
+   * is that the passphrase did not work.
+   *
+   * The recovered key is held in `ui.sharedKey` and passed to the worker.
+   * It is never written to localStorage or sessionStorage, never rendered
+   * into the DOM (not even masked, unlike your own key), and never logged.
+   * Closing the tab is the end of it.
+   */
+  var SHARED_BLOB = 'shared-key.json';
+  var SHARED_MIN_ITERS = 100000;      // refuse a blob weakened below this
+  var SHARED_MAX_ITERS = 10000000;    // and one that would wedge the tab
+
+  function fromB64(s) {
+    var bin = atob(s);
+    var out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  function wellFormedBlob(j) {
+    return !!j && j.v === 1 && j.kdf === 'PBKDF2-SHA256' &&
+      typeof j.salt === 'string' && typeof j.iv === 'string' &&
+      typeof j.ct === 'string' && j.ct.length > 0 &&
+      typeof j.iterations === 'number' && isFinite(j.iterations) &&
+      j.iterations >= SHARED_MIN_ITERS && j.iterations <= SHARED_MAX_ITERS;
+  }
+
+  function unsealShared(blob, pass) {
+    var subtle = window.crypto && window.crypto.subtle;
+    if (!subtle) return Promise.reject(new Error('no WebCrypto'));
+    return subtle.importKey(
+      'raw', new TextEncoder().encode(String(pass).normalize('NFKC')),
+      'PBKDF2', false, ['deriveKey']
+    ).then(function (base) {
+      return subtle.deriveKey(
+        { name: 'PBKDF2', salt: fromB64(blob.salt),
+          iterations: blob.iterations, hash: 'SHA-256' },
+        base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    }).then(function (key) {
+      return subtle.decrypt(
+        { name: 'AES-GCM', iv: fromB64(blob.iv), tagLength: 128 },
+        key, fromB64(blob.ct));
+    }).then(function (plain) {
+      return new TextDecoder().decode(plain);
+    });
+  }
+
+  function setSharedState(text, tone) {
+    if (!el.sharedState) return;
+    el.sharedState.textContent = text;
+    el.sharedState.style.color = tone === 'bad' ? 'var(--red)'
+      : tone === 'work' ? 'var(--dim)' : '';
+  }
+
+  /* Probe for the blob. No file, a 404, or anything that is not a blob of the
+     shape above, and the option is never offered at all — which is what most
+     forks of this repository will see. */
+  (function probeShared() {
+    if (!el.sharedPanel || !(window.crypto && window.crypto.subtle)) return;
+    fetch(SHARED_BLOB, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!wellFormedBlob(j)) return;
+        ui.sharedBlob = j;
+        el.sharedPanel.hidden = false;
+      })
+      .catch(function () { /* no shared key here; nothing to offer */ });
+  })();
+
+  function unlockShared() {
+    var pass = el.sharedPass.value;
+    if (!ui.sharedBlob || !pass) { el.sharedPass.focus(); return; }
+    var button = el.unlockShared;
+    var label = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Working…';
+    setSharedState('Working — the key stretching is slow on purpose.', 'work');
+    unsealShared(ui.sharedBlob, pass).then(function (key) {
+      if (!key) throw new Error('empty');
+      ui.sharedKey = key;
+      el.sharedPass.value = '';
+      el.sharedPass.disabled = true;
+      button.hidden = true;
+      setSharedState('Unlocked. The key is in memory for this tab only — ' +
+                     'it is not stored anywhere and reloading loses it.');
+      refreshStart();
+    }).catch(function () {
+      // Deliberately the same, uninformative sentence for every failure.
+      ui.sharedKey = null;
+      setSharedState('That passphrase did not work.', 'bad');
+      refreshStart();
+    }).then(function () {
+      if (!button.hidden) {
+        button.disabled = false;
+        button.textContent = label;
+      }
+    });
+  }
+
+  if (el.unlockShared) {
+    el.unlockShared.addEventListener('click', unlockShared);
+    el.sharedPass.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); unlockShared(); }
+    });
+  }
+
   // -------------------------------------------------------------- startup
 
   function campaignConfig() {
@@ -621,10 +753,14 @@
     };
   }
 
-  function beginCampaign(useKey) {
+  /* `source` is 'own' (the key you pasted), 'shared' (the owner's key, if you
+     unlocked it) or 'none' (the offline stand-in). */
+  function beginCampaign(source) {
     // "Play without using it" leaves a stored key alone; it just is not sent
     // to the engine for this campaign.
-    ui.keyForRun = useKey ? (ui.apiKey || '') : '';
+    ui.keyForRun = source === 'own' ? (ui.apiKey || '')
+      : source === 'shared' ? (ui.sharedKey || '')
+      : '';
     el.gate.hidden = true;
     el.stage.hidden = false;
     el.stageTitle.textContent = 'PLAY ── ' +
@@ -638,8 +774,11 @@
     el.screen.focus();
   }
 
-  el.startNoKey.addEventListener('click', function () { beginCampaign(false); });
-  el.startWithKey.addEventListener('click', function () { beginCampaign(true); });
+  el.startNoKey.addEventListener('click', function () { beginCampaign('none'); });
+  el.startWithKey.addEventListener('click', function () { beginCampaign('own'); });
+  if (el.startShared) {
+    el.startShared.addEventListener('click', function () { beginCampaign('shared'); });
+  }
 
   // ----------------------------------------------------------------- tabs
 
@@ -701,12 +840,15 @@
     send({ type: 'endTurn' });
   });
 
-  // Expose a little state for automated driving of the page.
+  // Expose a little state for automated driving of the page. Booleans and
+  // screen text only — no key material, of either kind, ever leaves here.
   window.FF_PLAY = {
     get worker() { return workerName; },
     get awaiting() { return ui.awaiting; },
     get booted() { return ui.booted; },
     get over() { return ui.over; },
+    get sharedOffered() { return !!ui.sharedBlob; },
+    get sharedUnlocked() { return !!ui.sharedKey; },
     text: function () { return el.screen.textContent; }
   };
 })();

@@ -41,6 +41,15 @@ config.py
 saves/
 *.json
 
+# The shared-key blob for the browser build is NOT given an ignore rule of its
+# own: it is ciphertext, it is meant to be published, and it is the owner's
+# deliberate decision to publish it. It is caught by the blanket *.json above,
+# which is the behaviour we want — you have to ask for it by name:
+#   git add -f docs/play/shared-key.json
+# The worked example beside it is committed so the format is documented even
+# on forks that ship no key of their own.
+!docs/play/shared-key.example.json
+
 # Logs
 *.log
 

@@ -81,6 +81,60 @@ Mock mode proves the game runs (and each advisor now has their own canned voice)
 
 See [docs/LLM_PROVIDERS.md](docs/LLM_PROVIDERS.md) for the full provider comparison (free-tier status as of Aug 2026), recommended models, and the Ollama local walkthrough. The original Google Gemini path still works ([docs/GEMINI_SETUP.md](docs/GEMINI_SETUP.md)), but its free tier is now heavily restricted.
 
+## Sharing one key with playtesters (browser build)
+
+`docs/play/` is the same engine compiled to WebAssembly and served as a static site. A player can bring their own OpenRouter key, or play with no key at all against the offline stand-in. There is a third option: **you can publish your own key, encrypted under a passphrase, and hand the passphrase to testers.**
+
+GitHub Pages has no server, so nothing shipped with the page can be a secret — a JavaScript password check is bypassed by opening the console, and a plaintext key in a public repo is a plaintext key forever. So the key is *encrypted*, the ciphertext is published, and the passphrase — which is never published — is the only thing that opens it.
+
+### Generating the blob
+
+1. Create a key at [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) that you use for nothing else, and **set a credit limit on it.** Everyone who unlocks the page spends from it. This is not optional; it is the only thing bounding your exposure.
+2. Open `dev-scripts/encrypt-key.html` from disk (`file://`). It is a single self-contained page with no dependencies, no build step and a Content Security Policy that forbids every outbound request the browser can make. It is the only place in this project that ever sees the key in the clear, and it runs on your machine.
+3. Press **Generate a passphrase** and use what it gives you. Weak passphrases are refused: the passphrase is the entire security of this scheme.
+4. Paste the key, press **Encrypt**. The page decrypts what it just produced and checks it round-trips before offering it to you.
+5. Save the output as `docs/play/shared-key.json` and commit it deliberately:
+
+   ```bash
+   git add -f docs/play/shared-key.json
+   ```
+
+   The `-f` is required and intended. The repo's `.gitignore` ignores `*.json` wholesale, so this file cannot be committed by accident — but it is not given an ignore rule of its own either, because you *do* need to be able to commit it. `docs/play/shared-key.example.json` is committed as a worked example of the format; it decrypts, with the passphrase `example-passphrase-not-a-secret-1234567890`, to the fake key `sk-or-v1-EXAMPLE-NOT-A-REAL-KEY`.
+
+6. Send the passphrase to testers **out of band** — Signal, a phone call, anything that is not the repository, the issue tracker, a commit message or the page itself. A passphrase stored next to the ciphertext buys you nothing.
+
+The play page fetches `shared-key.json` on load. If it is absent — which is what every fork will see — the option is never offered, and the own-key and no-key paths are untouched.
+
+### What the crypto is
+
+PBKDF2-HMAC-SHA256 over a fresh 16-byte random salt, at least 600,000 iterations, deriving a 256-bit AES-GCM key; AES-256-GCM under a fresh 12-byte random IV. All `window.crypto.subtle`; no library, no invented scheme.
+
+```json
+{"v":1,"kdf":"PBKDF2-SHA256","iterations":600000,"salt":"<b64>","iv":"<b64>","ct":"<b64>"}
+```
+
+A wrong passphrase derives a different AES key and fails on the GCM authentication tag. There is no verifier field, no hint and no password check in the blob, so a wrong guess produces exactly one signal — failure — and the page says only *"that passphrase did not work"*. Attacking the blob therefore costs exactly what guessing the passphrase costs, times the iteration count.
+
+On the page, the decrypted key is held in memory for that tab and nothing else: never `localStorage`, never `sessionStorage`, never rendered into the DOM, never logged. There is deliberately no "remember it" for this path — remembering a key that is not yours defeats the point of locking it up. Closing the tab ends it.
+
+### Revoking
+
+**Revoke the key at OpenRouter. That is the off-switch.** Deleting `docs/play/shared-key.json` is housekeeping, not revocation: the file's contents stay in git history, in every clone and fork, and on anyone's disk who ever loaded the page. Assume that once you commit the blob it is public forever, and that anyone who ever had the passphrase — including anyone a tester passed it on to — can recover the key from it at any point in the future.
+
+So, to actually stop it:
+
+1. Delete the key at [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys). The published ciphertext is now worthless.
+2. Delete `docs/play/shared-key.json` and push, so the option stops appearing.
+3. If you still want shared play: issue a *new* key, cap it, and generate a *new* blob with a *new* passphrase. Never reuse the old passphrase — the old blob is still out there and still opens under it.
+
+### Verifying it
+
+```bash
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers .venv/bin/python dev-scripts/verify_shared_key.py
+```
+
+Drives the encryptor from `file://` with a dummy key, serves the resulting blob to an unmodified play page, plays a turn against a local stand-in for `openrouter.ai`, and asserts that the `Authorization` header carried exactly that dummy key — then dumps `localStorage`, `sessionStorage`, cookies and the whole serialised DOM and asserts the key is in none of them. It also checks that a wrong passphrase fails cleanly, and that with no blob present the option vanishes and the other two paths are unchanged.
+
 ## How to Play
 
 ### Commands
