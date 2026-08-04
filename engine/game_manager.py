@@ -10,7 +10,9 @@ import os
 
 from models.world import WorldState, Metrics
 from models.narrative_state import NarrativeState, create_initial_narrative_state
-from engine.endings import EPILOGUE_TURNS, Ending, build_debrief_lines, check_ending
+from engine.endings import (
+    EPILOGUE_TURNS, Ending, build_debrief_lines, check_ending, get_ending,
+)
 from engine.flags import update_world_flags
 from engine.initial_conditions import load_initial_conditions
 from engine.scenario_loader import (
@@ -601,6 +603,12 @@ class GameManager:
         manager.transcript = state["transcript"]
         if state.get("initial_metrics"):
             manager.initial_metrics_snapshot = state["initial_metrics"]
+
+        # A campaign that ended must load as ended. Without this the restored
+        # session reports is_over() == False, and a front end that resumes on
+        # that answer (the browser build does) drops the player back into a
+        # graded, finished game instead of showing them the ending.
+        manager.ending = get_ending(state.get("ending_id"))
 
         return manager
 

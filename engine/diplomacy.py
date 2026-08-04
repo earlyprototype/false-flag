@@ -18,29 +18,59 @@ from models.world import WorldState
 from llm.model_config import LLMContext
 
 
+# Parsed diplomatic_profiles.yaml, keyed by (path, mtime_ns, size).
+#
+# This file is 16 KB of YAML and takes ~15 ms to parse on CPython — and every
+# push_state() lists the open channels, so a browser turn pays it two or three
+# times. That is more than a whole mock-mode turn costs (~30 ms), and mock mode
+# is what a player with no API key gets, so it is the dominant cost in the one
+# configuration that must feel instant. Under Pyodide it is worse.
+#
+# Keying on the file's mtime and size rather than the path alone means there is
+# no invalidation to get wrong: edit the YAML and the next call reparses it,
+# because the key no longer matches. The stat() that costs is microseconds.
+_PROFILE_CACHE: Dict[Any, Dict[str, Any]] = {}
+
+
 def load_diplomatic_profiles(root_path: Optional[Path] = None) -> Dict[str, Any]:
     """Load diplomatic profiles from YAML.
-    
+
+    The parsed result is cached per file version (see ``_PROFILE_CACHE``).
+    Callers treat it as read-only; nothing in the engine mutates it.
+
     Args:
         root_path: Optional root path override
-    
+
     Returns:
         Dict containing country profiles and conversation rules
     """
     if root_path is None:
         root_path = Path(__file__).resolve().parents[1]
-    
+
     profiles_path = root_path / "data" / "diplomatic_profiles.yaml"
-    
+
+    try:
+        st = profiles_path.stat()
+        key = (str(profiles_path), st.st_mtime_ns, st.st_size)
+        cached = _PROFILE_CACHE.get(key)
+        if cached is not None:
+            return cached
+    except OSError:
+        key = None
+
     try:
         with open(profiles_path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
+            profiles = yaml.safe_load(f) or {}
     except FileNotFoundError:
         print(f"[ERROR] Diplomatic profiles not found: {profiles_path}")
         return {}
     except yaml.YAMLError as e:
         print(f"[ERROR] Failed to parse diplomatic profiles: {e}")
         return {}
+
+    if key is not None:
+        _PROFILE_CACHE[key] = profiles
+    return profiles
 
 
 def _relationship_reading(title: str, delta: int) -> str:

@@ -1,4 +1,39 @@
+from typing import Optional
+
 from models.world import Metrics
+
+
+# Which direction of travel is *good news* for each headline metric.
+#
+# The five metrics do not share a polarity: escalation risk and casualties
+# rising is bad, domestic stability and alliance cohesion rising is good.
+# Colouring every "+N" the same way tells the player the opposite of the truth
+# for half the board, so both front ends resolve polarity through here — the
+# terminal (``cli/display_utils``, ``cli/rich_ui``) and the browser
+# (``docs/play/py/bridge.py``) must never disagree about what is good news.
+METRIC_RISE_IS_GOOD = {
+    "escalation_risk": False,
+    "casualties_mil": False,
+    "casualties_civ": False,
+    "domestic_stability": True,
+    "alliance_cohesion": True,
+}
+
+
+def delta_is_good(metric: str, delta: int) -> Optional[bool]:
+    """Is ``delta`` on ``metric`` good news, bad news, or neither?
+
+    Returns ``True`` for good, ``False`` for bad, and ``None`` when no claim
+    can be made — a zero move, or a metric with no declared polarity (the
+    adjudicator may emit keys beyond the headline five, and inventing a
+    polarity for those would be a guess shown to the player as fact).
+    """
+    if not delta:
+        return None
+    rise_is_good = METRIC_RISE_IS_GOOD.get(str(metric))
+    if rise_is_good is None:
+        return None
+    return (delta > 0) == rise_is_good
 
 
 def clamp(value: int, low: int = 0, high: int = 100) -> int:

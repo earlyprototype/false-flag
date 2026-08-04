@@ -219,7 +219,33 @@ def main() -> int:
             )
             page.wait_for_timeout(400)
 
-        page.evaluate(
+        def act(expr: str, arg=None, timeout=300_000):
+            """Send one message and wait for the worker to actually answer it.
+
+            Waiting only on ``awaiting !== 'none'`` is not a wait at all after
+            the first turn: the condition is already true when the next action
+            is sent, so ``wait_for_function`` returns on its first poll without
+            a single new worker message — and ``turns_played`` then counts work
+            this harness never observed, which is the one thing this script
+            exists to produce evidence for.
+
+            ``window.FF.msgs`` is append-only, so its length taken *before* the
+            action is a marker: the wait is only satisfied once new worker
+            traffic has arrived past that mark AND the session has settled back
+            into a state that accepts input (or ended).
+            """
+            mark = page.evaluate("window.FF.msgs.length")
+            if arg is None:
+                page.evaluate(expr)
+            else:
+                page.evaluate(expr, arg)
+            page.wait_for_function(
+                """([mark]) => window.FF.msgs.length > mark &&
+                     (window.FF.awaiting !== 'none' ||
+                      window.FF.ending !== null)""",
+                arg=[mark], timeout=timeout)
+
+        act(
             """([mode, scenario, seed, mystery]) => {
                  window.FF.send({type:'newGame', config:{
                    scenario, playMode: mode, seed: Number(seed),
@@ -228,28 +254,18 @@ def main() -> int:
             [args.mode, args.scenario, args.seed, args.mystery],
         )
 
-        def wait_idle(timeout=300_000):
-            page.wait_for_function(
-                "window.FF.awaiting !== 'none' || window.FF.ending !== null",
-                timeout=timeout)
-
-        wait_idle()
-
         # One question and one diplomatic call, so those paths are exercised
         # by a real game rather than only by unit tests.
-        page.evaluate("""() => window.FF.send({type:'ask',
+        act("""() => window.FF.send({type:'ask',
             advisor:'chief_defence_staff',
             text:'What can we actually put to sea tonight?'})""")
-        wait_idle()
         report["asked_adviser"] = True
 
-        page.evaluate("""() => window.FF.send({type:'call', country:'USA',
+        act("""() => window.FF.send({type:'call', country:'USA',
             text:'I need to know whether Article 5 is on the table.'})""")
-        wait_idle()
         report["call_awaiting"] = page.evaluate("window.FF.awaiting")
-        page.evaluate("""() => window.FF.send({type:'call', country:'USA',
+        act("""() => window.FF.send({type:'call', country:'USA',
             text:'Thank you'})""")
-        wait_idle()
 
         # Save/load round trip mid-campaign.
         page.evaluate("() => window.FF.send({type:'save'})")
@@ -263,13 +279,11 @@ def main() -> int:
             if page.evaluate("window.FF.ending !== null"):
                 break
             decision = DECISIONS[turns % len(DECISIONS)]
-            page.evaluate("([t]) => window.FF.send({type:'decide', text:t})", [decision])
-            wait_idle()
+            act("([t]) => window.FF.send({type:'decide', text:t})", [decision])
             turns += 1
             if page.evaluate("window.FF.ending !== null"):
                 break
-            page.evaluate("() => window.FF.send({type:'endTurn'})")
-            wait_idle()
+            act("() => window.FF.send({type:'endTurn'})")
 
         report["turns_played"] = turns
         report["ending"] = page.evaluate("window.FF.ending")

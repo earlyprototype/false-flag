@@ -135,14 +135,21 @@ def metrics_table(world, show_deltas: bool = False,
         else:
             return f"[{COLORS['metric_good']}]{value}[/{COLORS['metric_good']}]"
     
-    def format_delta(delta: int) -> str:
-        """Format delta with color and sign."""
-        if delta > 0:
-            return f"[{COLORS['success']}]+{delta}[/{COLORS['success']}]"
-        elif delta < 0:
-            return f"[{COLORS['danger']}]{delta}[/{COLORS['danger']}]"
-        else:
-            return f"[{COLORS['muted']}]±0[/{COLORS['muted']}]"
+    def format_delta(metric: str, delta: int) -> str:
+        """Format delta with sign, coloured by whether it is good or bad news.
+
+        Polarity is per-metric (engine.utils): escalation risk and casualties
+        rising is bad, stability and cohesion rising is good. The browser
+        build colours from the same table.
+        """
+        from engine.utils import delta_is_good
+
+        good = delta_is_good(metric, delta)
+        if good is None:
+            return f"[{COLORS['muted']}]{delta:+d}[/{COLORS['muted']}]" if delta \
+                else f"[{COLORS['muted']}]±0[/{COLORS['muted']}]"
+        color = COLORS['success'] if good else COLORS['danger']
+        return f"[{color}]{delta:+d}[/{color}]"
     
     # Escalation Risk (high is bad)
     risk_val = world.metrics.escalation_risk
@@ -153,7 +160,7 @@ def metrics_table(world, show_deltas: bool = False,
     row = [SYMBOLS["risk"], "Escalation Risk", risk_str, risk_bar, risk_status]
     if show_deltas and previous_metrics:
         delta = risk_val - previous_metrics.escalation_risk
-        row.append(format_delta(delta))
+        row.append(format_delta('escalation_risk', delta))
     table.add_row(*row)
     
     # Domestic Stability (low is bad)
@@ -165,7 +172,7 @@ def metrics_table(world, show_deltas: bool = False,
     row = [SYMBOLS["stability"], "Domestic Stability", stability_str, stability_bar, stability_status]
     if show_deltas and previous_metrics:
         delta = stability_val - previous_metrics.domestic_stability
-        row.append(format_delta(delta))
+        row.append(format_delta('domestic_stability', delta))
     table.add_row(*row)
     
     # Alliance Cohesion (low is bad)
@@ -177,7 +184,7 @@ def metrics_table(world, show_deltas: bool = False,
     row = [SYMBOLS["cohesion"], "Alliance Cohesion", cohesion_str, cohesion_bar, cohesion_status]
     if show_deltas and previous_metrics:
         delta = cohesion_val - previous_metrics.alliance_cohesion
-        row.append(format_delta(delta))
+        row.append(format_delta('alliance_cohesion', delta))
     table.add_row(*row)
     
     # Casualties

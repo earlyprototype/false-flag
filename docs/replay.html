@@ -123,8 +123,12 @@ nav.bar .home {
 nav.bar .links { display: flex; gap: 16px; flex-wrap: wrap; margin-left: auto; }
 nav.bar a { color: var(--dim); text-decoration: none; }
 nav.bar a:hover, nav.bar a:focus-visible { color: var(--ink); }
-nav.bar a[aria-current="page"] { color: var(--amber); }
-nav.bar a[aria-current="page"]::before { content: "●  "; color: var(--accent); }
+/* `.here` is the visual highlight; `aria-current` is the separate, stronger
+   claim that this link *is* the current document. The nuclear-order replay
+   sits under REPLAY in the nav and takes the highlight only — announcing
+   another page as the reader's location would be false. */
+nav.bar a.here { color: var(--amber); }
+nav.bar a.here::before { content: "●  "; color: var(--accent); }
 
 main { max-width: 1080px; margin: 0 auto; padding: 0 16px 72px; }
 
@@ -467,7 +471,7 @@ footer .inner a:hover { color: var(--accent); }
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <div class="strip" aria-hidden="true"><span>┌─[ <b>TOP SECRET ── UK EYES ONLY</b> ]</span><span class="fill"></span><span class="code">[ COBRA/TU/51 ]─┐</span></div>
-<nav class="bar"><a class="home" href="index.html">FALSE&nbsp;FLAG</a><span class="links"><a href="index.html">01 BRIEF</a><a href="interstitials.html">02 VIGNETTES</a><a href="replay.html" aria-current="page">03 REPLAY</a><a href="play/index.html">04 PLAY</a></span></nav>
+<nav class="bar"><a class="home" href="index.html">FALSE&nbsp;FLAG</a><span class="links"><a href="index.html">01 BRIEF</a><a href="interstitials.html">02 VIGNETTES</a><a href="replay.html" aria-current="page" class="here">03 REPLAY</a><a href="play/index.html">04 PLAY</a></span></nav>
 <main id="main">
 
 <div class="fogwrap"><pre class="rig wide" aria-hidden="true"><span class="r2">········░░</span><span class="r1">▒</span><span class="r4">▓▓▓▓▓▓▓▓▓</span><span class="r1">▒▒</span><span class="r2">░░░░··</span>               <span class="r2">···░░░░</span><span class="r1">▒▒▒▒▒▒▒</span><span class="r2">░░░░░░░░░░···</span>    <span class="r2">·░</span><span class="r1">▒▒▒▒▒▒</span><span class="r2">░░░░░······░░░</span><span class="r1">▒▒</span><span class="r2">░░</span>
@@ -11254,9 +11258,11 @@ Press SPACE (or Enter) to continue to next turn (or Ctrl+C to exit)...</code></p
 <footer>
 <div class="strip bottom" aria-hidden="true"><span>└─[ <b>FALSE FLAG ── OPERATION TUMAN</b> ]</span><span class="fill"></span><span class="code">[ END OF FILE ]─┘</span></div>
 <div class="inner">
-<p>FALSE FLAG is a terminal wargame written in Python. This site is a window
-onto it — a record of play, not a playable build. Everything shown here was
-captured from live runs against a real LLM backend.</p>
+<p>FALSE FLAG is a terminal wargame written in Python. It also runs in this
+browser: <a href="play/index.html">PLAY</a> is the same engine compiled to
+WebAssembly, with no server behind it. The replays on this site are exactly
+that — recordings. Everything shown in them was captured from live runs
+against a real LLM backend.</p>
 <p>Inspired by Sky News' <a href="https://www.audible.co.uk/podcast/The-Wargame/B0FCLQ7W9B">The
 Wargame</a> podcast. Independent project — not affiliated with or endorsed by
 Sky News, Tortoise, or the podcast's participants. MIT licensed.

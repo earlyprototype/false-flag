@@ -41,12 +41,28 @@ WANT = ["pydantic", "pyyaml", "requests", "pyodide-http"]
 
 
 def _get(base: str, out: Path, name: str) -> int:
+    """Fetch one file, resumably-safe: a partial download is never mistaken
+    for a finished one.
+
+    These are multi-megabyte files. Writing straight to the destination means
+    an interrupted run (Ctrl-C, a dropped connection, a full disk) leaves a
+    truncated file that every later run then skips as "already fetched" — and
+    the breakage only shows up in the browser. Download to a ``.part``
+    sibling and rename into place only once the whole body has arrived;
+    ``os.replace`` is atomic on the same filesystem.
+    """
     dest = out / name
     if dest.exists() and dest.stat().st_size > 0:
         return dest.stat().st_size
-    with urllib.request.urlopen(base + name, timeout=300) as r:
-        data = r.read()
-    dest.write_bytes(data)
+    part = dest.with_name(dest.name + ".part")
+    try:
+        with urllib.request.urlopen(base + name, timeout=300) as r:
+            data = r.read()
+        part.write_bytes(data)
+        os.replace(part, dest)
+    except BaseException:
+        part.unlink(missing_ok=True)
+        raise
     return len(data)
 
 
@@ -73,6 +89,19 @@ def main() -> int:
     def norm(k: str) -> str:
         return k.lower().replace("_", "-")
 
+    # A top-level requirement the lock file does not know about must be loud.
+    # Silently skipping one is exactly how a bundle shipped without pydantic's
+    # Rust extension: everything looked fine until the browser tried to import
+    # it. Missing *dependencies* are a different matter — the lock file is the
+    # authority on those, and a name it does not carry is not a package.
+    missing = [w for w in WANT if norm(w) not in pkgs]
+    if missing:
+        print(f"\n  ABORT: not in pyodide-lock.json for {version}: "
+              f"{', '.join(missing)}", file=sys.stderr)
+        print("  Refusing to write an incomplete bundle. Check the names in "
+              "WANT against the lock file.", file=sys.stderr)
+        return 1
+
     resolved: set[str] = set()
     queue = [norm(w) for w in WANT]
     while queue:
@@ -93,7 +122,7 @@ def main() -> int:
     print(f"\n  wheels   {total:,} bytes")
     print(f"  runtime  {runtime_total:,} bytes")
     print(f"  TOTAL    {total + runtime_total:,} bytes")
-    print(f"\n  worker.js will now prefer this local copy over the CDN.")
+    print("\n  worker.js will now prefer this local copy over the CDN.")
     return 0
 
 

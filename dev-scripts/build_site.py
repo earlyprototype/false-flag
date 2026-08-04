@@ -24,12 +24,20 @@ What it does
 
 Usage
 -----
-    .venv/bin/python dev-scripts/build_site.py [TRANSCRIPT_DIR]
+    .venv/bin/python dev-scripts/build_site.py TRANSCRIPT_DIR
 
-``TRANSCRIPT_DIR`` defaults to ``$FALSE_FLAG_TRANSCRIPTS`` and holds the
-capture files (``c4_turn*.txt`` under ``campaign_archive/c4/``, ``c5_turn*``
-and ``c?t?_input.txt`` at the top level). Without it the script rebuilds the
-pages that do not need transcripts and leaves the replays alone.
+``TRANSCRIPT_DIR`` may also be given as ``$FALSE_FLAG_TRANSCRIPTS``. It is
+required: every page here is assembled from the captures, so without them
+there is nothing to build and the script exits rather than writing pages
+with holes in them.
+
+The directory holds the capture files, laid out as::
+
+    TRANSCRIPT_DIR/
+      campaign_archive/c4/c4_turn1.txt .. c4_turn17.txt   the 17-turn campaign
+      c5_turn1.txt .. c5_turn3.txt                        the nuclear-order run
+      c4t1_input.txt .. c4t17_input.txt                   recorded keystrokes
+      c5t1_input.txt .. c5t3_input.txt                    recorded keystrokes
 """
 
 from __future__ import annotations
@@ -57,6 +65,10 @@ from cli.aesthetics import (  # noqa: E402
 SITE = Path(__file__).resolve().parent / "site"
 OUT = REPO / "docs"
 COLS = 100
+
+# Kept in step with the Usage section of the module docstring above.
+USAGE = ("usage: build_site.py TRANSCRIPT_DIR   "
+         "(or set $FALSE_FLAG_TRANSCRIPTS)")
 
 # The captures use a mix of true-colour styles (which survive untouched) and
 # the sixteen named ANSI colours, which Rich would otherwise export as its
@@ -275,18 +287,31 @@ def strip_html(label: str, code: str, edge: str = "top") -> str:
             f'<span class="code">[ {html.escape(code)} ]─{right}</span></div>')
 
 
-def nav_html(current: str) -> str:
-    here = ' aria-current="page"'
-    links = "".join(
-        f'<a href="{href}"{here if href == current else ""}>{label}</a>'
-        for href, label in NAV)
+def nav_html(current: str, *, highlight: Optional[str] = None) -> str:
+    """Render the nav bar.
+
+    ``current`` is the page's own href and gets ``aria-current="page"``.
+    ``highlight`` marks a *related* entry as visually current without the
+    ARIA claim — the nuclear-order replay belongs under REPLAY in the nav,
+    but announcing another document as the user's location is a lie to a
+    screen reader. Pass ``current=None`` when this page has no nav entry.
+    """
+    def attrs(href: str) -> str:
+        if href == current:
+            return ' aria-current="page" class="here"'
+        if href == highlight:
+            return ' class="here"'
+        return ""
+
+    links = "".join(f'<a href="{href}"{attrs(href)}>{label}</a>'
+                    for href, label in NAV)
     return ('<nav class="bar">'
             '<a class="home" href="index.html">FALSE&nbsp;FLAG</a>'
             f'<span class="links">{links}</span></nav>')
 
 
-def page(*, title: str, desc: str, current: str, code: str, body: str,
-         css: str, rich_css: str) -> str:
+def page(*, title: str, desc: str, current: Optional[str], code: str, body: str,
+         css: str, rich_css: str, nav_highlight: Optional[str] = None) -> str:
     return f"""<!DOCTYPE html>
 <html lang="en-GB">
 <head>
@@ -307,16 +332,18 @@ def page(*, title: str, desc: str, current: str, code: str, body: str,
 <body>
 <a class="skip" href="#main">Skip to content</a>
 {strip_html("TOP SECRET ── UK EYES ONLY", code)}
-{nav_html(current)}
+{nav_html(current, highlight=nav_highlight)}
 <main id="main">
 {body}
 </main>
 <footer>
 {strip_html("FALSE FLAG ── OPERATION TUMAN", "END OF FILE", edge="bottom")}
 <div class="inner">
-<p>FALSE FLAG is a terminal wargame written in Python. This site is a window
-onto it — a record of play, not a playable build. Everything shown here was
-captured from live runs against a real LLM backend.</p>
+<p>FALSE FLAG is a terminal wargame written in Python. It also runs in this
+browser: <a href="play/index.html">PLAY</a> is the same engine compiled to
+WebAssembly, with no server behind it. The replays on this site are exactly
+that — recordings. Everything shown in them was captured from live runs
+against a real LLM backend.</p>
 <p>Inspired by Sky News' <a href="https://www.audible.co.uk/podcast/The-Wargame/B0FCLQ7W9B">The
 Wargame</a> podcast. Independent project — not affiliated with or endorsed by
 Sky News, Tortoise, or the podcast's participants. MIT licensed.
@@ -405,9 +432,10 @@ def main() -> None:
         src = Path(sys.argv[1])
     elif os.environ.get("FALSE_FLAG_TRANSCRIPTS"):
         src = Path(os.environ["FALSE_FLAG_TRANSCRIPTS"])
-    if src is None or not src.is_dir():
-        raise SystemExit(__doc__.strip().splitlines()[-1] +
-                         "\nGive me the transcript directory.")
+    if src is None:
+        raise SystemExit(USAGE)
+    if not src.is_dir():
+        raise SystemExit(f"{USAGE}\nnot a directory: {src}")
 
     css = (SITE / "site.css").read_text()
     rig = Rig()
@@ -547,7 +575,10 @@ def main() -> None:
         desc="Three turns spent testing the edge of the system: a Prime "
              "Minister orders a nuclear strike, is refused, and tries to "
              "announce it anyway.",
-        current="replay.html", code=reference_code("site-c5"),
+        # This page has no nav entry of its own: keep REPLAY lit, but do not
+        # tell assistive tech that replay.html is the document being read.
+        current=None, nav_highlight="replay.html",
+        code=reference_code("site-c5"),
         body=replay_body(c5, F, tag="c5"),
         css=css, rich_css=rich_css))
 

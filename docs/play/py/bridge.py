@@ -191,13 +191,24 @@ class AnsiPen:
         return "\n".join(self._parts)
 
 
-def _delta(value: int) -> str:
-    """Signed metric delta, coloured by direction of travel."""
-    if value > 0:
-        return _c(ACCENT, f"+{value}")
-    if value < 0:
-        return _c(TEAL, str(value))
-    return _c(DIM, "0")
+def _delta(metric: str, value: int) -> str:
+    """Signed metric delta, coloured by whether it is good or bad news.
+
+    Polarity is per-metric and comes from ``engine.utils`` — the same table
+    the terminal build colours from — because the five metrics do not agree
+    about which way is up. A rise in escalation risk or casualties is an
+    alert; a rise in domestic stability or alliance cohesion is good news.
+    """
+    from engine.utils import delta_is_good
+
+    if not value:
+        return _c(DIM, "0")
+    text = f"+{value}" if value > 0 else str(value)
+    good = delta_is_good(metric, value)
+    if good is None:
+        # A metric with no declared polarity: show the move, claim nothing.
+        return _c(AMBER, text)
+    return _c(TEAL if good else ACCENT, text)
 
 
 # ---------------------------------------------------------------------------
@@ -253,6 +264,18 @@ class WebGame:
 
     def error(self, message: str, fatal: bool = False) -> None:
         self.emit(type="error", message=message, fatal=bool(fatal))
+
+    def reject(self, message: str, was_awaiting: str) -> None:
+        """Refuse a malformed message and put the player back where they were.
+
+        ``handle`` marks the session busy (``AWAIT_NONE``) before dispatching,
+        so re-emitting ``self.awaiting`` from a rejection path emits the busy
+        value — and the page blocks input on ``'none'`` (see
+        ``docs/play/worker.js``), leaving reload as the only way out. The
+        position to restore is the one captured *before* dispatch.
+        """
+        self.error(message)
+        self.set_awaiting(was_awaiting)
 
     # -- LLM configuration -------------------------------------------------
 
@@ -477,7 +500,7 @@ class WebGame:
             if moved:
                 pen.section("SITUATION SHIFT", DIM)
                 for k, v in sorted(moved.items()):
-                    pen.raw(f"  {_c(DIM, k.replace('_', ' ').title().ljust(22))}{_delta(v)}")
+                    pen.raw(f"  {_c(DIM, k.replace('_', ' ').title().ljust(22))}{_delta(k, v)}")
                 pen.blank()
 
         self.out(pen)
@@ -523,12 +546,12 @@ class WebGame:
         pen.blank()
         self.out(pen)
 
-    def ask(self, advisor: Optional[str], text: str) -> None:
+    def ask(self, advisor: Optional[str], text: str,
+            was_awaiting: str = AWAIT_DECISION) -> None:
         gm = self.gm
         question = (text or "").strip()
         if not question:
-            self.error("Empty question.")
-            self.set_awaiting(self.awaiting)
+            self.reject("Empty question.", was_awaiting)
             return
 
         # The question router matches on keywords, so naming the adviser in
@@ -557,7 +580,8 @@ class WebGame:
         self.push_state()
         self.set_awaiting(AWAIT_DECISION)
 
-    def call(self, country: Optional[str], text: Optional[str]) -> None:
+    def call(self, country: Optional[str], text: Optional[str],
+             was_awaiting: str = AWAIT_DECISION) -> None:
         gm = self.gm
         message = (text or "").strip()
         encounter = gm.active_encounter
@@ -566,8 +590,8 @@ class WebGame:
         if not live:
             code = (country or "").strip().upper()
             if not code:
-                self.error("No country given for the diplomatic call.")
-                self.set_awaiting(self.awaiting)
+                self.reject("No country given for the diplomatic call.",
+                            was_awaiting)
                 return
             self._call_seen = 0
             result = gm.start_diplomacy(code)
@@ -635,12 +659,11 @@ class WebGame:
         pen.blank()
         self.out(pen)
 
-    def decide(self, text: str) -> None:
+    def decide(self, text: str, was_awaiting: str = AWAIT_DECISION) -> None:
         gm = self.gm
         action = (text or "").strip()
         if not action:
-            self.error("Empty decision.")
-            self.set_awaiting(self.awaiting)
+            self.reject("Empty decision.", was_awaiting)
             return
 
         pen = AnsiPen(self.width)
@@ -710,7 +733,7 @@ class WebGame:
             pen.section("CONSEQUENCES", AMBER)
             for k, v in sorted(effects.items()):
                 if isinstance(v, (int, float)):
-                    pen.raw(f"  {_c(DIM, k.replace('_', ' ').title().ljust(22))}{_delta(int(v))}")
+                    pen.raw(f"  {_c(DIM, k.replace('_', ' ').title().ljust(22))}{_delta(k, int(v))}")
             pen.blank()
             self.out(pen)
         elif not self.metrics_visible():
@@ -872,11 +895,11 @@ class WebGame:
             if kind == "newGame":
                 self.new_game(msg.get("config"))
             elif kind == "decide":
-                self.decide(msg.get("text"))
+                self.decide(msg.get("text"), was_awaiting)
             elif kind == "ask":
-                self.ask(msg.get("advisor"), msg.get("text"))
+                self.ask(msg.get("advisor"), msg.get("text"), was_awaiting)
             elif kind == "call":
-                self.call(msg.get("country"), msg.get("text"))
+                self.call(msg.get("country"), msg.get("text"), was_awaiting)
             elif kind == "endTurn":
                 self.end_turn(was_awaiting)
             elif kind == "setKey":
@@ -888,8 +911,7 @@ class WebGame:
             elif kind == "load":
                 self.load(msg.get("data"))
             else:
-                self.error(f"Unknown message type: {kind!r}")
-                self.set_awaiting(self.awaiting)
+                self.reject(f"Unknown message type: {kind!r}", was_awaiting)
         except Exception as exc:  # noqa: BLE001 - the page must never be stranded
             self.error(f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}",
                        fatal=(kind == "newGame"))

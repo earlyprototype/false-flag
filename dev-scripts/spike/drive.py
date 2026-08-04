@@ -90,7 +90,11 @@ def main():
 
     with sync_playwright() as p:
         launch_kwargs = dict(
-            executable_path="/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
+            # Overridable the same way dev-scripts/verify_play.py does it, so
+            # a machine with Chromium somewhere else needs no edit.
+            executable_path=os.environ.get(
+                "FF_CHROMIUM",
+                "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"),
             args=["--no-sandbox"],
         )
         # route the browser's outbound HTTPS through the session's agent proxy
@@ -117,6 +121,16 @@ def main():
         results = page.evaluate("window.RESULTS")
         browser.close()
 
+    # If the page died before it could publish anything, `window.RESULTS` is
+    # undefined and comes back as None. Iterating that raises TypeError and
+    # throws away the PAGEERROR/timeout diagnostics printed above — which are
+    # the whole point of this script.
+    if not results:
+        print("NO RESULTS: the page published no window.RESULTS "
+              "(it failed before finishing — see any PAGEERROR/TIMEOUT above)",
+              file=sys.stderr)
+        return 1
+
     for r in results:
         ms = f" [{r['ms']}ms]" if r.get("ms") is not None else ""
         print(f"{r['status']:5} {r['name']}{ms}")
@@ -126,7 +140,8 @@ def main():
         print()
     with open(os.path.join(HERE, "results.json"), "w") as f:
         json.dump(results, f, indent=2)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

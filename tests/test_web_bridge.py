@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+from engine.endings import Ending
 from engine.game_manager import GameManager
 
 REPO = Path(__file__).resolve().parents[1]
@@ -110,9 +111,7 @@ def test_debrief_deltas_measure_from_campaign_start():
     assert gm.initial_metrics_snapshot == start
     assert gm.world.metrics.escalation_risk != start["escalation_risk"]
 
-    gm.ending = gm.ending or __import__(
-        "engine.endings", fromlist=["Ending"]
-    ).Ending("t", "TEST", "partial", "n")
+    gm.ending = gm.ending or Ending("t", "TEST", "partial", "n")
     debrief = "\n".join(gm.get_debrief_lines())
     expected = gm.world.metrics.escalation_risk - start["escalation_risk"]
     assert f"({expected:+d})" in debrief
@@ -149,6 +148,56 @@ def test_session_round_trips_through_to_dict():
     assert restored.world.narrative.narrative_id == gm.world.narrative.narrative_id
     assert restored.initial_metrics_snapshot == gm.initial_metrics_snapshot
     assert restored.world.metrics.escalation_risk == gm.world.metrics.escalation_risk
+    # An unfinished campaign must not come back looking finished.
+    assert restored.ending is None
+    assert restored.is_over() is False
+
+
+def test_ended_campaign_round_trips_as_ended():
+    """A finished campaign must load as finished.
+
+    to_dict persists only ``ending_id``; if from_dict does not rebuild the
+    Ending from it, is_over() answers False on the restored session and the
+    browser build resumes a graded game instead of showing the ending.
+    """
+    import json
+
+    gm = GameManager(variant="fast_start", play_mode="classic", seed=3,
+                     endings=True)
+    for _ in range(30):
+        gm.get_turn_briefing()
+        gm.resolve_decision(DECISION)
+        if gm.is_over():
+            break
+    assert gm.is_over(), "campaign never reached an ending — test is vacuous"
+
+    blob = json.dumps(gm.to_dict("unit-test"), default=str)
+    restored = GameManager.from_dict(json.loads(blob))
+
+    assert restored.is_over() is True
+    assert restored.ending is not None
+    assert restored.ending.ending_id == gm.ending.ending_id
+    assert restored.ending.verdict == gm.ending.verdict
+    assert restored.ending.title == gm.ending.title
+    # The debrief must be reproducible from the restored session too.
+    assert any(restored.ending.title in line
+               for line in restored.get_debrief_lines())
+
+
+def test_unknown_ending_id_loads_as_a_playable_session():
+    """A save naming an ending this build does not have must still load."""
+    import json
+
+    gm = GameManager(variant="fast_start", play_mode="classic", seed=4,
+                     endings=True)
+    gm.get_turn_briefing()
+    gm.resolve_decision(DECISION)
+    data = json.loads(json.dumps(gm.to_dict("unit-test"), default=str))
+    data["state"]["ending_id"] = "an_ending_from_the_future"
+
+    restored = GameManager.from_dict(data)
+    assert restored.ending is None
+    assert restored.is_over() is False
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +271,30 @@ def test_immersive_output_never_prints_the_numbers():
     assert "Escalation Risk" not in text
     assert f"escalation_risk: {m.escalation_risk}" not in text
     assert "THE MOOD IN THE ROOM" in text
+
+
+def test_metric_deltas_are_coloured_by_metric_not_by_sign():
+    """A rise is not automatically an alert.
+
+    Escalation risk and casualties going up is bad news; domestic stability
+    and alliance cohesion going up is good news. Colouring every '+N' the
+    same way tells a classic-mode player the opposite of the truth for half
+    the board, and disagrees with the terminal build.
+    """
+    from engine.utils import delta_is_good
+
+    assert bridge._delta("escalation_risk", 7) == bridge._c(bridge.ACCENT, "+7")
+    assert bridge._delta("escalation_risk", -7) == bridge._c(bridge.TEAL, "-7")
+    assert bridge._delta("casualties_civ", 3) == bridge._c(bridge.ACCENT, "+3")
+
+    assert bridge._delta("domestic_stability", 5) == bridge._c(bridge.TEAL, "+5")
+    assert bridge._delta("domestic_stability", -5) == bridge._c(bridge.ACCENT, "-5")
+    assert bridge._delta("alliance_cohesion", 4) == bridge._c(bridge.TEAL, "+4")
+
+    assert bridge._delta("escalation_risk", 0) == bridge._c(bridge.DIM, "0")
+    # A metric with no declared polarity claims nothing.
+    assert delta_is_good("some_new_metric", 3) is None
+    assert bridge._delta("some_new_metric", 3) == bridge._c(bridge.AMBER, "+3")
 
 
 def test_decide_then_end_turn_advances():
@@ -340,6 +413,50 @@ def test_unknown_message_type_is_reported_not_fatal():
     rec.clear()
     game.handle({"type": "teleport"})
     assert "Unknown message type" in rec.last("error")["message"]
+    # ...and it must not strand the player: the page blocks input on 'none'.
+    assert rec.last("awaiting")["kind"] == "decision"
+
+
+@pytest.mark.parametrize("msg, expected_error", [
+    ({"type": "decide", "text": "   "}, "Empty decision."),
+    ({"type": "ask", "advisor": "chief_defence_staff", "text": ""},
+     "Empty question."),
+    ({"type": "call", "country": "", "text": "hello"},
+     "No country given for the diplomatic call."),
+    ({"type": "teleport"}, "Unknown message type: 'teleport'"),
+])
+def test_a_rejected_message_does_not_lock_the_ui(msg, expected_error):
+    """Every rejection path must restore the player's position.
+
+    ``handle`` sets ``awaiting`` to 'none' (busy) before dispatching, so a
+    rejection that re-emits ``self.awaiting`` emits 'none' — and worker.js
+    blocks all input on 'none', making a page reload the only recovery.
+    """
+    game, rec = make_game()
+    rec.clear()
+    game.handle(msg)
+
+    assert rec.last("error")["message"] == expected_error
+    assert rec.last("awaiting")["kind"] == "decision"
+    assert game.awaiting == "decision"
+
+    # And the session is genuinely still playable afterwards.
+    rec.clear()
+    game.handle({"type": "decide", "text": DECISION})
+    assert rec.last("awaiting")["kind"] in ("confirm", "none")
+    assert not [m for m in rec.of("error")]
+
+
+def test_a_rejection_mid_call_returns_to_the_call_not_the_turn():
+    """A live diplomatic call is a distinct position; keep the player in it."""
+    game, rec = make_game()
+    game.handle({"type": "call", "country": "USA", "text": None})
+    if rec.last("awaiting")["kind"] != "question":
+        pytest.skip("no live encounter opened for USA in this seed")
+    rec.clear()
+
+    game.handle({"type": "teleport"})
+    assert rec.last("awaiting")["kind"] == "question"
 
 
 def test_engine_exception_leaves_the_player_able_to_act(monkeypatch):
@@ -413,5 +530,9 @@ def test_full_game_plays_with_cli_and_rich_absent(tmp_path):
     out = proc.stdout
     assert "ERRORS: []" in out, out
     assert "LEAKED: []" in out, out
-    assert "ENDING: None" not in out, out
+    # Assert the verdict positively: "ENDING: None" not in out would also pass
+    # if the ENDING line never printed at all.
+    verdict = next((ln.split(":", 1)[1].strip() for ln in out.splitlines()
+                    if ln.startswith("ENDING:")), None)
+    assert verdict in {"victory", "partial", "defeat"}, out
     assert "ANSI: True" in out, out

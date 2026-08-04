@@ -27,13 +27,23 @@ WANT = ["pydantic", "pyyaml", "micropip", "requests", "pyodide-http"]
 
 
 def get(name):
+    # Download to a .part sibling and rename into place, so an interrupted
+    # run cannot leave a truncated multi-MB file that every later run then
+    # skips as "already fetched".
     dest = os.path.join(OUT, name)
     if os.path.exists(dest) and os.path.getsize(dest) > 0:
         return os.path.getsize(dest)
-    with urllib.request.urlopen(BASE + name, timeout=180) as r:
-        data = r.read()
-    with open(dest, "wb") as f:
-        f.write(data)
+    part = dest + ".part"
+    try:
+        with urllib.request.urlopen(BASE + name, timeout=180) as r:
+            data = r.read()
+        with open(part, "wb") as f:
+            f.write(data)
+        os.replace(part, dest)
+    except BaseException:
+        if os.path.exists(part):
+            os.remove(part)
+        raise
     return len(data)
 
 

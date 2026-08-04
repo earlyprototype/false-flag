@@ -156,7 +156,17 @@ async function boot() {
     await pyodide.loadPackage(PACKAGES);
     booting(58, 'packages loaded — unpacking game');
 
-    const zip = await (await fetch(GAME_ARCHIVE)).arrayBuffer();
+    // A missing game.zip on GitHub Pages answers 404 with an HTML body, which
+    // unpackArchive then reports as an opaque "boot failed". Say what went
+    // wrong instead.
+    const zipResponse = await fetch(GAME_ARCHIVE);
+    if (!zipResponse.ok) {
+      throw new Error(
+        `could not fetch ${GAME_ARCHIVE}: HTTP ${zipResponse.status} ` +
+        `${zipResponse.statusText || ''} — the game bundle is missing from ` +
+        `this deploy (build it with dev-scripts/build_play_bundle.py)`);
+    }
+    const zip = await zipResponse.arrayBuffer();
     try { pyodide.FS.mkdir('/game'); } catch (e) { /* already there */ }
     pyodide.unpackArchive(zip, 'zip', { extractDir: '/game' });
     booting(74, 'game unpacked — starting engine');

@@ -347,9 +347,16 @@ def display_adjudication_results(
             typer.echo("=" * 60)
         typer.echo("")
 
+        from engine.utils import delta_is_good
+
         for metric, delta in final_effects.items():
             if RICH_ENABLED:
-                color = colors['success'] if delta > 0 else colors['danger'] if delta < 0 else colors['muted']
+                # Polarity is per-metric: a rise in escalation risk or
+                # casualties is bad news, a rise in stability or cohesion is
+                # good. One shared table so the browser build agrees.
+                good = delta_is_good(metric, delta)
+                color = (colors['muted'] if good is None
+                         else colors['success'] if good else colors['danger'])
                 console.print(f"  [{color}]{metric}: {delta:+d}[/{color}]")
             else:
                 typer.echo(f"  {metric}: {delta:+d}")

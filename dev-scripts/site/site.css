@@ -111,8 +111,12 @@ nav.bar .home {
 nav.bar .links { display: flex; gap: 16px; flex-wrap: wrap; margin-left: auto; }
 nav.bar a { color: var(--dim); text-decoration: none; }
 nav.bar a:hover, nav.bar a:focus-visible { color: var(--ink); }
-nav.bar a[aria-current="page"] { color: var(--amber); }
-nav.bar a[aria-current="page"]::before { content: "●  "; color: var(--accent); }
+/* `.here` is the visual highlight; `aria-current` is the separate, stronger
+   claim that this link *is* the current document. The nuclear-order replay
+   sits under REPLAY in the nav and takes the highlight only — announcing
+   another page as the reader's location would be false. */
+nav.bar a.here { color: var(--amber); }
+nav.bar a.here::before { content: "●  "; color: var(--accent); }
 
 main { max-width: 1080px; margin: 0 auto; padding: 0 16px 72px; }
 
