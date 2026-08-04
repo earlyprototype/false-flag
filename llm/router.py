@@ -295,23 +295,31 @@ def generate_text(
 
 
 def batch_generate_text(
-    prompts: list[str], 
-    rng: Random, 
+    prompts: list[str],
+    rng: Random,
     show_spinner: bool = True,
     context: Optional[LLMContext] = None,
-    model_override: Optional[str] = None
+    model_override: Optional[str] = None,
+    max_tokens: Optional[int] = None
 ) -> list[str]:
     """Generate multiple text responses in parallel using configured LLM provider.
-    
-    NOTE: For rate-limited providers, this will wait between requests.
-    
+
+    NOTE: On a rate-limited provider a slot is claimed for every prompt
+    before the group is dispatched, so the limit still holds when the calls
+    go out together.
+
     Args:
         prompts: List of prompt texts to generate responses for
         rng: Random number generator for determinism
         show_spinner: If True, show loading spinner during generation
         context: Optional usage context for model selection
         model_override: Optional explicit model name
-    
+        max_tokens: Optional output cap applied to every prompt in the batch.
+            Without this the batch path could not express what several call
+            sites depend on - character responses are capped at 150 tokens -
+            so those groups had no way to use it even though their calls are
+            independent of one another.
+
     Returns:
         List of generated text responses in same order as prompts
     """
@@ -339,17 +347,41 @@ def batch_generate_text(
     provider = _get_provider()
     use_spinner = show_spinner and provider not in ["mock", "offline"]
 
+    # Only forward max_tokens to drivers that accept it. The mock and offline
+    # drivers take (prompts, rng) alone, and passing an argument they do not
+    # declare would turn a graceful fallback into a TypeError.
+    def batch_kwargs(fn):
+        import inspect
+        if max_tokens is None:
+            return {}
+        try:
+            accepts = 'max_tokens' in inspect.signature(fn).parameters
+        except (TypeError, ValueError):
+            return {}
+        return {'max_tokens': max_tokens} if accepts else {}
+
     # Helper for batch call
     def call_batch():
         if hasattr(driver, 'batch_generate_text'):
+            # Claim a rate-limit slot per prompt *before* dispatching. The
+            # driver fans the group out across a thread pool and never sees
+            # the limiter, so without this the whole group leaves at once and
+            # blows straight through a configured RPM - which nothing noticed
+            # while this function had no callers. Claiming up front keeps the
+            # limit honest and still lets the group go out concurrently
+            # whenever the limit is not actually binding.
+            if rate_limiter:
+                for _ in prompts:
+                    rate_limiter.wait_if_needed(verbose=False)
+            kwargs = batch_kwargs(driver.batch_generate_text)
             # Retry once on failure, then fall back to the mock driver so a
             # runtime API error never crashes the game
             try:
-                return driver.batch_generate_text(prompts, rng)
+                return driver.batch_generate_text(prompts, rng, **kwargs)
             except Exception:
                 time.sleep(2)  # Short backoff before retrying once
                 try:
-                    return driver.batch_generate_text(prompts, rng)
+                    return driver.batch_generate_text(prompts, rng, **kwargs)
                 except Exception as e:
                     print(f"[WARNING] LLM batch call failed ({type(e).__name__}: {e}); "
                           "using offline advisor responses for this call")

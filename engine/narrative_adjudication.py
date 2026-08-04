@@ -19,8 +19,9 @@ from engine.utils import clamp
 
 # Actor Simulation Imports
 from models.state_actors import StateActorSystem, ActorResponse
+from llm.fanout import generate_group
 from engine.actor_simulation import (
-    simulate_actor_response,
+    simulate_actor_responses,
     calculate_effects_from_responses,
     identify_relevant_actors,
     display_country_name
@@ -505,7 +506,8 @@ def generate_character_responses(
     final_effects: Dict[str, int],
     narrative_state: NarrativeState,
     llm_generate_fn = None,
-    rng: Random = None
+    rng: Random = None,
+    llm_batch_fn = None
 ) -> List[Tuple[str, str]]:
     """
     Generate character responses guided by metrics and quality.
@@ -520,33 +522,34 @@ def generate_character_responses(
     Returns:
         List of (character_name, response_text) tuples
     """
-    responses = []
-    
     if llm_generate_fn is None or rng is None:
         # Fallback to templated responses
         return _generate_templated_responses(action, quality_assessment, narrative_state)
-    
+
     # Select key characters to respond
-    key_characters = _select_responding_characters(narrative_state, final_effects)
-    
-    for char_id in key_characters:
-        if char_id not in narrative_state.characters:
-            continue
-        
-        char = narrative_state.characters[char_id]
-        
-        response_text = _generate_character_response_llm(
+    key_characters = [c for c in _select_responding_characters(narrative_state, final_effects)
+                      if c in narrative_state.characters]
+
+    # Each advisor reacts to the same decision and the same assessment; none
+    # of them reads another's line. Asked together rather than in sequence.
+    chars = [narrative_state.characters[char_id] for char_id in key_characters]
+    prompts = [
+        build_character_response_prompt(
             character=char,
             action=action,
             quality=quality_assessment["quality"],
-            effects=final_effects,
             narrative_state=narrative_state,
-            llm_generate_fn=llm_generate_fn,
-            rng=rng
         )
-        
-        responses.append((char.name, response_text))
-    
+        for char in chars
+    ]
+    raw = generate_group(prompts, llm_generate_fn, rng, llm_batch_fn,
+                         max_tokens=CHARACTER_RESPONSE_MAX_TOKENS)
+
+    responses = []
+    for char, text in zip(chars, raw):
+        cleaned = (text or "").strip().strip('"')
+        # Same fallback the single-call path used when a response was refused
+        responses.append((char.name, cleaned or f"[{char.name}] Understood, Prime Minister."))
     return responses
 
 
@@ -576,19 +579,23 @@ def _select_responding_characters(
     return responders[:4]
 
 
-def _generate_character_response_llm(
+# Character reactions are two or three sentences; the cap is what stops a
+# model that cannot be told to stop from spending its whole budget thinking
+# and returning nothing. Named here because the batch path has to pass it
+# explicitly, and a silently dropped cap is an empty advisor line.
+CHARACTER_RESPONSE_MAX_TOKENS = 150
+
+
+def build_character_response_prompt(
     character,
     action: str,
     quality: str,
-    effects: Dict[str, int],
     narrative_state: NarrativeState,
-    llm_generate_fn,
-    rng: Random = None
 ) -> str:
-    """Generate single character response using LLM"""
-    
+    """Build one advisor's reaction prompt (no call - see generate_group)."""
+
     context = narrative_state.to_llm_context()
-    
+
     # Build tone guidance based on quality
     tone_guidance = {
         "exceptional": "impressed and supportive",
@@ -614,14 +621,8 @@ Respond to the PM's action with a tone that is {tone}.
 Keep your response to 2-3 sentences, in character, as if speaking directly to the Prime Minister in a COBRA briefing.
 
 Response:"""
-    
-    try:
-        response = llm_generate_fn(prompt, rng, max_tokens=150)
-        # Clean up response
-        response = response.strip().strip('"')
-        return response
-    except Exception:
-        return f"[{character.name}] Understood, Prime Minister."
+
+    return prompt
 
 
 def _generate_templated_responses(
@@ -728,7 +729,8 @@ def adjudicate_with_narrative(
     interpretation: str,
     rng: Random,
     llm_generate_fn = None,
-    world_narrative = None
+    world_narrative = None,
+    llm_batch_fn = None
 ) -> Tuple[Dict[str, int], List[Tuple[str, str]], str]:
     """
     Complete narrative-driven adjudication pipeline.
@@ -767,7 +769,8 @@ def adjudicate_with_narrative(
 
     # 4. Generate character responses
     character_responses = generate_character_responses(
-        action, quality_assessment, final_effects, narrative_state, llm_generate_fn, rng
+        action, quality_assessment, final_effects, narrative_state,
+        llm_generate_fn, rng, llm_batch_fn=llm_batch_fn
     )
     
     # 5. Update character attitudes based on action quality
@@ -789,7 +792,8 @@ def adjudicate_with_actor_simulation(
     interpretation: str,
     rng: Random,
     llm_generate_fn,
-    world_narrative = None
+    world_narrative = None,
+    llm_batch_fn = None
 ) -> Tuple[Dict[str, int], List[ActorResponse], List[Tuple[str, str]], str]:
     """
     Enhanced adjudication with multi-agent actor simulation.
@@ -808,24 +812,19 @@ def adjudicate_with_actor_simulation(
     relevant_actor_ids = identify_relevant_actors(action, actor_system, max_actors=3)
     
     # 2. Simulate each actor's response
-    actor_responses = []
     world_context = narrative_state.to_llm_context()
     
     if world_narrative:
         world_context += "\n\nSECRET NARRATIVE TRUTH:\n" + world_narrative.to_llm_context()
     
-    for actor_id in relevant_actor_ids:
-        actor = actor_system.get_actor(actor_id)
-        if not actor:
-            continue
-        
-        response = simulate_actor_response(
-            actor, action, world_context, llm_generate_fn, rng
-        )
-        actor_responses.append(response)
-        
+    actors = [a for a in (actor_system.get_actor(i) for i in relevant_actor_ids) if a]
+    actor_responses = simulate_actor_responses(
+        actors, action, world_context, llm_generate_fn, rng,
+        llm_batch_fn=llm_batch_fn
+    )
+    for actor, response in zip(actors, actor_responses):
         # Update actor's relationship with UK
-        actor_system.update_actor_relationship(actor_id, response.trust_change)
+        actor_system.update_actor_relationship(actor.country_code, response.trust_change)
     
     # 3. Calculate effects from responses
     actor_effects = calculate_effects_from_responses(actor_responses, actor_system)
@@ -859,7 +858,8 @@ def adjudicate_with_actor_simulation(
     
     # 7. Generate character responses (Advisors)
     character_responses = generate_character_responses(
-        action, quality_assessment, final_effects, narrative_state, llm_generate_fn, rng
+        action, quality_assessment, final_effects, narrative_state,
+        llm_generate_fn, rng, llm_batch_fn=llm_batch_fn
     )
     
     # 8. Generate narrative summary

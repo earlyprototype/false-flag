@@ -74,7 +74,7 @@ from engine.endings import check_ending, build_debrief_lines, EPILOGUE_TURNS
 from engine.persistence import save_game, load_game
 from engine.initial_conditions import load_initial_conditions
 from engine.diplomacy import run_diplomatic_encounter, list_available_diplomatic_contacts
-from llm.router import generate_text
+from llm.router import generate_text, batch_generate_text
 from cli.model_settings_menu import model_settings_menu
 
 # Task 2.5: Enable Rich help panel
@@ -1847,7 +1847,8 @@ def play(
                     interpretation,
                     rng,
                     llm_generate_fn=generate_text,
-                    world_narrative=world.narrative
+                    world_narrative=world.narrative,
+                    llm_batch_fn=batch_generate_text
                 )
             else:
                 # Use standard narrative adjudication
@@ -1857,7 +1858,8 @@ def play(
                     interpretation,
                     rng,
                     llm_generate_fn=generate_text,
-                    world_narrative=world.narrative
+                    world_narrative=world.narrative,
+                    llm_batch_fn=batch_generate_text
                 )
             
             # Display adjudication results (shared with the dashboard CLI)

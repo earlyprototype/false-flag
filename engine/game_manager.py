@@ -288,8 +288,8 @@ class GameManager:
         try:
             if self.world.actor_system:
                 from engine.narrative_adjudication import adjudicate_with_actor_simulation
-                from llm.router import generate_text
-                
+                from llm.router import generate_text, batch_generate_text
+
                 final_effects, actor_responses, character_responses, reasoning = adjudicate_with_actor_simulation(
                     self.narrative_state,
                     self.world.actor_system,
@@ -297,11 +297,12 @@ class GameManager:
                     interpretation,
                     self.rng,
                     llm_generate_fn=generate_text,
-                    world_narrative=self.world.narrative
+                    world_narrative=self.world.narrative,
+                    llm_batch_fn=batch_generate_text
                 )
             else:
                 from engine.narrative_adjudication import adjudicate_with_narrative
-                from llm.router import generate_text
+                from llm.router import generate_text, batch_generate_text
                 
                 final_effects, character_responses, reasoning = adjudicate_with_narrative(
                     self.narrative_state,
@@ -309,7 +310,8 @@ class GameManager:
                     interpretation,
                     self.rng,
                     llm_generate_fn=generate_text,
-                    world_narrative=self.world.narrative
+                    world_narrative=self.world.narrative,
+                    llm_batch_fn=batch_generate_text
                 )
             # Sync world metrics with narrative state (keep both in sync)
             self.world.metrics.escalation_risk = self.narrative_state.hidden_metrics.escalation_risk

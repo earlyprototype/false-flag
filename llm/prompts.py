@@ -10,33 +10,12 @@ from typing import Any, Dict, List, Optional
 from models.world import WorldState
 
 
-def build_conversation_history_context(transcript: List[str], max_lines: int = 500) -> str:
-    """Build conversation history for LLM context.
-    
-    Includes full game transcript up to max_lines to leverage Gemini's 1M token context.
-    This allows advisors to reference past decisions, warnings, and outcomes.
-    
-    Args:
-        transcript: Full game transcript
-        max_lines: Maximum number of recent transcript lines to include
-    
-    Returns:
-        Formatted conversation history
-    """
-    if not transcript:
-        return "=== CONVERSATION HISTORY ===\n[This is the start of the crisis]"
-    
-    # Take the most recent max_lines entries
-    recent_transcript = transcript[-max_lines:] if len(transcript) > max_lines else transcript
-    
-    lines = ["=== CONVERSATION HISTORY ==="]
-    lines.append("(Previous turns, decisions, and advisor responses)")
-    lines.append("")
-    lines.extend(recent_transcript)
-    lines.append("")
-    lines.append("=== END CONVERSATION HISTORY ===")
-    
-    return "\n".join(lines)
+# build_conversation_history_context lived here: a second rendering of the
+# same transcript, under a different header and a different window, used by
+# the decision, pushback and omissions prompts while the advisor prompt used
+# context_builder.get_advisor_context. Two formats for identical material
+# guarantee the calls share no prefix, so neither could be cached against the
+# other. There is one renderer now - context_builder.render_transcript_block.
 
 
 def build_world_state_summary(world: WorldState) -> str:
@@ -128,13 +107,10 @@ def build_advisor_context(
     knowledge_domains = character.get("knowledge_domains", [])
     key_concerns = character.get("key_concerns", [])
     
-    # Use the new context builder for full game history
-    full_context = ""
-    if transcript:
-        full_context = get_advisor_context(transcript, world)
-    else:
-        # Fallback if no transcript
-        full_context = build_world_state_summary(world)
+    # The shared dossier, identical to the one every other transcript-carrying
+    # call opens with - including when there is no transcript yet, so turn
+    # one's calls share a prefix too.
+    full_context = get_advisor_context(transcript or [], world)
     
     # Get relevant context based on character role
     context_sections = []
@@ -163,13 +139,17 @@ def build_advisor_context(
             context_sections.append(str(stockpiles))
     
     context_str = "\n".join(context_sections)
-    
-    prompt = f"""You are the {role} in a UK government COBRA meeting during a crisis.
+
+    # Shared dossier first, role second. Caches match from the start of a
+    # prompt, so opening with "You are the {role}" made the shared prefix
+    # across a turn's calls twelve characters long. See
+    # context_builder.build_shared_context_prefix.
+    prompt = f"""{full_context}
+
+You are the {role} in a UK government COBRA meeting during a crisis.
 
 Your knowledge domains: {', '.join(knowledge_domains)}
 Your key concerns: {', '.join(key_concerns)}
-
-{full_context}
 
 Relevant context specific to your role:
 {context_str}
@@ -208,20 +188,21 @@ def build_decision_interpretation_prompt(
     Returns:
         Formatted prompt for LLM to interpret action
     """
+    from llm.context_builder import build_shared_context_prefix
+
     constraints = initial_conditions.get("constraints", {})
     uk_forces = initial_conditions.get("uk_forces", {})
     stockpiles = initial_conditions.get("stockpiles", {})
-    
-    # Build conversation history if available
-    history_context = ""
-    if transcript:
-        history_context = f"\n\n{build_conversation_history_context(transcript)}\n"
-    
-    prompt = f"""You are interpreting a decision made by the UK Prime Minister during a crisis.
 
-Current situation:
-{build_world_state_summary(world)}
-{history_context}
+    # Shared dossier first (see context_builder.build_shared_context_prefix),
+    # role and task after. This call used to render the history through
+    # build_conversation_history_context, a second, differently-formatted
+    # window over the same transcript; two renderings of identical material
+    # share no prefix, so neither could ever be cached against the other.
+    prompt = f"""{build_shared_context_prefix(transcript or [], world)}
+
+You are interpreting a decision made by the UK Prime Minister during a crisis.
+
 Available forces:
 {uk_forces}
 
@@ -290,17 +271,13 @@ def build_pushback_prompt(
             advisor_info.append(f"- {role}: {', '.join(triggers)}")
     
     advisors_str = "\n".join(advisor_info)
-    
-    # Build conversation history if available
-    history_context = ""
-    if transcript:
-        history_context = f"\n\n{build_conversation_history_context(transcript)}\n"
-    
-    prompt = f"""You are simulating UK government advisors responding to a Prime Minister's decision.
 
-Current situation:
-{build_world_state_summary(world)}
-{history_context}
+    from llm.context_builder import build_shared_context_prefix
+
+    prompt = f"""{build_shared_context_prefix(transcript or [], world)}
+
+You are simulating UK government advisors responding to a Prime Minister's decision.
+
 The PM has decided: "{action}"
 
 Interpretation of this action:
@@ -507,27 +484,26 @@ def build_critical_omissions_prompt(
     Returns:
         Formatted prompt string
     """
-    world_summary = build_world_state_summary(world)
+    from llm.context_builder import build_shared_context_prefix
+
     character = initial_conditions.get("characters", {}).get(character_id, {})
     role = character.get("role", character_id)
     personality = character.get("personality", "Professional and direct")
-    
+
     # Build context on what actions have been taken recently
     recent_context = "\n".join(recent_events) if recent_events else "No recent major events"
-    
-    # Build conversation history if available
-    history_context = ""
-    if transcript:
-        history_context = build_conversation_history_context(transcript, max_lines=100)
-    
-    prompt = f"""You are the UK {role} advising the Prime Minister during a national security crisis.
 
-{world_summary}
+    # These five calls (one per advisor) are the largest identical-prefix
+    # group in a turn, and they used to be the *worst* served: a 100-line
+    # window of history where every other call got 500. Same dossier as
+    # everyone else now, which both widens what they see and makes all five
+    # cacheable against each other.
+    prompt = f"""{build_shared_context_prefix(transcript or [], world)}
+
+You are the UK {role} advising the Prime Minister during a national security crisis.
 
 RECENT EVENTS:
 {recent_context}
-
-{history_context if history_context else ""}
 
 THE PRIME MINISTER'S DECISION:
 "{player_decision}"

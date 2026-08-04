@@ -213,11 +213,14 @@ def test_prompt_without_a_ledger_is_unchanged(monkeypatch):
 def test_generator_window_is_widened_beyond_the_advisor_starvation_default():
     """The generator ran on 120 lines while advisors got 500 — it is the
     component most responsible for continuity (issue #25)."""
-    from llm.context_builder import MAX_ADVISOR_TRANSCRIPT_LINES
+    from llm.context_builder import MAX_ADVISOR_TRANSCRIPT_CHARS
     assert MAX_INJECT_CONTINUITY_LINES == 400
     assert MAX_INJECT_CONTINUITY_LINES > 120
-    # Still bounded: full transcripts exceed the play models' context window
-    assert MAX_INJECT_CONTINUITY_LINES <= MAX_ADVISOR_TRANSCRIPT_LINES
+    # Still bounded, and still no wider than what the advisors carry. The
+    # advisor cap is a character budget now (issue #32) - lines were a poor
+    # proxy for the model context window that actually binds - so the
+    # comparison is made in characters, at this campaign's 393 chars a line.
+    assert MAX_INJECT_CONTINUITY_LINES * 393 <= MAX_ADVISOR_TRANSCRIPT_CHARS
 
 
 def test_widened_window_is_actually_used(monkeypatch):

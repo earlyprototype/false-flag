@@ -21,22 +21,15 @@ def display_country_name(country_code: str) -> str:
     return COUNTRY_DISPLAY_NAMES.get(country_code, country_code)
 
 
-def simulate_actor_response(
-    actor: StateActor,
-    player_action: str,
-    world_context: str,
-    llm_generate_fn,
-    rng: Random
-) -> ActorResponse:
+def build_actor_prompt(actor: StateActor, player_action: str,
+                      world_context: str) -> str:
+    """Build one actor's roleplay prompt (no call - see simulate_actor_responses).
+
+    The prompt carries the actor's HIDDEN STATE - motivations, agendas,
+    dependencies - which is what makes the response something other than a
+    press release.
     """
-    Use LLM to simulate how this specific actor responds.
-    
-    The LLM is given the actor's HIDDEN STATE (motivations, agendas, dependencies)
-    and asked to roleplay their response realistically.
-    """
-    
-    # Build prompt with actor's secret knowledge
-    prompt = f"""
+    return f"""
 You are simulating {actor.full_name}'s response to a UK government action.
 
 === ACTOR IDENTITY ===
@@ -90,14 +83,63 @@ Be realistic. If you have hidden agendas, let them guide your response.
 If you have dependencies (e.g., Russian gas), they constrain your actions.
 If you have redlines, enforce them.
 """
-    
+
+
+def simulate_actor_response(
+    actor: StateActor,
+    player_action: str,
+    world_context: str,
+    llm_generate_fn,
+    rng: Random
+) -> ActorResponse:
+    """Simulate one actor's response. Kept for callers that ask for a single
+    country; the turn loop goes through simulate_actor_responses instead."""
+    prompt = build_actor_prompt(actor, player_action, world_context)
     try:
         response_text = llm_generate_fn(prompt, rng)
         return _parse_actor_response(actor.country_code, response_text)
-    
     except Exception:
         # Fallback to heuristic response
         return _heuristic_actor_response(actor, player_action)
+
+
+def simulate_actor_responses(
+    actors: list,
+    player_action: str,
+    world_context: str,
+    llm_generate_fn,
+    rng: Random,
+    llm_batch_fn=None,
+) -> list:
+    """Simulate several actors' responses to the same UK action.
+
+    Capitals do not consult each other before replying, and the game does not
+    show them each other's answers, so there is nothing sequential about this
+    group beyond the fact that it used to be written as a loop.
+
+    An actor whose call comes back empty or as a driver error string falls
+    back to the same heuristic response the single-call path used, rather
+    than reaching the parser as a blank.
+    """
+    from llm.fanout import generate_group
+
+    if not actors:
+        return []
+
+    prompts = [build_actor_prompt(actor, player_action, world_context)
+               for actor in actors]
+    raw = generate_group(prompts, llm_generate_fn, rng, llm_batch_fn)
+
+    responses = []
+    for actor, text in zip(actors, raw):
+        if not text or text.startswith("[ERROR:"):
+            responses.append(_heuristic_actor_response(actor, player_action))
+            continue
+        try:
+            responses.append(_parse_actor_response(actor.country_code, text))
+        except Exception:
+            responses.append(_heuristic_actor_response(actor, player_action))
+    return responses
 
 
 def _parse_actor_response(actor_id: str, response_text: str) -> ActorResponse:

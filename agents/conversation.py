@@ -15,6 +15,7 @@ from llm.prompts import (
     build_critical_omissions_prompt
 )
 from llm.model_config import LLMContext
+from llm.fanout import generate_group
 from engine.initial_conditions import get_all_uk_advisors
 
 
@@ -313,7 +314,8 @@ def check_critical_omissions(
     initial_conditions: Dict[str, Any],
     llm_generate_fn,
     rng: Random,
-    transcript: List[str] = None
+    transcript: List[str] = None,
+    llm_batch_fn=None
 ) -> List[Tuple[str, str, str]]:
     """Check if player has failed to take critical actions.
     
@@ -361,26 +363,31 @@ def check_critical_omissions(
     ]
     
     critical_concerns = []
-    
-    for char_id in advisors_to_check:
-        if char_id not in uk_advisors:
-            continue
-        
+
+    # The five advisors scan independently - none of them reads another's
+    # answer - so these are asked together rather than one after another.
+    # They are also the largest identical-prefix group in a turn, and the
+    # interpretation and pushback calls that run before them share that same
+    # prefix, so the provider's cache is already warm by the time they fire.
+    checking = [c for c in advisors_to_check if c in uk_advisors]
+    prompts = [
+        build_critical_omissions_prompt(
+            world, initial_conditions, char_id, player_decision,
+            recent_events, transcript
+        )
+        for char_id in checking
+    ]
+    responses = generate_group(
+        prompts, llm_generate_fn, rng, llm_batch_fn,
+        context=LLMContext.CRITICAL_OMISSIONS
+    )
+
+    for char_id, response in zip(checking, responses):
         try:
-            prompt = build_critical_omissions_prompt(
-                world,
-                initial_conditions,
-                char_id,
-                player_decision,
-                recent_events,
-                transcript
-            )
-            response = llm_generate_fn(prompt, rng, context=LLMContext.CRITICAL_OMISSIONS)
-            
             # Parse response
-            if "NO_CONCERN" in response or "NO CONCERN" in response:
+            if not response or "NO_CONCERN" in response or "NO CONCERN" in response:
                 continue
-            
+
             # Extract concern and recommendation (tolerating markdown-bold
             # labels); continuation lines append to whichever was seen last
             concern = ""

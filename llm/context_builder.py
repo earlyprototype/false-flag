@@ -14,8 +14,44 @@ from models.world import WorldState
 # an action, or a system message.
 FullTranscript = List[str]
 
-# Maximum transcript lines embedded in advisor context (keeps prompts bounded)
-MAX_ADVISOR_TRANSCRIPT_LINES = 500
+# Transcript budget, in characters rather than lines. Lines were always a
+# proxy for the thing that actually binds - the model's context window - and
+# a poor one: on the saved 18-turn campaign a transcript line averages 393
+# characters but ranges from an empty string to a full paragraph.
+#
+# 320,000 characters is roughly 80,000 tokens, which leaves real headroom
+# inside a 128K window once the role-specific half of the prompt is added.
+# It is also enough that the recent window alone exceeds what the old
+# 500-line cap carried (233,978 characters on that campaign), so widening
+# here takes nothing away to pay for keeping the campaign's opening.
+MAX_ADVISOR_TRANSCRIPT_CHARS = 320_000
+
+# The history header, and why it carries no counts. It has to be honest in
+# both cases - complete and elided - without changing between them, because
+# anything above the transcript that moves as the transcript grows cuts the
+# cacheable prefix off at the header. A line count did exactly that: it made
+# every prompt in a turn differ within its first hundred characters. The
+# specifics of any elision are stated inline, at the point of the cut.
+_HISTORY_HEADER = (
+    "GAME HISTORY - everything that has happened, in order. Where any of it "
+    "has been elided for length, the elision is marked inline."
+)
+
+# Share of the transcript budget spent on the campaign's opening when the
+# whole history no longer fits.
+#
+# Chosen so the *recent* window is no smaller than the 500-line tail this
+# replaced - on the saved 18-turn campaign that is about four and a half
+# turns either way - and the opening comes on top of it rather than out of
+# it. The opening is worth keeping because it is where the crisis is
+# established, and the scripted turns are what everything since has been a
+# reaction to.
+#
+# A stable head also stops the block from moving on every turn, which is what
+# a prefix cache needs. Do not oversell that part: cache lifetimes are 3-30
+# minutes, so it pays across the calls within one turn and usually not across
+# a gap where a player is thinking.
+_TRANSCRIPT_HEAD_SHARE = 0.2
 
 # Continuity window for inject generation. The generator is the component
 # most responsible for the story hanging together, yet it ran on 120 lines
@@ -115,45 +151,181 @@ def get_last_turn_slice(transcript: FullTranscript, max_lines: int = 120) -> Ful
             "[... mid-turn discussion elided for length ...]",
             *tail_lines]
 
-def get_advisor_context(transcript: FullTranscript, world_state: WorldState) -> str:
-    """
-    Returns the game transcript (capped at the most recent
-    MAX_ADVISOR_TRANSCRIPT_LINES lines) with a world state summary.
-    Used for the Advisory Council to ensure recall and persona consistency.
-    """
-    context_parts = []
-    
-    # Add world state summary at the top
-    context_parts.append("=" * 60)
-    context_parts.append("CURRENT SITUATION")
-    context_parts.append("=" * 60)
-    context_parts.append(f"Turn: {world_state.turn}")
-    context_parts.append(f"Phase: {world_state.phase}")
-    context_parts.append(f"Escalation Risk: {world_state.metrics.escalation_risk}/100")
-    context_parts.append(f"Domestic Stability: {world_state.metrics.domestic_stability}/100")
-    context_parts.append(f"Alliance Cohesion: {world_state.metrics.alliance_cohesion}/100")
-    context_parts.append(f"Military Casualties: {world_state.metrics.casualties_mil}")
-    context_parts.append(f"Civilian Casualties: {world_state.metrics.casualties_civ}")
-    context_parts.append("")
+def _turn_boundaries(transcript: FullTranscript) -> List[int]:
+    """Indices of the ``TURN N`` header lines, each backed up onto its ruler.
 
-    # Add narrative context (Mystery mode): advisors know the secret truth so
-    # their assessments can carry subtle tells, same pattern as the inject and
-    # diplomatic context builders. Global truth only - no per-country stance.
+    Elision cuts land on these so a window never starts or stops halfway
+    through a turn.
+    """
+    return [max(0, i - 1) for i, line in enumerate(transcript)
+            if _TURN_HEADER_RE.match(line.strip())]
+
+
+def _span_chars(transcript: FullTranscript, start: int, stop: int) -> int:
+    """Characters (with newlines) occupied by transcript[start:stop]."""
+    return sum(len(line) + 1 for line in transcript[start:stop])
+
+
+def render_transcript_block(transcript: FullTranscript,
+                            max_chars: int = MAX_ADVISOR_TRANSCRIPT_CHARS) -> str:
+    """Render the game history, saying honestly how much of it is present.
+
+    Two things are deliberate here.
+
+    The header no longer claims COMPLETE over a window. It said so while
+    dropping everything but the last 500 lines, which on an 18-turn campaign
+    is the last quarter of the game - the same instinct that capped the event
+    ledger at six entries and re-opened the bug the ledger existed to close.
+
+    When the history does not fit, the campaign's *opening* is kept and the
+    middle is elided at turn boundaries, rather than keeping a sliding tail.
+    A tail window is the worst possible shape for a prompt cache: it moves on
+    every turn, so the block never starts the same way twice and no provider
+    can match a prefix. Anchoring the head means the start of this block is
+    stable for many turns at a stretch.
+    """
+    total_chars = sum(len(line) + 1 for line in transcript)
+    ruler = "=" * 60
+
+    if total_chars <= max_chars:
+        return "\n".join([ruler, _HISTORY_HEADER, ruler, *transcript])
+
+    head_budget = int(max_chars * _TRANSCRIPT_HEAD_SHARE)
+    boundaries = _turn_boundaries(transcript)
+
+    # Grow the head one whole turn at a time, until the next whole turn would
+    # spend more than the opening's share of the budget. Nothing is taken
+    # unconditionally: a transcript whose first turn header is a long way in
+    # would otherwise pull all of that preamble into the head regardless of
+    # budget, and the block would run past the cap it exists to enforce. If
+    # the opening does not fit, there is simply no head and this degrades to
+    # the plain recent window.
+    head_end = 0
+    head_used = 0
+    for boundary in boundaries:
+        span = _span_chars(transcript, head_end, boundary)
+        if head_used + span > head_budget:
+            break
+        head_used += span
+        head_end = boundary
+
+    # Spend what is left from the end, again stopping on a turn boundary.
+    tail_budget = max(0, max_chars - head_used)
+    tail_start = len(transcript)
+    tail_used = 0
+    for boundary in reversed(boundaries):
+        if boundary <= head_end:
+            break
+        span = _span_chars(transcript, boundary, tail_start)
+        if tail_used + span > tail_budget:
+            break
+        tail_used += span
+        tail_start = boundary
+
+    # No turn boundary fit inside the tail budget - a transcript with no turn
+    # headers at all (the synthetic ones in tests), or one enormous turn.
+    # Fall back to a plain character tail so the block still renders.
+    if tail_start >= len(transcript):
+        tail_start = head_end
+        running = 0
+        for i in range(len(transcript) - 1, head_end - 1, -1):
+            running += len(transcript[i]) + 1
+            if running > tail_budget:
+                tail_start = i + 1
+                break
+
+    elided = tail_start - head_end
+    return "\n".join([
+        ruler,
+        _HISTORY_HEADER,
+        ruler,
+        *transcript[:head_end],
+        f"[... {elided} lines of mid-campaign history elided for length ...]",
+        *transcript[tail_start:],
+    ])
+
+
+def build_shared_context_prefix(transcript: FullTranscript,
+                                world_state: WorldState) -> str:
+    """The identical opening block every transcript-carrying prompt starts with.
+
+    Prompt caches match from the *start* of a prompt, so what a prompt opens
+    with decides what can be cached. Every call used to open with its own
+    role line - "You are the {role} ..." - which made the shared prefix
+    across a turn's calls twelve characters long, and put the large,
+    identical, genuinely cacheable part (the transcript) after the point
+    where the prompts had already diverged.
+
+    The order below is by rate of change, slowest first, which is the only
+    order a prefix cache can exploit:
+
+    1. the campaign's fixed framing, and the hidden narrative truth drawn at
+       setup - constant for the whole campaign;
+    2. the transcript - append-only, so turn N+1's block is turn N's block
+       with more on the end, and a provider matches straight through it;
+    3. the current metrics and phase - these change every turn, so they come
+       last, after everything worth matching.
+
+    The role-specific half of each prompt follows this block. Nothing here
+    changes *what* a model is shown, only the order it is shown in.
+    """
+    ruler = "=" * 60
+    parts = [
+        ruler,
+        "UK CRISIS WARGAME - SHARED BRIEFING DOSSIER",
+        ruler,
+        "The material below is the same for every member of the COBRA cell.",
+        "Your own role and instructions follow it.",
+        "",
+    ]
+
+    # Mystery mode's secret truth is drawn once at setup and never changes,
+    # so it belongs with the static framing rather than below the transcript.
+    # Global truth only - no per-country stance.
     if world_state.narrative:
-        context_parts.append(world_state.narrative.to_llm_context())
-        context_parts.append("")
+        parts.append(world_state.narrative.to_llm_context())
+        parts.append("")
 
-    # Add transcript (capped to keep the prompt bounded on long games)
-    context_parts.append("=" * 60)
-    context_parts.append("COMPLETE GAME HISTORY")
-    context_parts.append("=" * 60)
-    if len(transcript) > MAX_ADVISOR_TRANSCRIPT_LINES:
-        context_parts.append("[... earlier history truncated ...]")
-        context_parts.extend(transcript[-MAX_ADVISOR_TRANSCRIPT_LINES:])
-    else:
-        context_parts.extend(transcript)
+    parts.append(render_transcript_block(transcript))
+    parts.append("")
 
-    return "\n".join(context_parts)
+    # Everything from here down changes every turn, which is why it is here
+    # and not at the top.
+    parts.extend([
+        ruler,
+        "CURRENT SITUATION",
+        ruler,
+        f"Turn: {world_state.turn}",
+        f"Phase: {world_state.phase}",
+        f"Escalation Risk: {world_state.metrics.escalation_risk}/100",
+        f"Domestic Stability: {world_state.metrics.domestic_stability}/100",
+        f"Alliance Cohesion: {world_state.metrics.alliance_cohesion}/100",
+        f"Military Casualties: {world_state.metrics.casualties_mil}",
+        f"Civilian Casualties: {world_state.metrics.casualties_civ}",
+        "",
+    ])
+
+    # The narrative rendering of the same numbers, plus the standing
+    # instruction not to talk about them as numbers. The decision, pushback
+    # and omissions prompts each carried this and the advisor prompt did not;
+    # merging the two context shapes must not quietly drop it from four call
+    # sites. Imported here rather than at module scope because llm.prompts
+    # imports this module.
+    from llm.prompts import build_world_state_summary
+    parts.append(build_world_state_summary(world_state))
+    parts.append("")
+
+    return "\n".join(parts)
+
+
+def get_advisor_context(transcript: FullTranscript, world_state: WorldState) -> str:
+    """The shared dossier block, for the Advisory Council.
+
+    Kept as a named entry point because callers and tests refer to it, but it
+    is now exactly the block every other transcript-carrying prompt opens
+    with - which is the point: identical text is what a prompt cache matches.
+    """
+    return build_shared_context_prefix(transcript, world_state)
 
 def get_decision_interpreter_context(current_turn_transcript: List[str], world_state: WorldState) -> str:
     """
