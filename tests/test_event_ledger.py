@@ -299,10 +299,20 @@ def test_actor_simulation_path_also_records_disposition(monkeypatch):
     ns = _state()
     ns.record_played_event(1, "Akula surfaced off Orkney")
 
+    llm_calls = []
+
+    def fake_llm(*args, **kwargs):
+        llm_calls.append(args)
+        return "QUALITY: good\n\nREASONING: fine.\n"
+
+    # rng before llm_generate_fn — passing them swapped still satisfies the
+    # assertion below, but silently routes quality assessment through the
+    # heuristic fallback instead of the LLM path this test means to cover.
     na.adjudicate_with_actor_simulation(
         ns, StateActorSystem(), "escort the submarine out", "interp",
-        lambda *a, **k: "QUALITY: good\n\nREASONING: fine.\n", Random(1))
+        Random(1), fake_llm)
 
+    assert llm_calls, "quality assessment must reach the LLM path, not the fallback"
     assert seen, "actor path must record the event disposition"
 
 
