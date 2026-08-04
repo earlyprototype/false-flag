@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build ``docs/play/game.zip`` — the game code the browser build runs.
+"""Build ``docs/game.zip`` — the game code the browser build runs.
 
 The browser build is a Web Worker running the *real* engine under Pyodide.
 This script packs everything that engine touches at runtime into one zip that
@@ -21,14 +21,14 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "docs" / "play" / "game.zip"
+OUT = ROOT / "docs" / "game.zip"
 
 # Package directories the engine imports or reads at runtime.
 INCLUDE_DIRS = ["models", "engine", "llm", "agents", "data"]
 
 # The browser's Python-side driver, flattened to a top-level module so the
 # worker can `import bridge`.
-EXTRA_FILES = {ROOT / "docs" / "play" / "py" / "bridge.py": "bridge.py"}
+EXTRA_FILES = {ROOT / "docs" / "py" / "bridge.py": "bridge.py"}
 
 SKIP_SUFFIXES = (".pyc", ".pyo")
 SKIP_DIRS = {"__pycache__", ".pytest_cache", ".ruff_cache"}

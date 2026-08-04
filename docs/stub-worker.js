@@ -1,7 +1,7 @@
 /* FALSE FLAG - offline stand-in for the engine worker.
  *
  * The real worker runs the Python engine under Pyodide. This one replays a
- * recorded campaign (docs/play/stub-data.js, captured from the game itself at
+ * recorded campaign (docs/stub-data.js, captured from the game itself at
  * 78 columns against the mock LLM driver) so the page can be built, driven
  * and tested end to end without it. It speaks exactly the same message
  * contract, so swapping ?engine=stub for the real worker changes nothing on
@@ -149,7 +149,12 @@ function boot() {
 function newGame(config) {
   config = config || {};
   state.turn = 1;
-  state.metricsVisible = config.playMode !== 'immersive';
+  // Mirrors bridge.py's `metrics_visible()`, which is `play_mode == "classic"`
+  // — not "anything but immersive". The page offers three modes, and in
+  // `emergent` the real engine withholds the metrics. A stub that showed a
+  // gauge there would misreport the very selector it exists to exercise, so
+  // this must be kept in step with the engine, not merely with the default.
+  state.metricsVisible = config.playMode === 'classic';
   schedule([
     [120, function () {
       if (!state.keySet) {
@@ -218,7 +223,13 @@ function ask(advisor, text) {
 function call(country, text) {
   if (state.phase === 'over') return;
   var opening = !state.onCall;
-  var hangup = /^(end|thank you|goodbye)\b/i.test(text.trim());
+  // A `call` with no text is legal — it is how the line is opened before
+  // anything is said — and bridge.py tolerates it with `(text or "").strip()`.
+  // Calling .trim() on undefined here threw, and the try/catch around the
+  // dispatcher turned that into {fatal:true}, halting the page over an input
+  // the engine accepts.
+  var said = (text === null || text === undefined) ? '' : String(text).trim();
+  var hangup = /^(end|thank you|goodbye)\b/i.test(said);
   state.onCall = country;
   schedule([
     [60, function () {
@@ -226,8 +237,10 @@ function call(country, text) {
         out(rule('DIPLOMATIC CALL · ' + country));
         out(C.muted + '  Line open. Encryption green.' + C.off + '\n');
       }
-      out(C.accent + '  PRIME MINISTER  ' + C.off + '\n');
-      wrap(text, 72).forEach(function (l) { out(C.amber + '    ' + l + C.off + '\n'); });
+      if (said) {
+        out(C.accent + '  PRIME MINISTER  ' + C.off + '\n');
+        wrap(said, 72).forEach(function (l) { out(C.amber + '    ' + l + C.off + '\n'); });
+      }
     }],
     [320, function () {
       if (hangup) {

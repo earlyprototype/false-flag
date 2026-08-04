@@ -10,7 +10,7 @@ from models.world import Metrics
 # Colouring every "+N" the same way tells the player the opposite of the truth
 # for half the board, so both front ends resolve polarity through here — the
 # terminal (``cli/display_utils``, ``cli/rich_ui``) and the browser
-# (``docs/play/py/bridge.py``) must never disagree about what is good news.
+# (``docs/py/bridge.py``) must never disagree about what is good news.
 METRIC_RISE_IS_GOOD = {
     "escalation_risk": False,
     "casualties_mil": False,

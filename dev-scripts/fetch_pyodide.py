@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Vendor the Pyodide runtime + the wheels the game needs into docs/play/pyodide.
+"""Vendor the Pyodide runtime + the wheels the game needs into docs/pyodide.
 
 The browser build loads Pyodide from the jsDelivr CDN by default. Running this
 script drops a complete local copy next to the worker; ``worker.js`` probes for
 it and prefers it automatically, which restores the site's "zero external
 requests" property at the cost of ~16.5 MB in the repository.
 
-    python3 dev-scripts/fetch_pyodide.py            # -> docs/play/pyodide/
+    python3 dev-scripts/fetch_pyodide.py            # -> docs/pyodide/
     python3 dev-scripts/fetch_pyodide.py 0.27.7 DIR
 
 The directory is gitignored by default. To actually ship a self-hosted build
-you must force-add it (``git add -f docs/play/pyodide``); see the tradeoff
-note at the top of docs/play/worker.js.
+you must force-add it (``git add -f docs/pyodide``); see the tradeoff
+note at the top of docs/worker.js.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from pathlib import Path
 
 DEFAULT_VERSION = "0.27.7"
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_OUT = ROOT / "docs" / "play" / "pyodide"
+DEFAULT_OUT = ROOT / "docs" / "pyodide"
 
 RUNTIME = [
     "pyodide.js",

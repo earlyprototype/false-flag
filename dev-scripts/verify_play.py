@@ -174,7 +174,7 @@ def main() -> int:
     args = ap.parse_args()
 
     serve()
-    page_url = f"http://127.0.0.1:{SITE_PORT}/play/engine-harness.html"
+    page_url = f"http://127.0.0.1:{SITE_PORT}/engine-harness.html"
     if args.cdn_sim:
         cdn = serve_cdn_sim()
         if not cdn:

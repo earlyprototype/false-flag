@@ -99,13 +99,22 @@ const SGR = {
   90:'#7c92a6', 91:'#ff6b35', 92:'#00d9a3', 93:'#ffb627', 94:'#6eabd6',
   95:'#dba3ff', 96:'#00d1cd', 97:'#f1faee'
 };
+// Everything that reaches log() below is HTML, so every piece of text that
+// goes into it must be escaped first. Engine messages carry player-authored
+// content — the decision that was being adjudicated, the contents of a save
+// file that failed to load — and this page ships in docs/, so it is a page a
+// player can reach, not only a dev tool.
+function esc(text) {
+  return String(text === null || text === undefined ? '' : text)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 function ansiToHtml(text) {
-  let out = '', open = 0, esc = String(text).split(/\x1b\[([0-9;]*)m/);
-  for (let i = 0; i < esc.length; i++) {
+  let out = '', open = 0, parts = String(text).split(/\x1b\[([0-9;]*)m/);
+  for (let i = 0; i < parts.length; i++) {
     if (i % 2 === 0) {
-      out += esc[i].replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      out += esc(parts[i]);
     } else {
-      const codes = esc[i].split(';').filter(s => s !== '').map(Number);
+      const codes = parts[i].split(';').filter(s => s !== '').map(Number);
       if (!codes.length || codes.includes(0)) { while (open) { out += '</span>'; open--; } continue; }
       let style = '', cls = '';
       for (const c of codes) {
@@ -169,13 +178,13 @@ worker.onmessage = (e) => {
     case 'error':
       window.FF.errors.push(m);
       log('<span style="color:#ff3b30">[worker error] ' +
-          m.message.replace(/</g,'&lt;') + '</span>');
+          esc(m.message) + '</span>');
       break;
   }
 };
 worker.onerror = (e) => {
   window.FF.errors.push({ message: e.message, fatal: true });
-  log('<span style="color:#ff3b30">[worker crash] ' + e.message + '</span>');
+  log('<span style="color:#ff3b30">[worker crash] ' + esc(e.message) + '</span>');
 };
 
 function setEnabled(on) {

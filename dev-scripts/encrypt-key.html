@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FALSE FLAG — seal a shared key</title>
+<!-- This page must never talk to anything. The policy below is the proof:
+     no scripts, styles, images, fonts, frames or connections may be loaded
+     from anywhere, and no form may be submitted. Only the inline script and
+     inline stylesheet in this file are allowed to run. If a future edit ever
+     tries to fetch or POST something, the browser stops it. -->
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="dark">
+<style>
+/* One theme, dark; the same defcon palette and the same split between
+   structure colours and text colours as docs/play.css. See the token table
+   at the top of that file. */
+:root {
+  --ground: #0b1017; --panel: #0f1621; --panel-2: #111a26;
+  --line: #1d2836; --line-2: #263447;
+  --navy: #004e89; --steel: #1a659e; --steel-t: #6eabd6;
+  --ink: #f1faee; --ink-2: #c9d6e0; --dim: #92a8ba;
+  --accent: #ff6b35; --accent-t: #ff8b5e;
+  --amber: #ffb627; --teal: #00d9a3;
+  --red: #ff0000; --red-t: #ff8375;
+  --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "JetBrains Mono",
+          "DejaVu Sans Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font-family: var(--mono); font-size: 13.5px; line-height: 1.62;
+}
+main { max-width: 820px; margin: 0 auto; padding: 0 18px 64px; }
+.strip {
+  display: flex; gap: 10px; align-items: center;
+  border-bottom: 1px solid var(--navy); color: var(--red);
+  font-size: 11.5px; letter-spacing: 0.16em; padding: 9px 18px;
+}
+.strip.bottom { border-bottom: 0; border-top: 1px solid var(--navy); margin-top: 32px; }
+.strip b { color: var(--amber); font-weight: 600; }
+.strip .fill { flex: 1 1 auto; overflow: hidden; white-space: nowrap; color: var(--navy); }
+.strip .fill::before { content: "────────────────────────────────────────────────────────────────────"; }
+.rule {
+  display: flex; align-items: baseline; gap: 10px;
+  font-size: 15px; letter-spacing: 0.2em; text-transform: uppercase;
+  font-weight: 600; color: var(--ink); margin: 34px 0 14px;
+}
+.rule .num { color: var(--amber); font-weight: 400; }
+.rule .fill { flex: 1 1 auto; overflow: hidden; white-space: nowrap; color: var(--steel); }
+.rule .fill::before { content: "────────────────────────────────────────────────────────────────────"; }
+p { margin: 0 0 12px; color: var(--ink-2); }
+a { color: var(--accent-t); }
+strong, b { color: var(--ink); }
+.panel {
+  background: var(--panel); border: 1px solid var(--navy);
+  border-radius: 2px; padding: 16px 18px; margin: 0 0 18px;
+}
+.panel > :last-child { margin-bottom: 0; }
+.cap {
+  display: block; font-size: 11.5px; letter-spacing: 0.16em;
+  color: var(--dim); margin-bottom: 10px;
+}
+.cap b { color: var(--amber); font-weight: 600; }
+.note {
+  border-left: 3px solid var(--amber); background: var(--panel-2);
+  padding: 11px 13px; margin: 0 0 14px; font-size: 12.5px; color: var(--ink-2);
+}
+.note p { margin: 8px 0 0; color: inherit; }
+.note b { color: var(--amber); font-weight: 600; }
+.note.warn { border-left-color: var(--red); }
+.note.warn b { color: var(--red-t); }
+.note.good { border-left-color: var(--teal); }
+.note.good b { color: var(--teal); }
+label {
+  display: block; font-size: 11.5px; letter-spacing: 0.14em;
+  color: var(--dim); margin-bottom: 5px; text-transform: uppercase;
+}
+input[type="text"], input[type="password"], input[type="number"], textarea {
+  font-family: var(--mono); font-size: 14px; color: var(--ink);
+  background: var(--ground); border: 1px solid var(--steel);
+  border-radius: 2px; padding: 9px 10px; width: 100%; max-width: 100%;
+}
+textarea { line-height: 1.5; resize: vertical; }
+button {
+  font-family: var(--mono); font-size: 12px; letter-spacing: 0.13em;
+  text-transform: uppercase; color: var(--ink-2); background: var(--panel-2);
+  border: 1px solid var(--steel); border-radius: 2px; padding: 8px 14px;
+  cursor: pointer; min-height: 38px;
+}
+button:hover:not(:disabled) { color: var(--ink); border-color: var(--steel-t); }
+button:disabled { opacity: 0.42; cursor: not-allowed; }
+button.primary {
+  color: var(--ground); background: var(--accent);
+  border-color: var(--accent); font-weight: 700;
+}
+button.primary:hover:not(:disabled) { background: var(--amber); border-color: var(--amber); }
+button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--amber); outline-offset: 1px;
+}
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+.row .spacer { flex: 1 1 auto; }
+.field { margin-bottom: 14px; }
+.checkrow { display: flex; gap: 9px; align-items: flex-start; margin: 10px 0 0; }
+.checkrow input { width: auto; min-width: 18px; min-height: 18px; margin-top: 3px; }
+.checkrow label {
+  margin: 0; font-size: 12.5px; letter-spacing: 0; color: var(--ink-2);
+  text-transform: none;
+}
+#phraseOut {
+  font-size: 16px; letter-spacing: 0.02em; color: var(--teal);
+  background: var(--panel-2); word-break: break-word; min-height: 64px;
+}
+.meter { display: flex; gap: 9px; align-items: baseline; margin-top: 8px; font-size: 12px; }
+.meter .bar { color: var(--line-2); letter-spacing: 0; }
+.meter .bar i.weak { color: var(--red-t); }
+.meter .bar i { font-style: normal; color: var(--teal); }
+.meter .verdict { color: var(--ink-2); }
+.meter .verdict.bad { color: var(--red-t); }
+.meter .verdict.ok { color: var(--teal); }
+#blobOut { min-height: 150px; font-size: 12px; color: var(--ink-2); }
+ul { margin: 0 0 12px; padding-left: 20px; color: var(--ink-2); }
+li { margin-bottom: 5px; }
+code {
+  background: var(--panel-2); border: 1px solid var(--steel);
+  padding: 1px 5px; border-radius: 2px; color: var(--ink); font-size: 12.5px;
+}
+.hint { font-size: 11.5px; color: var(--dim); margin: 8px 0 0; }
+</style>
+</head>
+<body>
+
+<div class="strip" aria-hidden="true">
+  <span>┌─[ <b>TOP SECRET ── UK EYES ONLY</b> ]</span>
+  <span class="fill"></span>
+  <span class="code">[ COBRA/TU/KEYSEAL ]─┐</span>
+</div>
+
+<main>
+
+<h1 class="rule"><span class="num">00</span><span>SEAL A SHARED KEY</span><span class="fill"></span></h1>
+
+<p>This page takes an OpenRouter API key and a passphrase and returns an
+encrypted blob. Save the blob as <code>docs/shared-key.json</code>, commit
+it, and testers who know the passphrase can play the browser build against
+your account without ever holding your key.</p>
+
+<div class="note">
+  <b>This page runs entirely on your machine.</b> Open it from disk with
+  <code>file://</code>. It loads nothing and sends nothing — the Content
+  Security Policy in its <code>&lt;head&gt;</code> forbids every outbound
+  request the browser can make. Your key is typed here, encrypted here, and
+  never leaves this tab. This is the only page in this project where you type
+  the key in the clear — but not the only code that ever holds it in the
+  clear: once a tester unlocks the blob, the play page necessarily keeps the
+  decrypted key in memory for that tab in order to call OpenRouter with it.
+</div>
+
+<div class="note warn">
+  <b>Understand what you are publishing.</b> The blob is ciphertext, but it is
+  ciphertext on the public internet, in a public git repository, and git keeps
+  history. Once you commit it, assume it is public forever and that deleting
+  the file later removes nothing. Anyone who has the passphrase — now, or in
+  five years, from anyone you gave it to — can recover the key from it. The
+  only real off-switch is revoking the key at OpenRouter.
+</div>
+
+<div class="note warn">
+  <b>Cap the key before you seal it.</b> At
+  <code>openrouter.ai/settings/keys</code> give this key a credit limit, and
+  make it a key you use for nothing else. Everyone who unlocks the page spends
+  from it.
+</div>
+
+<!-- ------------------------------------------------------------ passphrase -->
+<h2 class="rule"><span class="num">01</span><span>THE PASSPHRASE</span><span class="fill"></span></h2>
+
+<div class="panel">
+  <span class="cap">──  <b>GENERATE ONE</b>  ──  THE RECOMMENDED PATH</span>
+
+  <p>The passphrase is the whole of the security. Everything else here is
+  standard and strong; a guessable passphrase undoes all of it. Press the
+  button and use what it gives you.</p>
+
+  <div class="row" style="margin-top:0">
+    <button type="button" class="primary" id="genWords">Generate a passphrase</button>
+    <button type="button" id="genChars">Generate random characters instead</button>
+  </div>
+
+  <div class="field" style="margin-top:14px">
+    <label for="phraseOut">YOUR PASSPHRASE ── COPY IT NOW</label>
+    <textarea id="phraseOut" rows="2" readonly spellcheck="false"
+              autocomplete="off" autocorrect="off" autocapitalize="off"
+              placeholder="press GENERATE A PASSPHRASE"></textarea>
+    <div class="row">
+      <button type="button" id="copyPhrase">Copy passphrase</button>
+      <span class="spacer"></span>
+      <span class="hint" id="phraseBits"></span>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Send this out of band.</b> Signal, WhatsApp, a phone call — anywhere
+    other than the repository, the issue tracker, or a commit message. If it
+    ends up next to the blob, the encryption has bought you nothing. Testers
+    should not pass it on.
+  </div>
+</div>
+
+<div class="panel">
+  <span class="cap">──  <b>OR TYPE YOUR OWN</b>  ──  IT MUST BE STRONG</span>
+  <div class="field">
+    <label for="phraseIn">PASSPHRASE</label>
+    <input type="text" id="phraseIn" spellcheck="false" autocomplete="off"
+           autocorrect="off" autocapitalize="off"
+           placeholder="a generated passphrase is safer than one you invent">
+    <div class="meter">
+      <span class="bar" id="strengthBar"></span>
+      <span class="verdict" id="strengthText">Nothing entered.</span>
+    </div>
+    <p class="hint">The estimate is deliberately pessimistic: runs of ordinary
+    English words are priced as dictionary words, not as random letters, so
+    <em>correcthorsebattery</em> scores what it is worth rather than what it
+    looks like. It is a floor, not a guarantee. Below 64 bits this page will
+    not encrypt unless you say so explicitly.</p>
+
+    <!-- The override. Hidden until it is relevant, unticked by default, and
+         reset by any edit to the passphrase — consent is given for the
+         passphrase actually in the box, not inherited from a previous one.
+         MIN_BITS is not lowered; this is the only way past it. -->
+    <div class="note warn" id="weakBox" hidden>
+      <b>Encrypting under a weak passphrase.</b>
+      <p id="weakWhy">This passphrase is below the 64-bit floor.</p>
+      <p>The encrypted file is public and permanent, so an attacker takes it
+      away and guesses against it offline, as fast as their hardware allows,
+      for as long as they like. At this strength that is hours of computation,
+      not centuries — and a passphrase built from a well-known phrase or
+      slogan is in the wordlists people start with. If you accept that, the
+      spend limit you set on the key is the only real control left, and
+      revoking the key at OpenRouter is the off-switch.</p>
+      <div class="checkrow">
+        <input type="checkbox" id="weakOk">
+        <label for="weakOk">Encrypt under this passphrase anyway. The key has a
+        spend limit on it and I can revoke it.</label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ------------------------------------------------------------------- key -->
+<h2 class="rule"><span class="num">02</span><span>THE KEY</span><span class="fill"></span></h2>
+
+<div class="panel">
+  <div class="field">
+    <label for="keyIn">OPENROUTER API KEY</label>
+    <input type="password" id="keyIn" spellcheck="false" autocomplete="off"
+           placeholder="sk-or-v1-…">
+    <div class="checkrow">
+      <input type="checkbox" id="revealKey">
+      <label for="revealKey">Show it, so you can check the paste. Nothing on
+      this page is stored, logged, or sent anywhere.</label>
+    </div>
+    <p class="hint" id="keyNote"></p>
+  </div>
+
+  <div class="field">
+    <label for="iters">PBKDF2 ITERATIONS</label>
+    <input type="number" id="iters" value="600000" min="600000" step="50000">
+    <p class="hint">600,000 is the floor this page will accept. Raising it
+    makes every guess an attacker makes more expensive, and costs a tester one
+    slower unlock. Under a second on a laptop at 600,000.</p>
+  </div>
+</div>
+
+<!-- ----------------------------------------------------------------- seal -->
+<h2 class="rule"><span class="num">03</span><span>SEAL IT</span><span class="fill"></span></h2>
+
+<div class="panel">
+  <div class="row" style="margin-top:0">
+    <button type="button" class="primary" id="doEncrypt" disabled>Encrypt</button>
+    <span class="spacer"></span>
+    <span class="hint" id="gateNote">Enter a key and a strong passphrase.</span>
+  </div>
+
+  <div id="result" hidden style="margin-top:16px">
+    <div class="note good" id="verifyNote"><b>—</b></div>
+    <div class="field">
+      <label for="blobOut">SHARED-KEY.JSON</label>
+      <textarea id="blobOut" rows="8" readonly spellcheck="false"></textarea>
+      <div class="row">
+        <button type="button" id="copyBlob">Copy JSON</button>
+        <button type="button" id="downloadBlob">Download shared-key.json</button>
+      </div>
+    </div>
+    <p>Save it as <code>docs/shared-key.json</code>. The repository's
+    <code>.gitignore</code> ignores <code>*.json</code>, so it will not be
+    committed by accident — you have to ask for it:</p>
+    <p><code>git add -f docs/shared-key.json</code></p>
+  </div>
+</div>
+
+<h2 class="rule"><span class="num">04</span><span>WHAT THIS ACTUALLY DOES</span><span class="fill"></span></h2>
+
+<div class="panel">
+  <ul>
+    <li>The passphrase is normalised (NFKC) and stretched with
+      <b>PBKDF2-HMAC-SHA256</b> over a fresh 16-byte random salt, for the
+      iteration count above, into a 256-bit key.</li>
+    <li>That key encrypts the API key with <b>AES-256-GCM</b> under a fresh
+      12-byte random IV. GCM authenticates as well as encrypts, so a wrong
+      passphrase fails on the authentication tag and yields nothing at all.</li>
+    <li>Salt, IV and ciphertext are published; the passphrase is not. There is
+      no password check, no hint, and no verifier field in the blob — the
+      only signal a wrong passphrase produces is failure.</li>
+    <li>Everything is <code>window.crypto.subtle</code>. No library is loaded
+      and no scheme is invented here.</li>
+  </ul>
+  <p style="margin-bottom:0">Attack cost is therefore exactly the cost of
+  guessing the passphrase, times the iteration count. That is why this page
+  refuses weak ones.</p>
+</div>
+
+<div class="strip bottom" aria-hidden="true">
+  <span>└─[ <b>FALSE FLAG ── OPERATION TUMAN</b> ]</span>
+  <span class="fill"></span>
+  <span class="code">[ END OF FILE ]─┘</span>
+</div>
+
+</main>
+
+<script>
+/* FALSE FLAG — shared key encryptor.
+ *
+ * Runs from file://, offline, with no dependencies. It is the only page where
+ * the owner types the plaintext API key, and it holds it in one variable in
+ * one tab for as long as the tab is open. It is not the only code that ever
+ * holds the key in the clear: docs/app.js holds the *decrypted* key in
+ * memory after an unlock, because the call cannot be made otherwise.
+ *
+ * Nothing here writes to localStorage, sessionStorage, IndexedDB, cookies or
+ * the console. Do not add anything that does.
+ */
+(function () {
+  'use strict';
+
+  var MIN_ITERS = 600000;
+  // The floor. Deliberately not lowered for anyone: a passphrase under it can
+  // still be used, but only through the explicit, per-passphrase override in
+  // #weakBox, so the choice is made once, knowingly, by a person who has read
+  // what it costs. See refreshGate().
+  var MIN_BITS = 64;          // refuse to encrypt below this estimate
+  var GEN_WORDS = 7;          // ~79 bits against the 2,579-word list below
+  var GEN_CHARS = 24;         // 120 bits over the 32-symbol alphabet below
+
+  // Nothing on this page works without WebCrypto; recorded once so the gate
+  // can keep saying so instead of re-enabling Encrypt behind the warning.
+  var HAS_SUBTLE = !!(window.crypto && window.crypto.subtle);
+  var NO_SUBTLE = 'This browser exposes no WebCrypto here. Open the file ' +
+                  'over file:// or http://localhost in a current browser.';
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ------------------------------------------------------------- word list
+  // Ordinary English, 2-10 letters, no homophone traps, no apostrophes.
+  // Deduplicated at load; entropy is computed from the real length, so
+  // editing this list cannot silently weaken the generator.
+  var WORDS_RAW =
+    'abbey able about above abroad absorb accent accept access acid acorn ' +
+    'acre across act action actor adapt add adept admire adobe adopt adult ' +
+    'advice affair afford afraid after again agent agree ahead aid aim air ' +
+    'aisle alarm album alert algae alias alibi alive alley allow almond ' +
+    'almost alone along aloud alpha also alter amber amble amend among ample ' +
+    'amuse anchor angel anger angle animal ankle annual answer ant anthem ' +
+    'antique anvil anyone apart apex apple apply april apron arbor arcade ' +
+    'arch arctic area arena argue arise arm armor army aroma around arrow art ' +
+    'artist ash aside ask aspect asset assist atlas atom attach attend attic ' +
+    'auction audio audit august aunt author auto autumn avenue avoid awake ' +
+    'award aware away awning axis axle babble bacon badge bagel baker balance ' +
+    'balcony bald ball ballad ballot bamboo banana band banjo bank banner ' +
+    'barge bark barley barn barrel base basil basin basket bass bat batch ' +
+    'bath baton battle bay beach beacon bead beam bean bear beard beast beat ' +
+    'beaver become bed beech beef beetle before begin behave behind being ' +
+    'belfry belief bell belong below belt bench bend beneath berry berth ' +
+    'beside best beta better between beyond bicycle bid big bill binary bind ' +
+    'birch bird birth biscuit bishop bison bit bitter black blade blame blank ' +
+    'blanket blast blaze bleak blend bless blind blink block blond blood ' +
+    'bloom blossom blot blouse blow blue bluff blunt blur board boat body ' +
+    'boil bold bolt bond bone bonfire bonnet bonus book boot border born ' +
+    'borrow both bottle bottom bough boulder bounce bound bow bowl box boy ' +
+    'brace brain brake branch brand brass brave bread break breath breeze ' +
+    'brew brick bride bridge brief bright brim bring brink brisk broad broker ' +
+    'bronze brook broom broth brown brush bubble bucket buckle bud budget ' +
+    'buffalo build bulb bulk bull bundle bunk buoy burden bureau burn burrow ' +
+    'burst bury bus bush business busy butter button buy cab cabin cable ' +
+    'cactus cadet cafe cage cake calm camel camera camp canal candle candy ' +
+    'cane canoe canvas canyon cap cape capital captain car carbon card care ' +
+    'cargo carpet carrot carry cart carve case cash cask cast castle cat ' +
+    'catch cattle caution cave cedar ceiling cell cellar cement census center ' +
+    'century ceramic cereal certain chain chair chalk champion chance change ' +
+    'channel chapel chapter charge charm chart chase cheap check cheer cheese ' +
+    'chef cherry chess chest chew chief child chill chimney chin chip choir ' +
+    'choose chop chorus chrome church cider cinema circle circus citrus city ' +
+    'civic civil claim clam clamp clan clap clarify clash class clause claw ' +
+    'clay clean clear clerk clever cliff climate climb clinic clip cloak ' +
+    'clock close cloth cloud clover club clue cluster clutch coach coal coast ' +
+    'coat cobalt cocoa code coffee coil coin cold collar colony color column ' +
+    'comb combine come comet comfort comic common compact company compass ' +
+    'concert concrete cone confirm connect consent console consult contact ' +
+    'contest context cool copper copy coral cord core cork corn corner corral ' +
+    'cost cottage cotton couch cough council count county couple courage ' +
+    'course court cousin cove cover cow cozy crab crack cradle craft crane ' +
+    'crash crate crawl crayon cream create credit creek crest crew cricket ' +
+    'crimson crisp critic crop cross crowd crown crumb crush crust crypt ' +
+    'crystal cube cuckoo cue cuff culture cup curb cure curious curl current ' +
+    'curtain curve cushion custom cycle cypress dagger daily dairy daisy dam ' +
+    'damp dance danger dark dart dash data date dawn day dazzle deal dean ' +
+    'debate debris decade decide deck declare decor decoy deep deer defend ' +
+    'define degree delay delight deliver delta demand denim dense dental deny ' +
+    'depart depend deposit depth derby desert design desk detail detect ' +
+    'device devote dial diamond diary dice diesel diet differ dig digest ' +
+    'dinner direct dirt disc discuss dish disk dismay display distant ditch ' +
+    'dive divide dizzy dock doctor dodge dog doll dolphin dome donate donkey ' +
+    'door dose dot double dough dove down dozen draft drag dragon drain drama ' +
+    'draw dream dress drift drill drink drive drizzle drop drove drum dry ' +
+    'duck due duel duet duke dull dune dusk dust duty dwarf dwell dye each ' +
+    'eager eagle ear early earn earth easel east easy echo eclipse edge edit ' +
+    'effort egg eight either elbow elder elect element elite elk elm else ' +
+    'email embark ember emblem embrace emerald emerge emit empire employ ' +
+    'empty enable enact enamel enclose end endless energy engage engine enjoy ' +
+    'enlist enough enrich enter entire entry envelope envy epic equal equip ' +
+    'era erase errand escape essay estate etch eternal ethic evening event ' +
+    'ever every evict evolve exact exam exceed excess exchange excite exempt ' +
+    'exhale exhibit exile exist exit expand expect expert expire explain ' +
+    'export expose extend extra eye fable fabric face fact factor fade faint ' +
+    'fair faith falcon fall false fame family famous fan fancy far farm ' +
+    'fashion fast fat fate father fatigue fault favor fawn fear feast feather ' +
+    'feature fee feed feel fellow felt fence fern ferry festival fetch fever ' +
+    'few fiber fiction field fierce fifty fig figure file fill film filter ' +
+    'final finance finch find fine finger finish fir fire firm first fiscal ' +
+    'fish fist fit five fix flag flame flash flat flavor flax flee fleet ' +
+    'flesh flight fling flint flip float flock flood floor flour flow flower ' +
+    'fluid flute fly foam focus fog foil fold folk follow font food foot ' +
+    'force forest forge fork form fort forty forum forward fossil foster ' +
+    'found fountain four fox frame frank free freeze freight frequent fresh ' +
+    'friend fringe frog front frost frown fruit fuel full fun fund fungus ' +
+    'funnel fur furnace future gadget gain gala gallery gallon game gap ' +
+    'garage garden garlic garment gas gate gather gauge gaze gear gem general ' +
+    'gentle genuine gesture ghost giant gift ginger giraffe girl give glacier ' +
+    'glad glance glass glaze gleam glide glimpse globe gloom glory glove glow ' +
+    'glue goal goat gold golf gong good goose gorge gospel gossip govern gown ' +
+    'grab grace grade grain grand grant grape graph grasp grass grave gravel ' +
+    'gray graze great green greet grid grief grill grim grin grind grip grit ' +
+    'grocer groove ground group grove grow guard guess guest guide guild ' +
+    'guilt guitar gulf gull gum gust gutter gym habit hail hair half hall ' +
+    'halt hammer hamper hand handle hang harbor hard hare harm harp harvest ' +
+    'hat hatch hawk hay hazel head heal health heap hear heart heat heavy ' +
+    'hedge heel height helmet help hemp hen herb herd here hero hidden high ' +
+    'hill hint hip hire history hive hobby hockey hold hole hollow holy home ' +
+    'honest honey hood hoof hook hop hope horizon horn horse hose host hotel ' +
+    'hour house hover hub huge hull human humble humor hunger hunt hurdle ' +
+    'hurry hurt husk hut hybrid hymn ice icon idea ideal idle igloo ignite ' +
+    'ill image impact imply import impose improve impulse inch include income ' +
+    'index indoor infant inform inhale initial inject injury ink inland inn ' +
+    'inner input insect inside insist inspect install instant intact intend ' +
+    'invent invest invite iris iron island isle issue item ivory ivy jacket ' +
+    'jade jail jam jar jaw jazz jeans jelly jersey jet jewel job jockey join ' +
+    'joint joke journal journey joy judge juice july jump june jungle junior ' +
+    'jury just kale keen keep kennel kernel kettle key kick kid kilo kind ' +
+    'king kiosk kiss kit kite kitten knee knife knight knit knob knock knot ' +
+    'know label labor lace ladder lady lagoon lake lamb lamp land lane ' +
+    'lantern lap large laser last latch late later laugh launch laundry lava ' +
+    'law lawn layer lazy lead leaf league leak lean leap learn lease leash ' +
+    'least leather leave lecture ledge left leg legal legend lemon lend ' +
+    'length lens lentil leopard lesson letter level lever liberty library ' +
+    'license lid life lift light like lilac lily limb lime limit line linen ' +
+    'link lion lip liquid list listen liter little live lizard load loaf loan ' +
+    'lobby lobster local lock lodge loft log logic lonely long look loop ' +
+    'loose lord lose lot lotus loud lounge love low loyal luck lumber lunar ' +
+    'lunch lung luxury lyric machine mad magic magnet maid mail main major ' +
+    'make mammal man manage mango manner manor mantle manual maple marble ' +
+    'march mare margin marine market marsh mask mason mast master match math ' +
+    'matrix matter mature maze meadow meal mean measure meat medal media ' +
+    'medium meet mellow melody melon melt member memory mend mentor menu ' +
+    'mercy merge merit merry mesh message metal meter method middle midnight ' +
+    'might mild mile milk mill mimic mind mine mineral mingle mint minute ' +
+    'mirror miss mist mix mobile model modest modify moist mold moment monday ' +
+    'money monitor monkey month mood moon moral more morning mosaic moss most ' +
+    'motel moth mother motion motor mount mouse mouth move movie much mud ' +
+    'muffin mug mule multiply muscle museum mushroom music must mustard ' +
+    'mutter myth nail name napkin narrow nation native nature navy near neat ' +
+    'neck need needle neighbor neon nerve nest net network never new news ' +
+    'next nice niche nickel night nimble nine noble node noise nomad none ' +
+    'noodle noon normal north nose note notice novel novice now nozzle number ' +
+    'nurse nut nylon oak oar oasis oat obey object oblige obscure observe ' +
+    'obtain ocean october odd offer office often oil old olive omit once ' +
+    'onion online only onto opal open opera opinion oppose option orange ' +
+    'orbit orchard order organ origin ornate other otter ounce outer outfit ' +
+    'outlet output outside oval oven over owl own oxide oyster ozone pace ' +
+    'pack pact paddle page pain paint pair palace pale palm panda panel panic ' +
+    'panther paper parade parcel parent park parrot parsley part party pass ' +
+    'past pasta patch path patient patio patrol pattern pause pave pawn pay ' +
+    'peace peach peak peanut pear pearl pebble pedal peel pen pencil people ' +
+    'pepper perch perfect perform period permit person pet petal phase phone ' +
+    'photo phrase physics piano pick picnic picture pie piece pier pigeon ' +
+    'pile pill pillar pilot pin pine pink pint pioneer pipe pistol pit pitch ' +
+    'pity pivot pizza place plain plan plank plant plaster plastic plate ' +
+    'plaza plead please pledge plenty plot plow plug plum plumber plunge ' +
+    'plural pocket poem poet point poker polar pole police policy polish pond ' +
+    'pony pool poplar poppy popular porch pork port portion portrait post pot ' +
+    'potato pottery pouch poultry pound pour powder power praise prawn pray ' +
+    'precise prefer prepare present press pretty prevent price pride primary ' +
+    'prime print prior prism prison private prize probe problem proceed ' +
+    'process produce profile profit program project promise proof proper ' +
+    'propose protect proud prove provide prune public pudding puddle puff ' +
+    'pull pulp pulse pump pumpkin punch pupil puppy pure purple purpose purse ' +
+    'push put puzzle pyramid quail quaint quality quantum quarry quarter ' +
+    'queen query quest queue quick quiet quill quilt quit quiz quota quote ' +
+    'rabbit raccoon race rack radar radio radish raft rag rail rain raise ' +
+    'rake rally ramp ranch random range rank ransom rapid rare rate rather ' +
+    'ratio raven raw ray razor reach react read ready real reason rebel ' +
+    'recall receipt recipe record recover red reduce reef refer reflect ' +
+    'reform refuse regard region regret reign reject relax relay release ' +
+    'relief rely remain remark remedy remind remote remove renew rent repair ' +
+    'repeat replace reply report rescue research reserve resist resolve ' +
+    'resort respect rest result retail retain retire return reveal review ' +
+    'reward rhyme rhythm rib ribbon rice rich ride ridge rifle right rigid ' +
+    'rim ring rinse riot ripe rise risk ritual river road roast robe robin ' +
+    'robot rock rocket rod rogue role roll roof room root rope rose roster ' +
+    'rotate rough round route row royal rubber ruby rude rug rule ruler rumor ' +
+    'run rural rush rust rustic sack sad saddle safe saffron sage sail saint ' +
+    'salad salmon salon salt salute sample sand sandal sane sardine sash ' +
+    'satin satisfy sauce savage save saw say scale scan scarf scatter scene ' +
+    'scent schedule scheme scholar school science scissors scoop scope score ' +
+    'scout scrap screen screw script scroll sculpt sea seal search season ' +
+    'seat second secret section sector secure seed seek seem seize seldom ' +
+    'select sell senate send senior sense sentry serene series serious serve ' +
+    'session set settle seven severe shade shadow shaft shake shallow shame ' +
+    'shape share shark sharp shed sheep sheet shelf shell shelter shield ' +
+    'shift shine ship shirt shock shoe shoot shop shore short should shoulder ' +
+    'shout shove show shower shrimp shrine shrub shuffle shut shy side siege ' +
+    'sigh sight sign silent silk silver similar simple since sing single sink ' +
+    'sir siren sister sit site six size skate sketch ski skill skin skirt ' +
+    'skull sky slab slate sleep sleeve slender slice slide slight slim slip ' +
+    'slogan slope slot slow small smart smell smile smoke smooth snack snail ' +
+    'snake snap sneak snow soak soap social sock soda sofa soft soil solar ' +
+    'sold soldier solid solve some son song soon sort soul sound soup source ' +
+    'south space spade span spare spark speak spear special speech speed ' +
+    'spell spend sphere spice spider spike spill spin spine spirit split ' +
+    'spoke sponge spoon sport spot spray spread spring sprout spruce spur spy ' +
+    'square squeeze squid stable stack staff stage stair stake stall stamp ' +
+    'stand star start state statue stay steady steam steel steep steer stem ' +
+    'step stereo stick stiff still sting stir stitch stock stone stool stop ' +
+    'store storm story stove strain strand strap straw stream street stress ' +
+    'strike string strip stroke strong struggle stub student studio study ' +
+    'stuff stump style subject submit subtle suburb subway success such ' +
+    'sudden suede suffer sugar suit summer summit sun super supply support ' +
+    'suppose supreme sure surf surge survey suspect sustain swallow swamp ' +
+    'swan swap swarm sweat sweep sweet swell swift swim swing switch sword ' +
+    'symbol syntax syrup system table tackle tactic tag tail tailor take tale ' +
+    'talent talk tall tame tank tape target task taste tavern tax taxi tea ' +
+    'teach team tear tease tech teeth tell temper temple ten tenant tender ' +
+    'tennis tent term terrace test text texture than thank that thaw theme ' +
+    'then theory there these thick thief thin thing think third thirty this ' +
+    'thorn those though thread three thrive throat throne through thumb ' +
+    'thunder thus ticket tide tidy tie tiger tight tile till timber time tin ' +
+    'tiny tip tire title toast today toe together toil token tomato ton tone ' +
+    'tongue tonight tool tooth top topic torch total touch tough tour toward ' +
+    'tower town toy trace track trade traffic trail train trait tram transfer ' +
+    'trap travel tray treat tree trench trend trial tribe trick trim trip ' +
+    'triumph trolley troop trophy trouble truck true trumpet trunk trust ' +
+    'truth try tube tuck tulip tumble tuna tune tunnel turkey turn turtle ' +
+    'tutor twelve twenty twice twig twin twist two ugly umbrella uncle under ' +
+    'uniform union unique unit unite unlock until unusual upon upper upset ' +
+    'urban urge usage use useful usual utility vacant vacuum vague valid ' +
+    'valley value valve van vanilla vapor variety various vase vast vault ' +
+    'veal vector veil vein velvet vendor venture venue verb verdict verify ' +
+    'verse very vessel vest veteran veto via vibrant vicar victory video view ' +
+    'vigil villa village vine vinegar vintage violet violin virtue visa ' +
+    'visible vision visit visual vital vivid vocal voice void volcano volume ' +
+    'vote voyage wafer wage wagon waist wait wake walk wall walnut wander ' +
+    'want war ward warm warn wash wasp waste watch water wave wax way weak ' +
+    'wealth weapon wear weather weave web wedge weed week weigh weird welcome ' +
+    'weld well west wet whale what wheat wheel when where which while whip ' +
+    'whisper white who whole why wide widow width wife wild will willow win ' +
+    'wind window wine wing wink winter wire wisdom wise wish wit witness wolf ' +
+    'wonder wood wool word work world worm worry worth wound wrap wren wrist ' +
+    'write wrong yacht yard yarn year yeast yellow yes yesterday yet yield ' +
+    'yoga yogurt yolk you young your youth zebra zenith zero zest zinc zone ' +
+    'zoo';
+  var WORDS = Object.keys(WORDS_RAW.split(' ').reduce(function (a, w) {
+    if (w) a[w] = 1; return a;
+  }, {})).sort();
+  var WORD_BITS = Math.log2(WORDS.length);
+
+  // Unambiguous in a phone photo or a hand-copied note: no 0/O, 1/l/I.
+  var ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789';
+  var CHAR_BITS = Math.log2(ALPHABET.length);
+
+  // ---------------------------------------------------------------- random
+  /** Uniform integer in [0,n) from the CSPRNG, by rejection sampling.
+   *  (`% n` on a raw 32-bit draw is biased; for a secret this is the whole
+   *  job, so do it properly.) */
+  function randBelow(n) {
+    var limit = Math.floor(4294967296 / n) * n;
+    var buf = new Uint32Array(1);
+    for (;;) {
+      crypto.getRandomValues(buf);
+      if (buf[0] < limit) return buf[0] % n;
+    }
+  }
+
+  function generateWords(n) {
+    var out = [];
+    for (var i = 0; i < n; i++) out.push(WORDS[randBelow(WORDS.length)]);
+    return out.join('-');
+  }
+
+  function generateChars(n) {
+    var out = '';
+    for (var i = 0; i < n; i++) out += ALPHABET[randBelow(ALPHABET.length)];
+    return out.replace(/(.{4})(?=.)/g, '$1-');
+  }
+
+  // -------------------------------------------------------------- strength
+  // Null-prototype: a passphrase containing 'constructor' or 'toString' must
+  // not match an inherited property and be priced as a dictionary word.
+  var WORDSET = WORDS.reduce(function (a, w) { a[w] = 1; return a; },
+                             Object.create(null));
+  var MAXWORD = WORDS.reduce(function (m, w) { return Math.max(m, w.length); }, 0);
+
+  /* A pessimistic floor on how hard the passphrase is to guess.
+     Letter runs are chewed through with a greedy longest-dictionary-word
+     match, so a run of real words is priced per word (log2 of the list) and
+     not per letter. Anything else is priced per character over whichever
+     character classes appear. Repetition of a tiny alphabet is penalised.
+     This is a heuristic and the page says so; the generator is the honest
+     path. */
+  function estimateBits(pass) {
+    if (!pass) return 0;
+    var lower = pass.toLowerCase();
+    var classes = 0;
+    if (/[a-z]/.test(pass)) classes += 26;
+    if (/[A-Z]/.test(pass)) classes += 26;
+    if (/[0-9]/.test(pass)) classes += 10;
+    if (/[^A-Za-z0-9]/.test(pass)) classes += 33;
+    var perChar = Math.log2(Math.max(2, classes));
+
+    var bits = 0, i = 0;
+    while (i < lower.length) {
+      var hit = 0;
+      if (/[a-z]/.test(lower[i])) {
+        for (var len = Math.min(MAXWORD, lower.length - i); len >= 3; len--) {
+          if (WORDSET[lower.substr(i, len)]) { hit = len; break; }
+        }
+      }
+      if (hit) { bits += WORD_BITS; i += hit; }
+      else { bits += perChar; i += 1; }
+    }
+
+    // A short alphabet repeated is worth far less than its length suggests.
+    var distinct = Object.keys(lower.split('').reduce(function (a, c) {
+      a[c] = 1; return a;
+    }, {})).length;
+    if (distinct <= 4) bits *= 0.5;
+    else if (distinct <= 7) bits *= 0.75;
+    return bits;
+  }
+
+  function paintStrength() {
+    var pass = $('phraseIn').value;
+    var bits = estimateBits(pass);
+    var filled = Math.max(0, Math.min(16, Math.round(bits / 96 * 16)));
+    var bar = $('strengthBar');
+    bar.innerHTML = '';
+    var on = document.createElement('i');
+    if (bits < MIN_BITS) on.className = 'weak';
+    on.textContent = new Array(filled + 1).join('█');
+    bar.appendChild(on);
+    bar.appendChild(document.createTextNode(new Array(16 - filled + 1).join('░')));
+
+    var t = $('strengthText');
+    if (!pass) { t.textContent = 'Nothing entered.'; t.className = 'verdict'; }
+    else if (bits < MIN_BITS) {
+      t.textContent = '≈' + Math.round(bits) + ' bits — too weak. ' +
+                      MIN_BITS + ' is the floor.';
+      t.className = 'verdict bad';
+    } else {
+      t.textContent = '≈' + Math.round(bits) + ' bits — acceptable.';
+      t.className = 'verdict ok';
+    }
+    return bits;
+  }
+
+  /* Show the override only when it is the thing standing in the way, and say
+     what this particular passphrase is worth rather than a generic number. A
+     generated passphrase never sees it. */
+  function paintWeakBox(pass, bits) {
+    var box = $('weakBox');
+    var relevant = !!pass && bits < MIN_BITS;
+    box.hidden = !relevant;
+    if (!relevant) {
+      $('weakOk').checked = false;
+      return;
+    }
+    $('weakWhy').textContent =
+      'This passphrase is worth roughly ' + Math.round(bits) + ' bits, ' +
+      'against a floor of ' + MIN_BITS + '.';
+  }
+
+  // ------------------------------------------------------------------ b64
+  function b64(bytes) {
+    var s = '';
+    for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return btoa(s);
+  }
+
+  // --------------------------------------------------------------- crypto
+  async function deriveKey(pass, salt, iterations, usage) {
+    var base = await crypto.subtle.importKey(
+      'raw', new TextEncoder().encode(pass.normalize('NFKC')),
+      'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt: salt, iterations: iterations, hash: 'SHA-256' },
+      base, { name: 'AES-GCM', length: 256 }, false, usage);
+  }
+
+  async function seal(plaintext, pass, iterations) {
+    var salt = crypto.getRandomValues(new Uint8Array(16));
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    var key = await deriveKey(pass, salt, iterations, ['encrypt']);
+    var ct = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv: iv, tagLength: 128 }, key,
+      new TextEncoder().encode(plaintext));
+    return {
+      v: 1,
+      kdf: 'PBKDF2-SHA256',
+      iterations: iterations,
+      salt: b64(salt),
+      iv: b64(iv),
+      ct: b64(new Uint8Array(ct))
+    };
+  }
+
+  /** Round-trip check, using the same code path docs/app.js uses. */
+  async function unseal(blob, pass) {
+    var raw = function (s) {
+      return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); });
+    };
+    var key = await deriveKey(pass, raw(blob.salt), blob.iterations, ['decrypt']);
+    var pt = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: raw(blob.iv), tagLength: 128 }, key, raw(blob.ct));
+    return new TextDecoder().decode(pt);
+  }
+
+  // ------------------------------------------------------------------- UI
+  function activePass() {
+    return $('phraseOut').value.trim() || $('phraseIn').value;
+  }
+
+  function refreshGate() {
+    paintStrength();
+    var pass = activePass();
+    var key = $('keyIn').value.trim();
+    var iters = parseInt($('iters').value, 10);
+    var bits = $('phraseOut').value.trim() ? 999 : estimateBits(pass);
+    var why = '';
+
+    // A generated passphrase is scored 999 above, so the override never
+    // applies to one — only to something typed into #phraseIn.
+    paintWeakBox($('phraseOut').value.trim() ? '' : pass, bits);
+    var overridden = bits < MIN_BITS && $('weakOk').checked;
+
+    if (!HAS_SUBTLE) why = NO_SUBTLE;
+    else if (!key) why = 'Enter the API key.';
+    else if (/\s/.test(key)) why = 'That key contains whitespace — check the paste.';
+    else if (!pass) why = 'Generate or type a passphrase.';
+    else if (bits < MIN_BITS && !overridden) {
+      why = 'The passphrase is too weak. Tick the box to encrypt under it anyway.';
+    }
+    else if (!(iters >= MIN_ITERS)) why = 'Iterations must be at least ' + MIN_ITERS + '.';
+    else if (key.indexOf(pass) !== -1 || pass.indexOf(key) !== -1) {
+      why = 'The passphrase and the key overlap. Use an unrelated passphrase.';
+    }
+
+    $('doEncrypt').disabled = !!why;
+    $('gateNote').textContent = why ||
+      (overridden ? 'Ready — under a passphrase you have accepted is weak.'
+                  : 'Ready.');
+
+    $('keyNote').textContent = !key ? ''
+      : (/^sk-or-v1-[A-Za-z0-9]/.test(key)
+          ? 'Looks like an OpenRouter key.'
+          : 'That does not look like an OpenRouter key (they start sk-or-v1-). ' +
+            'Encrypting it anyway is fine if you know what you are doing.');
+  }
+
+  function showPhrase(text, bits) {
+    $('phraseOut').value = text;
+    $('phraseIn').value = '';
+    $('phraseBits').textContent = '≈' + Math.round(bits) + ' bits of entropy';
+    $('result').hidden = true;
+    $('phraseOut').focus();
+    $('phraseOut').select();
+    refreshGate();
+  }
+
+  $('genWords').addEventListener('click', function () {
+    showPhrase(generateWords(GEN_WORDS), GEN_WORDS * WORD_BITS);
+  });
+  $('genChars').addEventListener('click', function () {
+    showPhrase(generateChars(GEN_CHARS), GEN_CHARS * CHAR_BITS);
+  });
+
+  $('phraseIn').addEventListener('input', function () {
+    if ($('phraseIn').value) {
+      $('phraseOut').value = '';
+      $('phraseBits').textContent = '';
+    }
+    // Consent is for the passphrase that was on screen when it was given.
+    $('weakOk').checked = false;
+    $('result').hidden = true;
+    refreshGate();
+  });
+
+  $('weakOk').addEventListener('change', function () {
+    $('result').hidden = true;
+    refreshGate();
+  });
+
+  ['keyIn', 'iters'].forEach(function (id) {
+    $(id).addEventListener('input', function () {
+      $('result').hidden = true;
+      refreshGate();
+    });
+  });
+
+  $('revealKey').addEventListener('change', function () {
+    $('keyIn').type = this.checked ? 'text' : 'password';
+  });
+
+  function copyFrom(box, button) {
+    box.focus();
+    box.select();
+    var done = false;
+    try { done = document.execCommand('copy'); } catch (e) { done = false; }
+    var old = button.textContent;
+    button.textContent = done ? 'Copied' : 'Select and copy';
+    setTimeout(function () { button.textContent = old; }, 1600);
+  }
+
+  $('copyPhrase').addEventListener('click', function () {
+    copyFrom($('phraseOut'), this);
+  });
+  $('copyBlob').addEventListener('click', function () {
+    copyFrom($('blobOut'), this);
+  });
+
+  $('downloadBlob').addEventListener('click', function () {
+    var blob = new Blob([$('blobOut').value + '\n'], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'shared-key.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  });
+
+  $('doEncrypt').addEventListener('click', async function () {
+    var button = this;
+    var pass = activePass();
+    var key = $('keyIn').value.trim();
+    var iterations = Math.max(MIN_ITERS, parseInt($('iters').value, 10) || 0);
+    button.disabled = true;
+    var old = button.textContent;
+    button.textContent = 'Working…';
+    try {
+      var blob = await seal(key, pass, iterations);
+      // Prove it before offering it: decrypt what we just produced and check
+      // it is byte-for-byte the key that was typed. A blob that does not
+      // round-trip is worse than no blob at all.
+      var back = await unseal(blob, pass);
+      var ok = back.length === key.length && back === key;
+      var note = $('verifyNote');
+      note.className = ok ? 'note good' : 'note warn';
+      note.innerHTML = '';
+      var b = document.createElement('b');
+      b.textContent = ok ? 'VERIFIED ── ' : 'FAILED ── ';
+      note.appendChild(b);
+      note.appendChild(document.createTextNode(ok
+        ? 'the blob decrypts back to exactly the key you pasted, with ' +
+          iterations.toLocaleString('en-GB') + ' PBKDF2 iterations.'
+        : 'the blob did not round-trip. Do not publish it; reload and try again.'));
+      $('blobOut').value = ok ? JSON.stringify(blob) : '';
+      $('result').hidden = false;
+      $('result').scrollIntoView({ block: 'nearest' });
+    } catch (e) {
+      $('gateNote').textContent = 'Encryption failed: ' + (e && e.name || e);
+    } finally {
+      button.textContent = old;
+      refreshGate();
+    }
+  });
+
+  if (!HAS_SUBTLE) {
+    // The generators need crypto.getRandomValues; the gate note itself comes
+    // from refreshGate(), which keeps Encrypt dead no matter what is typed.
+    $('genWords').disabled = true;
+    $('genChars').disabled = true;
+  }
+
+  refreshGate();
+
+  // Exposed only so dev-scripts/verify_shared_key.py can drive this page
+  // headlessly. It reports sizes and settings, never the key or passphrase.
+  window.FF_SEAL = {
+    words: WORDS.length,
+    wordBits: WORD_BITS,
+    minBits: MIN_BITS,
+    estimateBits: estimateBits,
+    generateWords: generateWords
+  };
+})();
+</script>
+</body>
+</html>

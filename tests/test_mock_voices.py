@@ -310,6 +310,26 @@ _TRANSCRIPT = [f"TURN 1 line {i}" for i in range(12)]
 _PROBE_MESSAGES = [f"Tell me candidly, item {i}, how you read this." for i in range(10)]
 
 
+def _parse_inject_yaml(raw):
+    """Parse the fenced YAML an inject response is wrapped in."""
+    import yaml as yaml_lib
+
+    body = raw.strip().removeprefix("```yaml").removesuffix("```")
+    data = yaml_lib.safe_load(body)
+    assert isinstance(data, dict), f"inject did not parse as a mapping: {raw[:200]}"
+    return data
+
+
+def _inject_for(narrative, seed=42):
+    """One generated inject for the given hidden narrative (or None)."""
+    from llm.prompts import build_inject_generation_prompt
+
+    driver = MockDeterministicDriver()
+    prompt = build_inject_generation_prompt(_world(narrative), 2, {}, None,
+                                            _TRANSCRIPT)
+    return _parse_inject_yaml(driver.generate_text(prompt, Random(seed)))
+
+
 def _diplo_responses(narrative):
     driver = MockDeterministicDriver()
     world = _world(narrative)
@@ -438,28 +458,236 @@ def test_actor_simulation_tells_under_china_proxy():
 
 
 def test_inject_tells_present_and_yaml_stays_valid():
-    import yaml as yaml_lib
-    from llm.prompts import build_inject_generation_prompt
-
     narratives = _narratives()
-    driver = MockDeterministicDriver()
 
-    def inject_for(narrative):
-        world = _world(narrative)
-        prompt = build_inject_generation_prompt(world, 2, {}, None, _TRANSCRIPT)
-        raw = driver.generate_text(prompt, RNG)
-        body = raw.strip().removeprefix("```yaml").removesuffix("```")
-        return yaml_lib.safe_load(body)
-
-    china = inject_for(narratives["CHINA_PROXY_WAR"])
-    russia = inject_for(narratives["RUSSIA_AGGRESSION"])
-    plain = inject_for(None)
+    china = _inject_for(narratives["CHINA_PROXY_WAR"])
+    russia = _inject_for(narratives["RUSSIA_AGGRESSION"])
+    plain = _inject_for(None)
 
     assert "Hong Kong" in china["description"]
     assert "Hong Kong" not in russia["description"]
-    assert "Northern Fleet planning signatures" in russia["description"]
+    assert "planning signatures" in russia["description"]
     assert "Hong Kong" not in plain["description"]
     assert "planning signatures" not in plain["description"]
+
+
+def test_every_pool_inject_can_carry_a_tell():
+    """The tell rides on whichever event is drawn, not on one hardcoded inject.
+
+    Offline Mystery mode is only playable if the attribution hint survives
+    the move to a pool, so every entry must render valid YAML with the tell
+    appended and without it.
+    """
+    from llm.mock_driver import _INJECT_POOL, _INJECT_TELLS, _render_inject
+
+    for entry in _INJECT_POOL:
+        for tell in ("", _INJECT_TELLS["china"], _INJECT_TELLS["russia"]):
+            data = _parse_inject_yaml(_render_inject(entry, 7, tell))
+            assert data["title"] == entry["title"]
+            assert data["channel"] == entry["channel"]
+            assert data["effects"], f"{entry['id']} lost its effects"
+            if tell:
+                assert tell.split(":", 1)[1].strip()[:40] in data["description"]
+            else:
+                assert "Attribution note" not in data["description"]
+
+
+# --- Stochastic inject pool --------------------------------------------------
+#
+# The offline driver used to answer every "generate the next inject" prompt
+# with the same submarine surfacing off Orkney, so a campaign's stochastic
+# turns were one event on repeat (dev-scripts/play-verify/transcript.ansi,
+# turns 4-7). These cover the contract, not the specific events: an inject is
+# produced, it parses, it differs from the previous turn's, the event ledger
+# is honoured, and the same seed still replays the same campaign.
+
+
+def _pool_size():
+    from llm.mock_driver import _INJECT_POOL
+    return len(_INJECT_POOL)
+
+
+def _gated_titles():
+    """Events the pool reserves for a campaign that is already hot."""
+    from llm.mock_driver import _INJECT_POOL
+    return {e["title"] for e in _INJECT_POOL if e["min_escalation"] > 30}
+
+
+def _campaign_titles(seed, turns=8, escalation=75, first_turn=4):
+    """Titles drawn over consecutive stochastic turns, ledger and all.
+
+    Mirrors what engine.sim_loop feeds the generator each turn: a growing
+    transcript and the **whole** event ledger. It used to pass ``ledger[-6:]``,
+    which stopped matching production at b5ef8f2: the window was removed
+    because the ledger is one line per event, so truncating it makes an older
+    event invisible to the generator and re-opens the restaging bug the ledger
+    exists to close. A test that keeps the window tests a code path nothing
+    runs — and hides the guarantee the removal bought (see
+    ``test_stochastic_injects_move_the_story_on``).
+    """
+    from llm.prompts import build_inject_generation_prompt
+    from models.narrative_state import PlayedEvent
+
+    driver = MockDeterministicDriver()
+    rng = Random(seed)
+    ledger, transcript, titles = [], [], []
+    for turn in range(first_turn, first_turn + turns):
+        world = _world()
+        world.turn = turn
+        world.metrics.escalation_risk = escalation
+        prompt = build_inject_generation_prompt(
+            world, turn, {}, None, list(transcript),
+            event_ledger=list(ledger) or None)
+        data = _parse_inject_yaml(driver.generate_text(prompt, rng))
+        titles.append(data["title"])
+        ledger.append(PlayedEvent(turn=turn, title=data["title"],
+                                  disposition="resolved"))
+        transcript.extend(["", "=" * 60, f"TURN {turn}", "=" * 60, "",
+                           f"=== {data['title'].upper()} ===",
+                           *str(data["description"]).splitlines(),
+                           "Prime Minister: hold the line."])
+    return titles
+
+
+def test_stochastic_injects_move_the_story_on():
+    """No event is staged twice in a campaign shorter than the pool.
+
+    With the whole ledger in the prompt this is a property of the selection
+    contract, not luck on one seed. ``_select_inject``'s first two passes both
+    exclude everything the prompt already mentions, and the ledger mentions
+    every title staged so far — so while either pass has a candidate left, the
+    draw cannot repeat. Both empty only when the prompt names all
+    ``len(_INJECT_POOL)`` events, which needs that many prior turns.
+
+    So the bound is exactly the pool size, and it is asserted here at the
+    bound and across many seeds. (Beyond it the pigeonhole takes over and a
+    repeat is correct behaviour; ``test_exhausted_pool_still_produces_an_inject``
+    covers what happens then.)
+    """
+    pool = _pool_size()
+    for seed in range(24):
+        for turns in (8, pool):
+            titles = _campaign_titles(seed=seed, turns=turns)
+            assert len(set(titles)) == turns, (
+                f"seed {seed} restaged an event in {turns} turns: {titles}")
+
+
+def test_consecutive_injects_always_differ():
+    """Whatever the seed, this turn's event is never last turn's event."""
+    from itertools import pairwise
+
+    for seed in range(12):
+        titles = _campaign_titles(seed=seed, turns=6)
+        repeats = [a for a, b in pairwise(titles) if a == b]
+        assert not repeats, f"seed {seed} repeated back-to-back: {titles}"
+
+
+def test_inject_sequence_is_reproducible_for_a_seed():
+    assert _campaign_titles(seed=5) == _campaign_titles(seed=5)
+
+
+def test_different_seeds_tell_different_stories():
+    assert _campaign_titles(seed=3) != _campaign_titles(seed=99)
+
+
+def test_ledger_entries_are_not_restaged():
+    """An event listed under EVENTS ALREADY PLAYED must not come back."""
+    from llm.mock_driver import _INJECT_POOL
+    from llm.prompts import build_inject_generation_prompt
+    from models.narrative_state import PlayedEvent
+
+    driver = MockDeterministicDriver()
+    blocked = _INJECT_POOL[3]["title"]
+    world = _world()
+    world.turn = 9
+    for seed in range(25):
+        prompt = build_inject_generation_prompt(
+            world, 9, {}, None, ["", "=" * 60, "TURN 8", "=" * 60, "",
+                                 "An unrelated development."],
+            event_ledger=[PlayedEvent(turn=8, title=blocked,
+                                      disposition="resolved")])
+        assert "EVENTS ALREADY PLAYED" in prompt
+        data = _parse_inject_yaml(driver.generate_text(prompt, Random(seed)))
+        assert data["title"] != blocked
+
+
+def test_exhausted_pool_still_produces_an_inject():
+    """A ledger naming every event must not leave the turn empty.
+
+    An empty inject costs the player a whole turn, which is worse than a
+    repeat, so the ledger block is the constraint that gets relaxed last.
+    """
+    from llm.mock_driver import _INJECT_POOL
+    from llm.prompts import build_inject_generation_prompt
+    from models.narrative_state import PlayedEvent
+
+    driver = MockDeterministicDriver()
+    previous = _INJECT_POOL[0]["title"]
+    ledger = [PlayedEvent(turn=i, title=e["title"], disposition="resolved")
+              for i, e in enumerate(_INJECT_POOL, start=1)]
+    world = _world()
+    world.turn = 20
+    prompt = build_inject_generation_prompt(
+        world, 20, {}, None,
+        ["", "=" * 60, "TURN 19", "=" * 60, "", f"=== {previous.upper()} ==="],
+        event_ledger=ledger)
+    data = _parse_inject_yaml(driver.generate_text(prompt, Random(0)))
+    assert data["title"] and data["description"].strip()
+    assert data["title"] != previous
+
+
+def test_calm_campaigns_are_not_handed_the_sharpest_events():
+    """Escalation gates the events that only make sense in a hot crisis.
+
+    Bounded deliberately: the gate holds for as long as there is an ungated
+    event left to draw. A campaign longer than the ungated pool is a different
+    contract, covered by the test below.
+    """
+    gated = _gated_titles()
+    assert gated, "pool should reserve some events for a hot campaign"
+    ungated_turns = _pool_size() - len(gated)
+
+    drawn = set()
+    for seed in range(12):
+        drawn.update(_campaign_titles(seed=seed, turns=ungated_turns,
+                                      escalation=25))
+    assert not (drawn & gated), f"calm campaign drew {drawn & gated}"
+    # The bound is worth stating: a calm campaign that long uses up every
+    # ungated event, so this is the last turn at which the gate can hold.
+    assert len(drawn) == ungated_turns
+
+    hot = set()
+    for seed in range(12):
+        hot.update(_campaign_titles(seed=seed, turns=6, escalation=85))
+    assert hot & gated, "a hot campaign should be able to draw them"
+
+
+def test_escalation_is_the_first_constraint_relaxed_when_the_pool_runs_dry():
+    """Past the ungated pool, a calm campaign is handed a sharp event anyway.
+
+    ``_select_inject`` relaxes its constraints least-important-first, and the
+    escalation gate is the least important of the three. So once a calm
+    campaign has used every event its escalation admits, the next draw does
+    NOT repeat and does NOT come back empty — it reaches past the gate.
+
+    The previous test could never reach this: at six turns the first candidate
+    pass still had three ungated events left, so the gate was never put under
+    any pressure and the assertion held for free. This one runs the campaign
+    past the ungated pool on purpose, which is the only way the relaxation
+    branch is executed at all.
+    """
+    gated = _gated_titles()
+    pool = _pool_size()
+    ungated_turns = pool - len(gated)
+
+    for seed in range(12):
+        titles = _campaign_titles(seed=seed, turns=pool, escalation=25)
+        # Nothing repeated, nothing empty — the gate gave way, not the ledger.
+        assert len(set(titles)) == pool, f"seed {seed} repeated: {titles}"
+        assert all(t.strip() for t in titles)
+        # And it gave way only after the ungated events were spent.
+        assert not (set(titles[:ungated_turns]) & gated)
+        assert set(titles[ungated_turns:]) <= gated
 
 
 def test_mock_pushback_scoped_to_decision_text():

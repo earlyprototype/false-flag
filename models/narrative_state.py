@@ -327,12 +327,30 @@ Game Time: {self.game_time} (Turn {self.turn})
                     entry.note = note.strip()
                 return
 
-    def recent_played_events(self, n: int = 6) -> List["PlayedEvent"]:
-        """The last ``n`` ledger entries, oldest first.
+    def recent_played_events(self, n: Optional[int] = None) -> List["PlayedEvent"]:
+        """Ledger entries, oldest first - **all of them** unless ``n`` says otherwise.
+
+        This used to default to the last six, which was the wrong instinct
+        applied twice. The ledger is one line per event: it *is* the
+        compression of the transcript, the thing that survives when the
+        prose window slides past. Truncating it is compressing the
+        compression, and it re-opens the exact bug the ledger exists to
+        close - an event older than the window becomes invisible to the
+        generator and can be restaged as fresh.
+
+        The cost of keeping it whole is negligible. One entry is about 94
+        characters, so a full 18-turn campaign is roughly 420 tokens and a
+        60-turn one about 1,400 - set against advisor prompts of 500 lines.
+        There was never anything to save here.
+
+        ``n`` is kept for callers that genuinely want a slice; ``n <= 0``
+        still yields nothing.
 
         Named to avoid colliding with the ``recent_events`` field above,
         which holds player-facing event prose rather than dispositions.
         """
+        if n is None:
+            return list(self.event_ledger)
         if n <= 0:
             return []
         return self.event_ledger[-n:]

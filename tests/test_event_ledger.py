@@ -81,6 +81,29 @@ def test_recent_played_events_is_oldest_first_and_limited():
     assert ns.recent_played_events(0) == []
 
 
+def test_the_generator_gets_the_whole_ledger_not_a_window():
+    """The default must stay uncapped.
+
+    It used to return the last six, which re-opened the bug the ledger
+    exists to close: an event older than the window is invisible to the
+    generator and can be restaged as fresh. The ledger is one line per
+    event - it is already the compression - so there is nothing to save by
+    truncating it.
+    """
+    ns = _state()
+    for turn in range(1, 31):
+        ns.record_played_event(turn, f"event {turn}")
+        ns.close_event(turn, "resolved", "dealt with")
+
+    everything = ns.recent_played_events()
+    assert len(everything) == 30, "the default must not window the ledger"
+    assert everything[0].turn == 1, "turn 1 must still be visible at turn 30"
+
+    # And it must stay affordable, which is the whole reason it can be whole.
+    block = render_event_ledger(everything)
+    assert len(block) < 4000, f"30 turns of ledger should be tiny, got {len(block)} chars"
+
+
 def test_ledger_round_trips_and_old_saves_load_clean():
     ns = _state()
     ns.record_played_event(5, "Akula surfaced off Orkney")

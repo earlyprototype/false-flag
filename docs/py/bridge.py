@@ -3,7 +3,7 @@
 This module is the Python half of the FALSE FLAG web build. It is bundled
 into ``game.zip`` alongside ``engine/``, ``models/``, ``llm/``, ``agents/``
 and ``data/``, and imported inside a Pyodide runtime that lives in a Web
-Worker (``docs/play/worker.js``).
+Worker (``docs/worker.js``).
 
 Design rules
 ------------
@@ -11,8 +11,7 @@ Design rules
   ``engine.game_manager`` pulls in zero rich/typer/click/requests.
 * **Raw ANSI out, always.** Rendering ANSI to HTML is the page's job, not
   this module's. Everything here emits 16-colour SGR sequences so the page
-  can map them onto the site's terminal palette (see
-  ``dev-scripts/build_site.py``'s ``TUMAN_TERMINAL``).
+  can map them onto the game's palette (``PALETTE`` in ``docs/ansi.js``).
 * **Pure Python, no JS.** ``WebGame`` takes an ``emit`` callable and never
   touches the browser directly, so the whole protocol is unit-testable from
   pytest (see ``tests/test_web_bridge.py``).
@@ -56,6 +55,29 @@ BOLD = "\x1b[1m"
 ITALIC = "\x1b[3m"
 
 DEFAULT_WIDTH = 84
+MIN_WIDTH = 40
+MAX_WIDTH = 200
+
+
+def clamp_width(width: Any, default: int = DEFAULT_WIDTH) -> int:
+    """A column width that every consumer of it can survive.
+
+    ``AnsiPen`` has always clamped its own copy, but ``WebGame.width`` is used
+    raw in two other places — ``str.center(self.width)`` and
+    ``textwrap.wrap(..., self.width - 2)``. The second raises ``ValueError``
+    for a width below 3, and it runs in the ``finally`` of ``handle``, which
+    is documented to never raise; the escape would surface to the player as a
+    worker-level fault instead of a game error. So clamp once, at the point
+    the config is read, to the same bounds ``AnsiPen`` uses.
+
+    A width that is not a number at all (``"wide"``, ``None``, a dict) falls
+    back to ``default`` rather than blowing up a whole newGame.
+    """
+    try:
+        value = int(width)
+    except (TypeError, ValueError):
+        value = default
+    return max(MIN_WIDTH, min(MAX_WIDTH, value))
 
 
 def _c(colour: str, text: str) -> str:
@@ -124,7 +146,7 @@ class AnsiPen:
     """Accumulates ANSI text at a fixed column width."""
 
     def __init__(self, width: int = DEFAULT_WIDTH):
-        self.width = max(40, min(200, int(width)))
+        self.width = clamp_width(width)
         self._parts: List[str] = []
 
     def raw(self, text: str = "") -> "AnsiPen":
@@ -234,6 +256,131 @@ _ADVISOR_CUE.update({a["label"].lower(): a["cue"] for a in ADVISORS})
 VARIANTS = {"standard", "fast_start"}
 
 
+# ---------------------------------------------------------------------------
+# Live-endpoint faults
+# ---------------------------------------------------------------------------
+#
+# A live endpoint can refuse: the key was revoked, its spend limit was reached,
+# the free-tier allowance is spent, the network went. ``llm/router.py`` is
+# deliberately resilient about that — it retries once and then answers from the
+# deterministic offline driver, so a turn never dies half-written. In the
+# terminal build the warning it prints lands in front of the player. In the
+# browser the same print goes to the developer console, which nobody has open,
+# and the only symptom is advisors who have quietly stopped reading what was
+# actually written.
+#
+# So: watch the driver, record every refusal, and say so on the page in words.
+# Nothing here changes what the game does — the exception is re-raised and the
+# router's own fallback still runs. This only makes the failure audible.
+
+_LLM_FAULTS: List[str] = []
+_HTTP_CODE_RE = re.compile(r"HTTP (\d{3})")
+_BATCH_ERROR_PREFIX = "[ERROR:"
+
+
+def _watch_calls(fn: Callable) -> Callable:
+    """Record failures from one driver method, then let them propagate."""
+
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            result = fn(*args, **kwargs)
+        except Exception as exc:  # noqa: BLE001 - re-raised immediately below
+            _LLM_FAULTS.append(str(exc))
+            raise
+        # batch_generate_text catches per-prompt failures itself and returns
+        # them as "[ERROR: ...]" strings, so nothing is raised for those.
+        if isinstance(result, list):
+            for item in result:
+                if isinstance(item, str) and item.startswith(_BATCH_ERROR_PREFIX):
+                    _LLM_FAULTS.append(item)
+        return result
+
+    wrapper._ff_watched = True  # type: ignore[attr-defined]
+    return wrapper
+
+
+_PROBE_INSTALLED = False
+
+
+def install_fault_probe() -> None:
+    """Wrap live drivers so their refusals can be reported to the player.
+
+    Installed lazily, the first time a real key is set, so a mock-driver
+    session (and every test that runs one) is untouched.
+    """
+    global _PROBE_INSTALLED
+    if _PROBE_INSTALLED:
+        return
+    import llm.router as router
+
+    original = router._construct_text_driver
+
+    def watched(provider: str, model_name: Optional[str] = None):
+        driver = original(provider, model_name)
+        if provider != "openai_compat":
+            return driver
+        for name in ("generate_text", "batch_generate_text"):
+            fn = getattr(driver, name, None)
+            if fn is None or getattr(fn, "_ff_watched", False):
+                continue
+            setattr(driver, name, _watch_calls(fn))
+        return driver
+
+    router._construct_text_driver = watched
+    _PROBE_INSTALLED = True
+
+
+def describe_llm_faults(faults: List[str], source: str) -> str:
+    """Turn raw driver errors into one sentence a player can act on.
+
+    ``source`` is 'shared' (the owner's key, unlocked with a passphrase),
+    'own' (a key the player pasted) or '' (unknown).
+    """
+    codes = set()
+    for fault in faults:
+        match = _HTTP_CODE_RE.search(fault)
+        if match:
+            codes.add(int(match.group(1)))
+
+    if source == "shared":
+        whose, subject = "the shared key", "The shared key"
+    elif source == "own":
+        whose, subject = "your key", "Your key"
+    else:
+        whose, subject = "the key", "The key"
+
+    if codes & {401, 403}:
+        code = sorted(codes & {401, 403})[0]
+        what = (f"{subject} was rejected by OpenRouter (HTTP {code}) — it may "
+                f"have been revoked, or it may have hit its spend limit.")
+        fix = ("Nothing on this page can fix that; whoever published the "
+               "passphrase has to issue a new key."
+               if source == "shared" else
+               "Reload and set a different key to carry on with live advisors.")
+    elif 402 in codes:
+        what = (f"OpenRouter says {whose} is out of credit (HTTP 402) — the "
+                f"spend limit on it has been reached.")
+        fix = ("Nothing on this page can fix that; whoever published the "
+               "passphrase has to top it up or issue a new key."
+               if source == "shared" else
+               "Top the key up, or reload and set a different one.")
+    elif 429 in codes:
+        what = (f"OpenRouter is rate-limiting {whose} (HTTP 429) — too many "
+                f"requests, or the allowance on it is spent for now.")
+        fix = "Give it a minute and carry on; it may come back on its own."
+    elif codes:
+        code = sorted(codes)[0]
+        what = f"OpenRouter refused the request (HTTP {code})."
+        fix = "It may be temporary. Carry on and see."
+    else:
+        what = (f"The call to OpenRouter failed before it got an answer "
+                f"(using {whose}).")
+        fix = "That is usually the network. Carry on and see."
+
+    return (f"{what} The advisors answered from the offline stand-in for that "
+            f"call, so they replied without reading what you wrote. {fix}")
+
+
 class WebGame:
     """Stateful driver for one browser session.
 
@@ -247,6 +394,9 @@ class WebGame:
         self.width = DEFAULT_WIDTH
         self.awaiting = AWAIT_NONE
         self._call_seen = 0  # how many lines of the live call have been sent
+        # Which key is behind the live endpoint, so a refusal can be described
+        # to the right person. '' until setKey says.
+        self.key_source = ""
 
     # -- plumbing ---------------------------------------------------------
 
@@ -271,7 +421,7 @@ class WebGame:
         ``handle`` marks the session busy (``AWAIT_NONE``) before dispatching,
         so re-emitting ``self.awaiting`` from a rejection path emits the busy
         value — and the page blocks input on ``'none'`` (see
-        ``docs/play/worker.js``), leaving reload as the only way out. The
+        ``docs/worker.js``), leaving reload as the only way out. The
         position to restore is the one captured *before* dispatch.
         """
         self.error(message)
@@ -280,7 +430,7 @@ class WebGame:
     # -- LLM configuration -------------------------------------------------
 
     def set_key(self, key: Optional[str], base_url: Optional[str] = None,
-                model: Optional[str] = None) -> None:
+                model: Optional[str] = None, source: Optional[str] = None) -> None:
         """Switch between the deterministic mock driver and a real endpoint.
 
         An empty/absent key means mock play, so a stranger with no API key
@@ -291,7 +441,9 @@ class WebGame:
         import llm.router as router
 
         key = (key or "").strip()
+        self.key_source = (source or "").strip().lower()
         if key:
+            install_fault_probe()
             os.environ["OPENAI_COMPAT_API_KEY"] = key
             os.environ["OPENAI_COMPAT_BASE_URL"] = (
                 base_url or os.environ.get("OPENAI_COMPAT_BASE_URL")
@@ -330,7 +482,11 @@ class WebGame:
 
     def new_game(self, config: Optional[Dict[str, Any]] = None) -> None:
         config = dict(config or {})
-        self.width = int(config.get("width") or DEFAULT_WIDTH)
+        # Clamped here, not at each use: `self.width` is read raw by
+        # `_emit_ending` (str.center) and `_report_llm_faults` (textwrap.wrap,
+        # which rejects a width below 1), and the latter runs in `handle`'s
+        # `finally`, where an exception would break the "never raises" contract.
+        self.width = clamp_width(config.get("width") or DEFAULT_WIDTH)
 
         scenario = (config.get("scenario") or "war_game_2025").strip()
         variant = (config.get("variant") or "standard").strip()
@@ -903,7 +1059,8 @@ class WebGame:
             elif kind == "endTurn":
                 self.end_turn(was_awaiting)
             elif kind == "setKey":
-                self.set_key(msg.get("key"), msg.get("baseUrl"), msg.get("model"))
+                self.set_key(msg.get("key"), msg.get("baseUrl"), msg.get("model"),
+                             msg.get("source"))
             elif kind == "save":
                 self.save()
                 # Saving is not a move: put the player back where they were.
@@ -920,3 +1077,30 @@ class WebGame:
                 self.set_awaiting(AWAIT_DECISION)
             else:
                 self.set_awaiting(AWAIT_NONE)
+        finally:
+            self._report_llm_faults()
+
+    def _report_llm_faults(self) -> None:
+        """Say out loud that the live endpoint refused, if it did.
+
+        The router has already fallen back to the offline stand-in by the time
+        this runs — the campaign is intact and playable. What it is not is
+        what the player thought they were getting, and that is the thing worth
+        one clear sentence.
+        """
+        if not _LLM_FAULTS:
+            return
+        faults = list(_LLM_FAULTS)
+        _LLM_FAULTS.clear()
+        message = describe_llm_faults(faults, self.key_source)
+
+        pen = AnsiPen(self.width)
+        pen.blank()
+        pen.rule("─", DANGER)
+        for line in textwrap.wrap("!! " + message, self.width - 2):
+            pen.raw(_c(DANGER, "  " + line))
+        pen.rule("─", DANGER)
+        pen.blank()
+        self.out(pen)
+
+        self.error(message, fatal=False)
