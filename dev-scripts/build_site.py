@@ -260,7 +260,9 @@ class Rig:
 
 NAV = (("index.html", "01 BRIEF"),
        ("interstitials.html", "02 VIGNETTES"),
-       ("replay.html", "03 REPLAY"))
+       ("replay.html", "03 REPLAY"),
+       # Hand-written, not generated here: docs/play/ is the playable build.
+       ("play/index.html", "04 PLAY"))
 
 
 def strip_html(label: str, code: str, edge: str = "top") -> str:
