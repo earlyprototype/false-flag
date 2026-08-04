@@ -227,6 +227,18 @@ def test_generator_window_is_widened_beyond_the_advisor_starvation_default():
     block = get_last_turn_slice(fat, max_lines=MAX_INJECT_CONTINUITY_LINES)
     assert len("\n".join(block)) <= MAX_ADVISOR_TRANSCRIPT_CHARS
 
+    # The branch that does NOT elide is the one that got this wrong first
+    # time: a turn inside the line cap skipped the character budget entirely
+    # and returned 796,465 characters. Every return path is bounded now.
+    within_cap = ["=" * 60, "TURN 1"] + ["X" * 2000] * 398
+    block = get_last_turn_slice(within_cap, max_lines=MAX_INJECT_CONTINUITY_LINES)
+    assert len("\n".join(block)) <= MAX_ADVISOR_TRANSCRIPT_CHARS
+
+    # And the path with no TURN header at all.
+    headerless = ["X" * 2000] * 1000
+    block = get_last_turn_slice(headerless, max_lines=MAX_INJECT_CONTINUITY_LINES)
+    assert len("\n".join(block)) <= MAX_ADVISOR_TRANSCRIPT_CHARS
+
     # And the ordinary shape still comes back whole, not trimmed.
     lean = ["=" * 60, "TURN 7", "=" * 60] + [f"line {i}" for i in range(40)]
     assert get_last_turn_slice(lean, max_lines=MAX_INJECT_CONTINUITY_LINES) == lean

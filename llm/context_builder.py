@@ -142,14 +142,17 @@ def get_last_turn_slice(transcript: FullTranscript, max_lines: int = 120,
             start = max(0, i - 1)  # include the ruler above the header
             break
     if start is None:
-        return transcript[-max_lines:]
+        return _bound_chars(transcript[-max_lines:], max_chars)
     turn_slice = transcript[start:]
     if len(turn_slice) <= max_lines:
-        return turn_slice
+        # Bounded here too. A turn that fits the line cap can still be huge:
+        # 398 lines of a full unwrapped paragraph is ~796,000 characters, and
+        # this return path skipped the budget entirely.
+        return _bound_chars(turn_slice, max_chars)
     # Too small to hold head + marker + tail: spend the whole budget on the
     # opening, since preserving the turn's inject is the point of this window.
     if max_lines < 3:
-        return turn_slice[:max_lines]
+        return _bound_chars(turn_slice[:max_lines], max_chars)
     budget = max_lines - 1  # the elision marker occupies one line
     head = (budget * 2) // 3
     tail = budget - head

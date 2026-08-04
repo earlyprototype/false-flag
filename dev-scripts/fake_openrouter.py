@@ -163,6 +163,12 @@ class _Handler(BaseHTTPRequestHandler):
             }
             self.server.logfile.write(json.dumps(record) + "\n")
             self.server.logfile.flush()
+            # Flush the sidecar too. Only the record file was flushed, so a
+            # log read while the server is still up (or after a kill) had more
+            # records than prompts - 149 against 146 on a ten-turn campaign -
+            # and analyse_calls paired them positionally. It now refuses that
+            # file rather than analysing a prefix of the run and looking clean.
+            self.server.promptfile.flush()
 
         payload = json.dumps({
             "id": f"fake-{record['seq']}",
