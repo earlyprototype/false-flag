@@ -1,0 +1,6 @@
+# Spike artefacts — regenerate, don't commit.
+#   python3 fetch_pyodide.py 0.27.7   -> pyodide/  (~16 MB)
+#   see drive.py header               -> game.zip, results.json
+pyodide/
+game.zip
+results.json
