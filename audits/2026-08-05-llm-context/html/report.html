@@ -1,0 +1,819 @@
+<title>FALSE FLAG — LLM context and routing audit</title>
+
+<style>
+  :root {
+    --ground: #F1FAEE; --panel: #E7F1E6; --ink: #10171C; --muted: #5C6E7A;
+    --rule: #C4D3CE; --accent: #D8481B; --good: #00785C; --warn: #9A6B00; --steel: #1A659E;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --serif: Charter, Georgia, "Iowan Old Style", "Times New Roman", serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0B0F14; --panel: #131A21; --ink: #E8EFF2; --muted: #8598A5;
+      --rule: #26333D; --accent: #FF6B35; --good: #00D9A3; --warn: #FFB627; --steel: #4E9FD4;
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #F1FAEE; --panel: #E7F1E6; --ink: #10171C; --muted: #5C6E7A;
+    --rule: #C4D3CE; --accent: #D8481B; --good: #00785C; --warn: #9A6B00; --steel: #1A659E;
+  }
+  :root[data-theme="dark"] {
+    --ground: #0B0F14; --panel: #131A21; --ink: #E8EFF2; --muted: #8598A5;
+    --rule: #26333D; --accent: #FF6B35; --good: #00D9A3; --warn: #FFB627; --steel: #4E9FD4;
+  }
+
+  body {
+    background: var(--ground); color: var(--ink); font-family: var(--serif);
+    font-size: 16.5px; line-height: 1.6; margin: 0; padding: 0 1.5rem 6rem;
+  }
+  .wrap { max-width: 64rem; margin: 0 auto; }
+  .measure { max-width: 37rem; }
+
+  header.mast { border-bottom: 2px solid var(--ink); padding: 3.5rem 0 1.1rem; margin-bottom: 2rem; }
+  .desig {
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 1rem;
+  }
+  h1 {
+    font-family: var(--mono); font-size: clamp(1.4rem, 3.6vw, 1.95rem); line-height: 1.2;
+    font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; margin: 0 0 0.9rem;
+  }
+  h2 {
+    font-family: var(--mono); font-size: 1.05rem; font-weight: 600; letter-spacing: 0.02em;
+    text-wrap: balance; margin: 3.6rem 0 0.5rem; padding-top: 0.9rem; border-top: 1px solid var(--rule);
+  }
+  h2 .num { color: var(--accent); margin-right: 0.7em; }
+  h3 { font-family: var(--mono); font-size: 0.92rem; font-weight: 600; margin: 2.2rem 0 0.3rem; text-wrap: balance; }
+  h4 { font-family: var(--mono); font-size: 0.82rem; font-weight: 600; margin: 1.5rem 0 0.2rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  p { margin: 0 0 0.95rem; }
+  code { font-family: var(--mono); font-size: 0.84em; background: var(--panel); padding: 0.08em 0.32em; border-radius: 2px; }
+  ul { margin: 0 0 1rem; padding-left: 1.2rem; }
+  li { margin-bottom: 0.35rem; }
+
+  .meta-strip {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 1.2rem 2rem; margin: 0 0 2.4rem; padding: 1.3rem 0;
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 0.76rem; color: var(--muted);
+  }
+  .meta-strip b { display: block; color: var(--ink); font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem; font-variant-numeric: tabular-nums; }
+
+  /* call entries */
+  .call {
+    border-left: 3px solid var(--rule); padding-left: 1.3rem; margin: 2.4rem 0;
+  }
+  .call.shared { border-left-color: var(--good); }
+  .call.own { border-left-color: var(--warn); }
+  .call h3 { margin-top: 0; }
+  .kv {
+    font-family: var(--mono); font-size: 0.75rem; line-height: 1.7; color: var(--muted);
+    margin: 0.5rem 0 1rem;
+  }
+  .kv span { color: var(--ink); }
+  .io { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0 2.2rem; max-width: 54rem; }
+  .io ul { font-size: 0.9rem; }
+  .io .absent { color: var(--muted); }
+
+  /* findings */
+  .find { border: 1px solid var(--rule); border-left-width: 3px; padding: 1.1rem 1.3rem; margin: 1.8rem 0; max-width: 40rem; }
+  .find.f1 { border-left-color: var(--accent); }
+  .find.f2 { border-left-color: var(--warn); }
+  .find.f3 { border-left-color: var(--steel); }
+  .find h3 { margin-top: 0; }
+  .sev {
+    font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.13em; text-transform: uppercase;
+    color: var(--muted); display: block; margin-bottom: 0.3rem;
+  }
+  .find.f1 .sev { color: var(--accent); }
+  .find.f2 .sev { color: var(--warn); }
+  .find p:last-child { margin-bottom: 0; }
+  .ev { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-top: 0.6rem; }
+
+  figure { margin: 2.4rem 0 2.6rem; padding: 0; overflow-x: auto; }
+  figure svg { display: block; width: 100%; max-width: 100%; height: auto; min-width: 33rem; color: var(--ink); }
+  figcaption { font-family: var(--mono); font-size: 0.74rem; line-height: 1.55; color: var(--muted); margin-top: 0.9rem; max-width: 40rem; }
+  .svg-label { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; fill: currentColor; }
+  .svg-small { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10.5px; fill: currentColor; opacity: 0.64; }
+  .svg-head { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; letter-spacing: 0.1em; fill: currentColor; opacity: 0.55; }
+  .bx { fill: none; stroke: currentColor; stroke-width: 1.4; }
+  .bx-fill { fill: var(--panel); stroke: currentColor; stroke-width: 1.4; }
+  .ln { stroke: currentColor; stroke-width: 1.4; fill: none; }
+  .ln-thin { stroke: currentColor; stroke-width: 1; fill: none; opacity: 0.5; }
+  .ln-dash { stroke: currentColor; stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; opacity: 0.65; }
+  .acc { color: var(--accent); }
+  .gd { color: var(--good); }
+  .wn { color: var(--warn); }
+  .st { color: var(--steel); }
+
+  footer {
+    margin-top: 4.5rem; padding-top: 1.1rem; border-top: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 0.73rem; color: var(--muted);
+  }
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="desig">Audit report · LLM context and routing</p>
+  <h1>FALSE FLAG — what each LLM call receives, what it is for, and what it changes</h1>
+</header>
+
+<div class="meta-strip">
+  <div><b>d197c44</b>branch claude/false-flag-game-ux-2j8rea</div>
+  <div><b>12</b>distinct call families</div>
+  <div><b>~15</b>dispatches per turn</div>
+  <div><b>466 / 60</b>claims confirmed / overturned</div>
+  <div><b>14</b>agents, 6 adversarial reviewers</div>
+</div>
+
+<div class="measure">
+<h4>Method</h4>
+<p>Six auditors mapped one call group each against the source. Six reviewers were instructed
+to refute rather than confirm, to trace every claimed input from its state object to the
+f-string that interpolates it, and to default to REFUTED where the code did not settle the
+question. Reviewer corrections have been applied throughout; line references are the corrected
+ones. Measurements against <code>saves/parked_campaign4_borrowed_faces.json</code> (1,853
+transcript lines, 729,186 characters, 17 completed turns).</p>
+</div>
+
+<h2><span class="num">01</span>Call inventory</h2>
+
+<figure>
+<svg viewBox="0 0 880 620" role="img" aria-label="Twelve LLM call families grouped by phase, showing which share the cached briefing dossier and which build their own context">
+  <defs>
+    <marker id="m1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+
+  <g class="gd">
+    <rect class="bx-fill" x="0" y="140" width="200" height="240" rx="2"/>
+    <text class="svg-label" x="14" y="166">SHARED DOSSIER</text>
+    <line class="ln-thin" x1="14" y1="178" x2="186" y2="178"/>
+    <text class="svg-small" x="14" y="200">framing (static)</text>
+    <text class="svg-small" x="14" y="220">secret truth (Mystery only)</text>
+    <text class="svg-small" x="14" y="244">GAME HISTORY</text>
+    <text class="svg-small" x="14" y="262">windowed, 320,000 chars</text>
+    <text class="svg-small" x="14" y="286">metrics, raw</text>
+    <text class="svg-small" x="14" y="304">metrics, prose bands</text>
+    <text class="svg-small" x="14" y="322">metrics, threshold flags</text>
+    <line class="ln-thin" x1="14" y1="338" x2="186" y2="338"/>
+    <text class="svg-small" x="14" y="358">≈307,000 chars, 99.4%</text>
+    <text class="svg-small" x="14" y="374">identical between users</text>
+  </g>
+
+  <text class="svg-head" x="300" y="26">USES THE DOSSIER — MUTUALLY CACHEABLE</text>
+  <g class="gd">
+    <rect class="bx-fill" x="300" y="38" width="234" height="28" rx="2"/>
+    <text class="svg-small" x="312" y="56">advisor Q&amp;A</text>
+    <rect class="bx-fill" x="300" y="72" width="234" height="28" rx="2"/>
+    <text class="svg-small" x="312" y="90">decision interpretation</text>
+    <rect class="bx-fill" x="300" y="106" width="234" height="28" rx="2"/>
+    <text class="svg-small" x="312" y="124">advisor pushback</text>
+    <rect class="bx-fill" x="300" y="140" width="234" height="28" rx="2"/>
+    <text class="svg-small" x="312" y="158">critical omissions ×5</text>
+    <path class="ln" d="M 200 240 L 250 240 L 250 52 L 296 52" marker-end="url(#m1)"/>
+    <path class="ln" d="M 250 86 L 296 86" marker-end="url(#m1)"/>
+    <path class="ln" d="M 250 120 L 296 120" marker-end="url(#m1)"/>
+    <path class="ln" d="M 250 154 L 296 154" marker-end="url(#m1)"/>
+  </g>
+
+  <text class="svg-head" x="300" y="212">BUILDS ITS OWN CONTEXT</text>
+  <g class="wn">
+    <rect class="bx-fill" x="300" y="224" width="234" height="28" rx="2"/>
+    <text class="svg-small" x="312" y="242">inject generation</text>
+    <rect class="bx-fill" x="300" y="258" width="234" height="28" rx="2"/>
+    <text class="svg-small" x="312" y="276">narrator bridge</text>
+    <rect class="bx-fill" x="300" y="292" width="234" height="28" rx="2"/>
+    <text class="svg-small" x="312" y="310">action quality assessment</text>
+    <rect class="bx-fill" x="300" y="326" width="234" height="28" rx="2"/>
+    <text class="svg-small" x="312" y="344">advisor reactions ×4</text>
+    <rect class="bx-fill" x="300" y="360" width="234" height="28" rx="2"/>
+    <text class="svg-small" x="312" y="378">situation summary</text>
+    <rect class="bx-fill" x="300" y="394" width="234" height="28" rx="2"/>
+    <text class="svg-small" x="312" y="412">state actors ×3</text>
+    <rect class="bx-fill" x="300" y="428" width="234" height="28" rx="2"/>
+    <text class="svg-small" x="312" y="446">diplomacy ×2</text>
+    <path class="ln-dash" d="M 200 320 L 250 320 L 250 238 L 296 238"/>
+    <path class="ln-dash" d="M 250 272 L 296 272"/>
+    <path class="ln-dash" d="M 250 306 L 296 306"/>
+    <path class="ln-dash" d="M 250 340 L 296 340"/>
+    <path class="ln-dash" d="M 250 374 L 296 374"/>
+    <path class="ln-dash" d="M 250 408 L 296 408"/>
+    <path class="ln-dash" d="M 250 442 L 296 442"/>
+  </g>
+
+  <text class="svg-head" x="580" y="26">MODEL SELECTION</text>
+  <g class="st">
+    <rect class="bx-fill" x="580" y="38" width="300" height="130" rx="2"/>
+    <text class="svg-small" x="594" y="60">passes an LLMContext → router reads</text>
+    <text class="svg-small" x="594" y="78">the tier table; /llm menu applies</text>
+    <line class="ln-thin" x1="594" y1="94" x2="866" y2="94"/>
+    <text class="svg-small" x="594" y="114">advisor Q&amp;A, omissions → PRO</text>
+    <text class="svg-small" x="594" y="132">interpretation, pushback → FLASH</text>
+    <text class="svg-small" x="594" y="150">inject, diplomacy → PRO</text>
+    <path class="ln" d="M 534 100 L 576 100" marker-end="url(#m1)"/>
+  </g>
+  <g class="acc">
+    <rect class="bx-fill" x="580" y="292" width="300" height="130" rx="2"/>
+    <text class="svg-small" x="594" y="314">passes NO context → router leaves</text>
+    <text class="svg-small" x="594" y="332">model_name None → driver default;</text>
+    <text class="svg-small" x="594" y="350">the tier table is never consulted</text>
+    <line class="ln-thin" x1="594" y1="366" x2="866" y2="366"/>
+    <text class="svg-small" x="594" y="386">narrator, quality, reactions,</text>
+    <text class="svg-small" x="594" y="404">summary, state actors</text>
+    <path class="ln" d="M 534 350 L 576 350" marker-end="url(#m1)"/>
+  </g>
+
+  <text class="svg-small" x="0" y="500">Membership of the left column and the right column is not the same split.</text>
+  <text class="svg-small" x="0" y="520">Inject generation and diplomacy build their own context yet do pass a context enum;</text>
+  <text class="svg-small" x="0" y="540">the five adjudication-side calls do neither.</text>
+</svg>
+<figcaption>Eight of the twelve families open with the shared dossier. Seven do not. Eight of
+twelve pass no <code>LLMContext</code>, so the per-context model table at
+<code>llm/model_config.py:29-38</code> governs only the calls that do.</figcaption>
+</figure>
+
+<h3>Discussion phase</h3>
+
+<div class="call shared">
+  <h3>Advisor Q&amp;A</h3>
+  <p class="kv">
+    builder <span>llm/prompts.py:82</span> · dispatch <span>agents/conversation.py:211</span> ·
+    context <span>ADVISOR_QA → PRO</span> · <span>≥1 per question; 6 for /advise</span> · sequential
+  </p>
+  <p>Lets the player interrogate a named cabinet advisor during discussion and receive an
+  in-character, domain-specific answer before committing. One call fires per <em>matched</em>
+  advisor, so a question hitting two keyword sets fires two calls.</p>
+  <div class="io">
+    <div>
+      <h4>Receives</h4>
+      <ul>
+        <li>Shared dossier (windowed transcript, metrics ×3, secret truth)</li>
+        <li>Advisor role, knowledge domains, key concerns</li>
+        <li>Full scenario constraints, UK order of battle, ammunition stockpiles — all unbounded <code>str()</code> of the dicts</li>
+        <li>The player's question verbatim, uncapped</li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="absent">Does not receive</h4>
+      <ul class="absent">
+        <li>Per-country faction stances</li>
+        <li>Event ledger</li>
+        <li><code>world.recent_injects</code></li>
+      </ul>
+      <h4>Changes</h4>
+      <ul>
+        <li>Appends <code>"{role}: {response}"</code> to the campaign transcript, widening every later prompt</li>
+        <li>Screen render; persisted to save</li>
+        <li>No metric, flag or narrative state. Answers are never adjudicated.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="call own">
+  <h3>Narrator bridge</h3>
+  <p class="kv">
+    builder <span>llm/prompts.py:558</span> · dispatch <span>engine/narrator.py:36</span> ·
+    context <span>none → driver default</span> · <span>0–1 per turn</span> · sequential
+  </p>
+  <p>Two to three sentences of atmosphere at the top of a turn, so the jump from last turn's
+  decision to the new event reads as elapsed time.</p>
+  <div class="io">
+    <div>
+      <h4>Receives</h4>
+      <ul>
+        <li>Turn, phase, casualty counts, active flags</li>
+        <li>Metrics as prose bands only — not the raw values</li>
+        <li>Last 20 transcript elements, a bare literal with <strong>no character bound</strong></li>
+        <li>Title of the inject about to be shown</li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="absent">Requested but not honoured</h4>
+      <ul class="absent">
+        <li><code>system_instruction</code>, <code>temperature=0.7</code> and <code>max_tokens=150</code> are passed but ignored on the gemini, mock and offline drivers — the length cap is not enforced</li>
+      </ul>
+      <h4>Changes</h4>
+      <ul>
+        <li>Appends <code>[Narrator] …</code> to the transcript</li>
+        <li>Feeds the inject generator's story digest, which treats <code>[Narrator]</code> lines as notable events</li>
+        <li>No state mutation</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<h3>Decision phase</h3>
+
+<div class="call shared">
+  <h3>Decision interpretation</h3>
+  <p class="kv">
+    builder <span>llm/prompts.py:174</span> · dispatch <span>agents/conversation.py:244</span> ·
+    context <span>DECISION_INTERPRETATION → FLASH</span> · <span>1 per submission</span> · sequential
+  </p>
+  <p>Turns the typed order into a structured operational summary: intent, forces, resources,
+  timeline, feasibility.</p>
+  <div class="io">
+    <div>
+      <h4>Receives</h4>
+      <ul>
+        <li>Shared dossier</li>
+        <li>UK order of battle, stockpiles, constraints — untruncated</li>
+        <li>The player's raw decision text, <strong>not truncated and not escaped</strong></li>
+      </ul>
+      <h4 class="absent">Does not receive</h4>
+      <ul class="absent">
+        <li>This turn's decision line — appended to the local transcript only after the call</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Changes</h4>
+      <ul>
+        <li>Transcript lines, and thus all later prompts</li>
+        <li>The OPERATIONAL ORDER panel shown before confirmation</li>
+        <li>The pushback prompt in the same turn</li>
+        <li>Metric deltas indirectly, via the quality-assessment prompt</li>
+      </ul>
+      <p style="font-size:0.9rem"><strong>The five requested output labels are never parsed.</strong>
+      Nothing validates INTERPRETATION / FORCES / RESOURCES / TIMELINE / FEASIBILITY; the string
+      is consumed whole.</p>
+    </div>
+  </div>
+</div>
+
+<div class="call shared">
+  <h3>Advisor pushback</h3>
+  <p class="kv">
+    builder <span>llm/prompts.py:244</span> · dispatch <span>agents/conversation.py:272</span> ·
+    context <span>ADVISOR_PUSHBACK → FLASH</span> · <span>1 per submission</span> · sequential
+  </p>
+  <p>A last in-fiction warning before adjudication, and the gate that lets the player amend.</p>
+  <div class="io">
+    <div>
+      <h4>Receives</h4>
+      <ul>
+        <li>Shared dossier</li>
+        <li>The decision text and the interpretation from the previous call, both untruncated</li>
+        <li>Advisor roster with pushback triggers; Russian characters filtered out by a <code>note</code> key</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Changes</h4>
+      <ul>
+        <li>Transcript lines</li>
+        <li>The ADVISOR CONCERNS panel and the proceed / re-type / return-to-discussion gate</li>
+        <li>API <code>concerns_list</code>, where every entry is given the canned recommendation "Consider revising your approach."</li>
+        <li><strong>Nothing mechanical</strong> — no metric, flag, trust value or ledger entry is written from pushback anywhere</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="call shared">
+  <h3>Critical omissions scan ×5</h3>
+  <p class="kv">
+    builder <span>llm/prompts.py:462</span> · dispatch <span>agents/conversation.py:382 → llm/fanout.py:67</span> ·
+    context <span>CRITICAL_OMISSIONS → PRO</span> · <span>5 per submission</span> · one parallel group
+  </p>
+  <p>Five ministers independently scan the order for a catastrophic gap — no NATO coordination,
+  no legal authority, no public statement, no ally consultation, no logistics — and each offers
+  at most one concern and one fix.</p>
+  <div class="io">
+    <div>
+      <h4>Receives</h4>
+      <ul>
+        <li>Shared dossier</li>
+        <li>Advisor role name, twice</li>
+        <li>A hardcoded one-line remit blurb keyed on character id</li>
+        <li>RECENT EVENTS: inject titles only, <strong>double-windowed to 5</strong></li>
+        <li>The raw decision text, uncapped</li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="absent">Does not receive</h4>
+      <ul class="absent">
+        <li><strong>The interpretation</strong> — passed into the function, never reaches the prompt</li>
+        <li>The pushback the same advisors just produced</li>
+        <li>Advisor <code>personality</code> — read from config, never interpolated</li>
+        <li>This turn's decision-phase working transcript</li>
+        <li>Event ledger; <code>world.posture</code>, <code>spatial_state</code>, <code>diplomatic_relationships</code></li>
+      </ul>
+      <h4>Changes</h4>
+      <ul>
+        <li><strong>Rewrites the player's decision text</strong> when a recommendation is applied, then re-runs interpretation, pushback and this scan against the amended order</li>
+        <li>Transcript lines; API concerns payload</li>
+        <li>No direct metric, flag or trust mutation</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<h3>Briefing phase</h3>
+
+<div class="call own">
+  <h3>Inject generation</h3>
+  <p class="kv">
+    builder <span>llm/prompts.py:334</span> · dispatch <span>llm/inject_generator.py:71</span> ·
+    context <span>INJECT_GENERATION → PRO</span> · <span>0–1 per turn</span> · sequential
+  </p>
+  <p>Once the authored turn files run out, this single call invents the event the player wakes
+  up to: headline, two-to-three paragraph brief, and the metric effect it carries.</p>
+  <div class="io">
+    <div>
+      <h4>Receives</h4>
+      <ul>
+        <li>Turn number, three raw metrics</li>
+        <li>Secret narrative truth (global only)</li>
+        <li>STORY SO FAR digest — mechanically derived, not an LLM call: <strong>last 3 event-ish lines, each cut to 100 characters</strong>, and only when the transcript exceeds 10 lines</li>
+        <li><strong>EVENTS ALREADY PLAYED ledger</strong> — entry count unbounded, titles cut to 60 chars, notes to 90</li>
+        <li>LAST TURN window — 400 lines max, char-bounded, sliced back to the last <code>TURN N</code> header</li>
+        <li>UK and Russian objectives, escalation patterns, scenario menu (filtered by ledger)</li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="absent">Does not receive</h4>
+      <ul class="absent">
+        <li><strong>The GAME HISTORY block.</strong> Verified empirically: the string "GAME HISTORY" does not appear in the generated prompt. Its only view of turns 1–16 is the ledger plus the digest.</li>
+        <li>Per-country faction stances</li>
+      </ul>
+      <h4>Changes</h4>
+      <ul>
+        <li>The event shown to the player; its parsed <code>effects</code> apply metric deltas</li>
+        <li>Writes a ledger entry, whose disposition is set later at adjudication</li>
+        <li>Appends the inject title to <code>world.recent_injects</code></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<h3>Adjudication phase</h3>
+
+<div class="call own">
+  <h3>Action quality assessment</h3>
+  <p class="kv">
+    builder <span>engine/narrative_adjudication.py:223</span> · context <span>none → driver default</span> ·
+    <span>1 per turn</span> · sequential
+  </p>
+  <p>Grades the decision on a five-word scale and proposes metric effects. This is the call
+  that moves the numbers.</p>
+  <div class="io">
+    <div>
+      <h4>Changes</h4>
+      <ul>
+        <li>Quality word, whitelist-validated, else defaults to "adequate"</li>
+        <li>Multiplier clamped to [0.5, 2.5]; if it parses to exactly 1.0 the quality→multiplier table overrides it</li>
+        <li><code>suggested_effects</code> → hidden metrics, via 60/40 merge with actor effects on the actor path</li>
+        <li>Advisor trust shifts — <strong>narrative path only</strong>; never called on the actor path</li>
+        <li>Reasoning is leak-scrubbed, then displayed and saved</li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="absent">Does not receive</h4>
+      <ul class="absent">
+        <li>Event ledger, world flags, posture, spatial state, recent injects, diplomatic relationships, play mode</li>
+      </ul>
+      <p style="font-size:0.9rem"><strong>Parser hazard:</strong> the effects branch fires on
+      any line containing a colon and the substring escalation / alliance / stability, so
+      continuation lines of the reasoning paragraph can be absorbed as effects.</p>
+    </div>
+  </div>
+</div>
+
+<div class="call own">
+  <h3>Advisor reactions ×4</h3>
+  <p class="kv">
+    builder <span>engine/narrative_adjudication.py:597</span> · context <span>none → driver default</span> ·
+    <span>1–4 per turn</span> · one parallel group
+  </p>
+  <div class="io">
+    <div>
+      <h4>Receives</h4>
+      <ul>
+        <li>Hidden metrics (post-effect), casualties, active crises</li>
+        <li>Relationship roster for all five characters</li>
+        <li>The raw action text and the one-word quality grade</li>
+        <li>A tone adjective selected from the quality word</li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="absent">Does not receive</h4>
+      <ul class="absent">
+        <li>The dossier, transcript, secret truth, ledger</li>
+        <li>The applied metric deltas, the adjudicator's reasoning, the interpretation</li>
+        <li>Sibling advisors' reactions, or the actor responses generated earlier in the same turn</li>
+      </ul>
+      <p style="font-size:0.9rem"><code>LLMContext.CHARACTER_RESPONSE</code> is defined and
+      mapped to FLASH but is <strong>dead for this call</strong>: <code>generate_group</code> is
+      invoked positionally, so <code>context</code> keeps its <code>None</code> default. Output
+      mutates nothing — pure flavour text.</p>
+    </div>
+  </div>
+</div>
+
+<div class="call own">
+  <h3>Situation summary refresh</h3>
+  <p class="kv">
+    builder <span>engine/narrative_adjudication.py:675</span> · context <span>none → driver default</span> ·
+    <span>1 per turn</span> · sequential, last
+  </p>
+  <p>Rewrites the standing two-to-three sentence brief. Receives post-effect metrics, crises,
+  the relationship roster and the raw decision.</p>
+  <p><strong>The output reaches no prompt.</strong> It overwrites
+  <code>NarrativeState.situation_summary</code>, which is read only by emergent-mode display and
+  three CLI render sites. It is not in <code>to_llm_context()</code>, and the inject prompt's
+  STORY SO FAR block uses a different, mechanically derived string. It is not appended to the
+  save transcript either. It also does not receive the previous summary it replaces.</p>
+</div>
+
+<div class="call own">
+  <h3>State actor responses ×3</h3>
+  <p class="kv">
+    builder <span>engine/actor_simulation.py:24</span> · context <span>none — no STATE_ACTOR member exists</span> ·
+    <span>0–3 per turn</span> · one parallel group
+  </p>
+  <p>Each relevant foreign government answers the decision with a public line, a private
+  assessment, a trust delta, and a support verdict.</p>
+  <div class="io">
+    <div>
+      <h4>Receives</h4>
+      <ul>
+        <li>Full actor dossier: motivations, hidden agendas, redlines, dependencies, capability / leverage / influence scores</li>
+        <li>World context: hidden metrics, casualties, last 3 recent events, active crises, in-fiction clock</li>
+        <li>Secret narrative truth (global)</li>
+        <li><strong>Every UK advisor's name, relationship label and trust score</strong></li>
+        <li>The raw UK decision, uncapped</li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="absent">Does not receive</h4>
+      <ul class="absent">
+        <li>The interpretation, the transcript, world metrics/flags/phase</li>
+        <li>The actor's own <code>public_commitments</code>, <code>recent_actions</code>, <code>trust_trajectory</code>, <code>last_contacted</code></li>
+        <li>Per-country faction stances, the ledger, sibling actors' replies</li>
+      </ul>
+      <h4>Changes</h4>
+      <ul>
+        <li>Trust delta clamped to ±20 → bilateral relationship, and domestic stability ±2/−3</li>
+        <li>Support verdict weighted by diplomatic influence → alliance cohesion and escalation risk, plus a consensus bonus</li>
+        <li>Merged 60/40 with quality effects into hidden metrics; can trip crisis thresholds</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<h2><span class="num">02</span>Shared context composition</h2>
+
+<div class="measure">
+<p>Assembled by <code>build_shared_context_prefix</code>
+(<code>llm/context_builder.py:285-355</code>), ordered slowest-changing first so a prefix cache
+can match through it. On the measured campaign it renders to ≈307,000 characters, 99.4%
+identical between the eight calls that use it.</p>
+<p>Three of its blocks are the same three metrics rendered three ways: raw values out of 100,
+prose bands, and KEY INTELLIGENCE FLAGS. The flags are five booleans computed by thresholding
+those metrics (<code>engine/flags.py:15-35</code>) and the dict is <em>replaced</em> rather than
+accumulated each turn (<code>engine/flags.py:38-40</code>), so the third rendering carries no
+information the first two do not.</p>
+<p>Per-country <code>FactionStance</code> data — secret motive, public posture, economic
+leverage, intelligence-sharing level — never reaches this block:
+<code>to_llm_context()</code> is called with no country argument
+(<code>llm/context_builder.py:323</code>), skipping <code>models/narrative.py:46-67</code> for
+all eight calls.</p>
+</div>
+
+<h2><span class="num">03</span>Windowing</h2>
+
+<figure>
+<svg viewBox="0 0 880 300" role="img" aria-label="Turn strip showing which turns of a seventeen-turn campaign survive the 320,000 character window: turn 1 and turns 12 to 17, with turns 2 to 11 replaced by an elision marker">
+  <defs>
+    <marker id="m2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <text class="svg-head" x="0" y="18">AS PLAYED — 729,186 CHARACTERS, 1,853 LINES</text>
+  <rect class="bx-fill" x="0" y="30" width="46" height="32" rx="1"/>
+  <text class="svg-small" x="16" y="51">1</text>
+  <rect class="bx-fill" x="48" y="30" width="464" height="32" rx="1"/>
+  <text class="svg-small" x="60" y="51">turns 2 – 11   ·   1,099 lines</text>
+  <rect class="bx-fill" x="514" y="30" width="366" height="32" rx="1"/>
+  <text class="svg-small" x="526" y="51">turns 12 – 17   ·   272,819 chars</text>
+
+  <line class="ln" x1="440" y1="70" x2="440" y2="102" marker-end="url(#m2)"/>
+  <text class="svg-small" x="452" y="90">MAX_ADVISOR_TRANSCRIPT_CHARS = 320,000 · head share 0.2 = 64,000</text>
+
+  <text class="svg-head" x="0" y="128">RENDERED — 306,649 CHARACTERS</text>
+  <g class="gd">
+    <rect class="bx-fill" x="0" y="140" width="46" height="32" rx="1"/>
+    <text class="svg-small" x="16" y="161">1</text>
+    <rect class="bx-fill" x="514" y="140" width="366" height="32" rx="1"/>
+    <text class="svg-small" x="526" y="161">turns 12 – 17</text>
+  </g>
+  <g class="acc">
+    <rect class="bx" x="48" y="140" width="464" height="32" rx="1" stroke-dasharray="5 4"/>
+    <text class="svg-small" x="60" y="161">[... 1,099 lines of mid-campaign history elided for length ...]</text>
+  </g>
+
+  <text class="svg-small" x="0" y="204">Head stops after turn 1: turn 2 alone spans 39,914 chars and 33,517 + 39,914 exceeds the 64,000 head budget.</text>
+  <text class="svg-small" x="0" y="222">Tail holds turns 12–17 at 272,819 chars against a 286,483 budget. 13,351 characters go unspent because both</text>
+  <text class="svg-small" x="0" y="240">loops must stop on whole-turn boundaries.</text>
+  <text class="svg-small" x="0" y="272">Prompts using this block instruct: "Reference past warnings or decisions … (e.g. 'As I warned in Turn 2…')".</text>
+</svg>
+<figcaption>Other windows in the same pipeline: inject continuity 400 lines; narrator last 20
+elements with no character bound; diplomacy context with no bound of any kind; ledger titles 60
+chars, notes 90; <code>NarrativeState.recent_events</code> last 3; <code>world.recent_injects</code>
+5; actors 3.</figcaption>
+</figure>
+
+<h2><span class="num">04</span>State reachability</h2>
+
+<figure>
+<svg viewBox="0 0 880 400" role="img" aria-label="Game state maintained every turn and whether it reaches any prompt: the event ledger reaches one call family, four other fields reach none">
+  <defs>
+    <marker id="m3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <text class="svg-head" x="0" y="18">MAINTAINED</text>
+  <text class="svg-head" x="640" y="18">REACHES</text>
+
+  <rect class="bx-fill" x="0" y="30" width="240" height="42" rx="2"/>
+  <text class="svg-label" x="14" y="49">event ledger</text>
+  <text class="svg-small" x="14" y="65">turn · title · disposition · note</text>
+  <g class="wn">
+    <path class="ln" d="M 240 51 L 636 51" marker-end="url(#m3)"/>
+    <text class="svg-small" x="300" y="43">1 of 12 families</text>
+    <rect class="bx-fill" x="640" y="34" width="240" height="34" rx="2"/>
+    <text class="svg-small" x="654" y="55">inject generation only</text>
+  </g>
+
+  <rect class="bx-fill" x="0" y="88" width="240" height="42" rx="2"/>
+  <text class="svg-label" x="14" y="107">situation_summary</text>
+  <text class="svg-small" x="14" y="123">rewritten by an LLM call each turn</text>
+  <g class="acc">
+    <path class="ln-dash" d="M 240 109 L 566 109"/>
+    <line class="ln" x1="572" y1="97" x2="594" y2="121"/><line class="ln" x1="594" y1="97" x2="572" y2="121"/>
+    <text class="svg-small" x="616" y="113">no prompt — display only</text>
+  </g>
+
+  <rect class="bx-fill" x="0" y="146" width="240" height="42" rx="2"/>
+  <text class="svg-label" x="14" y="165">narrative recent_events</text>
+  <text class="svg-small" x="14" y="181">windowed to last 3</text>
+  <g class="wn">
+    <path class="ln" d="M 240 167 L 636 167" marker-end="url(#m3)"/>
+    <rect class="bx-fill" x="640" y="150" width="240" height="34" rx="2"/>
+    <text class="svg-small" x="654" y="171">reactions, summary, actors</text>
+  </g>
+
+  <rect class="bx-fill" x="0" y="204" width="240" height="42" rx="2"/>
+  <text class="svg-label" x="14" y="223">FactionStance (per country)</text>
+  <text class="svg-small" x="14" y="239">motive · posture · leverage</text>
+  <g class="acc">
+    <path class="ln-dash" d="M 240 225 L 566 225"/>
+    <line class="ln" x1="572" y1="213" x2="594" y2="237"/><line class="ln" x1="594" y1="213" x2="572" y2="237"/>
+    <text class="svg-small" x="616" y="229">no prompt — called without a country arg</text>
+  </g>
+
+  <rect class="bx-fill" x="0" y="262" width="240" height="42" rx="2"/>
+  <text class="svg-label" x="14" y="281">world.discussion_transcript</text>
+  <text class="svg-small" x="14" y="297">written each discussion phase</text>
+  <g class="acc">
+    <path class="ln-dash" d="M 240 283 L 566 283"/>
+    <line class="ln" x1="572" y1="271" x2="594" y2="295"/><line class="ln" x1="594" y1="271" x2="572" y2="295"/>
+    <text class="svg-small" x="616" y="287">no prompt — written, cleared, never read</text>
+  </g>
+
+  <text class="svg-small" x="0" y="346">The ledger is the only per-turn compression of the campaign. It reaches the one call family that carries no history block.</text>
+  <text class="svg-small" x="0" y="366">The eight families that lose ten turns to elision do not receive it. No prompt anywhere holds both the history and the ledger.</text>
+  <text class="svg-small" x="0" y="386">Also unreached by any prompt: world.posture, world.spatial_state, world.diplomatic_relationships, StateActor.public_commitments,</text>
+</svg>
+<figcaption>Crossed lines are state written every turn and read by no prompt.
+<code>StateActor.recent_actions</code>, <code>trust_trajectory</code> and
+<code>last_contacted</code> are likewise maintained and never sent.</figcaption>
+</figure>
+
+<h2><span class="num">05</span>Findings</h2>
+
+<div class="find f1">
+  <span class="sev">F-1 · Defect · guard silently removed</span>
+  <h3>An empty ledger removes the do-not-restage rule as well as the data</h3>
+  <p>Continuity rule 8 is appended only under <code>if event_ledger:</code>. An empty list is
+  falsy, so a campaign with no ledger entries receives neither the EVENTS ALREADY PLAYED block
+  nor the instruction not to restage resolved events.</p>
+  <p>This state is reachable two ways: a fresh campaign before the first event is recorded, and
+  any save written before the field existed — persistence rebuilds
+  <code>NarrativeState</code> with the <code>default_factory=list</code>, so the ledger returns
+  empty. The failure mode is unguarded rather than degraded, and is the condition under which
+  the repeated-event bug the ledger was built to fix can recur.</p>
+  <p class="ev">llm/prompts.py:422 · models/narrative_state.py:88 · engine/persistence.py:134</p>
+</div>
+
+<div class="find f1">
+  <span class="sev">F-2 · Defect · silent data loss</span>
+  <h3>The interpretation is passed to the omissions check and never reaches the prompt</h3>
+  <p><code>check_critical_omissions</code> takes <code>interpretation</code> as a parameter and
+  <code>build_critical_omissions_prompt</code> never interpolates it. Five advisors judging
+  whether the decision omitted something catastrophic are working from the raw typed text, not
+  the structured reading of it that was produced moments earlier for exactly that purpose.
+  Advisor <code>personality</code> is read from config on the same path and likewise never
+  interpolated.</p>
+  <p class="ev">engine/sim_loop.py:569 · agents/conversation.py:376-381 · llm/prompts.py:462-553, :491</p>
+</div>
+
+<div class="find f2">
+  <span class="sev">F-3 · Configuration inert</span>
+  <h3>Eight of twelve call families bypass the model configuration</h3>
+  <p>The narrator, action quality assessment, advisor reactions, situation summary and state
+  actors pass no <code>context=</code>, so the router leaves <code>model_name</code> as
+  <code>None</code> and the driver default is used. <code>LLMContext.CHARACTER_RESPONSE</code>
+  is defined and mapped to FLASH but has zero live call sites — <code>generate_group</code> is
+  invoked positionally at the reactions call site, so <code>context</code> keeps its default.
+  There is no <code>STATE_ACTOR</code> member at all.</p>
+  <p>Consequence: the per-context tier table and the <code>/llm</code> settings menu govern the
+  discussion, decision, inject and diplomacy families only. The entire adjudication half of a
+  turn is outside their reach.</p>
+  <p class="ev">llm/router.py:231-234, :331-335 · llm/model_config.py:10-38 · engine/narrative_adjudication.py:545 · engine/actor_simulation.py:131</p>
+</div>
+
+<div class="find f2">
+  <span class="sev">F-4 · Coverage gap</span>
+  <h3>Seven call families do not use the shared dossier</h3>
+  <p>Inject generation, the narrator, all three adjudication calls, the actor group and both
+  diplomacy calls each assemble their own header. They are therefore not cacheable against the
+  eight that do share one, and they diverge in what they know: the transcript reaches none of
+  them, and the inject generator — the only recipient of the ledger — receives no history block
+  at all. No prompt in the game holds both the campaign history and the ledger.</p>
+  <p class="ev">llm/context_builder.py:285-355 · llm/context_builder.py:391-439</p>
+</div>
+
+<div class="find f2">
+  <span class="sev">F-5 · Unbounded input</span>
+  <h3>Two context builders apply no size limit</h3>
+  <p><code>get_diplomatic_context</code> applies no bound of any kind to its filtered
+  transcript. The narrator takes the last 20 transcript elements with no character cap, where a
+  single element can be an unwrapped paragraph. Both share the shape of the overrun already
+  corrected in the advisor window, where 400 long lines reached 792,572 characters against a
+  320,000 budget.</p>
+  <p>Separately, the player's decision text is interpolated untruncated and unescaped into four
+  prompts, and the scenario <code>uk_forces</code>, <code>stockpiles</code> and
+  <code>constraints</code> dicts are stringified whole into three.</p>
+  <p class="ev">llm/context_builder.py:441-512 · llm/prompts.py:587 · llm/prompts.py:202, :277, :501</p>
+</div>
+
+<div class="find f2">
+  <span class="sev">F-6 · Parser hazard</span>
+  <h3>The effects parser can absorb prose from the reasoning paragraph</h3>
+  <p>The effects branch in the quality-assessment parser fires on any line containing a colon
+  and the substring escalation, alliance or stability. A continuation line of the REASONING
+  paragraph matching that shape is read as a metric effect. Related: a multiplier that parses to
+  exactly 1.0, or is missing, is overridden by the quality→multiplier table.</p>
+  <p class="ev">engine/narrative_adjudication.py:374-381, :383-399</p>
+</div>
+
+<div class="find f3">
+  <span class="sev">F-7 · Redundancy</span>
+  <h3>The three metrics appear three times in every dossier-carrying prompt</h3>
+  <p>Raw values out of 100, prose bands, and KEY INTELLIGENCE FLAGS. The flags are five
+  booleans thresholded from the same three metrics, and the dict is replaced rather than
+  accumulated each turn, so the third rendering adds nothing the first two do not carry.</p>
+  <p class="ev">llm/context_builder.py:335-341, :351-352 · engine/flags.py:15-40</p>
+</div>
+
+<div class="find f3">
+  <span class="sev">F-8 · Output not honoured</span>
+  <h3>Requested output constraints are dropped on some drivers</h3>
+  <p>The narrator passes <code>system_instruction</code>, <code>temperature</code> and
+  <code>max_tokens=150</code>; none is honoured on the gemini, mock or offline drivers, so the
+  length cap on the bridge text is not enforced. The decision-interpretation prompt specifies
+  five labelled output fields and nothing in the codebase parses or validates them.</p>
+  <p class="ev">engine/narrator.py:39-41 · llm/prompts.py:230-235</p>
+</div>
+
+<div class="find f3">
+  <span class="sev">F-9 · Asymmetric adjudication paths</span>
+  <h3>Advisor trust updates only on one of the two adjudication paths</h3>
+  <p><code>_update_character_attitudes</code> is called on the narrative path and never on the
+  actor-simulation path, so advisor trust shifts on decision quality in one mode and not the
+  other. The two paths also compute base effects differently — LLM-suggested effects on one, a
+  keyword heuristic merged 60/40 with actor effects on the other.</p>
+  <p class="ev">engine/narrative_adjudication.py:788, :928-943, :865-876</p>
+</div>
+
+<h2><span class="num">06</span>Budget context</h2>
+
+<div class="measure">
+<p><code>MAX_ADVISOR_TRANSCRIPT_CHARS</code> is documented as leaving headroom inside a
+128,000-token context window. The measured campaign is 729,186 characters, approximately
+182,000 tokens; a full advisor prompt built from the windowed block measures 314,695
+characters, approximately 78,700 tokens.</p>
+<p>Prefix-cache overlap between the eight dossier-carrying calls is 99.4% as measured by byte
+comparison of emitted prompts. Whether a provider reports a cache hit on a prefix of that size
+has not been confirmed against a live endpoint.</p>
+</div>
+
+<footer>
+14 agents · 6 adversarial reviewers · 466 claims confirmed, 60 overturned or corrected ·
+1.82M tokens · 503 tool calls · repo at d197c44
+</footer>
+
+</div>
