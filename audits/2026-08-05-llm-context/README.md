@@ -38,14 +38,18 @@ inspectable.
 
 Twelve distinct call families, roughly fifteen dispatches per turn.
 
-**Context assembly.** Eight of twelve families open with the shared briefing dossier
-(`build_shared_context_prefix`) and are mutually cacheable — 99.4% identical to one another on
-the measured campaign. The other four build their own context: inject generation, the narrator,
-the three adjudication calls, the actor group and both diplomacy calls.
+**Context assembly.** Four families open with the shared briefing dossier
+(`build_shared_context_prefix`) — advisor Q&A, decision interpretation, advisor pushback and the
+critical-omissions scan. That is eight dispatches, because the omissions scan is five
+identical-shaped calls, and they are 99.4% identical to one another on the measured campaign.
+The remaining eight families build their own context: inject generation, the narrator, the three
+adjudication calls, the actor group and both diplomacy calls.
 
-**Model selection.** Eight of twelve pass no `LLMContext`, so the router leaves `model_name` as
-`None` and the driver default applies. This is a different eight. The per-context tier table and
-the `/llm` menu govern the discussion, decision, inject and diplomacy families only.
+**Model selection.** Five families pass no `LLMContext` — the narrator, the three adjudication
+calls and the state actors — so the router leaves `model_name` as `None` and the driver default
+applies. The per-context tier table and the `/llm` menu therefore govern the other seven only.
+The two groupings do not correspond: inject generation and both diplomacy calls build their own
+context yet still pass an enum.
 
 **Windowing.** The transcript is bounded at 320,000 characters, split 0.2 head / 0.8 tail on
 whole-turn boundaries. On the measured campaign that yields turn 1 and turns 12–17, eliding turns

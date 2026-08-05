@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
 <title>FALSE FLAG — LLM schematic</title>
 <style>
 :root{--ground:#F1FAEE;--panel:#E7F1E6;--ink:#10171C;--muted:#5C6E7A;--rule:#C4D3CE;
@@ -94,11 +96,12 @@ font-family:var(--mono);font-size:.7rem;color:var(--muted)}
 </header>
 <nav class="tabs" role="tablist"><button class="tab on" data-t="turn" role="tab" aria-selected="true" aria-controls="p-turn" id="t-turn">THE TURN</button><button class="tab" data-t="dossier" role="tab" aria-selected="false" aria-controls="p-dossier" id="t-dossier">SHARED DOSSIER</button><button class="tab" data-t="brief" role="tab" aria-selected="false" aria-controls="p-brief" id="t-brief">BRIEFING</button><button class="tab" data-t="disc" role="tab" aria-selected="false" aria-controls="p-disc" id="t-disc">DISCUSSION</button><button class="tab" data-t="dec" role="tab" aria-selected="false" aria-controls="p-dec" id="t-dec">DECISION</button><button class="tab" data-t="adj" role="tab" aria-selected="false" aria-controls="p-adj" id="t-adj">ADJUDICATION</button><button class="tab" data-t="ext" role="tab" aria-selected="false" aria-controls="p-ext" id="t-ext">EXTERNAL</button><button class="tab" data-t="win" role="tab" aria-selected="false" aria-controls="p-win" id="t-win">WINDOWS</button><button class="tab" data-t="dead" role="tab" aria-selected="false" aria-controls="p-dead" id="t-dead">DEAD ENDS</button><button class="tab" data-t="corr" role="tab" aria-selected="false" aria-controls="p-corr" id="t-corr">VERIFIED NOTES</button><button class="tab" data-t="issues" role="tab" aria-selected="false" aria-controls="p-issues" id="t-issues">ISSUES</button></nav>
 <div class="panel on" id="p-turn" role="tabpanel" aria-labelledby="t-turn">
-<p class="lede">A turn issues roughly fifteen dispatches across five phases. The order below is
-the order the code runs them. Two structural facts govern everything after: eight of the twelve
-call families open with the same shared dossier and are therefore mutually cacheable, and eight
-of the twelve pass no context enum and therefore never consult the model configuration. These
-are different eights.</p>
+<p class="lede">Twelve call families, roughly fifteen dispatches per turn. Two structural facts
+govern everything after. <b>Four families</b> open with the same shared dossier and are mutually
+cacheable &mdash; eight dispatches, because the omissions scan is five identical-shaped calls.
+<b>Five families</b> pass no context enum and therefore never consult the model configuration.
+The two sets do not correspond: inject generation and both diplomacy calls build their own
+context yet still pass an enum.</p>
 
 <figure>
 <svg viewBox="0 0 880 740" role="img" aria-label="Sequence of LLM dispatches in one turn, grouped by phase, showing which run alone and which go out as a parallel group">
@@ -238,6 +241,7 @@ the one that binds hardest.</p>
 <div class="irow"><div class="idata">Recent events into reactions, summary and actors</div><div class="isrc"><b>bound</b> last 3 (NarrativeState.recent_events)</div><div class="iev"><b>evidence</b> models/narrative_state.py:256</div></div>
 <div class="irow"><div class="idata">Number of state actors simulated</div><div class="isrc"><b>bound</b> 3 (max_actors)</div><div class="iev"><b>evidence</b> engine/narrative_adjudication.py:838</div></div>
 <div class="irow"><div class="idata">Number of advisors reacting</div><div class="isrc"><b>bound</b> 4 (responders[:4])</div><div class="iev"><b>evidence</b> engine/narrative_adjudication.py:587</div></div>
+<div class="irow"><div class="idata">KEY INTELLIGENCE FLAGS in the shared dossier</div><div class="isrc"><b>bound</b> at most 5 entries — compute_risk_flags returns exactly five keys and update_world_flags replaces the dict rather than accumulating</div><div class="iev"><b>evidence</b> engine/flags.py:15-40</div></div>
 <div class="irow gone"><div class="idata">Transcript tail into the narrator</div><div class="isrc"><b>bound</b> last 20 list elements — a bare literal, with NO character bound; one element can be a full unwrapped paragraph</div><div class="iev"><b>evidence</b> llm/prompts.py:587</div></div>
 <div class="irow gone"><div class="idata">Filtered transcript into the diplomacy prompts</div><div class="isrc"><b>bound</b> none of any kind</div><div class="iev"><b>evidence</b> llm/context_builder.py:441-512</div></div>
 <div class="irow gone"><div class="idata">Player decision text into interpretation, pushback, omissions, actors and the summary</div><div class="isrc"><b>bound</b> none — not truncated and not escaped</div><div class="iev"><b>evidence</b> llm/prompts.py:202, :277, :501 · engine/actor_simulation.py:32-85</div></div>

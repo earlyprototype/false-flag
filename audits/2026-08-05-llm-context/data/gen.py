@@ -22,11 +22,11 @@ for g in data['full']:
         CORR.setdefault(g['group'], []).append(r)
 
 
-def corrections_for(cid, name):
+def corrections_for(cid):
     """Refutations whose claim names this call."""
     keys = [cid.lower(), cid.split('.')[-1].lower()]
     out = []
-    for grp, rs in CORR.items():
+    for rs in CORR.values():
         for r in rs:
             c = r['claim'].lower()
             if any(k in c for k in keys if len(k) > 3):
@@ -144,7 +144,7 @@ def render_call(c):
         parts.append('<h4 class="neg">Observed gaps</h4>')
         parts.append('<ul class="aff gap">' + ''.join(f'<li>{e(g)}</li>' for g in gaps) + '</ul>')
 
-    corr = corrections_for(c['call_id'], c['name'])
+    corr = corrections_for(c['call_id'])
     if corr:
         parts.append(f'<h4 class="warn">Verified notes &mdash; {len(corr)}</h4>')
         parts.append('<div class="ilist">')
@@ -161,11 +161,12 @@ def render_call(c):
 
 # ------------------------------------------------------------ static panels
 TURN = """
-<p class="lede">A turn issues roughly fifteen dispatches across five phases. The order below is
-the order the code runs them. Two structural facts govern everything after: eight of the twelve
-call families open with the same shared dossier and are therefore mutually cacheable, and eight
-of the twelve pass no context enum and therefore never consult the model configuration. These
-are different eights.</p>
+<p class="lede">Twelve call families, roughly fifteen dispatches per turn. Two structural facts
+govern everything after. <b>Four families</b> open with the same shared dossier and are mutually
+cacheable &mdash; eight dispatches, because the omissions scan is five identical-shaped calls.
+<b>Five families</b> pass no context enum and therefore never consult the model configuration.
+The two sets do not correspond: inject generation and both diplomacy calls build their own
+context yet still pass an enum.</p>
 
 <figure>
 <svg viewBox="0 0 880 740" role="img" aria-label="Sequence of LLM dispatches in one turn, grouped by phase, showing which run alone and which go out as a parallel group">
@@ -309,6 +310,7 @@ the one that binds hardest.</p>
 <div class="irow"><div class="idata">Recent events into reactions, summary and actors</div><div class="isrc"><b>bound</b> last 3 (NarrativeState.recent_events)</div><div class="iev"><b>evidence</b> models/narrative_state.py:256</div></div>
 <div class="irow"><div class="idata">Number of state actors simulated</div><div class="isrc"><b>bound</b> 3 (max_actors)</div><div class="iev"><b>evidence</b> engine/narrative_adjudication.py:838</div></div>
 <div class="irow"><div class="idata">Number of advisors reacting</div><div class="isrc"><b>bound</b> 4 (responders[:4])</div><div class="iev"><b>evidence</b> engine/narrative_adjudication.py:587</div></div>
+<div class="irow"><div class="idata">KEY INTELLIGENCE FLAGS in the shared dossier</div><div class="isrc"><b>bound</b> at most 5 entries — compute_risk_flags returns exactly five keys and update_world_flags replaces the dict rather than accumulating</div><div class="iev"><b>evidence</b> engine/flags.py:15-40</div></div>
 <div class="irow gone"><div class="idata">Transcript tail into the narrator</div><div class="isrc"><b>bound</b> last 20 list elements — a bare literal, with NO character bound; one element can be a full unwrapped paragraph</div><div class="iev"><b>evidence</b> llm/prompts.py:587</div></div>
 <div class="irow gone"><div class="idata">Filtered transcript into the diplomacy prompts</div><div class="isrc"><b>bound</b> none of any kind</div><div class="iev"><b>evidence</b> llm/context_builder.py:441-512</div></div>
 <div class="irow gone"><div class="idata">Player decision text into interpretation, pushback, omissions, actors and the summary</div><div class="isrc"><b>bound</b> none — not truncated and not escaped</div><div class="iev"><b>evidence</b> llm/prompts.py:202, :277, :501 · engine/actor_simulation.py:32-85</div></div>
@@ -606,7 +608,9 @@ JS = """
 })();
 """
 
-doc = f"""<title>FALSE FLAG — LLM schematic</title>
+doc = f"""<!DOCTYPE html>
+<meta charset="utf-8">
+<title>FALSE FLAG — LLM schematic</title>
 <style>{CSS}</style>
 <div class="wrap">
 <header class="mast">

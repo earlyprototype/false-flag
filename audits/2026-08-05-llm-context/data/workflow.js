@@ -1,3 +1,8 @@
+// Not a Node script. This runs in the Claude Code workflow runtime, which supplies
+// `agent`, `pipeline`, `parallel`, `phase` and `log` as globals and evaluates the body in
+// an async context - hence top-level await and a top-level return. Executing it with node
+// will fail to parse. Kept here so the audit can be regenerated against a later commit.
+
 export const meta = {
   name: 'llm-context-audit',
   description: 'Map every LLM call in FALSE FLAG: what data goes in, from where, for what game purpose, what it affects — then adversarially verify each claim',

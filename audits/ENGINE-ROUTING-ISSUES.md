@@ -23,7 +23,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-002 | open | high | context | Decision interpretation never reaches the omissions prompt |
 | ER-003 | open | high | context | No prompt holds both campaign history and event ledger |
 | ER-004 | open | high | dispatch | Inject generation can fire twice in one turn on a resumed save |
-| ER-005 | open | med | routing | Eight of twelve call families bypass the model configuration |
+| ER-005 | open | med | routing | Five of twelve call families bypass the model configuration |
 | ER-006 | open | med | parsing | Effects parser can absorb prose from the reasoning paragraph |
 | ER-007 | open | med | state | Advisor trust updates on one adjudication path only |
 | ER-008 | open | med | context | Two context builders apply no size limit |
@@ -86,7 +86,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
   entry is written for that turn.
 - **Raised by:** context audit 2026-08-05
 
-## ER-005 — Eight of twelve call families bypass the model configuration
+## ER-005 — Five of twelve call families bypass the model configuration
 
 - **Status:** open · **Severity:** medium · **Area:** routing
 - **Observed:** The narrator, action quality assessment, advisor reactions, situation summary and
@@ -96,8 +96,8 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
   keeps its default. No `STATE_ACTOR` member exists.
 - **Evidence:** `llm/router.py:231-234`, `:331-335` · `llm/model_config.py:10-38` ·
   `engine/narrative_adjudication.py:545` · `engine/actor_simulation.py:131`
-- **Effect:** The per-context tier table and the `/llm` settings menu govern the discussion,
-  decision, inject and diplomacy families only. The adjudication half of a turn is outside them.
+- **Effect:** The per-context tier table and the `/llm` settings menu govern the other seven
+  families only. The adjudication half of a turn is outside them.
 - **Raised by:** context audit 2026-08-05
 
 ## ER-006 — Effects parser can absorb prose from the reasoning paragraph

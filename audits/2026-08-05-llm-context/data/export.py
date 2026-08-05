@@ -76,8 +76,8 @@ L = ['# FALSE FLAG — LLM call schematic',
      'bounded, why the call exists, and what its output changes. State of the source at',
      '`d197c44`; measurements against `saves/parked_campaign4_borrowed_faces.json`.',
      '',
-     'Each input row is marked `IN` (reaches the prompt) or `OUT` (available to the call site',
-     'and not sent).',
+     'Each input row is marked **IN** (reaches the prompt) or **OUT** (available to the call',
+     'site and not sent).',
      '',
      'Where a row conflicts with `VERIFIED-NOTES.md`, the note holds.',
      '']
@@ -110,7 +110,7 @@ for phase, calls in ORDER:
 
         L += [f'#### Data in — {len(got)} reach the prompt', '']
         for i in got:
-            L.append(f'- `IN ` **{i["data"]}**')
+            L.append(f'- **IN** — {i["data"]}')
             L.append(f'    - source: {i["source"]}')
             if i.get('bounded_by'):
                 L.append(f'    - bound: {i["bounded_by"]}')
@@ -120,7 +120,7 @@ for phase, calls in ORDER:
         if absent:
             L += [f'#### Available but not sent — {len(absent)}', '']
             for i in absent:
-                L.append(f'- `OUT` **{i["data"]}**')
+                L.append(f'- **OUT** — {i["data"]}')
                 L.append(f'    - source: {i["source"]}')
                 if i.get('evidence'):
                     L.append(f'    - evidence: {i["evidence"]}')

@@ -4,8 +4,8 @@ Every prompt the game issues: what enters it, where that data comes from, how it
 bounded, why the call exists, and what its output changes. State of the source at
 `d197c44`; measurements against `saves/parked_campaign4_borrowed_faces.json`.
 
-Each input row is marked `IN` (reaches the prompt) or `OUT` (available to the call site
-and not sent).
+Each input row is marked **IN** (reaches the prompt) or **OUT** (available to the call
+site and not sent).
 
 Where a row conflicts with `VERIFIED-NOTES.md`, the note holds.
 
@@ -31,105 +31,105 @@ Where a row conflicts with `VERIFIED-NOTES.md`, the note holds.
 
 #### Data in — 17 reach the prompt
 
-- `IN ` **Turn number in the instruction header and in the YAML `id:` template**
+- **IN** — Turn number in the instruction header and in the YAML `id:` template
     - source: WorldState.turn — engine/sim_loop.py:322 passes `world.turn` as the `turn_number` positional; llm/inject_generator.py:65 forwards it
     - bound: unbounded (integer)
     - evidence: llm/prompts.py:426 ("...for turn {turn_number}") and llm/prompts.py:447 ("id: turn_{turn_number:03d}_inject")
-- `IN ` **Context-block turn headers: "DYNAMIC INJECT GENERATION - TURN N" and "LAST TURN (TURN N-1) - FOR CONTINUITY"**
+- **IN** — Context-block turn headers: "DYNAMIC INJECT GENERATION - TURN N" and "LAST TURN (TURN N-1) - FOR CONTINUITY"
     - source: WorldState.turn (models/world.py:22), read directly by the context builder
     - bound: unbounded (integer)
     - evidence: llm/context_builder.py:407 and llm/context_builder.py:435
-- `IN ` **Escalation Risk, as "Escalation Risk: N/100"**
+- **IN** — Escalation Risk, as "Escalation Risk: N/100"
     - source: WorldState.metrics.escalation_risk (models/world.py:7, 35)
     - bound: unbounded (0-100 int)
     - evidence: llm/context_builder.py:409
-- `IN ` **Domestic Stability, as "Domestic Stability: N/100"**
+- **IN** — Domestic Stability, as "Domestic Stability: N/100"
     - source: WorldState.metrics.domestic_stability (models/world.py:8)
     - bound: unbounded (0-100 int)
     - evidence: llm/context_builder.py:410
-- `IN ` **Alliance Cohesion, as "Alliance Cohesion: N/100"**
+- **IN** — Alliance Cohesion, as "Alliance Cohesion: N/100"
     - source: WorldState.metrics.alliance_cohesion (models/world.py:9)
     - bound: unbounded (0-100 int)
     - evidence: llm/context_builder.py:411
-- `IN ` **SECRET NARRATIVE CONTEXT — global truth only: description, protagonist, antagonist, patsy, plus the four standing "act on your secret motive / never reveal" instructions**
+- **IN** — SECRET NARRATIVE CONTEXT — global truth only: description, protagonist, antagonist, patsy, plus the four standing "act on your secret motive / never reveal" instructions
     - source: WorldState.narrative: NarrativeConfig (models/world.py:26), set at campaign start from the scenario's narrative draw (cli/main.py:755, cli/main_dashboard.py:779, engine/game_manager.py:105)
     - bound: unbounded (free text from narratives.yaml)
     - evidence: llm/context_builder.py:415-417 calls `world_state.narrative.to_llm_context()`; body at models/narrative.py:31-43 and 69-79
-- `IN ` **STORY SO FAR (HIGH-LEVEL SUMMARY) — a mechanically derived digest: number of distinct turns played, latest turn number, transcript line count, and the last 3 event-ish lines**
+- **IN** — STORY SO FAR (HIGH-LEVEL SUMMARY) — a mechanically derived digest: number of distinct turns played, latest turn number, transcript line count, and the last 3 event-ish lines
     - source: the full game transcript (cli/main.py:851 passes `transcript`), digested by llm/context_builder.py:562 generate_summary — which is NOT an LLM call (llm/context_builder.py:570 discards its summary_prompt argument)
     - bound: WINDOWED+TRUNCATED: only the last 3 collected event lines (`event_lines[-3:]`, llm/context_builder.py:595) and each is cut to 100 chars (`event[:100]`, llm/context_builder.py:596). Used only when `len(transcript) > 10` (llm/prompts.py:388); otherwise the literal string "The campaign has just begun; the full history appears below." (llm/prompts.py:395).
     - evidence: built at llm/prompts.py:393, injected at llm/context_builder.py:424; digest construction at llm/context_builder.py:587-600
-- `IN ` **EVENTS ALREADY PLAYED block — one line per past inject: `Turn N | <title padded> | OPEN/ADVANCED/RESOLVED[ - <note>]`**
+- **IN** — EVENTS ALREADY PLAYED block — one line per past inject: `Turn N | <title padded> | OPEN/ADVANCED/RESOLVED[ - <note>]`
     - source: NarrativeState.event_ledger: List[PlayedEvent] (models/narrative_state.py:88). Written at briefing time by record_played_event (models/narrative_state.py:301-312) from engine/sim_loop.py:336-337 with (world.turn, inject['title']); disposition+note set later by close_event (models/narrative_state.py:314-328) from engine/narrative_adjudication.py:157-158. Read whole at engine/sim_loop.py:320 `narrative_state.recent_played_events()` (no n => `list(self.event_ledger)`, models/narrative_state.py:352-353), passed engine/sim_loop.py:324 -> llm/inject_generator.py:66 -> llm/prompts.py:405.
     - bound: Entry COUNT is UNBOUNDED — recent_played_events() deliberately returns every entry (models/narrative_state.py:330-356). Each TITLE is TRUNCATED at _LEDGER_TITLE_MAX = 60 (llm/context_builder.py:64) to text[:57]+"..." (llm/context_builder.py:87-88). Each NOTE was truncated upstream to 90 chars on a word boundary by _truncate_decision(action, 90) (engine/narrative_adjudication.py:158; engine/endings.py:190-196).
     - evidence: llm/context_builder.py:428-431 (transcript branch) renders it between the story digest and the LAST TURN window; llm/prompts.py:411-413 appends it on the no-transcript branch. Renderer at llm/context_builder.py:74-107.
-- `IN ` **LAST TURN transcript window — the verbatim lines of the previous turn (its inject text, advisor Q&A, the decision, the adjudication and effect boxes)**
+- **IN** — LAST TURN transcript window — the verbatim lines of the previous turn (its inject text, advisor Q&A, the decision, the adjudication and effect boxes)
     - source: the full game transcript list; engine/sim_loop.py:323 passes `full_transcript`, which the CLI extends with each turn's briefing_lines at cli/main.py:953 (so at generation time the newest TURN header is the PREVIOUS turn's)
     - bound: WINDOWED twice. Lines: sliced backwards from the last `^TURN \d+$` header including its ruler (llm/context_builder.py:139-146), capped at MAX_INJECT_CONTINUITY_LINES = 400 (llm/context_builder.py:61, passed llm/prompts.py:401); an over-long turn keeps head 2/3 and tail 1/3 of budget-1 around "[... mid-turn discussion elided for length ...]" (llm/context_builder.py:156-163). Chars: the real bound is max_chars = MAX_ADVISOR_TRANSCRIPT_CHARS = 320_000 (llm/context_builder.py:27, default arg llm/context_builder.py:114), trimmed from the HEAD with a "[... earlier lines elided for length ...]" marker (llm/context_builder.py:166-189). No turn header at all => plain `transcript[-400:]` tail (llm/context_builder.py:145).
     - evidence: sliced at llm/prompts.py:400-401, injected at llm/context_builder.py:437 (`context_parts.extend(last_turn_transcript)`)
-- `IN ` **UK objectives — the whole `objectives.uk` mapping (primary + secondary list), interpolated as a Python dict repr**
+- **IN** — UK objectives — the whole `objectives.uk` mapping (primary + secondary list), interpolated as a Python dict repr
     - source: initial_conditions['objectives']['uk'], loaded from data/scenarios/<scenario_id>/initial_conditions.yaml:325 by engine/initial_conditions.py:26-40, called at engine/sim_loop.py:317
     - bound: unbounded — whole sub-tree stringified
     - evidence: read at llm/prompts.py:362, interpolated at llm/prompts.py:431 ("{objectives.get('uk', {})}")
-- `IN ` **Russian objectives (hidden from player) — the whole `red_objectives` mapping: strategic, pretext, preparation, assessment**
+- **IN** — Russian objectives (hidden from player) — the whole `red_objectives` mapping: strategic, pretext, preparation, assessment
     - source: initial_conditions['red_objectives'] (data/scenarios/war_game_2025/initial_conditions.yaml:298)
     - bound: unbounded — whole sub-tree stringified
     - evidence: read at llm/prompts.py:363, interpolated at llm/prompts.py:434
-- `IN ` **Russian strategy pattern — escalation_patterns.russian_strategy (primary/secondary objective + 6 tactics), as a dict repr**
+- **IN** — Russian strategy pattern — escalation_patterns.russian_strategy (primary/secondary objective + 6 tactics), as a dict repr
     - source: scenario_library YAML loaded by llm/inject_generator.py:21-33 _load_scenario_library, passed at llm/inject_generator.py:65
     - bound: unbounded. NOTE the path is HARDCODED to data/scenarios/war_game_2025/scenario_library.yaml (llm/inject_generator.py:27) regardless of the scenario_id used for initial_conditions; missing file => {} and the whole library_context block is omitted (llm/prompts.py:367).
     - evidence: llm/prompts.py:376
-- `IN ` **UK constraints pattern — escalation_patterns.uk_constraints (military + political bullet lists), as a dict repr**
+- **IN** — UK constraints pattern — escalation_patterns.uk_constraints (military + political bullet lists), as a dict repr
     - source: same scenario_library YAML
     - bound: unbounded
     - evidence: llm/prompts.py:377
-- `IN ` **Potential scenario menu — naval_scenarios + infrastructure_scenarios + diplomatic_scenarios concatenated and printed as a Python list-of-dicts repr (ids, descriptions, locations, effects, variations, composition numbers, allied positions...)**
+- **IN** — Potential scenario menu — naval_scenarios + infrastructure_scenarios + diplomatic_scenarios concatenated and printed as a Python list-of-dicts repr (ids, descriptions, locations, effects, variations, composition numbers, allied positions...)
     - source: scenario_library['naval_scenarios'|'infrastructure_scenarios'|'diplomatic_scenarios'] (data/scenarios/war_game_2025/scenario_library.yaml:47, 81, 199)
     - bound: No length cap. FILTERED by _drop_used_scenarios (llm/prompts.py:305-331): any entry sharing a >3-char non-stopword with a ledger title is dropped. Because the YAML entries are dicts, `words(s)` stringifies the ENTIRE dict (llm/prompts.py:320 `str(text).lower()`), so a ledger title word matching any nested location/effect/variation kills the whole entry. If the filter empties the pool it is restored intact (`remaining or scenarios`, llm/prompts.py:331).
     - evidence: assembled llm/prompts.py:368-370, filtered llm/prompts.py:373, interpolated llm/prompts.py:378
-- `IN ` **Rule 7 "CONTINUITY IS MANDATORY" (points at the LAST TURN block)**
+- **IN** — Rule 7 "CONTINUITY IS MANDATORY" (points at the LAST TURN block)
     - source: presence of a non-empty transcript
     - bound: conditional — omitted entirely when transcript is falsy
     - evidence: llm/prompts.py:419-421, spliced into the numbered list at llm/prompts.py:443 via {continuity_rule}
-- `IN ` **Rule 8 "DO NOT RESTAGE RESOLVED EVENTS" (points at the EVENTS ALREADY PLAYED block)**
+- **IN** — Rule 8 "DO NOT RESTAGE RESOLVED EVENTS" (points at the EVENTS ALREADY PLAYED block)
     - source: truthiness of the event_ledger argument
     - bound: conditional — an empty list [] is falsy, so a fresh campaign gets no rule 8 and no ledger block
     - evidence: llm/prompts.py:422-424
-- `IN ` **Static Games Master framing + the six fixed generation rules + the YAML output template (id/title/description/channel/effects)**
+- **IN** — Static Games Master framing + the six fixed generation rules + the YAML output template (id/title/description/channel/effects)
     - source: literal text in the builder
     - bound: fixed
     - evidence: llm/prompts.py:426, 437-443, 445-457
 
 #### Available but not sent — 10
 
-- `OUT` **Per-country FactionStance detail — secret_motive, public_posture, economic_leverage, intel_sharing_level for each nation**
+- **OUT** — Per-country FactionStance detail — secret_motive, public_posture, economic_leverage, intel_sharing_level for each nation
     - source: NarrativeConfig.stances (models/narrative.py:19)
     - evidence: llm/context_builder.py:416 calls `to_llm_context()` with NO target_country_code; models/narrative.py:46 gates the whole stance block on `if target_country_code:`. Only the diplomacy path passes one (llm/context_builder.py:502). So the inject generator never sees any country's secret motive.
-- `OUT` **The shared briefing dossier prefix (campaign framing header, FULL windowed game history, Turn/Phase, all five metrics, build_world_state_summary narrative gloss) that every advisor/decision/pushback/omissions prompt opens with**
+- **OUT** — The shared briefing dossier prefix (campaign framing header, FULL windowed game history, Turn/Phase, all five metrics, build_world_state_summary narrative gloss) that every advisor/decision/pushback/omissions prompt opens with
     - source: llm/context_builder.py:285 build_shared_context_prefix
     - evidence: get_stochastic_inject_context (llm/context_builder.py:391-439) never calls build_shared_context_prefix or render_transcript_block; llm/prompts.py:404-405 is the only path in. The inject prompt therefore shares NO cacheable prefix with the rest of the turn's calls and never sees the full campaign transcript — only the last-turn slice plus the digest.
-- `OUT` **Casualty counts (casualties_mil / casualties_civ)**
+- **OUT** — Casualty counts (casualties_mil / casualties_civ)
     - source: WorldState.metrics.casualties_mil / casualties_civ (models/world.py:10-11)
     - evidence: llm/context_builder.py:409-411 lists only the three 0-100 gauges. Casualties appear only via build_world_state_summary (llm/prompts.py:64), which this builder uses ONLY on the no-transcript branch (llm/prompts.py:410) — a branch the CLI and GameManager never take because they always pass full_transcript (cli/main.py:851, engine/game_manager.py:149). Only the legacy engine/sim_loop.py:676 run_full_turn path omits the transcript.
-- `OUT` **world.flags (KEY INTELLIGENCE FLAGS)**
+- **OUT** — world.flags (KEY INTELLIGENCE FLAGS)
     - source: WorldState.flags (models/world.py:36), maintained by engine.flags.update_world_flags
     - evidence: rendered only by build_world_state_summary (llm/prompts.py:67-71), used only on the no-transcript branch at llm/prompts.py:410; get_stochastic_inject_context never touches world_state.flags
-- `OUT` **world.recent_injects (titles of the last 5 applied injects)**
+- **OUT** — world.recent_injects (titles of the last 5 applied injects)
     - source: WorldState.recent_injects (models/world.py:52), appended at engine/sim_loop.py:391-392
     - evidence: no reference to recent_injects anywhere in llm/prompts.py or llm/context_builder.py; it feeds the critical-omissions prompt instead
-- `OUT` **world.phase, world.difficulty, world.posture, world.spatial_state, world.diplomatic_relationships, world.actor_system, world.discussion_transcript**
+- **OUT** — world.phase, world.difficulty, world.posture, world.spatial_state, world.diplomatic_relationships, world.actor_system, world.discussion_transcript
     - source: models/world.py:23, 32, 37, 40, 58, 64, 46
     - evidence: none of these identifiers appear in llm/prompts.py:334-459 or llm/context_builder.py:391-439. (world.difficulty does silently rescale the inject's own effects afterwards — engine/sim_loop.py:196 — but the generator is never told which difficulty it is writing for.)
-- `OUT` **NarrativeState's other fields: situation_summary, recent_events, active_crises, characters/CharacterAttitude trust, hidden_metrics — i.e. everything NarrativeState.to_llm_context() would render**
+- **OUT** — NarrativeState's other fields: situation_summary, recent_events, active_crises, characters/CharacterAttitude trust, hidden_metrics — i.e. everything NarrativeState.to_llm_context() would render
     - source: models/narrative_state.py:80-98, to_llm_context at models/narrative_state.py:240-266
     - evidence: engine/sim_loop.py:320-324 extracts ONLY `narrative_state.recent_played_events()` and passes it as event_ledger; the narrative_state object itself is never handed to generate_inject. NarrativeState.to_llm_context is a different method from NarrativeConfig.to_llm_context (models/narrative.py:21) — only the latter is called, at llm/context_builder.py:416.
-- `OUT` **initial_conditions sections other than objectives.uk and red_objectives — characters, constraints, uk_forces, red_forces, stockpiles, intelligence, critical_infrastructure, locations, diplomatic_contacts, timeline, environment, initial_flags**
+- **OUT** — initial_conditions sections other than objectives.uk and red_objectives — characters, constraints, uk_forces, red_forces, stockpiles, intelligence, critical_infrastructure, locations, diplomatic_contacts, timeline, environment, initial_flags
     - source: data/scenarios/war_game_2025/initial_conditions.yaml:27,35,48,69,84,122,268,305,358,383,441,533
     - evidence: llm/prompts.py:362-363 reads only 'objectives' and 'red_objectives' from the dict; nothing else is indexed in the builder
-- `OUT` **scenario_library sections other than the three merged lists and the two escalation patterns — cyber_scenarios, military_target_scenarios, civilian_target_scenarios, covert_operation_scenarios, uk_response_scenarios, public_reaction_scenarios, crisis_timeline, themes, llm_guidance, metadata**
+- **OUT** — scenario_library sections other than the three merged lists and the two escalation patterns — cyber_scenarios, military_target_scenarios, civilian_target_scenarios, covert_operation_scenarios, uk_response_scenarios, public_reaction_scenarios, crisis_timeline, themes, llm_guidance, metadata
     - source: data/scenarios/war_game_2025/scenario_library.yaml:110,120,158,180,240,287,314,331,365,8
     - evidence: llm/prompts.py:368-370 concatenates only naval/infrastructure/diplomatic; llm/prompts.py:376-377 reads only escalation_patterns.russian_strategy and .uk_constraints. Notably `llm_guidance`, the section written to steer this exact call, is never sent.
-- `OUT` **rng (Random)**
+- **OUT** — rng (Random)
     - source: engine/sim_loop.py:322 passes the campaign rng
     - evidence: llm/inject_generator.py:71 passes it to generate_text as the driver seed only; llm/gemini_driver.py:122 draws a seed from it (and then does not use it — Gemini takes no seed). Never interpolated into the prompt text.
 
@@ -178,63 +178,63 @@ Where a row conflicts with `VERIFIED-NOTES.md`, the note holds.
 
 #### Data in — 11 reach the prompt
 
-- `IN ` **Static narrator framing ("You are the Narrator of a high-stakes political thriller wargame (like 'The West Wing' meets 'Hunt for Red October')")**
+- **IN** — Static narrator framing ("You are the Narrator of a high-stakes political thriller wargame (like 'The West Wing' meets 'Hunt for Red October')")
     - source: Hard-coded literal
     - bound: unbounded (fixed)
     - evidence: llm/prompts.py:589
-- `IN ` **Turn number and phase, as "=== CURRENT SITUATION (Turn N, BRIEFING phase) ===" (phase is "briefing" here, set at engine/sim_loop.py:301)**
+- **IN** — Turn number and phase, as "=== CURRENT SITUATION (Turn N, BRIEFING phase) ===" (phase is "briefing" here, set at engine/sim_loop.py:301)
     - source: world.turn / world.phase (models/world.py:22-23)
     - bound: unbounded
     - evidence: llm/prompts.py:584 calls build_world_state_summary, which emits it at llm/prompts.py:58; interpolated into the prompt at llm/prompts.py:592
-- `IN ` **Escalation risk as a prose band only (low/moderate/high/critical)**
+- **IN** — Escalation risk as a prose band only (low/moderate/high/critical)
     - source: world.metrics.escalation_risk (models/world.py:7)
     - bound: unbounded
     - evidence: banded at llm/prompts.py:34-39, emitted at llm/prompts.py:60
-- `IN ` **Domestic stability as a prose band only (stable/uncertain/fragile/in crisis)**
+- **IN** — Domestic stability as a prose band only (stable/uncertain/fragile/in crisis)
     - source: world.metrics.domestic_stability (models/world.py:8)
     - bound: unbounded
     - evidence: banded at llm/prompts.py:41-46, emitted at llm/prompts.py:61
-- `IN ` **Alliance cohesion as a prose band only (strong and unified/uncertain/fragile/fractured)**
+- **IN** — Alliance cohesion as a prose band only (strong and unified/uncertain/fragile/fractured)
     - source: world.metrics.alliance_cohesion (models/world.py:9)
     - bound: unbounded
     - evidence: banded at llm/prompts.py:48-53, emitted at llm/prompts.py:62
-- `IN ` **Casualty counts (military and civilian, raw integers)**
+- **IN** — Casualty counts (military and civilian, raw integers)
     - source: world.metrics.casualties_mil / casualties_civ (models/world.py:10-11)
     - bound: unbounded
     - evidence: llm/prompts.py:64, inside the summary interpolated at llm/prompts.py:592
-- `IN ` **Active intelligence flags, title-cased**
+- **IN** — Active intelligence flags, title-cased
     - source: world.flags (models/world.py:36)
     - bound: unbounded
     - evidence: llm/prompts.py:67-71
-- `IN ` **The anti-meta instruction block ("You are a real advisor in COBRA...", "Do NOT reference 'metrics'...") - carried in even though the speaker here is a narrator, not an advisor**
+- **IN** — The anti-meta instruction block ("You are a real advisor in COBRA...", "Do NOT reference 'metrics'...") - carried in even though the speaker here is a narrator, not an advisor
     - source: Hard-coded literal inside build_world_state_summary
     - bound: unbounded (fixed)
     - evidence: llm/prompts.py:74-77, pulled in wholesale by llm/prompts.py:584
-- `IN ` **Recent transcript tail, under "Recent Events (Transcript):"**
+- **IN** — Recent transcript tail, under "Recent Events (Transcript):"
     - source: The FULL campaign transcript. engine/narrator.py:32 passes `transcript` (the whole game history from cli/main.py:786) into the parameter named `last_turn_transcript` - despite the name and the docstring at llm/prompts.py:571 claiming "Transcript lines from the previous turn", no slicing to a turn boundary happens anywhere on this path.
     - bound: WINDOWED to the last 20 list elements. The `20` is a bare literal at llm/prompts.py:587 - not a named constant, and unrelated to MAX_ADVISOR_TRANSCRIPT_CHARS (320_000) or MAX_INJECT_CONTINUITY_LINES (400). There is NO character bound, so 20 unwrapped paragraph lines can be arbitrarily large.
     - evidence: engine/sim_loop.py:346-350 passes full_transcript -> engine/narrator.py:32 -> llm/prompts.py:587 `"\n".join(last_turn_transcript[-20:])`, interpolated at llm/prompts.py:595
-- `IN ` **Title of the inject about to be shown**
+- **IN** — Title of the inject about to be shown
     - source: inject.get("title", "Unknown Event") at engine/sim_loop.py:349, where `inject` comes from load_inject_for_turn (sim_loop.py:311) or generate_inject (sim_loop.py:322)
     - bound: unbounded
     - evidence: engine/narrator.py:32 -> llm/prompts.py:598 `"{next_inject_title}"`
-- `IN ` **Task instructions (set the scene, connect the previous choice, build tension, DO NOT reveal the inject content) plus two hard-coded few-shot example bridges**
+- **IN** — Task instructions (set the scene, connect the previous choice, build tension, DO NOT reveal the inject content) plus two hard-coded few-shot example bridges
     - source: Hard-coded literal
     - bound: unbounded (fixed)
     - evidence: llm/prompts.py:600-614
 
 #### Available but not sent — 4
 
-- `OUT` **Raw metric values 0-100 for escalation / stability / cohesion**
+- **OUT** — Raw metric values 0-100 for escalation / stability / cohesion
     - source: world.metrics.*
     - evidence: The narrator prompt is built only from build_world_state_summary (llm/prompts.py:584), which never prints the numeric metric values - only the bands at llm/prompts.py:60-62. It does NOT call llm/context_builder.py:build_shared_context_prefix, which is the only place the raw numbers are emitted (context_builder.py:337-339).
-- `OUT` **System instruction "You are a master storyteller for a political thriller. Be concise, atmospheric, and serious."**
+- **OUT** — System instruction "You are a master storyteller for a political thriller. Be concise, atmospheric, and serious."
     - source: engine/narrator.py:39
     - evidence: CONDITIONAL, and false on the default and Gemini providers. llm/router.py:255-263 inspects the driver signature and only forwards system_instruction if the driver declares it. GeminiDriver.generate_text is `(self, prompt, rng)` (llm/gemini_driver.py:106), MockDeterministicDriver.generate_text is `(self, prompt, rng)` (llm/mock_driver.py:1140), OfflineDriver likewise (llm/offline_driver.py:15) - so the system instruction is silently dropped for all three. Only OpenAICompatDriver declares it (llm/openai_compat_driver.py:150-157).
-- `OUT` **temperature = 0.7**
+- **OUT** — temperature = 0.7
     - source: engine/narrator.py:40
     - evidence: Same signature filter at llm/router.py:259-260. Dropped for Gemini (llm/gemini_driver.py:106); Gemini instead uses the driver-wide config temperature from llm/gemini_driver.py:90,98 (default 0.7, coincidentally the same). Honoured only on openai_compat (llm/openai_compat_driver.py:155).
-- `OUT` **max_tokens = 150 (the intended length cap on the bridge)**
+- **OUT** — max_tokens = 150 (the intended length cap on the bridge)
     - source: engine/narrator.py:41
     - evidence: Dropped by the same filter at llm/router.py:261-262 because GeminiDriver.generate_text (llm/gemini_driver.py:106) does not accept max_tokens; Gemini uses GEMINI_MAX_TOKENS, default 2048 (llm/gemini_driver.py:91,101). Honoured only on openai_compat (llm/openai_compat_driver.py:156).
 
@@ -289,94 +289,94 @@ _Supersedes any row above that conflicts with it._
 
 #### Data in — 21 reach the prompt
 
-- `IN ` **Static shared-dossier framing header ("UK CRISIS WARGAME - SHARED BRIEFING DOSSIER" + "The material below is the same for every member of the COBRA cell.")**
+- **IN** — Static shared-dossier framing header ("UK CRISIS WARGAME - SHARED BRIEFING DOSSIER" + "The material below is the same for every member of the COBRA cell.")
     - source: Hard-coded literal, no state object
     - bound: unbounded (fixed ~6 lines)
     - evidence: llm/context_builder.py:310-317, reached via llm/prompts.py:113 -> context_builder.py:358-365 get_advisor_context -> build_shared_context_prefix
-- `IN ` **Secret narrative truth: description / protagonist / antagonist / patsy, plus the "DO NOT REVEAL" instruction block**
+- **IN** — Secret narrative truth: description / protagonist / antagonist / patsy, plus the "DO NOT REVEAL" instruction block
     - source: world.narrative (models/world.py:26, a NarrativeConfig) rendered by NarrativeConfig.to_llm_context (models/narrative.py:21-81)
     - bound: unbounded
     - evidence: llm/context_builder.py:322-324 (`if world_state.narrative: parts.append(world_state.narrative.to_llm_context())`). Only populated in Mystery Mode: engine/game_manager.py:92-99 leaves selected_narrative=None otherwise, so in Original Story Mode this block is absent entirely.
-- `IN ` **Full game transcript (every prior turn's injects, narrator bridges, advisor answers, decisions, adjudications), under the GAME HISTORY header**
+- **IN** — Full game transcript (every prior turn's injects, narrator bridges, advisor answers, decisions, adjudications), under the GAME HISTORY header
     - source: the `transcript` argument threaded cli/main.py:786 (list) -> cli/main.py:1271/1621 -> engine/sim_loop.py:481 -> agents/conversation.py:210 -> llm/prompts.py:113 -> context_builder.py:326
     - bound: WINDOWED by characters, not lines. MAX_ADVISOR_TRANSCRIPT_CHARS = 320_000 (llm/context_builder.py:27), the default max_chars of render_transcript_block (context_builder.py:207) and not overridden at the call site (context_builder.py:326). Over budget, _TRANSCRIPT_HEAD_SHARE = 0.2 (context_builder.py:54) reserves 64,000 chars for the campaign opening, the rest is spent from the end, and the middle is replaced with "[... N lines of mid-campaign history elided for length ...]" cut on TURN headers (context_builder.py:230-282).
     - evidence: llm/context_builder.py:326 `parts.append(render_transcript_block(transcript))`; rendered at context_builder.py:206-282. Header text at context_builder.py:35-38.
-- `IN ` **Turn number (raw)**
+- **IN** — Turn number (raw)
     - source: world.turn (models/world.py:22)
     - bound: unbounded
     - evidence: llm/context_builder.py:335 `f"Turn: {world_state.turn}"`; also a second time inside the narrative summary at llm/prompts.py:58
-- `IN ` **Phase string ("discussion")**
+- **IN** — Phase string ("discussion")
     - source: world.phase (models/world.py:23), set at engine/sim_loop.py:460
     - bound: unbounded
     - evidence: llm/context_builder.py:336 `f"Phase: {world_state.phase}"`; again at llm/prompts.py:58
-- `IN ` **Escalation Risk (raw 0-100 integer)**
+- **IN** — Escalation Risk (raw 0-100 integer)
     - source: world.metrics.escalation_risk (models/world.py:7)
     - bound: unbounded
     - evidence: llm/context_builder.py:337
-- `IN ` **Domestic Stability (raw 0-100 integer)**
+- **IN** — Domestic Stability (raw 0-100 integer)
     - source: world.metrics.domestic_stability (models/world.py:8)
     - bound: unbounded
     - evidence: llm/context_builder.py:338
-- `IN ` **Alliance Cohesion (raw 0-100 integer)**
+- **IN** — Alliance Cohesion (raw 0-100 integer)
     - source: world.metrics.alliance_cohesion (models/world.py:9)
     - bound: unbounded
     - evidence: llm/context_builder.py:339
-- `IN ` **Military casualties (raw integer)**
+- **IN** — Military casualties (raw integer)
     - source: world.metrics.casualties_mil (models/world.py:11)
     - bound: unbounded
     - evidence: llm/context_builder.py:340; repeated in narrative form at llm/prompts.py:64
-- `IN ` **Civilian casualties (raw integer)**
+- **IN** — Civilian casualties (raw integer)
     - source: world.metrics.casualties_civ (models/world.py:10)
     - bound: unbounded
     - evidence: llm/context_builder.py:341; repeated at llm/prompts.py:64
-- `IN ` **Narrative re-rendering of the SAME three metrics as prose bands (low/moderate/high/critical; stable/uncertain/fragile/in crisis; strong and unified/uncertain/fragile/fractured) - so every advisor prompt states the metrics twice, once numerically and once as bands**
+- **IN** — Narrative re-rendering of the SAME three metrics as prose bands (low/moderate/high/critical; stable/uncertain/fragile/in crisis; strong and unified/uncertain/fragile/fractured) - so every advisor prompt states the metrics twice, once numerically and once as bands
     - source: world.metrics.* via build_world_state_summary
     - bound: unbounded
     - evidence: llm/context_builder.py:351-352 imports and appends build_world_state_summary(world_state); banding at llm/prompts.py:34-53, emitted at llm/prompts.py:60-62
-- `IN ` **Active intelligence flags, title-cased and comma-joined ("KEY INTELLIGENCE FLAGS: ...")**
+- **IN** — Active intelligence flags, title-cased and comma-joined ("KEY INTELLIGENCE FLAGS: ...")
     - source: world.flags (models/world.py:36), populated by engine.flags.update_world_flags
     - bound: unbounded - every truthy flag is listed, no cap
     - evidence: llm/prompts.py:67-71 (only truthy flags: `if v`), reached via llm/context_builder.py:352
-- `IN ` **Standing anti-meta instruction ("Do NOT reference 'metrics', 'game mechanics', 'scores'...")**
+- **IN** — Standing anti-meta instruction ("Do NOT reference 'metrics', 'game mechanics', 'scores'...")
     - source: Hard-coded literal
     - bound: unbounded (4 fixed lines)
     - evidence: llm/prompts.py:74-77 via llm/context_builder.py:352
-- `IN ` **The advisor's role title (e.g. "Military Commander", "Intelligence Coordinator" - the raw YAML `role`, NOT the cabinet title shown on screen)**
+- **IN** — The advisor's role title (e.g. "Military Commander", "Intelligence Coordinator" - the raw YAML `role`, NOT the cabinet title shown on screen)
     - source: initial_conditions["characters"][character_id]["role"] (data/scenarios/war_game_2025/initial_conditions.yaml:444,454,464,474,484,494)
     - bound: unbounded
     - evidence: llm/prompts.py:106 reads it; interpolated at llm/prompts.py:149 and again at 159
-- `IN ` **Advisor knowledge domains list**
+- **IN** — Advisor knowledge domains list
     - source: initial_conditions["characters"][id]["knowledge_domains"] (initial_conditions.yaml:446 etc.)
     - bound: unbounded
     - evidence: llm/prompts.py:107 -> interpolated at llm/prompts.py:151
-- `IN ` **Advisor key concerns list**
+- **IN** — Advisor key concerns list
     - source: initial_conditions["characters"][id]["key_concerns"] (initial_conditions.yaml:451 etc.)
     - bound: unbounded
     - evidence: llm/prompts.py:108 -> interpolated at llm/prompts.py:152
-- `IN ` **All scenario constraints (capability / political / legal / time), rendered as headed bullet lists**
+- **IN** — All scenario constraints (capability / political / legal / time), rendered as headed bullet lists
     - source: initial_conditions["constraints"] (initial_conditions.yaml:358-380)
     - bound: unbounded - every category and every item
     - evidence: llm/prompts.py:119-125 build context_sections; joined at llm/prompts.py:141 and interpolated at llm/prompts.py:155
-- `IN ` **UK order of battle (naval/air units, locations, readiness, armament) as a raw `str(dict)` dump**
+- **IN** — UK order of battle (naval/air units, locations, readiness, armament) as a raw `str(dict)` dump
     - source: initial_conditions["uk_forces"] (initial_conditions.yaml:122-267)
     - bound: unbounded - str() of the whole dict, no truncation
     - evidence: llm/prompts.py:128-132 - CONDITIONAL: only if the advisor's knowledge_domains intersect {military_operations, force_readiness, threat_assessment}. On the shipped scenario that is chief_defence_staff ONLY (yaml:456); the NSA, Foreign Secretary, Home Secretary and Attorney General never see UK forces.
-- `IN ` **Ammunition stockpiles (Sea Viper, Sky Sabre, ASRAAM, Tomahawk, Harpoon counts) as a raw `str(dict)` dump**
+- **IN** — Ammunition stockpiles (Sea Viper, Sky Sabre, ASRAAM, Tomahawk, Harpoon counts) as a raw `str(dict)` dump
     - source: initial_conditions["stockpiles"] (initial_conditions.yaml:84-121)
     - bound: unbounded - str() of the whole dict
     - evidence: llm/prompts.py:135-139 - CONDITIONAL on knowledge_domains intersecting {military_operations, force_readiness}; chief_defence_staff only on the shipped scenario
-- `IN ` **The player's question verbatim (including the CLI-appended brevity instruction, e.g. "[Please be concise - 3-4 sentences maximum]", which is part of the question string sent to the model)**
+- **IN** — The player's question verbatim (including the CLI-appended brevity instruction, e.g. "[Please be concise - 3-4 sentences maximum]", which is part of the question string sent to the model)
     - source: `question` param, from cli/main.py:1621 user_input or the canned /advise strings at cli/main.py:1252-1256 with brevity_note from cli/main.py:1227-1229
     - bound: unbounded - no length cap on player input anywhere on this path
     - evidence: llm/prompts.py:157 `The Prime Minister asks: "{question}"`
-- `IN ` **Response-style instructions ("Respond in character", "Reference past decisions...", "If the question is outside your knowledge domain...") and the markdown FORMATTING INSTRUCTIONS block**
+- **IN** — Response-style instructions ("Respond in character", "Reference past decisions...", "If the question is outside your knowledge domain...") and the markdown FORMATTING INSTRUCTIONS block
     - source: Hard-coded literal
     - bound: unbounded (fixed)
     - evidence: llm/prompts.py:159-168
 
 #### Available but not sent — 1
 
-- `OUT` **Per-country FactionStance secrets (secret_motive, public_posture, economic_leverage, intel_sharing_level)**
+- **OUT** — Per-country FactionStance secrets (secret_motive, public_posture, economic_leverage, intel_sharing_level)
     - source: world.narrative.stances (models/narrative.py:19)
     - evidence: llm/context_builder.py:323 calls to_llm_context() with NO target_country_code, so the stance branch at models/narrative.py:46-67 never executes for this prompt. The parameter exists (models/narrative.py:21) but no caller in this group passes it.
 
@@ -435,89 +435,89 @@ _Supersedes any row above that conflicts with it._
 
 #### Data in — 19 reach the prompt
 
-- `IN ` **Fixed dossier framing header — the ruler, 'UK CRISIS WARGAME - SHARED BRIEFING DOSSIER', and two lines saying the material is shared across the COBRA cell**
+- **IN** — Fixed dossier framing header — the ruler, 'UK CRISIS WARGAME - SHARED BRIEFING DOSSIER', and two lines saying the material is shared across the COBRA cell
     - source: Hard-coded literal, no state object
     - bound: static, ~200 chars
     - evidence: llm/context_builder.py:309-317, emitted at the top of build_shared_context_prefix which is interpolated at llm/prompts.py:202
-- `IN ` **Secret narrative truth — GLOBAL TRUTH description, Crisis Protagonist, Primary Target, Being Used as Pawn, plus four standing 'act on your secret motive / never reveal' instructions**
+- **IN** — Secret narrative truth — GLOBAL TRUTH description, Crisis Protagonist, Primary Target, Being Used as Pawn, plus four standing 'act on your secret motive / never reveal' instructions
     - source: world.narrative (models/world.py:26, an Optional[NarrativeConfig]); fields models/narrative.py:14-19. Set only in Mystery Mode at cli/main.py:755 from select_narrative (cli/main.py:637, random.choice at cli/main.py:504); None in Original Story Mode (cli/main.py:496)
     - bound: not truncated; absent entirely when world.narrative is None (guarded at llm/context_builder.py:322)
     - evidence: llm/context_builder.py:322-324 calls world_state.narrative.to_llm_context(); the block is built at models/narrative.py:31-44 and 69-79
-- `IN ` **Game history header text ('GAME HISTORY - everything that has happened, in order...')**
+- **IN** — Game history header text ('GAME HISTORY - everything that has happened, in order...')
     - source: Hard-coded constant _HISTORY_HEADER
     - bound: static; deliberately carries no line/char counts so the prefix does not move as the transcript grows (llm/context_builder.py:30-34)
     - evidence: llm/context_builder.py:35-38, emitted at llm/context_builder.py:228 / :277
-- `IN ` **Full campaign transcript — every briefing/inject line, narrator bridge, discussion Q&A, prior turns' decisions, interpretations, pushback, critical advisories and adjudication results accumulated since turn 1**
+- **IN** — Full campaign transcript — every briefing/inject line, narrator bridge, discussion Q&A, prior turns' decisions, interpretations, pushback, critical advisories and adjudication results accumulated since turn 1
     - source: The caller's `transcript` list: cli/main.py:1701 passes it positionally as full_transcript -> engine/sim_loop.py:499 -> :538 -> agents/conversation.py:228/243 -> llm/prompts.py:202. Loaded from the save file on resume (engine/persistence.py:124).
     - bound: WINDOWED by characters, not lines. MAX_ADVISOR_TRANSCRIPT_CHARS = 320_000 (llm/context_builder.py:27), applied as the default max_chars at llm/context_builder.py:207 — no caller ever overrides it. Under budget: emitted whole (llm/context_builder.py:227-228). Over budget: _TRANSCRIPT_HEAD_SHARE = 0.2 (llm/context_builder.py:54) reserves 64,000 chars for the campaign opening, grown a whole turn at a time on TURN N boundaries (llm/context_builder.py:230-247); the remaining ~256,000 chars are taken from the tail, also on turn boundaries (llm/context_builder.py:250-260); the middle is replaced by a single '[... N lines of mid-campaign history elided for length ...]' marker (llm/context_builder.py:280). Fallback plain character tail when no turn boundary fits (llm/context_builder.py:265-272).
     - evidence: llm/context_builder.py:326 parts.append(render_transcript_block(transcript)); renderer at llm/context_builder.py:206-282
-- `IN ` **Current turn number**
+- **IN** — Current turn number
     - source: world.turn (models/world.py:22)
     - bound: scalar
     - evidence: llm/context_builder.py:335 f"Turn: {world_state.turn}"; also restated at llm/prompts.py:58
-- `IN ` **Current phase string**
+- **IN** — Current phase string
     - source: world.phase (models/world.py:23)
     - bound: scalar
     - evidence: llm/context_builder.py:336. Value is 'decision' on the CLI path because engine/sim_loop.py:521 sets it before the call; it stays 'discussion' on the API preview path because game_manager.py:198 passes dry_run=True and sim_loop.py:520 skips the assignment.
-- `IN ` **Escalation Risk, raw 0-100**
+- **IN** — Escalation Risk, raw 0-100
     - source: world.metrics.escalation_risk (models/world.py:7, models/world.py:35)
     - bound: scalar
     - evidence: llm/context_builder.py:337
-- `IN ` **Domestic Stability, raw 0-100**
+- **IN** — Domestic Stability, raw 0-100
     - source: world.metrics.domestic_stability
     - bound: scalar
     - evidence: llm/context_builder.py:338
-- `IN ` **Alliance Cohesion, raw 0-100**
+- **IN** — Alliance Cohesion, raw 0-100
     - source: world.metrics.alliance_cohesion
     - bound: scalar
     - evidence: llm/context_builder.py:339
-- `IN ` **Military casualties count**
+- **IN** — Military casualties count
     - source: world.metrics.casualties_mil
     - bound: scalar
     - evidence: llm/context_builder.py:340, and again as prose at llm/prompts.py:64
-- `IN ` **Civilian casualties count**
+- **IN** — Civilian casualties count
     - source: world.metrics.casualties_civ
     - bound: scalar
     - evidence: llm/context_builder.py:341, and again as prose at llm/prompts.py:64
-- `IN ` **Narrative restatement of the SAME three metrics as band words — THREAT ASSESSMENT low/moderate/high/critical, DOMESTIC SITUATION stable/uncertain/fragile/in crisis, ALLIANCE STATUS strong and unified/uncertain/fragile/fractured. The numbers therefore appear twice, once raw and once banded.**
+- **IN** — Narrative restatement of the SAME three metrics as band words — THREAT ASSESSMENT low/moderate/high/critical, DOMESTIC SITUATION stable/uncertain/fragile/in crisis, ALLIANCE STATUS strong and unified/uncertain/fragile/fractured. The numbers therefore appear twice, once raw and once banded.
     - source: world.metrics, re-read by build_world_state_summary
     - bound: static thresholds at llm/prompts.py:35-53
     - evidence: llm/prompts.py:34-62, appended at llm/context_builder.py:351-352
-- `IN ` **KEY INTELLIGENCE FLAGS line — title-cased names of the truthy entries of world.flags**
+- **IN** — KEY INTELLIGENCE FLAGS line — title-cased names of the truthy entries of world.flags
     - source: world.flags (models/world.py:36), recomputed from metrics alone by engine/flags.py:15-35 via update_world_flags (engine/flags.py:38-40, called at engine/sim_loop.py:256 and :639). Possible keys: risk_escalation, risk_unrest, risk_alliance_fragile, risk_civilian_harm, risk_military_losses.
     - bound: at most 5 flags; note these are pure metric restatements, NOT the scenario's initial_flags (data/scenarios/war_game_2025/initial_conditions.yaml:29-34), which never reach any prompt
     - evidence: llm/prompts.py:67-71 — only truthy flags are listed, and the whole block is omitted when none are set
-- `IN ` **Standing anti-meta instruction ('You are a real advisor in COBRA... Do NOT reference metrics, game mechanics, scores or values')**
+- **IN** — Standing anti-meta instruction ('You are a real advisor in COBRA... Do NOT reference metrics, game mechanics, scores or values')
     - source: Hard-coded
     - bound: static
     - evidence: llm/prompts.py:74-77
-- `IN ` **UK order of battle — full naval and air force list with ids, types, locations, readiness statuses, armaments and notes, rendered as a raw Python dict repr**
+- **IN** — UK order of battle — full naval and air force list with ids, types, locations, readiness statuses, armaments and notes, rendered as a raw Python dict repr
     - source: initial_conditions['uk_forces'], loaded from data/scenarios/<id>/initial_conditions.yaml:132+ by engine/initial_conditions.py:13-45, called at engine/sim_loop.py:525
     - bound: NOT truncated — the whole section goes in as `{uk_forces}`. Measured at ~4,700 chars for the shipped war_game_2025 scenario.
     - evidence: read at llm/prompts.py:194, interpolated at llm/prompts.py:207 under 'Available forces:'
-- `IN ` **Ammunition stockpiles — every munition category with counts and notes (Sea Viper 96, Tomahawk 30, Storm Shadow 50, etc.), raw dict repr**
+- **IN** — Ammunition stockpiles — every munition category with counts and notes (Sea Viper 96, Tomahawk 30, Storm Shadow 50, etc.), raw dict repr
     - source: initial_conditions['stockpiles'] (initial_conditions.yaml:96-131)
     - bound: NOT truncated (~900 chars in the shipped scenario)
     - evidence: read at llm/prompts.py:195, interpolated at llm/prompts.py:210
-- `IN ` **Constraints — capability / political / legal / time lists, raw dict repr**
+- **IN** — Constraints — capability / political / legal / time lists, raw dict repr
     - source: initial_conditions['constraints']
     - bound: NOT truncated (~1,100 chars)
     - evidence: read at llm/prompts.py:193, interpolated at llm/prompts.py:213
-- `IN ` **The player's raw free-form decision text, verbatim in quotes**
+- **IN** — The player's raw free-form decision text, verbatim in quotes
     - source: typer.prompt('Decision>') at cli/main.py:1688 -> `action` -> engine/sim_loop.py:534 -> agents/conversation.py:243. On the re-interpretation pass it is the recommendation-enhanced string built at cli/main.py:1745 append_recommendations_to_decision.
     - bound: NOT truncated and NOT escaped — an embedded double-quote or newline lands raw inside the quoted field
     - evidence: llm/prompts.py:215 f'The Prime Minister has decided: "{action}"'
-- `IN ` **Static task framing and output-format instructions — 'interpret this as a DECISION/DIRECTIVE not a question', the five numbered asks, the five output labels, and the markdown formatting note**
+- **IN** — Static task framing and output-format instructions — 'interpret this as a DECISION/DIRECTIVE not a question', the five numbered asks, the five output labels, and the markdown formatting note
     - source: Hard-coded
     - bound: static
     - evidence: llm/prompts.py:217-239
 
 #### Available but not sent — 2
 
-- `OUT` **Per-country FactionStance detail — secret_motive, public_posture, economic_leverage list, intel_sharing_level for RUS/USA/CHN/etc.**
+- **OUT** — Per-country FactionStance detail — secret_motive, public_posture, economic_leverage list, intel_sharing_level for RUS/USA/CHN/etc.
     - source: world.narrative.stances (models/narrative.py:19)
     - evidence: llm/context_builder.py:323 calls to_llm_context() with NO argument; the stance block at models/narrative.py:46-67 is gated on `if target_country_code:` which is None here. Only engine/diplomacy's path passes one (llm/context_builder.py:502). Confirmed by building the real prompt: the rendered dossier contains GLOBAL TRUTH/protagonist/antagonist/patsy and nothing about stances.
-- `OUT` **THIS turn's decision text as a transcript line ('Prime Minister's Decision: ...')**
+- **OUT** — THIS turn's decision text as a transcript line ('Prime Minister's Decision: ...')
     - source: engine/sim_loop.py:528 appends it to the LOCAL transcript list
     - evidence: engine/sim_loop.py:528 writes to the local `transcript` that is only returned at :584; the caller extends its own list afterwards (cli/main.py:1702). At dispatch time (sim_loop.py:532) the history block therefore ends with the discussion phase. The decision reaches the prompt only through the explicit 'The Prime Minister has decided:' field.
 
@@ -574,70 +574,70 @@ _Supersedes any row above that conflicts with it._
 
 #### Data in — 15 reach the prompt
 
-- `IN ` **Fixed dossier framing header**
+- **IN** — Fixed dossier framing header
     - source: Hard-coded
     - bound: static
     - evidence: llm/context_builder.py:309-317 via llm/prompts.py:277
-- `IN ` **Secret narrative truth (global only: description, protagonist, antagonist, patsy + the four standing instructions)**
+- **IN** — Secret narrative truth (global only: description, protagonist, antagonist, patsy + the four standing instructions)
     - source: world.narrative (models/world.py:26); set at cli/main.py:755 in Mystery Mode only
     - bound: not truncated; block absent when world.narrative is None
     - evidence: llm/context_builder.py:322-323 -> models/narrative.py:31-44, 69-79
-- `IN ` **Game history header text**
+- **IN** — Game history header text
     - source: _HISTORY_HEADER constant
     - bound: static
     - evidence: llm/context_builder.py:35-38 emitted at :228/:277
-- `IN ` **Full campaign transcript (all prior turns' injects, Q&A, decisions, interpretations, pushback, adjudications)**
+- **IN** — Full campaign transcript (all prior turns' injects, Q&A, decisions, interpretations, pushback, adjudications)
     - source: cli/main.py:1701 `transcript` -> sim_loop.py:499 full_transcript -> :553 -> agents/conversation.py:255/271 -> llm/prompts.py:277
     - bound: WINDOWED: MAX_ADVISOR_TRANSCRIPT_CHARS = 320_000 chars (llm/context_builder.py:27, default at :207, never overridden). Over budget, _TRANSCRIPT_HEAD_SHARE = 0.2 (llm/context_builder.py:54) keeps 64,000 chars of the campaign opening on turn boundaries, spends the rest from the tail, and replaces the middle with one elision marker line (llm/context_builder.py:230-282).
     - evidence: llm/context_builder.py:326 render_transcript_block(transcript)
-- `IN ` **Turn number**
+- **IN** — Turn number
     - source: world.turn
     - bound: scalar
     - evidence: llm/context_builder.py:335; restated at llm/prompts.py:58
-- `IN ` **Phase string**
+- **IN** — Phase string
     - source: world.phase
     - bound: scalar
     - evidence: llm/context_builder.py:336 (set to 'decision' at engine/sim_loop.py:521 unless dry_run)
-- `IN ` **Escalation Risk / Domestic Stability / Alliance Cohesion, raw 0-100**
+- **IN** — Escalation Risk / Domestic Stability / Alliance Cohesion, raw 0-100
     - source: world.metrics (models/world.py:6-11, :35)
     - bound: scalars
     - evidence: llm/context_builder.py:337-339
-- `IN ` **Military and civilian casualty counts**
+- **IN** — Military and civilian casualty counts
     - source: world.metrics.casualties_mil / casualties_civ
     - bound: scalars
     - evidence: llm/context_builder.py:340-341 and llm/prompts.py:64
-- `IN ` **Banded prose restatement of the same three metrics (THREAT ASSESSMENT / DOMESTIC SITUATION / ALLIANCE STATUS)**
+- **IN** — Banded prose restatement of the same three metrics (THREAT ASSESSMENT / DOMESTIC SITUATION / ALLIANCE STATUS)
     - source: world.metrics re-read by build_world_state_summary
     - bound: static thresholds
     - evidence: llm/prompts.py:34-62, appended via llm/context_builder.py:351-352
-- `IN ` **KEY INTELLIGENCE FLAGS — truthy entries of world.flags, title-cased**
+- **IN** — KEY INTELLIGENCE FLAGS — truthy entries of world.flags, title-cased
     - source: world.flags, derived purely from metrics by engine/flags.py:15-35
     - bound: at most 5 flags; whole line omitted when none truthy
     - evidence: llm/prompts.py:67-71
-- `IN ` **Standing anti-meta instruction block**
+- **IN** — Standing anti-meta instruction block
     - source: Hard-coded
     - bound: static
     - evidence: llm/prompts.py:74-77
-- `IN ` **The player's raw decision text, verbatim in quotes**
+- **IN** — The player's raw decision text, verbatim in quotes
     - source: cli/main.py:1688 typer.prompt -> engine/sim_loop.py:548 -> agents/conversation.py:271
     - bound: not truncated, not escaped
     - evidence: llm/prompts.py:281 f'The PM has decided: "{action}"'
-- `IN ` **The interpretation produced by the previous LLM call, verbatim**
+- **IN** — The interpretation produced by the previous LLM call, verbatim
     - source: Return of interpret_player_action (agents/conversation.py:245) -> engine/sim_loop.py:532 -> :549
     - bound: NOT truncated — whatever the FLASH model emitted, including a mock-fallback string or an error apology, is pasted in whole
     - evidence: llm/prompts.py:284 under 'Interpretation of this action:'
-- `IN ` **Advisor roster with pushback triggers — one '- {role}: {trigger1}, {trigger2}, {trigger3}' line per character, e.g. '- Diplomatic Lead: Actions that violate international law, Military responses without diplomatic cover, Decisions that isolate UK from allies'**
+- **IN** — Advisor roster with pushback triggers — one '- {role}: {trigger1}, {trigger2}, {trigger3}' line per character, e.g. '- Diplomatic Lead: Actions that violate international law, Military responses without diplomatic cover, Decisions that isolate UK from allies'
     - source: initial_conditions['characters'] (initial_conditions.yaml:441-501), each entry's 'role' and 'pushback_triggers' keys; loaded at engine/sim_loop.py:525
     - bound: no cap; the 'note' filter excludes the four Russian characters (initial_conditions.yaml:509, :516, :523, :530) but NOT prime_minister — the player's own persona is offered to the model as an advisor who may push back on the player's decision
     - evidence: llm/prompts.py:263 reads characters, :267-271 builds the lines filtering on `isinstance(char_data, dict) and "note" not in char_data`, :273 joins, :287 interpolates. Verified by building the real prompt: six lines, Government Leader / Military Commander / Intelligence Coordinator / Domestic Security / Diplomatic Lead / Legal Advisor.
-- `IN ` **Static task framing and output format — the 2-3 sentence brief, 'reference past warnings', the '[ADVISOR ROLE]: [their concern]' template, the NO PUSHBACK sentinel and the bold-formatting note**
+- **IN** — Static task framing and output format — the 2-3 sentence brief, 'reference past warnings', the '[ADVISOR ROLE]: [their concern]' template, the NO PUSHBACK sentinel and the bold-formatting note
     - source: Hard-coded
     - bound: static
     - evidence: llm/prompts.py:289-300
 
 #### Available but not sent — 1
 
-- `OUT` **Per-country FactionStance detail (secret_motive, public_posture, economic_leverage, intel_sharing_level)**
+- **OUT** — Per-country FactionStance detail (secret_motive, public_posture, economic_leverage, intel_sharing_level)
     - source: world.narrative.stances (models/narrative.py:19)
     - evidence: llm/context_builder.py:323 calls to_llm_context() with no target_country_code, so the branch at models/narrative.py:46-67 never executes
 
@@ -685,95 +685,95 @@ _Supersedes any row above that conflicts with it._
 
 #### Data in — 16 reach the prompt
 
-- `IN ` **Shared dossier framing header ("UK CRISIS WARGAME - SHARED BRIEFING DOSSIER", "The material below is the same for every member of the COBRA cell.")**
+- **IN** — Shared dossier framing header ("UK CRISIS WARGAME - SHARED BRIEFING DOSSIER", "The material below is the same for every member of the COBRA cell.")
     - source: static literal in build_shared_context_prefix
     - bound: static, 6 lines — not bounded by any constant
     - evidence: llm/context_builder.py:309-317, interpolated at llm/prompts.py:501
-- `IN ` **SECRET NARRATIVE CONTEXT — the campaign's hidden truth: description (GLOBAL TRUTH), protagonist, antagonist, patsy (omitted when "NONE"), plus the "never reveal / plausible deniability" instruction block. Per-country FactionStance data (secret_motive, public_posture, intel_sharing_level, economic_leverage) is NOT included because to_llm_context is called with no target_country_code.**
+- **IN** — SECRET NARRATIVE CONTEXT — the campaign's hidden truth: description (GLOBAL TRUTH), protagonist, antagonist, patsy (omitted when "NONE"), plus the "never reveal / plausible deniability" instruction block. Per-country FactionStance data (secret_motive, public_posture, intel_sharing_level, economic_leverage) is NOT included because to_llm_context is called with no target_country_code.
     - source: world.narrative (models/world.py:26, an Optional[NarrativeConfig]) -> NarrativeConfig.to_llm_context()
     - bound: unbounded — whole scenario-authored strings interpolated verbatim (models/narrative.py:36-43)
     - evidence: llm/context_builder.py:322-324 calls world_state.narrative.to_llm_context() with no argument; body at models/narrative.py:21-81; the country-specific branch is models/narrative.py:46-67 and is skipped. Block omitted entirely when world.narrative is None.
-- `IN ` **The FULL campaign transcript — every turn's inject text, narrator bridges, advisor Q&A, past decisions, past interpretations, past CRITICAL ADVISORY blocks — under the header "GAME HISTORY - everything that has happened, in order."**
+- **IN** — The FULL campaign transcript — every turn's inject text, narrator bridges, advisor Q&A, past decisions, past interpretations, past CRITICAL ADVISORY blocks — under the header "GAME HISTORY - everything that has happened, in order."
     - source: caller-supplied full_transcript list: cli/main.py:786 `transcript = []` accumulated across the whole campaign (extended at cli/main.py:953, 1296, 1651, 1702); GameManager.self.transcript (engine/game_manager.py:198, 276). Passed engine/sim_loop.py:573 -> agents/conversation.py:317 -> agents/conversation.py:378 -> llm/prompts.py:468 -> llm/prompts.py:501 as `transcript or []`.
     - bound: WINDOWED by MAX_ADVISOR_TRANSCRIPT_CHARS = 320_000 characters (llm/context_builder.py:27), the default of render_transcript_block's max_chars (llm/context_builder.py:207). Under budget: verbatim and complete (llm/context_builder.py:227-228). Over budget: head keeps the campaign opening up to _TRANSCRIPT_HEAD_SHARE = 0.2 -> 64,000 chars (llm/context_builder.py:54, 230), cut on TURN N boundaries (llm/context_builder.py:242-247); tail spends the remainder backwards, also on turn boundaries (llm/context_builder.py:253-260); the middle is replaced by "[... N lines of mid-campaign history elided for length ...]" (llm/context_builder.py:280). NOTE: this is a WIDENING relative to the comment at llm/prompts.py:496-500 — the old 100-line window is gone.
     - evidence: llm/context_builder.py:326 parts.append(render_transcript_block(transcript)); renderer at llm/context_builder.py:206-282; interpolated into the prompt at llm/prompts.py:501
-- `IN ` **Current turn number and phase string ("CURRENT SITUATION / Turn: N / Phase: decision")**
+- **IN** — Current turn number and phase string ("CURRENT SITUATION / Turn: N / Phase: decision")
     - source: world.turn (models/world.py:22), world.phase (models/world.py:23). Phase is set to "decision" at engine/sim_loop.py:521 unless dry_run=True (engine/game_manager.py:193-199 leaves it at "discussion").
     - bound: scalar
     - evidence: llm/context_builder.py:335-336
-- `IN ` **Raw numeric metrics block: Escalation Risk /100, Domestic Stability /100, Alliance Cohesion /100, Military Casualties, Civilian Casualties**
+- **IN** — Raw numeric metrics block: Escalation Risk /100, Domestic Stability /100, Alliance Cohesion /100, Military Casualties, Civilian Casualties
     - source: world.metrics (models/world.py:34) — Metrics fields at models/world.py:7-11
     - bound: scalars
     - evidence: llm/context_builder.py:337-341
-- `IN ` **Narrative re-rendering of the SAME metrics as adjectives: THREAT ASSESSMENT (low/moderate/high/critical), DOMESTIC SITUATION (stable/uncertain/fragile/in crisis), ALLIANCE STATUS (strong and unified/uncertain/fragile/fractured), plus turn+phase and casualties a second time**
+- **IN** — Narrative re-rendering of the SAME metrics as adjectives: THREAT ASSESSMENT (low/moderate/high/critical), DOMESTIC SITUATION (stable/uncertain/fragile/in crisis), ALLIANCE STATUS (strong and unified/uncertain/fragile/fractured), plus turn+phase and casualties a second time
     - source: world.metrics via build_world_state_summary
     - bound: static shape; the metrics themselves are scalars. Note this duplicates the numeric block above in every prompt.
     - evidence: llm/context_builder.py:351-352 imports and appends build_world_state_summary(world_state); thresholds at llm/prompts.py:33-51; header line llm/prompts.py:58; casualties llm/prompts.py:64
-- `IN ` **KEY INTELLIGENCE FLAGS — the truthy world flags, underscores stripped and title-cased**
+- **IN** — KEY INTELLIGENCE FLAGS — the truthy world flags, underscores stripped and title-cased
     - source: world.flags (models/world.py:35, Dict[str,bool]); mutated by update_world_flags (engine/sim_loop.py:257, :625)
     - bound: UNBOUNDED — no cap on the number of flags rendered
     - evidence: llm/prompts.py:67-71 — only flags whose value is truthy are listed (`for k, v in world.flags.items() if v`)
-- `IN ` **Standing anti-meta instruction ("You are a real advisor in COBRA... Do NOT reference 'metrics', 'game mechanics', 'scores', or 'values'")**
+- **IN** — Standing anti-meta instruction ("You are a real advisor in COBRA... Do NOT reference 'metrics', 'game mechanics', 'scores', or 'values'")
     - source: static literals in build_world_state_summary
     - bound: static
     - evidence: llm/prompts.py:73-77
-- `IN ` **The advisor's role title, used twice: "You are the UK {role}" and "YOUR ROLE AS {role.upper()}"**
+- **IN** — The advisor's role title, used twice: "You are the UK {role}" and "YOUR ROLE AS {role.upper()}"
     - source: initial_conditions["characters"][character_id]["role"], defaulting to the raw character_id. initial_conditions loaded at engine/sim_loop.py:525 load_initial_conditions(scenario_id, root_path)
     - bound: unbounded scenario string
     - evidence: llm/prompts.py:489-490 (lookup), llm/prompts.py:503 and llm/prompts.py:531 (interpolation)
-- `IN ` **Which of the five advisors is speaking (character_id), which selects exactly one domain line: foreign affairs / military readiness / domestic security / legal authority / strategic coordination. The other four conditional expressions render as empty strings, leaving four blank lines in every prompt.**
+- **IN** — Which of the five advisors is speaking (character_id), which selects exactly one domain line: foreign affairs / military readiness / domestic security / legal authority / strategic coordination. The other four conditional expressions render as empty strings, leaving four blank lines in every prompt.
     - source: agents/conversation.py:359-365 advisors_to_check, filtered to ids actually present in get_all_uk_advisors at agents/conversation.py:374
     - bound: one of five fixed strings
     - evidence: llm/prompts.py:532-536 — five separate `{"..." if character_id == "x" else ""}` expressions; ids supplied at agents/conversation.py:377
-- `IN ` **RECENT EVENTS block — the recent_events argument. It contains ONLY inject TITLES, never inject descriptions.**
+- **IN** — RECENT EVENTS block — the recent_events argument. It contains ONLY inject TITLES, never inject descriptions.
     - source: world.recent_injects (models/world.py:52, List[str]). The only writer in the whole repo is engine/sim_loop.py:391 `world.recent_injects.append(str(title))` where title = inject.get("title") (engine/sim_loop.py:390). Read at agents/conversation.py:352-353, passed as the 5th positional arg at agents/conversation.py:378, joined at llm/prompts.py:494, interpolated at llm/prompts.py:506.
     - bound: DOUBLY TRUNCATED to 5 entries: engine/sim_loop.py:392 `del world.recent_injects[:-5]` hard-caps the stored list at 5 immediately after each append, and agents/conversation.py:353 takes `[-5:]` again (redundant). Each entry is a bare title with no length cap. The docstring at llm/prompts.py:481 ("Last 2-3 inject descriptions") is WRONG on both count and content. Also note engine/sim_loop.py:387 skips the append entirely when replay=True (post-load), so a reloaded save can under-report.
     - evidence: agents/conversation.py:352-353 -> agents/conversation.py:377-378 -> llm/prompts.py:494 `recent_context = "\n".join(recent_events)` -> llm/prompts.py:505-506. Writer: engine/sim_loop.py:389-392.
-- `IN ` **Fallback RECENT EVENTS when world.recent_injects is empty: "Active situation: {flag_key}" for the first three flag KEYS in insertion order — including flags whose value is False.**
+- **IN** — Fallback RECENT EVENTS when world.recent_injects is empty: "Active situation: {flag_key}" for the first three flag KEYS in insertion order — including flags whose value is False.
     - source: world.flags keys (models/world.py:35)
     - bound: TRUNCATED to 3 by the literal slice [:3] at agents/conversation.py:356. Raw snake_case keys, not prettified.
     - evidence: agents/conversation.py:354-356 `recent_events = [f"Active situation: {flag}" for flag in list(world.flags.keys())[:3]]` — no truthiness filter, unlike llm/prompts.py:68
-- `IN ` **Literal "No recent major events" when both recent_injects and flags are empty**
+- **IN** — Literal "No recent major events" when both recent_injects and flags are empty
     - source: llm/prompts.py:494 else-branch
     - bound: static
     - evidence: llm/prompts.py:494
-- `IN ` **THE PRIME MINISTER'S DECISION — the player's raw decision text, quoted verbatim**
+- **IN** — THE PRIME MINISTER'S DECISION — the player's raw decision text, quoted verbatim
     - source: player_decision = the `action` string typed by the player (cli/main.py:1688 typer.prompt), passed engine/sim_loop.py:568 -> agents/conversation.py:312 -> agents/conversation.py:377 -> llm/prompts.py:466
     - bound: UNBOUNDED — no truncation anywhere. On the CLI re-run path this is the ENHANCED decision, i.e. the original text plus "Additionally:" and the previously-accepted RECOMMENDATION bullets (cli/main.py:201-224 append_recommendations_to_decision, assigned at cli/main.py:1755, re-fed at cli/main.py:1765).
     - evidence: llm/prompts.py:508-509 `"{player_decision}"`
-- `IN ` **Static task definition: the five catastrophic outcome classes (alliance loss, international law, nuclear escalation, domestic collapse, military disaster), the HIGH threshold instruction, and five worked examples of critical omissions**
+- **IN** — Static task definition: the five catastrophic outcome classes (alliance loss, international law, nuclear escalation, domestic collapse, military disaster), the HIGH threshold instruction, and five worked examples of critical omissions
     - source: literals in the f-string
     - bound: static
     - evidence: llm/prompts.py:515-529
-- `IN ` **Static response-format contract: CONCERN/RECOMMENDATION labels or the NO_CONCERN sentinel, plus the trailing "Your response (CONCERN + RECOMMENDATION or NO_CONCERN):" cue**
+- **IN** — Static response-format contract: CONCERN/RECOMMENDATION labels or the NO_CONCERN sentinel, plus the trailing "Your response (CONCERN + RECOMMENDATION or NO_CONCERN):" cue
     - source: literals in the f-string
     - bound: static
     - evidence: llm/prompts.py:538-553
 
 #### Available but not sent — 8
 
-- `OUT` **Absence of transcript on one code path: engine/sim_loop.py:685 calls run_turn_decision(world, scenario_id, action, rng, root_path) with no full_transcript, so transcript is None and the history block renders as just the header with zero lines.**
+- **OUT** — Absence of transcript on one code path: engine/sim_loop.py:685 calls run_turn_decision(world, scenario_id, action, rng, root_path) with no full_transcript, so transcript is None and the history block renders as just the header with zero lines.
     - source: engine/sim_loop.py:685 (run_turn legacy path)
     - evidence: engine/sim_loop.py:685 — only 5 positional args; full_transcript defaults to None (engine/sim_loop.py:499); `transcript or []` at llm/prompts.py:501 turns it into an empty history block
-- `OUT` **`interpretation` — the decision-interpretation LLM output produced moments earlier at engine/sim_loop.py:532**
+- **OUT** — `interpretation` — the decision-interpretation LLM output produced moments earlier at engine/sim_loop.py:532
     - source: engine/sim_loop.py:569 passes it into check_critical_omissions as the 3rd positional arg (agents/conversation.py:313)
     - evidence: DEAD PARAMETER. `grep -n interpretation agents/conversation.py` returns only lines 13, 241, 243-245, 251, 262, 271, 313, 322, 333, 372 — inside check_critical_omissions (agents/conversation.py:310-429) the name appears ONLY in the docstring (line 333) and a comment (line 372). It is never read in the body and is never forwarded: the builder call at agents/conversation.py:376-379 passes (world, initial_conditions, char_id, player_decision, recent_events, transcript) and build_critical_omissions_prompt has no interpretation parameter at all (llm/prompts.py:462-468). The advisors judge the player's raw words, not the interpreted action.
-- `OUT` **`personality` — the advisor's characterisation string from initial_conditions**
+- **OUT** — `personality` — the advisor's characterisation string from initial_conditions
     - source: llm/prompts.py:491 reads character.get("personality", "Professional and direct")
     - evidence: DEAD LOCAL. `grep -n personality llm/prompts.py` returns exactly one line: 491. The name never appears inside the f-string at llm/prompts.py:501-553. Unlike the advisor Q&A prompt, these five advisors are given no personality at all.
-- `OUT` **This turn's decision-phase working transcript — "Prime Minister's Decision: ...", "Interpretation: ...", and the advisor pushback lines generated seconds earlier**
+- **OUT** — This turn's decision-phase working transcript — "Prime Minister's Decision: ...", "Interpretation: ...", and the advisor pushback lines generated seconds earlier
     - source: the LOCAL `transcript` list in run_turn_decision (engine/sim_loop.py:523, appended at :528, :541-542, :557-559)
     - evidence: That local list is a different object from `full_transcript` and is only merged into the campaign transcript by the CALLER, after run_turn_decision returns (engine/sim_loop.py:584 return, then cli/main.py:1702 / engine/game_manager.py:275 transcript.extend). At agents/conversation.py:378 the prompt is built from `full_transcript`, which does not yet contain any of it. (Exception: on the CLI amend re-run at cli/main.py:1765 the FIRST pass's lines — including its CRITICAL ADVISORY block — have already been extended in at cli/main.py:1702, so the second pass does see them.)
-- `OUT` **Advisor pushback tuples from generate_advisor_pushback (engine/sim_loop.py:546)**
+- **OUT** — Advisor pushback tuples from generate_advisor_pushback (engine/sim_loop.py:546)
     - source: engine/sim_loop.py:546-554
     - evidence: Never passed to check_critical_omissions — the call at engine/sim_loop.py:566-575 takes (world, action, interpretation, initial_conditions, generate_text, rng, full_transcript, llm_batch_fn) and pushback is not among them. It is only appended to the local transcript at engine/sim_loop.py:557-559.
-- `OUT` **Everything in initial_conditions other than characters[character_id]["role"] — constraints, uk_forces, objectives, the other advisors' entries**
+- **OUT** — Everything in initial_conditions other than characters[character_id]["role"] — constraints, uk_forces, objectives, the other advisors' entries
     - source: initial_conditions dict loaded at engine/sim_loop.py:525
     - evidence: llm/prompts.py:489-491 is the only use of initial_conditions in the builder, and only "role" survives to the f-string (llm/prompts.py:503, :531). get_constraints / get_uk_forces (engine/initial_conditions.py:82, :94) are never called from this path.
-- `OUT` **world.posture, world.spatial_state, world.diplomatic_relationships, world.actor_system, world.discussion_transcript, world.difficulty, world.scene**
+- **OUT** — world.posture, world.spatial_state, world.diplomatic_relationships, world.actor_system, world.discussion_transcript, world.difficulty, world.scene
     - source: models/world.py:36, :39, :57, :63, :46, :32, :29
     - evidence: build_shared_context_prefix (llm/context_builder.py:285-355) touches only world_state.narrative, .turn, .phase and .metrics; build_world_state_summary (llm/prompts.py:21-79) adds only .flags. None of these fields is referenced in either function or in build_critical_omissions_prompt.
-- `OUT` **The event ledger / NarrativeState played-event dispositions**
+- **OUT** — The event ledger / NarrativeState played-event dispositions
     - source: narrative_state.recent_played_events() (engine/sim_loop.py:320-321)
     - evidence: render_event_ledger (llm/context_builder.py:74) is called only from get_stochastic_inject_context (llm/context_builder.py:428) and llm/prompts.py:410 — the inject generator path. build_shared_context_prefix never calls it, and check_critical_omissions has no narrative_state parameter (agents/conversation.py:310-319).
 
@@ -823,68 +823,68 @@ _Supersedes any row above that conflicts with it._
 
 #### Data in — 10 reach the prompt
 
-- `IN ` **Hidden metric block: escalation risk, alliance cohesion, domestic stability, each as "N/100" plus a CRITICAL/HIGH/MODERATE-style qualitative label computed inline**
+- **IN** — Hidden metric block: escalation risk, alliance cohesion, domestic stability, each as "N/100" plus a CRITICAL/HIGH/MODERATE-style qualitative label computed inline
     - source: NarrativeState.hidden_metrics (models/narrative_state.py:72), a models/world.py:6-11 Metrics object
     - bound: unbounded (three integers). Values are PRE-effect on both paths: assess runs at :762 before the apply loop at :772-776, and at :859 before the apply loop at :879-883.
     - evidence: models/narrative_state.py:250-252 builds the lines; engine/narrative_adjudication.py:216 calls to_llm_context(); engine/narrative_adjudication.py:224 interpolates it as {context}
-- `IN ` **Casualty counts (military, civilian)**
+- **IN** — Casualty counts (military, civilian)
     - source: NarrativeState.hidden_metrics.casualties_mil / .casualties_civ (models/world.py:10-11)
     - bound: unbounded (two integers)
     - evidence: models/narrative_state.py:253, via engine/narrative_adjudication.py:216 → :224
-- `IN ` **"Recent Events" list — dramatic-event prose lines**
+- **IN** — "Recent Events" list — dramatic-event prose lines
     - source: NarrativeState.recent_events (models/narrative_state.py:83)
     - bound: WINDOWED to the last 3 entries (slice [-3:] at models/narrative_state.py:256); the field itself is capped at 10 by models/narrative_state.py:298-299. In practice near-static: the only writers anywhere in non-test code are the 3 seed strings at models/narrative_state.py:459-463 and the three crisis strings at engine/narrative_adjudication.py:953, :958, :963 — no inject, decision or adjudication result is ever appended.
     - evidence: models/narrative_state.py:255-256 `self.recent_events[-3:]`, via engine/narrative_adjudication.py:216 → :224
-- `IN ` **"Active Crises" list**
+- **IN** — "Active Crises" list
     - source: NarrativeState.active_crises (models/narrative_state.py:94)
     - bound: unbounded (no slice), but bounded in practice: 3 seeds at models/narrative_state.py:449-453 plus at most 3 more from engine/narrative_adjudication.py:952, :957, :962
     - evidence: models/narrative_state.py:258-259, via engine/narrative_adjudication.py:216 → :224
-- `IN ` **Character relationship roster: each advisor's display name, relationship word (ALLIED/NEUTRAL/HOSTILE/UNKNOWN) and trust/100**
+- **IN** — Character relationship roster: each advisor's display name, relationship word (ALLIED/NEUTRAL/HOSTILE/UNKNOWN) and trust/100
     - source: NarrativeState.characters — Dict[str, CharacterAttitude] (models/narrative_state.py:91, model at :36-43)
     - bound: unbounded (full dict, no slice); fixed at 5 entries by models/narrative_state.py:403-439. Note stance_summary is NOT part of this block — only name/relationship/trust.
     - evidence: models/narrative_state.py:261-262 iterates self.characters.values(), via engine/narrative_adjudication.py:216 → :224
-- `IN ` **Game time string and turn number**
+- **IN** — Game time string and turn number
     - source: NarrativeState.game_time (models/narrative_state.py:98) and NarrativeState.turn (:97)
     - bound: unbounded. game_time is written once at construction (engine/game_manager.py:131, cli/main.py:783, cli/main_dashboard.py:807) and never updated, so it is a frozen date string for the whole campaign. turn is stale by one from turn 2 onward: it is only synced after adjudication (engine/game_manager.py:329, cli/main.py:1933), which is the same staleness the docstring at engine/narrative_adjudication.py:140-144 relies on.
     - evidence: models/narrative_state.py:264, via engine/narrative_adjudication.py:216 → :224
-- `IN ` **Secret narrative truth: GLOBAL TRUTH description, Crisis Protagonist, Primary Target, and Being Used as Pawn (patsy), wrapped in the "SECRET NARRATIVE CONTEXT (DO NOT REVEAL DIRECTLY)" banner and the four standing INSTRUCTIONS lines**
+- **IN** — Secret narrative truth: GLOBAL TRUTH description, Crisis Protagonist, Primary Target, and Being Used as Pawn (patsy), wrapped in the "SECRET NARRATIVE CONTEXT (DO NOT REVEAL DIRECTLY)" banner and the four standing INSTRUCTIONS lines
     - source: WorldState.narrative — a models/narrative.py:12 NarrativeConfig, passed in as world_narrative from engine/game_manager.py:300 and cli/main.py:1850/:1861
     - bound: unbounded/untruncated. Only the GLOBAL half: to_llm_context() is called with no target_country_code (engine/narrative_adjudication.py:221), so the per-country stance block at models/narrative.py:45-67 — secret_motive, public_posture, intel_sharing_level, economic_leverage — is skipped entirely. Absent altogether when world.narrative is None (guard at engine/narrative_adjudication.py:220).
     - evidence: engine/narrative_adjudication.py:219-221 builds narrative_context; :225 interpolates it. Body from models/narrative.py:31-40 (banner, description, protagonist, antagonist), :42-43 (patsy), :69-79 (instructions).
-- `IN ` **PLAYER ACTION — the raw free-text decision the player typed**
+- **IN** — PLAYER ACTION — the raw free-text decision the player typed
     - source: action argument, threaded from cli/main.py:1846 / engine/game_manager.py:295 (action_text)
     - bound: unbounded — no truncation anywhere on this path
     - evidence: engine/narrative_adjudication.py:226 `PLAYER ACTION: {action}`
-- `IN ` **INTERPRETATION — the full raw text of the decision-interpretation LLM call (INTERPRETATION / FORCES INVOLVED / RESOURCES CONSUMED / TIMELINE / FEASIBILITY)**
+- **IN** — INTERPRETATION — the full raw text of the decision-interpretation LLM call (INTERPRETATION / FORCES INVOLVED / RESOURCES CONSUMED / TIMELINE / FEASIBILITY)
     - source: return value of agents/conversation.py:244 interpret_player_action, surfaced by engine/sim_loop.py:532 and handed on at engine/game_manager.py:296 / cli/main.py:1847
     - bound: unbounded — the raw string is passed through with no parsing or truncation (agents/conversation.py:244-245 returns it verbatim)
     - evidence: engine/narrative_adjudication.py:228 `INTERPRETATION: {interpretation}`
-- `IN ` **Static rubric: six numbered judgement criteria (including the "judge under uncertainty" clause), the "secret context is background for YOU" instruction, the four anti-leak prohibitions, and the required QUALITY/REASONING/EFFECTS/QUALITY MULTIPLIER output template**
+- **IN** — Static rubric: six numbered judgement criteria (including the "judge under uncertainty" clause), the "secret context is background for YOU" instruction, the four anti-leak prohibitions, and the required QUALITY/REASONING/EFFECTS/QUALITY MULTIPLIER output template
     - source: literal text in the f-string
     - bound: fixed literal
     - evidence: engine/narrative_adjudication.py:230-265
 
 #### Available but not sent — 7
 
-- `OUT` **Shared briefing dossier prefix (framing header + transcript block + CURRENT SITUATION metrics + build_world_state_summary)**
+- **OUT** — Shared briefing dossier prefix (framing header + transcript block + CURRENT SITUATION metrics + build_world_state_summary)
     - source: llm/context_builder.py:285 build_shared_context_prefix
     - evidence: assess_action_quality (engine/narrative_adjudication.py:186-193) has no transcript or world_state parameter at all, and llm/context_builder.py is not imported by engine/narrative_adjudication.py (imports at :16-28). Nothing in this file calls build_shared_context_prefix or get_advisor_context.
-- `OUT` **Full game transcript / game history**
+- **OUT** — Full game transcript / game history
     - source: transcript list built in cli/main.py and engine/game_manager.py:279
     - evidence: No transcript parameter exists on assess_action_quality (engine/narrative_adjudication.py:186-193) and none is passed at either call site (:762-764, :859). The MAX_ADVISOR_TRANSCRIPT_CHARS=320,000 budget at llm/context_builder.py:27 is irrelevant to this call.
-- `OUT` **Purpose-built adjudicator context (decision + summary + world state + metric-impact instructions)**
+- **OUT** — Purpose-built adjudicator context (decision + summary + world state + metric-impact instructions)
     - source: llm/context_builder.py:514 get_adjudicator_context
     - evidence: get_adjudicator_context has zero callers in code — a repo-wide grep finds it only at its definition (llm/context_builder.py:514) and in docs/PHASE_3_COMPLETE.md:23 and docs/DYNAMIC_NARRATIVE_SYSTEM.md:57. It is dead code.
-- `OUT` **Rolling player-facing situation summary**
+- **OUT** — Rolling player-facing situation summary
     - source: NarrativeState.situation_summary (models/narrative_state.py:80)
     - evidence: models/narrative_state.py:240-266 to_llm_context() never references self.situation_summary. It appears only in display paths (models/narrative_state.py:233-234, cli/main.py:1110 and :1962, cli/main_dashboard.py:1158 and :1733).
-- `OUT` **Event ledger (which injects have played and their open/advanced/resolved disposition)**
+- **OUT** — Event ledger (which injects have played and their open/advanced/resolved disposition)
     - source: NarrativeState.event_ledger (models/narrative_state.py:88)
     - evidence: to_llm_context() at models/narrative_state.py:240-266 omits it; render_event_ledger (llm/context_builder.py:74) is only wired into the inject prompt via llm/context_builder.py:428. The adjudicator writes to the ledger (engine/narrative_adjudication.py:155-158) but never reads it into a prompt.
-- `OUT` **World flags, posture, spatial_state, recent_injects, diplomatic_relationships, difficulty, phase, actor_system trust levels**
+- **OUT** — World flags, posture, spatial_state, recent_injects, diplomatic_relationships, difficulty, phase, actor_system trust levels
     - source: models/world.py:32-67 WorldState fields
     - evidence: assess_action_quality receives no WorldState at all (engine/narrative_adjudication.py:186-193); only NarrativeState and NarrativeConfig cross the boundary.
-- `OUT` **play_mode (classic/immersive/emergent)**
+- **OUT** — play_mode (classic/immersive/emergent)
     - source: NarrativeState.play_mode (models/narrative_state.py:101)
     - evidence: to_llm_context() (models/narrative_state.py:240-266) does not mention play_mode; it is consumed only by display_for_mode (:199-236) and cli/display_utils.py:324.
 
@@ -947,80 +947,80 @@ _Supersedes any row above that conflicts with it._
 
 #### Data in — 13 reach the prompt
 
-- `IN ` **Hidden metric block: escalation risk, alliance cohesion, domestic stability with qualitative labels**
+- **IN** — Hidden metric block: escalation risk, alliance cohesion, domestic stability with qualitative labels
     - source: NarrativeState.hidden_metrics (models/narrative_state.py:72)
     - bound: unbounded (three integers). POST-effect here: generate_character_responses runs at :782 after the apply loop at :772-776 (narrative path) and at :886 after :879-883 (actor path), so advisors react to already-moved metrics.
     - evidence: models/narrative_state.py:250-252 via engine/narrative_adjudication.py:605 (context = narrative_state.to_llm_context()) → :618
-- `IN ` **Casualty counts (military, civilian)**
+- **IN** — Casualty counts (military, civilian)
     - source: NarrativeState.hidden_metrics.casualties_mil / .casualties_civ (models/world.py:10-11)
     - bound: unbounded (two integers)
     - evidence: models/narrative_state.py:253 via engine/narrative_adjudication.py:605 → :618
-- `IN ` **"Recent Events" list**
+- **IN** — "Recent Events" list
     - source: NarrativeState.recent_events (models/narrative_state.py:83)
     - bound: WINDOWED to last 3 (models/narrative_state.py:256); field capped at 10 (:298-299); in practice the 3 seeds from :459-463 plus any crisis strings from engine/narrative_adjudication.py:953/:958/:963
     - evidence: models/narrative_state.py:255-256 via engine/narrative_adjudication.py:605 → :618
-- `IN ` **"Active Crises" list**
+- **IN** — "Active Crises" list
     - source: NarrativeState.active_crises (models/narrative_state.py:94)
     - bound: unbounded (no slice). Note this snapshot is taken BEFORE _check_and_trigger_crises runs (:791 narrative path / :895 actor path), so a crisis tripped by this turn's effects is not yet listed.
     - evidence: models/narrative_state.py:258-259 via engine/narrative_adjudication.py:605 → :618
-- `IN ` **Character relationship roster for ALL five characters (name, relationship, trust) — including the four advisors not speaking and the US NSA**
+- **IN** — Character relationship roster for ALL five characters (name, relationship, trust) — including the four advisors not speaking and the US NSA
     - source: NarrativeState.characters (models/narrative_state.py:91)
     - bound: unbounded (full dict); 5 entries (models/narrative_state.py:403-439). Trust values are PRE-update on the narrative path (_update_character_attitudes runs later, at :788), and permanently un-updated on the actor path (never called in :799-900).
     - evidence: models/narrative_state.py:261-262 via engine/narrative_adjudication.py:605 → :618
-- `IN ` **Game time string and turn number**
+- **IN** — Game time string and turn number
     - source: NarrativeState.game_time / .turn (models/narrative_state.py:97-98)
     - bound: unbounded; game_time frozen at construction (engine/game_manager.py:131), turn one behind from turn 2 on (synced only at engine/game_manager.py:329 / cli/main.py:1933)
     - evidence: models/narrative_state.py:264 via engine/narrative_adjudication.py:605 → :618
-- `IN ` **PLAYER ACTION — raw decision text**
+- **IN** — PLAYER ACTION — raw decision text
     - source: action argument (engine/narrative_adjudication.py:783 / :887 → :539)
     - bound: unbounded
     - evidence: engine/narrative_adjudication.py:620 `PLAYER ACTION: {action}`
-- `IN ` **ACTION QUALITY — the one-word grade from ADJ-1**
+- **IN** — ACTION QUALITY — the one-word grade from ADJ-1
     - source: quality_assessment["quality"] (engine/narrative_adjudication.py:541), produced at :366-369/:401
     - bound: single whitelisted word
     - evidence: engine/narrative_adjudication.py:621 `ACTION QUALITY: {quality}`
-- `IN ` **Speaking advisor's display name ("You are {name}.")**
+- **IN** — Speaking advisor's display name ("You are {name}.")
     - source: CharacterAttitude.name (models/narrative_state.py:39), seeded at models/narrative_state.py:406/:413/:420/:427/:434
     - bound: unbounded; fixed strings
     - evidence: engine/narrative_adjudication.py:623
-- `IN ` **Speaking advisor's relationship word and trust score toward the PM**
+- **IN** — Speaking advisor's relationship word and trust score toward the PM
     - source: CharacterAttitude.relationship / .trust (models/narrative_state.py:40-41)
     - bound: unbounded; trust clamped 0-100 by models/narrative_state.py:278. Pre-update on the narrative path (:788 runs after :782).
     - evidence: engine/narrative_adjudication.py:624 `Your relationship with the PM: {character.relationship.upper()} (trust: {character.trust}/100)`
-- `IN ` **Speaking advisor's stance_summary one-liner**
+- **IN** — Speaking advisor's stance_summary one-liner
     - source: CharacterAttitude.stance_summary (models/narrative_state.py:43)
     - bound: unbounded, but STATIC for the whole campaign: the only values ever written are the five literals at models/narrative_state.py:409/:416/:423/:430/:437. update_character_attitude accepts a stance_summary argument (models/narrative_state.py:272, applied at :283-284) but no caller anywhere passes it — the sole non-test call site is engine/narrative_adjudication.py:943, which passes trust_delta only.
     - evidence: engine/narrative_adjudication.py:625 `Your current stance: {character.stance_summary}`
-- `IN ` **Tone adjective derived from the quality word ("impressed and supportive" … "alarmed and strongly opposed")**
+- **IN** — Tone adjective derived from the quality word ("impressed and supportive" … "alarmed and strongly opposed")
     - source: literal tone_guidance dict
     - bound: fixed literal; defaults to "neutral" for an unrecognised quality (:615)
     - evidence: engine/narrative_adjudication.py:608-615 builds it, :627 interpolates `a tone that is {tone}`
-- `IN ` **Length and staging instruction ("2-3 sentences, in character, as if speaking directly to the Prime Minister in a COBRA briefing")**
+- **IN** — Length and staging instruction ("2-3 sentences, in character, as if speaking directly to the Prime Minister in a COBRA briefing")
     - source: literal text
     - bound: fixed literal
     - evidence: engine/narrative_adjudication.py:629-631
 
 #### Available but not sent — 7
 
-- `OUT` **Secret narrative truth (NarrativeConfig)**
+- **OUT** — Secret narrative truth (NarrativeConfig)
     - source: WorldState.narrative (models/world.py:26)
     - evidence: world_narrative is not a parameter of generate_character_responses (engine/narrative_adjudication.py:503-511) nor of build_character_response_prompt (:597-602), and neither call site passes it (:782-785, :886-889). Advisors react with no knowledge of the hidden narrative — unlike ADJ-1 and unlike the actor-simulation prompts, which get it at :843-844.
-- `OUT` **final_effects — the metric deltas about to be / just applied**
+- **OUT** — final_effects — the metric deltas about to be / just applied
     - source: computed at engine/narrative_adjudication.py:767 / :869-876
     - evidence: PARAMETER EXISTS BUT IS NOT INTERPOLATED. final_effects is passed into generate_character_responses at :784 / :888 and declared at :506, but its only use in the body is _select_responding_characters(narrative_state, final_effects) at :530 — it is never handed to build_character_response_prompt (:536-544 passes only character, action, quality, narrative_state) and appears nowhere in the f-string at :617-631. The advisor is told the grade, never the consequences.
-- `OUT` **quality_assessment["reasoning"] — the adjudicator's written critique**
+- **OUT** — quality_assessment["reasoning"] — the adjudicator's written critique
     - source: engine/narrative_adjudication.py:404
     - evidence: The whole quality_assessment dict reaches generate_character_responses (:506, :783/:887) but only ["quality"] is read (:541). "reasoning" and "suggested_effects" never enter the prompt.
-- `OUT` **INTERPRETATION of the decision**
+- **OUT** — INTERPRETATION of the decision
     - source: agents/conversation.py:244 via engine/sim_loop.py:532
     - evidence: interpretation is not a parameter of generate_character_responses (engine/narrative_adjudication.py:503-511); the call sites at :782-785 and :886-889 do not pass it.
-- `OUT` **Other advisors' reactions this turn**
+- **OUT** — Other advisors' reactions this turn
     - source: the sibling prompts in the same group
     - evidence: Prompts are built independently at engine/narrative_adjudication.py:536-544 and fanned out in one shot at llm/fanout.py:67; the comment at :532-533 states the intent explicitly.
-- `OUT` **Actor (international) responses generated earlier this turn on the actor path**
+- **OUT** — Actor (international) responses generated earlier this turn on the actor path
     - source: actor_responses from engine/narrative_adjudication.py:847-850
     - evidence: generate_character_responses is called at :886-889 without actor_responses; nothing in :597-633 references them.
-- `OUT` **Shared briefing dossier prefix, full transcript, world state summary, event ledger, situation_summary, WorldState flags/posture/recent_injects**
+- **OUT** — Shared briefing dossier prefix, full transcript, world state summary, event ledger, situation_summary, WorldState flags/posture/recent_injects
     - source: llm/context_builder.py:285, :74; models/narrative_state.py:80, :88; models/world.py:32-67
     - evidence: build_character_response_prompt (engine/narrative_adjudication.py:597-602) takes only character, action, quality and narrative_state; its entire context is to_llm_context() at :605, which omits situation_summary and event_ledger (models/narrative_state.py:240-266). engine/narrative_adjudication.py never imports llm.context_builder (imports at :16-28).
 
@@ -1073,57 +1073,57 @@ _Supersedes any row above that conflicts with it._
 
 #### Data in — 8 reach the prompt
 
-- `IN ` **Hidden metric block with qualitative labels**
+- **IN** — Hidden metric block with qualitative labels
     - source: NarrativeState.hidden_metrics (models/narrative_state.py:72)
     - bound: unbounded (three integers). POST-effect — this is the last call in the pipeline.
     - evidence: models/narrative_state.py:250-252 via engine/narrative_adjudication.py:674 → :676
-- `IN ` **Casualty counts (military, civilian)**
+- **IN** — Casualty counts (military, civilian)
     - source: NarrativeState.hidden_metrics.casualties_mil / .casualties_civ (models/world.py:10-11)
     - bound: unbounded (two integers)
     - evidence: models/narrative_state.py:253 via engine/narrative_adjudication.py:674 → :676
-- `IN ` **"Recent Events" list**
+- **IN** — "Recent Events" list
     - source: NarrativeState.recent_events (models/narrative_state.py:83)
     - bound: WINDOWED to last 3 (models/narrative_state.py:256); field capped at 10 (:298-299). Any crisis line added this turn at engine/narrative_adjudication.py:953/:958/:963 IS visible here, because :791/:895 run before :794/:898.
     - evidence: models/narrative_state.py:255-256 via engine/narrative_adjudication.py:674 → :676
-- `IN ` **"Active Crises" list**
+- **IN** — "Active Crises" list
     - source: NarrativeState.active_crises (models/narrative_state.py:94)
     - bound: unbounded (no slice). Includes crises triggered this turn (:791/:895 precede :794/:898) — unlike the snapshot ADJ-2 sees.
     - evidence: models/narrative_state.py:258-259 via engine/narrative_adjudication.py:674 → :676
-- `IN ` **Character relationship roster (name, relationship, trust) for all five characters**
+- **IN** — Character relationship roster (name, relationship, trust) for all five characters
     - source: NarrativeState.characters (models/narrative_state.py:91)
     - bound: unbounded; 5 entries. Trust is POST-update on the narrative path (:788 precedes :794); on the actor path it is unchanged since campaign start because _update_character_attitudes is never called in :799-900.
     - evidence: models/narrative_state.py:261-262 via engine/narrative_adjudication.py:674 → :676
-- `IN ` **Game time string and turn number**
+- **IN** — Game time string and turn number
     - source: NarrativeState.game_time / .turn (models/narrative_state.py:97-98)
     - bound: unbounded; game_time frozen at construction (engine/game_manager.py:131, cli/main.py:783), turn one behind from turn 2 on (synced at engine/game_manager.py:329 / cli/main.py:1933, i.e. AFTER this call)
     - evidence: models/narrative_state.py:264 via engine/narrative_adjudication.py:674 → :676
-- `IN ` **THE PRIME MINISTER'S LATEST DECISION — raw action text**
+- **IN** — THE PRIME MINISTER'S LATEST DECISION — raw action text
     - source: action argument, from engine/narrative_adjudication.py:794 / :898
     - bound: unbounded — no truncation (contrast the ledger note at :158, which does truncate the same string to 90 chars)
     - evidence: engine/narrative_adjudication.py:678
-- `IN ` **Instruction block: "2-3 sentences for the Prime Minister's daily brief", cover crisis / alliance / mood at home, plain serious prose, no headings, numbers or bullets**
+- **IN** — Instruction block: "2-3 sentences for the Prime Minister's daily brief", cover crisis / alliance / mood at home, plain serious prose, no headings, numbers or bullets
     - source: literal text
     - bound: fixed literal
     - evidence: engine/narrative_adjudication.py:680-685
 
 #### Available but not sent — 6
 
-- `OUT` **The PREVIOUS situation_summary being replaced**
+- **OUT** — The PREVIOUS situation_summary being replaced
     - source: NarrativeState.situation_summary (models/narrative_state.py:80)
     - evidence: The prompt at engine/narrative_adjudication.py:675-685 interpolates only {context} and {action}, and to_llm_context() (models/narrative_state.py:240-266) never reads situation_summary. The "refresh" is a from-scratch rewrite off the metric block, not a rolling update — nothing carries forward from the prior summary.
-- `OUT` **Action quality, the adjudicator's reasoning, and the applied metric deltas**
+- **OUT** — Action quality, the adjudicator's reasoning, and the applied metric deltas
     - source: quality_assessment and final_effects computed earlier in the same function
     - evidence: update_situation_summary's signature (engine/narrative_adjudication.py:660-665) takes only narrative_state, action, llm_generate_fn and rng; the call sites at :794 and :898 pass nothing else. The summariser cannot know whether the decision was graded catastrophic.
-- `OUT` **Advisor reactions and (actor path) international actor responses generated moments earlier**
+- **OUT** — Advisor reactions and (actor path) international actor responses generated moments earlier
     - source: character_responses (:782/:886), actor_responses (:847-850)
     - evidence: Neither is a parameter of update_situation_summary (:660-665) nor passed at :794/:898.
-- `OUT` **Secret narrative truth (NarrativeConfig)**
+- **OUT** — Secret narrative truth (NarrativeConfig)
     - source: WorldState.narrative (models/world.py:26)
     - evidence: world_narrative is not a parameter of update_situation_summary (engine/narrative_adjudication.py:660-665) and is not passed at :794 or :898 — even though both callers hold it. Note this also means the output is never run through _scrub_reasoning (:78-112), so unlike ADJ-1's reasoning it has no leak guard; it is safe only because the model was never shown the secret.
-- `OUT` **INTERPRETATION of the decision**
+- **OUT** — INTERPRETATION of the decision
     - source: agents/conversation.py:244
     - evidence: Not a parameter of update_situation_summary (engine/narrative_adjudication.py:660-665).
-- `OUT` **Shared briefing dossier prefix, full transcript, world state summary, event ledger**
+- **OUT** — Shared briefing dossier prefix, full transcript, world state summary, event ledger
     - source: llm/context_builder.py:285, :74; models/narrative_state.py:88
     - evidence: The only context is to_llm_context() at engine/narrative_adjudication.py:674, which omits event_ledger entirely (models/narrative_state.py:240-266); llm.context_builder is not imported by this module (imports at :16-28).
 
@@ -1171,119 +1171,119 @@ _Supersedes any row above that conflicts with it._
 
 #### Data in — 22 reach the prompt
 
-- `IN ` **Actor's formal country name**
+- **IN** — Actor's formal country name
     - source: StateActor.full_name (models/state_actors.py:11), loaded from data/state_actors.yaml via load_actors_from_yaml (models/state_actors.py:103-117)
     - bound: unbounded
     - evidence: engine/actor_simulation.py:33 ("You are simulating {actor.full_name}'s response"), :36, :61
-- `IN ` **ISO country code**
+- **IN** — ISO country code
     - source: StateActor.country_code (models/state_actors.py:10)
     - bound: unbounded
     - evidence: engine/actor_simulation.py:36
-- `IN ` **Public diplomatic stance**
+- **IN** — Public diplomatic stance
     - source: StateActor.official_position (models/state_actors.py:14)
     - bound: unbounded
     - evidence: engine/actor_simulation.py:37
-- `IN ` **Current bilateral relationship score with the UK (0-100)**
+- **IN** — Current bilateral relationship score with the UK (0-100)
     - source: StateActor.relationship_uk (models/state_actors.py:15); mutated every turn by StateActor.update_relationship (models/state_actors.py:55-65)
     - bound: clamped 0-100 at models/state_actors.py:58
     - evidence: engine/actor_simulation.py:38
-- `IN ` **Hidden true motivations (comma-joined list)**
+- **IN** — Hidden true motivations (comma-joined list)
     - source: StateActor.true_motivations (models/state_actors.py:19-22)
     - bound: unbounded - whole list joined
     - evidence: engine/actor_simulation.py:41
-- `IN ` **Hidden agendas (comma-joined list, or 'None')**
+- **IN** — Hidden agendas (comma-joined list, or 'None')
     - source: StateActor.hidden_agendas (models/state_actors.py:23-26)
     - bound: unbounded - whole list joined
     - evidence: engine/actor_simulation.py:42
-- `IN ` **Threat perception 0-100**
+- **IN** — Threat perception 0-100
     - source: StateActor.threat_perception (models/state_actors.py:27-30)
     - bound: pydantic ge=0 le=100
     - evidence: engine/actor_simulation.py:43
-- `IN ` **Domestic political pressure 0-100**
+- **IN** — Domestic political pressure 0-100
     - source: StateActor.domestic_pressure (models/state_actors.py:31-34)
     - bound: pydantic ge=0 le=100
     - evidence: engine/actor_simulation.py:44
-- `IN ` **Strategic dependencies (raw Python dict repr, e.g. {'RUS': 'natural_gas_supply'})**
+- **IN** — Strategic dependencies (raw Python dict repr, e.g. {'RUS': 'natural_gas_supply'})
     - source: StateActor.dependencies (models/state_actors.py:35-38)
     - bound: unbounded
     - evidence: engine/actor_simulation.py:45 - interpolated as the dict itself, not formatted
-- `IN ` **Redlines (comma-joined list, or 'None')**
+- **IN** — Redlines (comma-joined list, or 'None')
     - source: StateActor.redlines (models/state_actors.py:39-42)
     - bound: unbounded - whole list joined
     - evidence: engine/actor_simulation.py:46
-- `IN ` **Military capability 0-100**
+- **IN** — Military capability 0-100
     - source: StateActor.military_capability (models/state_actors.py:45)
     - bound: pydantic ge=0 le=100
     - evidence: engine/actor_simulation.py:49
-- `IN ` **Economic leverage 0-100**
+- **IN** — Economic leverage 0-100
     - source: StateActor.economic_leverage (models/state_actors.py:46)
     - bound: pydantic ge=0 le=100
     - evidence: engine/actor_simulation.py:50
-- `IN ` **Diplomatic influence 0-100**
+- **IN** — Diplomatic influence 0-100
     - source: StateActor.diplomatic_influence (models/state_actors.py:47)
     - bound: pydantic ge=0 le=100
     - evidence: engine/actor_simulation.py:51
-- `IN ` **Intelligence-sharing posture (full/selective/limited/none)**
+- **IN** — Intelligence-sharing posture (full/selective/limited/none)
     - source: StateActor.intelligence_sharing (models/state_actors.py:48)
     - bound: unbounded string
     - evidence: engine/actor_simulation.py:52
-- `IN ` **WORLD CONTEXT block, part 1: hidden metric values with band labels (Escalation Risk + CRITICAL/HIGH/MODERATE, Alliance Cohesion + STRONG/MODERATE/WEAK, Domestic Stability + STABLE/WAVERING/FRAGILE)**
+- **IN** — WORLD CONTEXT block, part 1: hidden metric values with band labels (Escalation Risk + CRITICAL/HIGH/MODERATE, Alliance Cohesion + STRONG/MODERATE/WEAK, Domestic Stability + STABLE/WAVERING/FRAGILE)
     - source: NarrativeState.hidden_metrics (models/narrative_state.py:71) rendered by NarrativeState.to_llm_context (models/narrative_state.py:240-266), assembled into world_context at engine/narrative_adjudication.py:841
     - bound: unbounded (three integers)
     - evidence: models/narrative_state.py:250-252 -> engine/narrative_adjudication.py:841 -> engine/actor_simulation.py:55 ({world_context})
-- `IN ` **WORLD CONTEXT block, part 2: military and civilian casualty counts**
+- **IN** — WORLD CONTEXT block, part 2: military and civilian casualty counts
     - source: NarrativeState.hidden_metrics.casualties_mil / casualties_civ (models/world.py:10-11)
     - bound: unbounded
     - evidence: models/narrative_state.py:253 -> engine/actor_simulation.py:55
-- `IN ` **WORLD CONTEXT block, part 3: recent dramatic events**
+- **IN** — WORLD CONTEXT block, part 3: recent dramatic events
     - source: NarrativeState.recent_events (models/narrative_state.py:83)
     - bound: WINDOWED to the last 3 entries (models/narrative_state.py:256). The list itself is separately capped at 10 by NarrativeState.add_event (models/narrative_state.py:297-299).
     - evidence: models/narrative_state.py:256 uses self.recent_events[-3:]
-- `IN ` **WORLD CONTEXT block, part 4: active crisis names**
+- **IN** — WORLD CONTEXT block, part 4: active crisis names
     - source: NarrativeState.active_crises (models/narrative_state.py:94), appended by _check_and_trigger_crises (engine/narrative_adjudication.py:946-963)
     - bound: unbounded - whole list rendered
     - evidence: models/narrative_state.py:259 -> engine/actor_simulation.py:55
-- `IN ` **WORLD CONTEXT block, part 5: every UK advisor's name, relationship label and trust score**
+- **IN** — WORLD CONTEXT block, part 5: every UK advisor's name, relationship label and trust score
     - source: NarrativeState.characters dict of CharacterAttitude (models/narrative_state.py:36-43, 91)
     - bound: unbounded - all characters. Note this leaks internal UK advisor trust levels into a foreign government's prompt.
     - evidence: models/narrative_state.py:262 iterates self.characters.values()
-- `IN ` **WORLD CONTEXT block, part 6: in-fiction clock and turn number**
+- **IN** — WORLD CONTEXT block, part 6: in-fiction clock and turn number
     - source: NarrativeState.game_time, NarrativeState.turn (models/narrative_state.py:96-97)
     - bound: unbounded
     - evidence: models/narrative_state.py:264 -> engine/actor_simulation.py:55
-- `IN ` **SECRET NARRATIVE TRUTH - global only: description, protagonist, antagonist, patsy, plus the 'never reveal / plausible deniability' instruction block**
+- **IN** — SECRET NARRATIVE TRUTH - global only: description, protagonist, antagonist, patsy, plus the 'never reveal / plausible deniability' instruction block
     - source: WorldState.narrative -> NarrativeConfig.to_llm_context() (models/narrative.py:21-81), passed as world_narrative from engine/game_manager.py:300 / cli/main.py:1850
     - bound: unbounded
     - evidence: engine/narrative_adjudication.py:843-844 appends '\n\nSECRET NARRATIVE TRUTH:\n' + world_narrative.to_llm_context() to world_context, which lands at engine/actor_simulation.py:55
-- `IN ` **The UK action the actor is reacting to - the player's raw decision text**
+- **IN** — The UK action the actor is reacting to - the player's raw decision text
     - source: player action string; engine/game_manager.py:267 action_text -> :293 / cli/main.py:1688 action -> :1846
     - bound: UNBOUNDED - no truncation anywhere on this path
     - evidence: engine/narrative_adjudication.py:847 passes `action` as player_action -> engine/actor_simulation.py:129 -> :58 (=== UK ACTION ===) and :99/:103 fallback path
 
 #### Available but not sent — 8
 
-- `OUT` **Per-country FactionStance: SECRET MOTIVE, PUBLIC POSTURE, INTELLIGENCE SHARING WITH UK, ECONOMIC LEVERAGE TOOLS**
+- **OUT** — Per-country FactionStance: SECRET MOTIVE, PUBLIC POSTURE, INTELLIGENCE SHARING WITH UK, ECONOMIC LEVERAGE TOOLS
     - source: NarrativeConfig.stances[] (models/narrative.py:4-10, data/scenarios/war_game_2025/narratives.yaml:8-31)
     - evidence: engine/narrative_adjudication.py:844 calls world_narrative.to_llm_context() with NO argument, so target_country_code is None and the per-country branch at models/narrative.py:46-67 never executes. Structurally it could not work anyway: one world_context string is built once (narrative_adjudication.py:841-844) and shared by every actor prompt (actor_simulation.py:129-130).
-- `OUT` **The LLM interpretation of the player's decision**
+- **OUT** — The LLM interpretation of the player's decision
     - source: run_turn_decision output; engine/game_manager.py:270 interpretation -> :296
     - evidence: engine/narrative_adjudication.py:803 accepts `interpretation` but only forwards it to assess_action_quality at :859; the simulate_actor_responses call at :847-850 passes only (actors, action, world_context, llm_generate_fn, rng, llm_batch_fn)
-- `OUT` **Full game transcript / game history**
+- **OUT** — Full game transcript / game history
     - source: GameManager.transcript (engine/game_manager.py:260, 501) / cli/main.py transcript
     - evidence: build_actor_prompt (engine/actor_simulation.py:24-25) takes only (actor, player_action, world_context); adjudicate_with_actor_simulation (engine/narrative_adjudication.py:799-807) has no transcript parameter. llm.context_builder.build_shared_context_prefix is never called on this path (no import of context_builder in engine/actor_simulation.py or in the actor branch of engine/narrative_adjudication.py). This is the group's biggest divergence from the advisor calls.
-- `OUT` **WorldState metrics, flags, phase and the narrative world-state summary**
+- **OUT** — WorldState metrics, flags, phase and the narrative world-state summary
     - source: models/world.py:35-36; llm/prompts.py:21 build_world_state_summary
     - evidence: adjudicate_with_actor_simulation receives narrative_state, not WorldState (engine/narrative_adjudication.py:800); build_world_state_summary is never called on the actor path. The hidden-metric numbers do arrive, but via NarrativeState.to_llm_context, not via the world summary.
-- `OUT` **Actor's stated public commitments**
+- **OUT** — Actor's stated public commitments
     - source: StateActor.public_commitments (models/state_actors.py:16)
     - evidence: no occurrence of public_commitments anywhere in engine/actor_simulation.py:32-85
-- `OUT` **Actor's last 3 recent actions, trust trajectory, and last-contacted turn**
+- **OUT** — Actor's last 3 recent actions, trust trajectory, and last-contacted turn
     - source: StateActor.recent_actions / trust_trajectory / last_contacted_turn (models/state_actors.py:51-53)
     - evidence: none of these three names appear in build_actor_prompt (engine/actor_simulation.py:32-85). trust_trajectory is written by update_relationship (models/state_actors.py:60-65) and never read into any prompt; StateActor.add_action (models/state_actors.py:67-70) has no callers.
-- `OUT` **Player-facing situation summary and the played-event ledger**
+- **OUT** — Player-facing situation summary and the played-event ledger
     - source: NarrativeState.situation_summary (models/narrative_state.py:80), NarrativeState.event_ledger (models/narrative_state.py:88)
     - evidence: NarrativeState.to_llm_context (models/narrative_state.py:248-265) renders neither field, and nothing else is appended to world_context (engine/narrative_adjudication.py:841-844)
-- `OUT` **Other actors' replies this turn**
+- **OUT** — Other actors' replies this turn
     - source: the sibling ActorResponse objects
     - evidence: engine/actor_simulation.py:129-130 builds all prompts before engine/actor_simulation.py:131 issues any call
 
@@ -1345,97 +1345,97 @@ _Supersedes any row above that conflicts with it._
 
 #### Data in — 15 reach the prompt
 
-- `IN ` **Counterpart's title (e.g. 'President of the United States')**
+- **IN** — Counterpart's title (e.g. 'President of the United States')
     - source: diplomatic profile leader/diplomat dict -> counterpart_profile['title'] (engine/diplomacy.py:204), from data/diplomatic_profiles.yaml:9 etc., chosen by check_diplomatic_access (engine/diplomacy.py:137-178)
     - bound: unbounded
     - evidence: engine/diplomacy.py:230, 232, 248, 260
-- `IN ` **Counterpart's personality paragraph**
+- **IN** — Counterpart's personality paragraph
     - source: counterpart_profile['personality'] (engine/diplomacy.py:205), data/diplomatic_profiles.yaml:10-14
     - bound: unbounded
     - evidence: engine/diplomacy.py:233
-- `IN ` **Counterpart's tone descriptor**
+- **IN** — Counterpart's tone descriptor
     - source: counterpart_profile['tone'] (engine/diplomacy.py:206)
     - bound: unbounded
     - evidence: engine/diplomacy.py:234
-- `IN ` **Counterpart's key concerns, as a bullet list**
+- **IN** — Counterpart's key concerns, as a bullet list
     - source: counterpart_profile['key_concerns'] (engine/diplomacy.py:207), formatted at :225
     - bound: unbounded - all concerns rendered
     - evidence: engine/diplomacy.py:238 ({concerns_text})
-- `IN ` **Country name (switchboard key: 'US', 'France', 'Russia', 'China', ...)**
+- **IN** — Country name (switchboard key: 'US', 'France', 'Russia', 'China', ...)
     - source: DiplomaticEncounter.country (engine/diplomacy.py:352); from inject YAML at engine/sim_loop.py:398, from /call parsing at cli/main.py:1163-1178, or from normalize_country at engine/game_manager.py:490
     - bound: unbounded
     - evidence: engine/diplomacy.py:230
-- `IN ` **SECURE CONTEXT part 1: current turn number**
+- **IN** — SECURE CONTEXT part 1: current turn number
     - source: WorldState.turn (models/world.py:22) via get_diplomatic_context
     - bound: unbounded
     - evidence: llm/context_builder.py:494 -> engine/diplomacy.py:212 -> :240 ({secure_context})
-- `IN ` **SECURE CONTEXT part 2: raw UK Escalation Risk /100**
+- **IN** — SECURE CONTEXT part 2: raw UK Escalation Risk /100
     - source: WorldState.metrics.escalation_risk (models/world.py:7)
     - bound: raw integer - note this bypasses build_world_state_summary's 'do not talk in numbers' framing
     - evidence: llm/context_builder.py:495
-- `IN ` **SECURE CONTEXT part 3: raw UK Domestic Stability /100**
+- **IN** — SECURE CONTEXT part 3: raw UK Domestic Stability /100
     - source: WorldState.metrics.domestic_stability (models/world.py:8)
     - bound: raw integer
     - evidence: llm/context_builder.py:496
-- `IN ` **SECURE CONTEXT part 4: raw NATO Alliance Cohesion /100**
+- **IN** — SECURE CONTEXT part 4: raw NATO Alliance Cohesion /100
     - source: WorldState.metrics.alliance_cohesion (models/world.py:9)
     - bound: raw integer
     - evidence: llm/context_builder.py:497
-- `IN ` **SECURE CONTEXT part 5: global secret narrative truth (GLOBAL TRUTH description, Crisis Protagonist, Primary Target, Being Used as Pawn, plus the 'never reveal / plausible deniability' instructions)**
+- **IN** — SECURE CONTEXT part 5: global secret narrative truth (GLOBAL TRUTH description, Crisis Protagonist, Primary Target, Being Used as Pawn, plus the 'never reveal / plausible deniability' instructions)
     - source: WorldState.narrative -> NarrativeConfig.to_llm_context(target_country_code) (models/narrative.py:21-81)
     - bound: unbounded
     - evidence: llm/context_builder.py:501-503 -> engine/diplomacy.py:212 -> :240
-- `IN ` **SECURE CONTEXT part 6: filtered game transcript - public events, turn headers, briefings, news, intel reports and lines matching the country, with UK COBRA deliberation lines stripped**
+- **IN** — SECURE CONTEXT part 6: filtered game transcript - public events, turn headers, briefings, news, intel reports and lines matching the country, with UK COBRA deliberation lines stripped
     - source: full_transcript passed from engine/sim_loop.py:415 / cli/main.py:1192 / cli/main_dashboard.py:1214 / engine/game_manager.py:501 -> DiplomaticEncounter.full_transcript (engine/diplomacy.py:362) -> build_diplomatic_conversation_prompt(full_transcript=...) (engine/diplomacy.py:428)
     - bound: UNBOUNDED. get_diplomatic_context applies NO character or line budget - it never calls render_transcript_block, _bound_chars or MAX_ADVISOR_TRANSCRIPT_CHARS (llm/context_builder.py:441-512 imports none of them). Filtering is the only size reduction, and the filter is loose: the '===' / 'turn ' markers at :458 latch in_public_event on for most structural lines, and the country test at :465 is a bare substring test, so country 'US' matches 'us' inside 'discuss', 'must', 'focus', 'trust' and turns on in_diplomatic_exchange for unrelated lines.
     - evidence: llm/context_builder.py:454-486 builds filtered_lines, :510 extends context_parts with all of them -> engine/diplomacy.py:212 -> :240
-- `IN ` **Fallback context when no transcript is supplied: 'Turn: N' + 'Escalation: X/100'**
+- **IN** — Fallback context when no transcript is supplied: 'Turn: N' + 'Escalation: X/100'
     - source: WorldState.turn and WorldState.metrics.escalation_risk
     - bound: n/a
     - evidence: engine/diplomacy.py:214-215 - only when full_transcript is falsy. All four production call sites pass it, so this branch fires only for direct API users and tests.
-- `IN ` **This call's conversation so far - every (speaker, message) pair, including the rng-chosen opening line**
+- **IN** — This call's conversation so far - every (speaker, message) pair, including the rng-chosen opening line
     - source: DiplomaticEncounter.history (engine/diplomacy.py:369), appended at :402 (opening), :414 (player), :434 (counterpart)
     - bound: CLI: bounded by the max_exchanges loop (engine/diplomacy.py:528), i.e. <= 1 opening + 11 player + 11 counterpart lines. API/browser: UNBOUNDED - engine/game_manager.py:511-525 calls process_turn with no counter and there is no end endpoint (api/server.py:445-456, docs/py/bridge.py:897).
     - evidence: engine/diplomacy.py:219-223 builds call_history -> :243
-- `IN ` **The player's current message on the call**
+- **IN** — The player's current message on the call
     - source: typer.prompt at cli/main.py:1193 / _prompt at cli/main_dashboard.py:1214 / request.message at api/server.py:453
     - bound: UNBOUNDED - no truncation
     - evidence: engine/diplomacy.py:406 process_turn(player_message) -> :426-428 -> :245 (UK Prime Minister: {player_message})
-- `IN ` **Exchange counter, rendered as 'This is exchange N of a maximum 11'**
+- **IN** — Exchange counter, rendered as 'This is exchange N of a maximum 11'
     - source: len(conversation_history) + 1 (engine/diplomacy.py:228)
     - bound: The '11' is a hardcoded literal in the prompt string, not read from data/diplomatic_profiles.yaml:320. Because history holds two entries per exchange, the counter advances by 2 per round and reaches 11 after roughly five player turns.
     - evidence: engine/diplomacy.py:251
 
 #### Available but not sent — 10
 
-- `OUT` **Per-country FactionStance: SECRET MOTIVE, PUBLIC POSTURE, INTELLIGENCE SHARING WITH UK, ECONOMIC LEVERAGE TOOLS**
+- **OUT** — Per-country FactionStance: SECRET MOTIVE, PUBLIC POSTURE, INTELLIGENCE SHARING WITH UK, ECONOMIC LEVERAGE TOOLS
     - source: NarrativeConfig.stances[] (models/narrative.py:4-10), data/scenarios/war_game_2025/narratives.yaml:8-31
     - evidence: llm/context_builder.py:502 DOES request it - narrative.to_llm_context(target_country_code) - but target_country_code is the switchboard key ('US', 'France', 'Russia', 'Ukraine', 'Ireland', 'China'; engine/diplomacy.py:96-104, 111-121) while FactionStance.country_code is ISO-3 ('RUS', 'USA', 'CHN', 'IRL'; models/narrative.py:6, data/scenarios/war_game_2025/narratives.yaml:8,13,18,23). The exact-equality lookup at models/narrative.py:47 therefore never matches for any shipped country, and the branch at :49-67 never runs. Meanwhile engine/diplomacy.py:249 instructs the model to 'Act according to your SECRET MOTIVE (if provided above) at all times' - the motive is never above.
-- `OUT` **The inject's diplomatic-encounter briefing text ('The US President is concerned about UK unilateral actions and wants assurances...')**
+- **OUT** — The inject's diplomatic-encounter briefing text ('The US President is concerned about UK unilateral actions and wants assurances...')
     - source: data/scenarios/war_game_2025/episodes/turn_006.yaml:32-33 -> engine/sim_loop.py:399 context -> run_diplomatic_encounter(context=...) (engine/diplomacy.py:411, :483) -> DiplomaticEncounter.__init__ context
     - evidence: engine/diplomacy.py:355 stores self.context and nothing ever reads it - grep of engine/diplomacy.py shows self.context appearing only on line 355. build_diplomatic_conversation_prompt has no context parameter (engine/diplomacy.py:181-188). The same is true of engine/game_manager.py:499's 'Player initiated call'. The one authored piece of scenario setup for the mandatory US call is dead.
-- `OUT` **Profile-authored LLM instructions and per-country outcome guidance (including the Russia/Ireland/Poland/US/China special cases)**
+- **OUT** — Profile-authored LLM instructions and per-country outcome guidance (including the Russia/Ireland/Poland/US/China special cases)
     - source: data/diplomatic_profiles.yaml:322-337 conversation_rules.llm_instructions and :338-355 outcome_assessment
     - evidence: Neither key is read anywhere in engine/diplomacy.py - the only profiles lookups are countries (:154), leader/diplomat (:164, :171), title/personality/tone/key_concerns (:204-207), opening_lines (:394) and conversation_rules (:526, on the wrong dict - see below). The equivalent guidance is hardcoded at engine/diplomacy.py:251-258.
-- `OUT` **Country full_name from the diplomatic profile ('United States of America')**
+- **OUT** — Country full_name from the diplomatic profile ('United States of America')
     - source: data/diplomatic_profiles.yaml:6
     - evidence: engine/diplomacy.py:204-207 reads only title/personality/tone/key_concerns from counterpart_profile, and full_name sits one level up on the country dict which build_diplomatic_conversation_prompt never receives
-- `OUT` **Access level ('leader' vs 'diplomat')**
+- **OUT** — Access level ('leader' vs 'diplomat')
     - source: check_diplomatic_access return (engine/diplomacy.py:365)
     - evidence: self.access_level is set at engine/diplomacy.py:365 and never read again in the file; only the title implies it
-- `OUT` **Casualty counts, world flags, posture, recent injects, spatial state**
+- **OUT** — Casualty counts, world flags, posture, recent injects, spatial state
     - source: WorldState.metrics.casualties_mil/civ (models/world.py:10-11), WorldState.flags (:36), posture (:37), spatial_state (:40), recent_injects (:52)
     - evidence: get_diplomatic_context renders only turn + three metrics (llm/context_builder.py:494-497); build_world_state_summary - which does render casualties and flags (llm/prompts.py:64-71) - is not called on the conversation path
-- `OUT` **Bilateral relationship scores**
+- **OUT** — Bilateral relationship scores
     - source: WorldState.diplomatic_relationships (models/world.py:58) and StateActor.relationship_uk (models/state_actors.py:15)
     - evidence: WorldState.diplomatic_relationships is declared at models/world.py:58 and is read or written NOWHERE in the codebase (repo-wide grep returns only the declaration). The actor system's relationship_uk lives in world.actor_system and is never consulted by engine/diplomacy.py - the two foreign-power systems are entirely disconnected: an actor whose trust the player has just wrecked in adjudication answers the phone with no memory of it.
-- `OUT` **NarrativeState (hidden metrics, situation_summary, event_ledger, character attitudes)**
+- **OUT** — NarrativeState (hidden metrics, situation_summary, event_ledger, character attitudes)
     - source: engine/game_manager.py:555 narrative_state
     - evidence: DiplomaticEncounter takes a WorldState only (engine/diplomacy.py:350); no narrative_state parameter exists on any function in engine/diplomacy.py
-- `OUT` **The shared briefing dossier prefix used by advisor/decision prompts**
+- **OUT** — The shared briefing dossier prefix used by advisor/decision prompts
     - source: llm/context_builder.py:285 build_shared_context_prefix
     - evidence: engine/diplomacy.py:202 imports get_diplomatic_context only; build_shared_context_prefix has no diplomacy caller. So the prompt-cache-friendly stable prefix, the event ledger and the 320k-char history window all bypass diplomacy entirely.
-- `OUT` **UK COBRA internal deliberations**
+- **OUT** — UK COBRA internal deliberations
     - source: transcript lines beginning 'Prime Minister:', 'National Security Advisor:', etc.
     - evidence: DELIBERATELY excluded by the in_cobra_deliberation filter at llm/context_builder.py:470-484. Note the exclusion is imperfect in the other direction: the state latches, so a COBRA line only re-enables output when a later line re-matches a public-event or country marker.
 
@@ -1474,59 +1474,59 @@ _Supersedes any row above that conflicts with it._
 
 #### Data in — 10 reach the prompt
 
-- `IN ` **Narrative world-state summary header: turn number and phase**
+- **IN** — Narrative world-state summary header: turn number and phase
     - source: WorldState.turn, WorldState.phase (models/world.py:22-23) via build_world_state_summary
     - bound: unbounded
     - evidence: llm/prompts.py:58 -> engine/diplomacy.py:291 world_summary -> :296 ({world_summary})
-- `IN ` **Escalation risk as a band word only (low/moderate/high/critical)**
+- **IN** — Escalation risk as a band word only (low/moderate/high/critical)
     - source: WorldState.metrics.escalation_risk (models/world.py:7)
     - bound: BUCKETED to 4 bands at llm/prompts.py:34-39 (<30 / <60 / <80 / else) - the raw number does not reach this prompt, unlike the conversation prompt which sends it raw
     - evidence: llm/prompts.py:34-39 computes escalation_desc, :60 renders 'THREAT ASSESSMENT: {UPPER} risk of further Russian escalation' -> engine/diplomacy.py:296
-- `IN ` **Domestic stability as a band word (stable/uncertain/fragile/in crisis)**
+- **IN** — Domestic stability as a band word (stable/uncertain/fragile/in crisis)
     - source: WorldState.metrics.domestic_stability (models/world.py:8)
     - bound: BUCKETED to 4 bands (>70 / >40 / >20 / else)
     - evidence: llm/prompts.py:41-46, :61 -> engine/diplomacy.py:296
-- `IN ` **Alliance cohesion as a band phrase (strong and unified / uncertain / fragile / fractured)**
+- **IN** — Alliance cohesion as a band phrase (strong and unified / uncertain / fragile / fractured)
     - source: WorldState.metrics.alliance_cohesion (models/world.py:9)
     - bound: BUCKETED to 4 bands (>70 / >40 / >20 / else)
     - evidence: llm/prompts.py:48-53, :62 -> engine/diplomacy.py:296
-- `IN ` **Military and civilian casualty counts**
+- **IN** — Military and civilian casualty counts
     - source: WorldState.metrics.casualties_mil / casualties_civ (models/world.py:10-11)
     - bound: unbounded (raw integers)
     - evidence: llm/prompts.py:64 -> engine/diplomacy.py:296
-- `IN ` **Active world flags, title-cased, as 'KEY INTELLIGENCE FLAGS'**
+- **IN** — Active world flags, title-cased, as 'KEY INTELLIGENCE FLAGS'
     - source: WorldState.flags (models/world.py:36), maintained by engine.flags.update_world_flags
     - bound: unbounded - all truthy flags
     - evidence: llm/prompts.py:67-71 -> engine/diplomacy.py:296
-- `IN ` **Anti-metagaming instruction block ('You are a real advisor in COBRA... Do NOT reference metrics/game mechanics/scores')**
+- **IN** — Anti-metagaming instruction block ('You are a real advisor in COBRA... Do NOT reference metrics/game mechanics/scores')
     - source: hardcoded in build_world_state_summary
     - bound: constant
     - evidence: llm/prompts.py:73-77 -> engine/diplomacy.py:296. Slightly incongruous here: the assessor is then explicitly asked for a numeric ALLIANCE_COHESION_DELTA at :311.
-- `IN ` **Country name (switchboard key)**
+- **IN** — Country name (switchboard key)
     - source: DiplomaticEncounter.country (engine/diplomacy.py:352) passed at :456
     - bound: unbounded
     - evidence: engine/diplomacy.py:298 (=== DIPLOMATIC CONVERSATION WITH {country} ===)
-- `IN ` **The complete call transcript - every (speaker, message) pair including the rng-chosen opening line, the PM's lines, and the counterpart's replies**
+- **IN** — The complete call transcript - every (speaker, message) pair including the rng-chosen opening line, the PM's lines, and the counterpart's replies
     - source: DiplomaticEncounter.history (engine/diplomacy.py:369), passed as conversation_history at :456-457
     - bound: NO explicit truncation. CLI: implicitly bounded by the 11-iteration loop (engine/diplomacy.py:528) to ~23 lines. API/browser: UNBOUNDED, since process_turn imposes no cap (engine/diplomacy.py:406-436).
     - evidence: engine/diplomacy.py:287-289 joins it into conversation_text -> :299
-- `IN ` **The four assessment criteria and the OUTCOME/ALLIANCE_COHESION_DELTA/SUMMARY output contract**
+- **IN** — The four assessment criteria and the OUTCOME/ALLIANCE_COHESION_DELTA/SUMMARY output contract
     - source: hardcoded in engine/diplomacy.py:301-314
     - bound: constant
     - evidence: engine/diplomacy.py:301-313
 
 #### Available but not sent — 4
 
-- `OUT` **Secret narrative truth (global or per-country)**
+- **OUT** — Secret narrative truth (global or per-country)
     - source: WorldState.narrative -> NarrativeConfig.to_llm_context (models/narrative.py:21-81)
     - evidence: assess_diplomatic_outcome (engine/diplomacy.py:265-314) imports only build_world_state_summary (:284) and never touches world.narrative. So the assessor judges a Mystery-mode call with no idea what the counterpart was secretly trying to achieve - the one call in the game whose score depends most on hidden intent.
-- `OUT` **Counterpart profile: title, personality, tone, key concerns; the profile's own per-country outcome guidance**
+- **OUT** — Counterpart profile: title, personality, tone, key concerns; the profile's own per-country outcome guidance
     - source: data/diplomatic_profiles.yaml:9-42 and :338-355 conversation_rules.outcome_assessment
     - evidence: engine/diplomacy.py:265-271 takes (world, country, conversation_history, llm_generate, rng) - no profile parameter. The YAML's explicit scoring rules ('Russia: conversations always tense; avoiding escalation is success', 'China: volunteering British intelligence to them is a loss') at data/diplomatic_profiles.yaml:348-355 are never read by anything.
-- `OUT` **The wider game transcript**
+- **OUT** — The wider game transcript
     - source: DiplomaticEncounter.full_transcript (engine/diplomacy.py:362)
     - evidence: self.full_transcript is used only at engine/diplomacy.py:428 for the conversation prompt; the end() call at :455-457 passes only self.history. The assessor sees the phone call in isolation, with no knowledge of what the UK did that turn.
-- `OUT` **Access level, the inject's encounter context, and whether the call was mandatory**
+- **OUT** — Access level, the inject's encounter context, and whether the call was mandatory
     - source: engine/diplomacy.py:365 access_level, :355 self.context, :482 required
     - evidence: None of the three is passed to assess_diplomatic_outcome (engine/diplomacy.py:455-457); `required` is never read anywhere in run_diplomatic_encounter's body
 
