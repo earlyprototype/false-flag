@@ -27,7 +27,7 @@ the change is stated inside the entry rather than hidden. `ER-015` onward are ne
 | ER-016 | open | high | parsing | Markdown-decorated actor replies turn refusal into alliance gain |
 | ER-029 | open | high | parsing | The diplomatic outcome parser has the same bare-label defect |
 | ER-030 | open | high | parsing | A plainly worded refusal is read as conditional support |
-| ER-017 | open | high | context | The calls that change the game see none of the game |
+| ER-017 | open | high | context | The calls that change the game never learn what happened in it |
 | ER-018 | open | high | context | The COBRA-deliberation filter matches no shipped advisor label |
 | ER-019 | open | high | routing | The per-call model table is inert on the shipped provider |
 | ER-020 | open | high | context | The inject generator's "story so far" is a line count |
@@ -67,7 +67,7 @@ branch; the only change on the branch is this document); scenario `war_game_2025
 question per turn. Those are `play_campaign.py`'s own defaults except for the turn cap and the
 question count, both passed explicitly.
 
-```
+```shell
 python3 dev-scripts/fake_openrouter.py --port 8099 --log calls.jsonl --latency 0
 # and, for the timing run, the same with --latency 1.2
 
@@ -281,8 +281,8 @@ each entry states the inputs it used.
 - **Observed:** `update_situation_summary` issues an LLM call every turn and overwrites
   `NarrativeState.situation_summary`. Its own docstring says the field "feeds `to_llm_context()`
   for every downstream prompt". `to_llm_context()` does not include it. The only readers are the
-  emergent branch of `display_for_mode`, which has no production caller, and two direct echoes in
-  the terminal CLI that fire only in emergent play mode.
+  emergent branch of `display_for_mode`, which has no production caller, and four direct echoes
+  across the two terminal front ends, all of which fire only in emergent play mode.
 - **Evidence:** `engine/narrative_adjudication.py:666-695` (the call and the docstring claim);
   `models/narrative_state.py:240-267` (`to_llm_context`, no summary);
   `models/narrative_state.py:231-234` (`display_for_mode`, emergent branch);
@@ -400,10 +400,12 @@ each entry states the inputs it used.
   3. The same again with the delta bullets also emphasised. The `int()` at `:378` fails first, so
      the effects dictionary is empty before the `hasattr` test is ever reached.
 
-  Forms 2 and 3 reach the same outcome by different routes: nothing is applied, and the player is
-  shown the placeholder line "Action assessed." On the narrative adjudication path that is the
-  entire mechanical consequence of the decision, so a formatting variant silently turns a played
-  turn into a no-op. On the actor path the keyword-derived base effects still move, but the
+  Forms 2 and 3 reach the same outcome by different routes: no metric effect is applied, and the
+  player is shown the placeholder line "Action assessed." The rest of the pipeline still runs, so
+  the turn is not inert: the event disposition is recorded, character reactions are generated,
+  advisor attitudes are updated and crises are checked. What is lost is the whole of the decision's
+  effect on the three metrics, which on the narrative adjudication path is the only mechanical
+  consequence a decision has. On the actor path the keyword-derived base effects still move, but the
   quality multiplier is wrong in the direction of leniency. How often a given model emits any of
   these forms was not measured, so no frequency is claimed; what is established is that the
   failure is total when it happens and that nothing detects it.
@@ -433,7 +435,7 @@ each entry states the inputs it used.
   nothing was logged, and no fallback counter moved.
 - **Raised by:** engine LLM review 2026-08-05
 
-## ER-017 — The calls that change the game see none of the game
+## ER-017 — The calls that change the game never learn what happened in it
 
 - **Status:** open
 - **Severity:** high
@@ -497,10 +499,11 @@ each entry states the inputs it used.
   non-blank lines while still leaking the one advisor line carrying a shipped role label. So it
   both passes internal deliberation to a foreign government and redacts public material at random,
   depending on where the include latch was last set. That latch is set by any line containing
-  `===`, `turn `, `briefing`, `breaking news` or `intel report`, and cleared only by one of the
-  seven markers that shipped data never produces; note that `turn ` with its trailing space also
-  matches the word "return". The entry point where this matters most, a call to Washington, is
-  offered on the public play page.
+  `===`, the four characters `turn` followed by a space, `briefing`, `breaking news` or
+  `intel report`, and cleared only by one of the seven markers that shipped data never produces.
+  Note that the second of those is a substring test, not a word test: it matches inside "return to
+  base", though not inside the word "return" on its own. The entry point where this matters most,
+  a call to Washington, is offered on the public play page.
 - **Raised by:** engine LLM review 2026-08-05
 
 ## ER-019 — The per-call model table is inert on the shipped provider
