@@ -25,6 +25,8 @@ the change is stated inside the entry rather than hidden. `ER-015` onward are ne
 |---|---|---|---|---|
 | ER-015 | open | high | parsing | Markdown-decorated labels zero out the whole adjudication |
 | ER-016 | open | high | parsing | Markdown-decorated actor replies turn refusal into alliance gain |
+| ER-029 | open | high | parsing | The diplomatic outcome parser has the same bare-label defect |
+| ER-030 | open | high | parsing | A plainly worded refusal is read as conditional support |
 | ER-017 | open | high | context | The calls that change the game see none of the game |
 | ER-018 | open | high | context | The COBRA-deliberation filter matches no shipped advisor label |
 | ER-019 | open | high | routing | The per-call model table is inert on the shipped provider |
@@ -51,6 +53,7 @@ the change is stated inside the entry rather than hidden. `ER-015` onward are ne
 | ER-009 | open | low | context | Three metrics rendered three times in every dossier prompt |
 | ER-011 | open | low | dispatch | Narrator output constraints dropped on three of four drivers |
 | ER-013 | open | low | state | Advisor pushback mutates nothing |
+| ER-031 | open | low | parsing | An explicit multiplier of 1.0 is indistinguishable from silence |
 
 ## How the measurements below were taken
 
@@ -76,6 +79,12 @@ python3 dev-scripts/play_campaign.py --turns 18 --questions 1
 
 python3 dev-scripts/analyse_calls.py calls.jsonl
 ```
+
+Timing figures are wall-clock and vary with the machine. The 8.5-second decision phase and the
+76 per cent single-call share below were measured on the container this register was written in;
+an independent re-run on different hardware reproduced the 8.5 of 12.2 seconds exactly and put
+the single-call share at 80 per cent. Treat that figure as approximately three-quarters to
+four-fifths rather than as a constant. Character counts and call counts do not vary.
 
 Both runs ended with `play_campaign.py` reporting "no calls fell back to the mock driver", so
 every one of the 148 calls in each run was answered by the endpoint under measurement rather than
@@ -136,11 +145,23 @@ each entry states the inputs it used.
 - **Evidence:** `llm/context_builder.py:285-355` (the shared dossier, no ledger);
   `llm/context_builder.py:391-439` (the inject context, no history block)
 - **Effect:** Past a campaign of roughly 320,000 transcript characters the dossier prompts lose
-  the elided middle of the campaign. Measured on a synthetic seventeen-turn transcript the window
-  kept turn 1 and turns 12 to 17 and dropped turns 2 to 11 entirely, with 28,838 of the
-  320,000-character budget unspent. The one structure that states each past event and how it was
+  the elided middle of the campaign. The one structure that states each past event and how it was
   left in a single line is not among what survives. A full ledger costs about 94 characters an
   entry.
+
+  Measured on a synthetic seventeen-turn transcript, the window kept turn 1 and turns 12 to 17 and
+  dropped turns 2 to 11 entirely, with 28,838 of the 320,000-character budget unspent. That
+  synthetic transcript is 17 turns of 105 lines each between `TURN N` rulers, two lines in three
+  being 36 characters and the third 1,107, which averages to the 393 characters a line the prior
+  audit measured on a real save.
+
+  The unspent figure is input-dependent and should not be quoted on its own: the leftover is
+  whatever is smaller than one whole turn, so it scales with turn size. The prior audit measured
+  13,351 unspent against the real save `saves/parked_campaign4_borrowed_faces.json`, 1,853 lines
+  and 729,186 characters. That save is not in the repository, so neither figure can be checked
+  from the tree, and the two are not in conflict: they are the same mechanism on differently
+  shaped turns. What reproduces independently of the input is the shape of the cut, one turn of
+  head and whole turns of tail, with the middle gone.
 - **Raised by:** context audit 2026-08-05; confirmed and re-measured by the engine LLM review of
   2026-08-05.
 
@@ -216,8 +237,9 @@ each entry states the inputs it used.
   `engine/game_manager.py:289`; `cli/main.py:1839`
 - **Effect:** Advisor trust responds to the quality of the player's decisions in the fallback
   adjudication mode and not in the one normally used. The trust numbers that the character
-  reaction prompt and the state-actor prompt both interpolate therefore stay near their starting
-  values for a whole campaign.
+  reaction prompt and the state-actor prompt both interpolate are therefore not merely near their
+  starting values, they are unchanged: at turn nine of the headless campaign they read 50, 75, 70,
+  80 and 85, byte-identical to the values seeded at `models/narrative_state.py:407-435`.
 - **Raised by:** context audit 2026-08-05; confirmed by the engine LLM review of 2026-08-05.
 
 ## ER-008 — Two context builders apply no size limit
@@ -264,7 +286,9 @@ each entry states the inputs it used.
 - **Evidence:** `engine/narrative_adjudication.py:666-695` (the call and the docstring claim);
   `models/narrative_state.py:240-267` (`to_llm_context`, no summary);
   `models/narrative_state.py:231-234` (`display_for_mode`, emergent branch);
-  `cli/main.py:1110`, `cli/main.py:1962`; `docs/py/bridge.py` contains no reader
+  the four direct readers at `cli/main.py:1110`, `cli/main.py:1962`,
+  `cli/main_dashboard.py:1158` and `cli/main_dashboard.py:1733`;
+  `docs/py/bridge.py` contains no reader
 - **Effect:** One call in roughly fifteen every turn produces text no model ever sees. On the
   browser build, which is the public deployment, no player sees it either, in any of the three
   play modes the page offers. That also makes the page's "Emergent — maximum LLM freedom" option
@@ -361,17 +385,28 @@ each entry states the inputs it used.
   the tolerant sibling at `agents/conversation.py:116-127`;
   `engine/narrative_adjudication.py:767-776` (the narrative path applies `suggested_effects` and
   nothing else)
-- **Effect:** Demonstrated by running the parser on the same answer twice, once plain and once
-  with markdown emphasis. Plain: quality `poor`, multiplier 0.5, effects applied as escalation
-  +6, cohesion -5, stability -2, and the model's critique shown to the player. With emphasis:
-  quality falls back to `adequate`, multiplier to 1.0, the metric keys become `__escalation_risk`
-  and its two siblings, which no metric object has, so the `hasattr` test rejects all three and
-  the turn changes nothing at all; the player is shown the placeholder line "Action assessed." On
-  the narrative adjudication path that is the entire mechanical consequence of the decision, so a
-  formatting variant silently turns a played turn into a no-op. On the actor path the
-  keyword-derived base effects still move, but the quality multiplier is wrong in the direction
-  of leniency. How often the shipped model actually emits emphasis here was not measured; no live
-  provider was called from this environment.
+- **Effect:** Demonstrated by running `_parse_quality_response` and then `apply_quality_scaling`
+  on one answer in three forms. The answer is `QUALITY: poor`, a one-sentence REASONING, the three
+  deltas `escalation_risk: 8`, `alliance_cohesion: -6`, `domestic_stability: -3`, and
+  `QUALITY MULTIPLIER: 0.5`.
+
+  1. Bare labels, bare delta lines. Quality `poor`, multiplier 0.5, parsed deltas 8, -6 and -3,
+     applied after scaling as escalation +6, cohesion -5 and stability -2, and the model's own
+     critique shown to the player.
+  2. The same text with the labels emphasised and the deltas as plain `- name: value` bullets.
+     Quality falls back to `adequate` and the multiplier to 1.0; the metric keys become
+     `__escalation_risk` and its two siblings, which no metric object has, so the `hasattr` test
+     at `:773` rejects all three.
+  3. The same again with the delta bullets also emphasised. The `int()` at `:378` fails first, so
+     the effects dictionary is empty before the `hasattr` test is ever reached.
+
+  Forms 2 and 3 reach the same outcome by different routes: nothing is applied, and the player is
+  shown the placeholder line "Action assessed." On the narrative adjudication path that is the
+  entire mechanical consequence of the decision, so a formatting variant silently turns a played
+  turn into a no-op. On the actor path the keyword-derived base effects still move, but the
+  quality multiplier is wrong in the direction of leniency. How often a given model emits any of
+  these forms was not measured, so no frequency is claimed; what is established is that the
+  failure is total when it happens and that nothing detects it.
 - **Raised by:** engine LLM review 2026-08-05
 
 ## ER-016 — Markdown-decorated actor replies turn refusal into alliance gain
@@ -384,7 +419,7 @@ each entry states the inputs it used.
   `trust_change` is 0, and `public_response` falls back to the string
   `"{actor_id} acknowledges the action."` A `"conditional"` verdict is not neutral in effect: it
   contributes a positive alliance-cohesion term.
-- **Evidence:** `engine/actor_simulation.py:153-155` (the defaults),
+- **Evidence:** `engine/actor_simulation.py:151-152` (the two defaults named above),
   `engine/actor_simulation.py:162-201` (the bare-label tests),
   `engine/actor_simulation.py:204-212` (the fallback text),
   `engine/actor_simulation.py:318-320` (`conditional` adds `int(2 * weight)` to cohesion)
@@ -403,11 +438,12 @@ each entry states the inputs it used.
 - **Status:** open
 - **Severity:** high
 - **Area:** context
-- **Observed:** Four call families run the adjudication. Three of them decide what happens: the
+- **Observed:** Five call families run the adjudication. Three of them decide what happens: the
   action quality assessment and the state-actor simulation set the metric changes, and the
   diplomatic outcome assessment sets the alliance delta from a call. The other two are outputs of
   the adjudication rather than inputs to it: the advisor reactions are shown to the player, and
-  the situation summary reaches nobody at all (ER-010). All of them
+  the situation summary reaches nobody at all (ER-010). Four of the five, all but the diplomatic
+  outcome assessment, which uses `build_world_state_summary` instead (`engine/diplomacy.py:291`),
   build their world context from `NarrativeState.to_llm_context()`, which contains the three
   metrics, up to three entries from `recent_events`, the active-crisis list, character trust
   scores and a game clock, plus the hidden narrative block in Mystery Mode and nothing else.
@@ -451,13 +487,20 @@ each entry states the inputs it used.
 - **Evidence:** `llm/context_builder.py:441-512` (the filter and its docstring);
   `engine/sim_loop.py:485` (`transcript.append(f"{role}: {response}")`);
   `data/scenarios/war_game_2025/initial_conditions.yaml:444,454,464,474,484,494` (the labels)
-- **Effect:** Demonstrated by running the filter over a representative turn. The only line it
-  removed was the Prime Minister's own question. Everything the filter exists to protect passed
-  through to the foreign counterpart's prompt: the Diplomatic Lead saying "I would not tell the
-  Americans we are planning for their refusal", the Military Commander's true force state, the
-  Intelligence Coordinator's private caveat on attribution, and the Prime Minister's decision.
-  The one entry point where this matters most, a call to Washington, is offered on the public
-  play page.
+- **Effect:** The filter is erratic rather than inert, and it fails in both directions. Run over a
+  hand-built single turn using the shipped role labels, the only line it removed was the Prime
+  Minister's own question, and everything it exists to protect passed through: the Diplomatic Lead
+  saying "I would not tell the Americans we are planning for their refusal", the Military
+  Commander's true force state, the Intelligence Coordinator's private caveat on attribution, and
+  the Prime Minister's decision. Run over a real campaign transcript instead, taken from the GAME
+  HISTORY block of a captured prompt in the headless run described above, it dropped 14 of 51
+  non-blank lines while still leaking the one advisor line carrying a shipped role label. So it
+  both passes internal deliberation to a foreign government and redacts public material at random,
+  depending on where the include latch was last set. That latch is set by any line containing
+  `===`, `turn `, `briefing`, `breaking news` or `intel report`, and cleared only by one of the
+  seven markers that shipped data never produces; note that `turn ` with its trailing space also
+  matches the word "return". The entry point where this matters most, a call to Washington, is
+  offered on the public play page.
 - **Raised by:** engine LLM review 2026-08-05
 
 ## ER-019 — The per-call model table is inert on the shipped provider
@@ -490,10 +533,13 @@ each entry states the inputs it used.
 - **Area:** context
 - **Observed:** The inject prompt's block headed "STORY SO FAR (HIGH-LEVEL SUMMARY)" is filled by
   `generate_summary`, which makes no model call. It emits the number of turns played, the number
-  of transcript lines, and up to three transcript lines that happen to begin with `[Narrator]`,
-  `***`, `BREAKING`, `INTEL` or `BRIEFING`, each truncated to 100 characters. The
-  `summary_prompt` argument, which asks for the significant events, the player's major decisions
-  and the current diplomatic relationships, is deleted on the first line of the function.
+  of transcript lines, and up to three transcript lines that happen to begin with one of six
+  prefixes: `[Narrator]`, `[Stochastically generated inject]`, `***`, `BREAKING`, `INTEL` or
+  `BRIEFING`, each truncated to 100 characters. The `summary_prompt` argument, which asks for the
+  significant events, the player's major decisions and the current diplomatic relationships, is
+  deleted on the first line of the function. Making the digest mechanical is deliberate and the
+  docstring says why: it removes a call whose placeholder output could leak into downstream
+  prompts. The complaint here is not that choice but its consequence, described below.
 - **Evidence:** `llm/context_builder.py:562-600` (the digest, and `del summary_prompt` at :570);
   `llm/prompts.py:389-405` (the prompt text that is discarded, and the call);
   `llm/context_builder.py:420-425` (the block header)
@@ -547,6 +593,11 @@ each entry states the inputs it used.
   generation and the narrator, are unreachable on that path entirely. This does not affect the
   terminal CLI or the browser build, which drive the briefing themselves. Established from source;
   the server was not run.
+- **Note on severity:** `high` is set on the size of the break, not on how many people it reaches.
+  This surface backs the in-development Next.js frontend and has no tests, so a reasonable case
+  exists for `medium`. That turns on whether the HTTP server is still a supported way to play,
+  which is the operator's call: if it is not, this should be closed `wontfix` rather than
+  downgraded.
 - **Raised by:** engine LLM review 2026-08-05
 
 ## ER-023 — The decision phase runs seven waits where four would do
@@ -559,11 +610,16 @@ each entry states the inputs it used.
   simulation, the quality assessment, the batched character reactions and the situation summary.
   Only two of the seven dependencies are real. Pushback needs the interpretation. The character
   reactions need the quality assessment. The omissions scan does not use the interpretation at
-  all (ER-002). The actor simulation, the quality assessment and the situation summary each read
-  only the action and the narrative state, so none of them waits on another.
+  all (ER-002), so it can run alongside the interpretation rather than after it. The quality
+  assessment does read the interpretation and must follow it, but the actor simulation reads only
+  the action and the narrative state and can run beside either. The situation summary reads only
+  the action and the narrative state as well, but it runs after the metric mutation and would
+  summarise pre-adjudication metrics if hoisted, so it belongs in the last round beside the
+  character reactions rather than in an early one.
 - **Evidence:** `engine/sim_loop.py:532-575` (three sequential rounds);
   `engine/narrative_adjudication.py:838-898` (four more);
-  `engine/narrative_adjudication.py:660-695` (the summary reads action and state only)
+  `engine/narrative_adjudication.py:228` (the quality prompt interpolates the interpretation);
+  `engine/narrative_adjudication.py:879-883` then `:898` (the summary runs after the mutation)
 - **Effect:** Measured on a ten-turn headless campaign against a local endpoint held at 1.2
   seconds per call: the decision phase took 8.5 seconds of a 12.2-second turn, and across the
   whole campaign 76 per cent of wall clock had exactly one call in flight. Regrouping to four
@@ -614,7 +670,7 @@ each entry states the inputs it used.
   flag back to true and prints a transition banner. That is the same turn from which the flag
   first has any effect.
 - **Evidence:** `cli/main.py:557` (the option), `cli/main.py:817-821` (the override),
-  `cli/main.py:838` (the only use); the same pattern at `cli/main_dashboard.py:835-838`
+  `cli/main.py:837` (the only use); the same pattern at `cli/main_dashboard.py:835-838`
 - **Effect:** Passing `--no-stochastic-injects` changes nothing. A player or tester who wants a
   purely scripted campaign has no way to get one.
 - **Raised by:** engine LLM review 2026-08-05
@@ -631,7 +687,7 @@ each entry states the inputs it used.
   shared briefing dossier, the narrator prompt, the diplomatic outcome assessment and the
   no-transcript branch of the inject prompt.
 - **Evidence:** `llm/prompts.py:73-79` (the instructions); `llm/context_builder.py:351-352`;
-  `llm/prompts.py:584`; `engine/diplomacy.py:288`; `llm/prompts.py:410`
+  `llm/prompts.py:584`; `engine/diplomacy.py:291`; `llm/prompts.py:410`
 - **Effect:** The narrator is told it is an advisor. The diplomatic outcome assessor is told not
   to reference values and then asked in the same prompt to answer with
   "ALLIANCE_COHESION_DELTA: [number between -15 and +15]". Observed in a captured prompt. A direct
@@ -650,10 +706,71 @@ each entry states the inputs it used.
   "MODEL  live endpoint".
 - **Evidence:** `docs/app.js:219` (the message sent); `docs/py/bridge.py:526-534` (the
   fallbacks); `docs/index.html:126-143` (the options offered, none of them a model);
-  `docs/py/bridge.py:648` (the header line)
+  `docs/py/bridge.py:647` (the header line)
 - **Effect:** Every public game runs on one model chosen by a fallback rather than by a decision
   recorded anywhere, and neither the player nor the operator can see which. Changing it means
   editing a default in the bridge and rebuilding the bundle. This also decides whether the
   prompt-ordering work in `llm/context_builder.py` pays off at all, since automatic prefix
   caching is a per-model-family property.
 - **Raised by:** engine LLM review 2026-08-05
+
+## ER-029 — The diplomatic outcome parser has the same bare-label defect
+
+- **Status:** open
+- **Severity:** high
+- **Area:** parsing
+- **Observed:** `assess_diplomatic_outcome` reads its three fields with the same bare
+  `startswith` tests as the two parsers in ER-015 and ER-016, and falls back to `NEUTRAL`, a delta
+  of 0 and the string "The conversation concluded." when none matches. This is the third of the
+  three call families that set metric changes, named as such in ER-017, and the sweep that
+  produced ER-015 and ER-016 missed it.
+- **Evidence:** `engine/diplomacy.py:325`, `:327`, `:336` (the bare-label tests);
+  `engine/diplomacy.py:318-320` (the fallback values);
+  `engine/diplomacy.py:340-342` (what is returned and displayed)
+- **Effect:** Demonstrated by running the function on one answer in two forms, with a stub
+  standing in for the model. Bare labels: outcome `FAILURE`, alliance delta -12, and the summary
+  "Washington refused." shown to the player. The same text with the labels emphasised: outcome
+  `NEUTRAL`, delta 0, and the placeholder "The conversation concluded." A call in which the United
+  States refused the United Kingdom is recorded as neither good nor bad and costs nothing. As in
+  ER-015 and ER-016 the call succeeded, so nothing is logged and no fallback counter moves. No
+  frequency is claimed; a live provider was not called from this environment.
+- **Raised by:** independent review of pull request 40, 2026-08-05
+
+## ER-030 — A plainly worded refusal is read as conditional support
+
+- **Status:** open
+- **Severity:** high
+- **Area:** parsing
+- **Observed:** The `WILL_SUPPORT:` branch of the actor parser tests
+  `"no" in content and "not" not in content`. The second clause was added to stop a phrase such as
+  "not conditional" registering as a refusal, but it also rejects every refusal that contains the
+  word "not". Anything that fails all three tests keeps the default, `"conditional"`, which
+  contributes a positive alliance-cohesion term.
+- **Evidence:** `engine/actor_simulation.py:177-185` (the branch, with the guard at `:181`);
+  `engine/actor_simulation.py:152` (the default);
+  `engine/actor_simulation.py:318-320` (`conditional` adds `int(2 * weight)` to cohesion);
+  `engine/narrative_adjudication.py:871-877` (the sixty-forty blend that scales it)
+- **Effect:** Demonstrated on four replies that follow the requested format exactly, with no
+  markdown anywhere. "no" is read correctly as a refusal. "absolutely not", "not at this time" and
+  "no, we will not assist" are all read as conditional support, so a refusal by the United States
+  becomes a small alliance gain instead of a substantial loss. This is the same sign flip as
+  ER-016 but reachable on well-formed output, which makes it the wider exposure of the two.
+- **Raised by:** independent review of pull request 40, 2026-08-05
+
+## ER-031 — An explicit multiplier of 1.0 is indistinguishable from silence
+
+- **Status:** open
+- **Severity:** low
+- **Area:** parsing
+- **Observed:** `multiplier` is initialised to 1.0 and, after parsing, any value still equal to
+  1.0 is replaced from a quality-to-multiplier table. A model that answers `QUALITY: poor` and
+  `QUALITY MULTIPLIER: 1.0` has its explicit answer overwritten with 0.5, because 1.0 is being
+  used both as a default and as a legal value.
+- **Evidence:** `engine/narrative_adjudication.py:361` (the initial value),
+  `engine/narrative_adjudication.py:383-388` (the parse),
+  `engine/narrative_adjudication.py:391-399` (the override)
+- **Effect:** Demonstrated: that exact answer yields a multiplier of 0.5. The only value the model
+  cannot express is the neutral one, and a model that deliberately says "this decision is poor but
+  its effects are ordinary" gets its effects halved instead. Low severity because the substituted
+  value is at least in the right direction for every quality band.
+- **Raised by:** independent review of pull request 40, 2026-08-05
