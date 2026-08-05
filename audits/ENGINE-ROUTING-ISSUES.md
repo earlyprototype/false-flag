@@ -471,9 +471,10 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 - **Evidence:** `llm/context_builder.py:441-512`, with the first latch at `:458`, the second at
   `:465-467`, the clearing markers at `:470-481` and the include test at `:484`;
   `engine/sim_loop.py:473` (`Prime Minister: {question}`) and `:485`
-  (`f"{role}: {response}"`); `data/scenarios/war_game_2025/initial_conditions.yaml:444,454,464,474,
-  484,494` (the six role labels); `data/scenarios/war_game_2025/episodes/turn_001.yaml:18,22,25,28,
-  31` (scripted lines that do match clearing markers)
+  (`f"{role}: {response}"`); the six role labels at
+  `data/scenarios/war_game_2025/initial_conditions.yaml` lines 444, 454, 464, 474, 484 and 494;
+  scripted lines that do match clearing markers at
+  `data/scenarios/war_game_2025/episodes/turn_001.yaml` lines 18, 22, 25, 28 and 31
 - **Effect:** Run against the real turn-one transcript the engine builds, taken from
   `GameManager.transcript` rather than from rendered text, the filter dropped 7 of 31 non-blank
   elements: the five cast-list entries and the player's question, which appears twice. It passed the
