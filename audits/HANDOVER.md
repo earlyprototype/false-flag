@@ -10,6 +10,13 @@ traceable to an entry there.
 A turn of play issues roughly fifteen requests to a language model. They fall into twelve kinds,
 which divide cleanly by what they are for.
 
+Three of those kinds send several prompts in one concurrent group rather than one at a time, which
+is why the counts below do not add up the way a list of twelve would suggest: the five advisors
+scanning for omissions, the foreign governments responding to a decision, and the advisors reacting
+to its outcome. Measured over a ten-turn campaign the engine sent 14.8 requests a turn on average:
+8.0 advisory, 3.3 from the deciding kinds, 2.2 from the adjudication outputs and 1.3 carrying the
+story.
+
 **Four kinds advise the player and change nothing.** The advisor question-and-answer, the reading of
 the player's typed decision, the advisors' pushback against it, and the critical-omissions scan in
 which five advisors separately check whether the Prime Minister has forgotten something
@@ -42,7 +49,11 @@ government's refusal becomes a bland acknowledgement scored as a small win. A ca
 in a bulleted list is read as a cabinet that did not object, and the player never sees the
 confirmation gate. An advisor who names a catastrophic omission without also naming a fix is
 discarded. In every case the request succeeded, so nothing is logged and no counter moves. See
-ER-015, ER-016, ER-029, ER-030, ER-034, ER-035, ER-036, ER-042, ER-045.
+Nine register entries cover this one class: `ER-015` and `ER-034` on the parser that scores the
+decision, `ER-016` and `ER-030` on the one that reads a foreign government's reply, `ER-029` on the
+one that scores a phone call, `ER-035` and `ER-036` on the two that read the advisors' objections,
+`ER-042` on the one that applies a generated event's effects, and `ER-045` on what happens when one
+request in a concurrent group fails.
 
 Two of these need no unusual model behaviour at all. A number written as `+8 (sharp rise)` is enough
 to drop it, and a refusal phrased as "absolutely not" is enough to invert it.
@@ -51,7 +62,7 @@ to drop it, and a refusal phrased as "absolutely not" is enough to invert it.
 advisory calls. The three calls that set the metrics share a small fixed summary whose event list is
 seeded on turn one and never updated with anything that happened afterwards. At turn nine of the
 measured campaign the referee was looking at one line of turn-one backstory and two crisis banners.
-See ER-017.
+This is register entry `ER-017`, on what the deciding calls are shown.
 
 **The configuration does not reach the code.** The table that assigns a model tier to each kind of
 call produces names that the driver used by the public deployment discards outright, so every call
@@ -59,13 +70,16 @@ runs on the same model whatever the table says. Separately, five of the twelve k
 the table at all. And the component that spaces out requests to stay inside a provider's rate limit
 is thrown away and rebuilt every time the game switches tier, which happens constantly, so the limit
 is never reached and the provider starts refusing calls, which are then answered by a built-in
-offline stand-in without a word to anyone. See ER-019, ER-005, ER-032.
+offline stand-in without a word to anyone. Three register entries cover this: `ER-019` on the model
+table being discarded by the shipped driver, `ER-005` on the five kinds that never consult it, and
+`ER-032` on the rate limiter losing its history.
 
 **One authored feature is entirely unreachable.** Mystery Mode ships per-country secret motives,
 public postures and intelligence-sharing levels. The lookup that would deliver them compares country
 codes as exact strings, and the two halves of the codebase spell those codes differently: the
 scenario data says `USA` and `RUS`, the diplomacy engine says `US` and `Russia`. Nothing ever
-matches, and the miss is silent. See ER-012.
+matches, and the miss is silent. This is register entry `ER-012`, on the unreachable per-country
+content.
 
 ## What a player actually experiences
 
@@ -117,9 +131,15 @@ hold the key.
 The HTTP server's missing briefing after turn one was established by reading the source, not by
 running the server.
 
-The measurements come from a local recording endpoint, not from a real provider, and both runs
-confirmed that no call fell back to the built-in offline driver. That confirmation is what makes the
-counts meaningful; any future measurement should quote it.
+The measurements come from a local recording endpoint, not from a real provider. Both runs used the
+`war_game_2025` scenario in its default `standard` variant, seed 42, play mode `emergent`, Mystery
+Mode on, endings on, and one player question per turn; one ran with no artificial latency and one
+held every call at 1.2 seconds. Each reached an ending on turn 10 and issued 148 requests, and each
+ended with `play_campaign.py` reporting "no calls fell back to the mock driver", meaning zero of the
+148 were answered by the built-in offline driver instead of the endpoint. That confirmation is what
+makes the counts mean anything, and a run without it does not support a measurement. The exact
+commands are in the register under "How the measurements below were taken"; any future measurement
+should use them and quote the fallback line.
 
 ## Ground rules for working here
 

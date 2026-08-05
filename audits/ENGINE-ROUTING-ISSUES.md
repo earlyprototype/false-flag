@@ -751,13 +751,18 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 - **Evidence:** `llm/router.py:143-146` (the rebuild), `:134-140` (the auto-detection), `:47` and
   `:59-73` (the request history the rebuild discards); `llm/model_config.py:29-45` (the tier table
   that makes the rate alternate)
-- **Effect:** Reproduced directly: a Flash limiter with two requests recorded is replaced by a fresh
-  Pro limiter with zero recorded the moment the next call resolves to the other tier. The free-tier
-  cap the limiter exists to enforce is therefore never reached in mixed play, so the provider
-  returns rate-limit errors instead. The router's resilient wrapper answers those from the built-in
-  offline driver, which returns well-formed text, so a campaign can appear to run flawlessly while
-  an increasing share of it was never answered by a model. Nothing is logged beyond a single warning
-  line, and no counter is kept.
+- **Effect:** Reproduced directly against the shipped router: a Flash limiter with two requests
+  recorded is replaced by a fresh Pro limiter with zero recorded the moment the next call resolves
+  to the other tier. Established, therefore: the limiter's own cap is not enforced across a turn,
+  because its record of recent requests rarely survives long enough to reach the cap.
+
+  What follows from that is inference and was not measured, because the recording endpoint used for
+  the campaign measurements enforces no cap and returns no rate-limit errors. If a provider does
+  enforce one, the calls it refuses are answered by the built-in offline driver through the router's
+  resilient wrapper, which returns well-formed text. A campaign would then appear to run flawlessly
+  while an increasing share of it was never answered by a model, with nothing recorded beyond a
+  single warning line per failure and no running count. Confirming that half needs a run against a
+  provider that enforces a limit.
 
 ## ER-033 — The scripted diplomatic call answers itself on two front ends
 
@@ -814,7 +819,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
   has been recognised are dropped entirely, and the function returns an empty list. The terminal
   front ends read an empty list as no pushback and skip the confirm gate.
 - **Evidence:** `agents/conversation.py:293-307` (the recognition loop), `:111-113`
-  (`_normalize_role_prefix`, which strips `*_`` `[]` but not `-`), `:305` (the comment recording
+  (`_normalize_role_prefix`, which strips asterisks, underscores, backticks, square brackets and
+  surrounding whitespace, but not a leading hyphen), `:305` (the comment recording
   that unrecognised leading lines are dropped); the consumers at `cli/main.py:1790` and `:1819`,
   and `cli/main_dashboard.py:1561` and `:1590`
 - **Effect:** Demonstrated on the shipped scenario's advisor roster with the reply
@@ -993,6 +999,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
   `llm/gemini_driver.py:191-193` and `llm/openai_compat_driver.py:265` (where it is produced);
   `engine/actor_simulation.py:135` and `engine/narrative_adjudication.py:557` (the two consumers
   that guard); `agents/conversation.py:387-425` (the consumer that does not)
-- **Effect:** A partial failure on the five-advisor omissions scan is presented to the player as five
-  advisors finding nothing wrong. It is a silent false negative on the one call family whose job is
-  to warn, and it is indistinguishable at the call site from a genuine all-clear.
+- **Effect:** The failed advisor's slot is treated as that advisor finding nothing wrong. The other
+  four are unaffected and their concerns still surface, so the loss is one advisor rather than the
+  group. When the remaining advisors are also clear, the result is indistinguishable at the call
+  site from a genuine all-clear. It is a silent false negative on the one call family whose job is
+  to warn, and the advisor most likely to be missing is unknowable after the fact.
