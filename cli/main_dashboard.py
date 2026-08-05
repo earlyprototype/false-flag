@@ -56,10 +56,11 @@ from engine.sim_loop import (
 )
 from engine.narrative_adjudication import adjudicate_with_narrative
 from engine.intro import get_intro_lines
+from engine.opening import split_intro_sections
 from engine.persistence import save_game, load_game
 from engine.initial_conditions import load_initial_conditions
 from engine.diplomacy import run_diplomatic_encounter, list_available_diplomatic_contacts
-from llm.router import generate_text
+from llm.router import generate_text, batch_generate_text
 from cli.model_settings_menu import model_settings_menu
 
 # Task 2.5: Enable Rich help panel
@@ -625,25 +626,10 @@ def play(
 
         wait_for_space("Press SPACE (or Enter) to continue...")
         
-        intro_lines = get_intro_lines(200)
-        
-        # Split intro into sections (scenes)
-        # Scene markers are lines with "## SCENE"
-        current_section = []
-        sections = []
-        
-        for line in intro_lines:
-            if "===" in line and current_section:
-                # Start of new scene - save previous and start new
-                sections.append(current_section)
-                current_section = [line]
-            else:
-                current_section.append(line)
-        
-        # Only add final section if it has content beyond just a separator
-        if current_section and len([l for l in current_section if l.strip() and "===" not in l]) > 0:
-            sections.append(current_section)
-        
+        # Section splitting is shared with the CLI and the browser build; the
+        # panel rendering below is this front end's own.
+        sections = split_intro_sections(get_intro_lines(200))
+
         # Helper function to stream content into a panel
         def stream_panel_content(content, title):
             """Stream text content into a standardized panel."""
@@ -1632,7 +1618,8 @@ def play(
                     interpretation,
                     rng,
                     llm_generate_fn=generate_text,
-                    world_narrative=world.narrative
+                    world_narrative=world.narrative,
+                    llm_batch_fn=batch_generate_text
                 )
             else:
                 # Use standard narrative adjudication
@@ -1642,7 +1629,8 @@ def play(
                     interpretation,
                     rng,
                     llm_generate_fn=generate_text,
-                    world_narrative=world.narrative
+                    world_narrative=world.narrative,
+                    llm_batch_fn=batch_generate_text
                 )
             
             # Display adjudication results (shared with the classic CLI)

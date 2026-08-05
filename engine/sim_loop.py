@@ -26,7 +26,7 @@ from agents.conversation import (
     generate_advisor_pushback,
     check_critical_omissions
 )
-from llm.router import generate_text
+from llm.router import generate_text, batch_generate_text
 from llm.inject_generator import generate_inject
 from engine.diplomacy import run_diplomatic_encounter
 
@@ -570,7 +570,8 @@ def run_turn_decision(
         initial_conditions,
         generate_text,
         rng,
-        full_transcript
+        full_transcript,
+        llm_batch_fn=batch_generate_text
     )
     
     if critical_concerns:

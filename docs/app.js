@@ -237,6 +237,8 @@
       'up and get back to the room.'],
     confirm: ['AWAITING ACKNOWLEDGEMENT',
       'The turn is resolved. Read it, then continue when you are ready.'],
+    pause: ['PRESS SPACE TO CONTINUE',
+      'Take it at your own pace. SPACE (or Enter) for the next beat.'],
     none: ['STANDBY', 'Nothing is expected from you right now.'],
     booting: ['BOOTING', 'Loading the engine.'],
     busy: ['WORKING', 'Sent. The room is thinking.'],
@@ -249,6 +251,7 @@
     el.awaitingWhat.textContent = what || copy[1];
     el.awaiting.classList.toggle('busy', kind === 'busy' || kind === 'booting');
     el.awaiting.classList.toggle('over', kind === 'over');
+    el.awaiting.classList.toggle('paused', kind === 'pause');
   }
 
   function applyAwaiting(kind) {
@@ -909,6 +912,33 @@
   }
 
   el.sendDecide.addEventListener('click', submitDecision);
+
+  /* Paced beats. The cold open and each briefing arrive one beat at a time so
+     the reader sets the speed, the way the terminal build has always done it.
+     Asking for the next beat must not fire while a text box has focus, or
+     writing a paragraph would advance the game underneath you. */
+  function typingInABox(node) {
+    if (!node) return false;
+    var tag = (node.tagName || '').toLowerCase();
+    return tag === 'textarea' || tag === 'input' || tag === 'select' ||
+      node.isContentEditable;
+  }
+
+  function advanceBeat() {
+    if (ui.awaiting !== 'pause' || ui.busy || ui.fatal) return;
+    markBusy();
+    send({ type: 'continue' });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== ' ' && e.key !== 'Spacebar' && e.key !== 'Enter') return;
+    if (ui.awaiting !== 'pause' || typingInABox(e.target)) return;
+    e.preventDefault();   // SPACE would otherwise page the transcript
+    advanceBeat();
+  });
+
+  /* Touch devices have no space bar, so the status bar is the tap target. */
+  el.awaiting.addEventListener('click', advanceBeat);
 
   /* Ctrl/Cmd+Enter sends from any of the three boxes. Plain Enter must stay a
      newline - the whole point is that you write a paragraph. */

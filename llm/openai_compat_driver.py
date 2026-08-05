@@ -233,7 +233,8 @@ class OpenAICompatDriver:
                 f"{_truncate(str(e))}"
             ) from e
 
-    def batch_generate_text(self, prompts: list[str], rng: Random) -> list[str]:
+    def batch_generate_text(self, prompts: list[str], rng: Random,
+                            max_tokens: Optional[int] = None) -> list[str]:
         """Generate multiple responses concurrently.
 
         Mirrors GeminiDriver.batch_generate_text: individual failures are
@@ -243,6 +244,7 @@ class OpenAICompatDriver:
         Args:
             prompts: List of prompt texts
             rng: Random number generator
+            max_tokens: Optional output cap applied to every prompt
 
         Returns:
             List of responses in the same order as prompts
@@ -257,13 +259,18 @@ class OpenAICompatDriver:
 
         def generate_single(index: int) -> str:
             try:
-                return self.generate_text(prompts[index], Random(seeds[index]))
+                return self.generate_text(prompts[index], Random(seeds[index]),
+                                          max_tokens=max_tokens)
             except Exception as e:
                 return f"[ERROR: {_truncate(str(e), 200)}]"
 
-        # Keep concurrency modest: free-tier endpoints have tight RPM limits
-        # and local servers process requests serially anyway.
-        max_workers = min(len(prompts), 4)
+        # Enough width for the largest group the game asks for in one go -
+        # the five advisors scanning for critical omissions. A cap of four
+        # split that group across two round trips for no reason. Rate limits
+        # are not this cap's job: the router claims a slot per prompt before
+        # dispatching, and a local server queues whatever it cannot run at
+        # once.
+        max_workers = min(len(prompts), 8)
         results: list = [None] * len(prompts)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_index = {

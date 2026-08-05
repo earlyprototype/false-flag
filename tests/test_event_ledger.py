@@ -213,11 +213,35 @@ def test_prompt_without_a_ledger_is_unchanged(monkeypatch):
 def test_generator_window_is_widened_beyond_the_advisor_starvation_default():
     """The generator ran on 120 lines while advisors got 500 — it is the
     component most responsible for continuity (issue #25)."""
-    from llm.context_builder import MAX_ADVISOR_TRANSCRIPT_LINES
+    from llm.context_builder import MAX_ADVISOR_TRANSCRIPT_CHARS
     assert MAX_INJECT_CONTINUITY_LINES == 400
     assert MAX_INJECT_CONTINUITY_LINES > 120
-    # Still bounded: full transcripts exceed the play models' context window
-    assert MAX_INJECT_CONTINUITY_LINES <= MAX_ADVISOR_TRANSCRIPT_LINES
+    # Still bounded, and still no wider than what the advisors carry. The
+    # old form of this assertion multiplied the line cap by a campaign's
+    # *average* line length, which proves nothing: lines run from empty to a
+    # full unwrapped paragraph. Measured against a turn of long lines the
+    # line cap alone returned 792,572 characters against a 320,000 budget.
+    # So exercise the real slicer on the worst shape and assert the bound.
+    from llm.context_builder import get_last_turn_slice
+    fat = ["=" * 60, "TURN 1", "=" * 60] + ["X" * 2000] * 5000
+    block = get_last_turn_slice(fat, max_lines=MAX_INJECT_CONTINUITY_LINES)
+    assert len("\n".join(block)) <= MAX_ADVISOR_TRANSCRIPT_CHARS
+
+    # The branch that does NOT elide is the one that got this wrong first
+    # time: a turn inside the line cap skipped the character budget entirely
+    # and returned 796,465 characters. Every return path is bounded now.
+    within_cap = ["=" * 60, "TURN 1"] + ["X" * 2000] * 398
+    block = get_last_turn_slice(within_cap, max_lines=MAX_INJECT_CONTINUITY_LINES)
+    assert len("\n".join(block)) <= MAX_ADVISOR_TRANSCRIPT_CHARS
+
+    # And the path with no TURN header at all.
+    headerless = ["X" * 2000] * 1000
+    block = get_last_turn_slice(headerless, max_lines=MAX_INJECT_CONTINUITY_LINES)
+    assert len("\n".join(block)) <= MAX_ADVISOR_TRANSCRIPT_CHARS
+
+    # And the ordinary shape still comes back whole, not trimmed.
+    lean = ["=" * 60, "TURN 7", "=" * 60] + [f"line {i}" for i in range(40)]
+    assert get_last_turn_slice(lean, max_lines=MAX_INJECT_CONTINUITY_LINES) == lean
 
 
 def test_widened_window_is_actually_used(monkeypatch):

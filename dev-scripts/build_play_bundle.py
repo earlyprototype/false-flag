@@ -24,7 +24,14 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "game.zip"
 
 # Package directories the engine imports or reads at runtime.
-INCLUDE_DIRS = ["models", "engine", "llm", "agents", "data"]
+#
+# assets/placeholders holds the intro script that engine/intro.py reads. It
+# was omitted originally, and because the reader returned [] on a missing
+# file the browser lost the whole cold open without saying so. Only the
+# placeholders subtree is packed: the rest of assets/ is authoring material
+# the engine never opens.
+INCLUDE_DIRS = ["models", "engine", "llm", "agents", "data",
+                "assets/placeholders"]
 
 # The browser's Python-side driver, flattened to a top-level module so the
 # worker can `import bridge`.
