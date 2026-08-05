@@ -8,7 +8,7 @@ SCRIPTS = '/root/.claude/projects/-home-user-false-flag/626a8206-8ea1-556d-9831-
 DEST = '/home/user/false-flag/audits/2026-08-05-llm-context'
 
 os.makedirs(f'{DEST}/data/maps', exist_ok=True)
-os.makedirs(f'{DEST}/data/refutations', exist_ok=True)
+os.makedirs(f'{DEST}/data/verification', exist_ok=True)
 os.makedirs(f'{DEST}/html', exist_ok=True)
 
 result = json.load(open(f'{SESSION}/tasks/wgg1ffhaj.output'))['result']
@@ -20,10 +20,9 @@ for g in result['full']:
     key = g['group']
     json.dump(g['map'], open(f'{DEST}/data/maps/{key}.json', 'w'), indent=2)
     if g.get('verdict'):
-        json.dump(g['verdict'], open(f'{DEST}/data/refutations/{key}.json', 'w'), indent=2)
+        json.dump(g['verdict'], open(f'{DEST}/data/verification/{key}.json', 'w'), indent=2)
 
 json.dump(result['orphans'], open(f'{DEST}/data/orphans.json', 'w'), indent=2)
-open(f'{DEST}/synthesis.md', 'w').write(result['synthesis'])
 
 # ---- reproducibility -------------------------------------------------------
 for f in os.listdir(SCRIPTS):
@@ -31,9 +30,7 @@ for f in os.listdir(SCRIPTS):
         shutil.copy(f'{SCRIPTS}/{f}', f'{DEST}/data/workflow.js')
 
 # ---- rendered documents ----------------------------------------------------
-for src, dst in [('schematic.html', 'schematic.html'),
-                 ('audit-report.html', 'report.html'),
-                 ('llm-routing.html', 'routing-and-bugs.html')]:
+for src, dst in [('schematic.html', 'schematic.html')]:
     p = f'{SESSION}/{src}'
     if not os.path.exists(p):
         p = f'{SESSION}/scratchpad/{src}'
@@ -76,11 +73,13 @@ def corrections_for(cid):
 L = ['# FALSE FLAG — LLM call schematic',
      '',
      'Every prompt the game issues: what enters it, where that data comes from, how it is',
-     'bounded, why the call exists, and what its output changes. Traced against the source at',
+     'bounded, why the call exists, and what its output changes. State of the source at',
      '`d197c44`; measurements against `saves/parked_campaign4_borrowed_faces.json`.',
      '',
      'Each input row is marked `IN` (reaches the prompt) or `OUT` (available to the call site',
-     'and not sent). `OUT` rows are the interesting ones.',
+     'and not sent).',
+     '',
+     'Where a row conflicts with `VERIFIED-NOTES.md`, the note holds.',
      '']
 
 total_in = total_out = 0
@@ -137,14 +136,12 @@ for phase, calls in ORDER:
             L.append('')
         corr = corrections_for(c['call_id'])
         if corr:
-            L += [f'#### Corrections against this block — {len(corr)}', '',
-                  '_A correction supersedes the row it concerns._', '']
+            L += [f'#### Verified notes — {len(corr)}', '',
+                  '_Supersedes any row above that conflicts with it._', '']
             for r in corr:
-                L.append(f'- **{r["verdict"]}** — {r["claim"]}')
-                if r.get('correction'):
-                    L.append(f'    - correction: {r["correction"]}')
+                L.append(f'- {r.get("correction") or r["claim"]}')
                 if r.get('evidence'):
-                    L.append(f'    - evidence: {r["evidence"]}')
+                    L.append(f'    - `{r["evidence"]}`')
             L.append('')
 
 # ---- state reachability ----------------------------------------------------
@@ -183,29 +180,6 @@ for k in ('budget_chars', 'real_transcript_size', 'turns_elided', 'what_is_lost'
 
 open(f'{DEST}/SCHEMATIC.md', 'w').write('\n'.join(L))
 
-# ---- CORRECTIONS.md : every reviewer correction, complete ------------------
-total = sum(len(v) for v in CORR.values())
-C = ['# Corrections',
-     '',
-     'The call maps were traced once and reviewed a second time by a reviewer instructed to',
-     f'refute rather than confirm. **{total} first-pass claims were overturned or corrected.**',
-     '',
-     'These corrections are authoritative. Where one contradicts a row in `SCHEMATIC.md` or in',
-     '`data/maps/*.json`, the correction is what holds — the map files are raw first-pass output',
-     'and have not been rewritten. `REFUTED` overturns a substantive claim; `CORRECTED` is',
-     'usually a wrong line reference with the substance intact.',
-     '']
-for grp in sorted(CORR):
-    C += [f'## {grp} — {len(CORR[grp])}', '']
-    for r in CORR[grp]:
-        C.append(f'- **{r["verdict"]}** — {r["claim"]}')
-        if r.get('correction'):
-            C.append(f'    - correction: {r["correction"]}')
-        if r.get('evidence'):
-            C.append(f'    - evidence: {r["evidence"]}')
-    C.append('')
-open(f'{DEST}/CORRECTIONS.md', 'w').write('\n'.join(C))
-print(f'corrections.md {total} entries')
 
 print(f'schematic.md  {len(chr(10).join(L)):,} bytes  ({total_in} IN / {total_out} OUT rows)')
-print(f'maps: {len(os.listdir(DEST + "/data/maps"))}  refutations: {len(os.listdir(DEST + "/data/refutations"))}')
+print(f'maps: {len(os.listdir(DEST + "/data/maps"))}  verification: {len(os.listdir(DEST + "/data/verification"))}')

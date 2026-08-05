@@ -1,11 +1,13 @@
 # FALSE FLAG — LLM call schematic
 
 Every prompt the game issues: what enters it, where that data comes from, how it is
-bounded, why the call exists, and what its output changes. Traced against the source at
+bounded, why the call exists, and what its output changes. State of the source at
 `d197c44`; measurements against `saves/parked_campaign4_borrowed_faces.json`.
 
 Each input row is marked `IN` (reaches the prompt) or `OUT` (available to the call site
-and not sent). `OUT` rows are the interesting ones.
+and not sent).
+
+Where a row conflicts with `VERIFIED-NOTES.md`, the note holds.
 
 ## Briefing
 
@@ -252,22 +254,18 @@ and not sent). `OUT` rows are the interesting ones.
 - world.recent_injects (models/world.py:52) is not passed, so the narrator has no list of what recently happened other than the raw 20-line tail.
 - No event ledger / narrative_state reaches the narrator: engine/sim_loop.py:346-351 passes only (world, full_transcript, title, rng), while the inject generator two lines earlier is given event_ledger (sim_loop.py:320-324).
 
-#### Corrections against this block — 4
+#### Verified notes — 4
 
-_A correction supersedes the row it concerns._
+_Supersedes any row above that conflicts with it._
 
-- **REFUTED** — narrator_bridge / notable_gaps: "...and it is also the first call of the turn, so it warms nothing."
-    - correction: On any turn where the inject is dynamically generated the narrator is the SECOND LLM call of the turn, not the first. run_turn_briefing calls generate_inject at engine/sim_loop.py:322-324, and generate_inject issues a real provider call at llm/inject_generator.py:71 (`generate_text(prompt, rng, context=LLMContext.INJECT_GENERATION)`), which is 24 lines before the narrator bridge at engine/sim_loop.py:346. Stochastic generation is on from turn 7 by default (cli/main.py:790 / engine/game_manager.py:139-140 `stochastic_from` default 7), which is exactly the turn range where the narrator's own gate (`world.turn > 1`, engine/sim_loop.py:344) is satisfied. The downstream conclusion (the narrator shares no cacheable prefix with anything) still holds, because the inject prompt opens with "You are the Games Master..." at llm/prompts.py:426 — but the stated ordering fact is wrong.
-    - evidence: engine/sim_loop.py:322 -> llm/inject_generator.py:71
-- **CORRECTED** — narrator_bridge inputs: temperature "Gemini instead uses the driver-wide config temperature from llm/gemini_driver.py:90,98"; max_tokens "Gemini uses GEMINI_MAX_TOKENS, default 2048 (llm/gemini_driver.py:91,101)"; and the same 91,101 citation repeated in advisor_qa notable_gaps.
-    - correction: All four line numbers are off. The config reads are at llm/gemini_driver.py:92 (`temperature = getattr(config, "GEMINI_TEMPERATURE", 0.7)`) and :93 (`max_tokens = getattr(config, "GEMINI_MAX_TOKENS", 2048)`); the GenerationConfig fields are at :100 (`temperature=temperature`) and :103 (`max_output_tokens=max_tokens`). Line 90 is a bare `try:`, line 91 is `import config`, line 98 is a comment, line 101 is `top_p=0.9`. The 0.7/2048 values and the substance are correct.
-    - evidence: llm/gemini_driver.py:92-93, 100, 103
-- **CORRECTED** — narrator_bridge / affects: story digest — "the leading '\n' is removed by the .strip() at context_builder.py:576"
-    - correction: The strip is at llm/context_builder.py:575 (`line = raw_line.strip()`); line 576 is `if not line:`. The mechanism is real — the transcript element written at engine/sim_loop.py:355 is `f"\n[Narrator] {bridge_text}\n"`, and only the strip at 575 lets the `startswith("[Narrator]")` test at 583 fire.
-    - evidence: llm/context_builder.py:575
-- **CORRECTED** — narrator_bridge / concurrency: "Single blocking call at engine/narrator.py:36 ... and followed by a hard 2.5s sleep (engine/sim_loop.py:374)."
-    - correction: The sleep is not unconditional, so "followed by a hard 2.5s sleep" is wrong as stated in the concurrency field (the map's own `affects` field states it correctly). engine/sim_loop.py:374 `time.sleep(2.5)` sits inside three nested conditions: `if not suppress_display:` (362), the `else:` of the Rich import try (364-368), and `if RICH_ENABLED:` (369). GameManager sets suppress_display=True (engine/game_manager.py:151), so the headless/dashboard/API path takes the LLM latency with no pause at all.
-    - evidence: engine/sim_loop.py:362,364-369,374
+- On any turn where the inject is dynamically generated the narrator is the SECOND LLM call of the turn, not the first. run_turn_briefing calls generate_inject at engine/sim_loop.py:322-324, and generate_inject issues a real provider call at llm/inject_generator.py:71 (`generate_text(prompt, rng, context=LLMContext.INJECT_GENERATION)`), which is 24 lines before the narrator bridge at engine/sim_loop.py:346. Stochastic generation is on from turn 7 by default (cli/main.py:790 / engine/game_manager.py:139-140 `stochastic_from` default 7), which is exactly the turn range where the narrator's own gate (`world.turn > 1`, engine/sim_loop.py:344) is satisfied. The downstream conclusion (the narrator shares no cacheable prefix with anything) still holds, because the inject prompt opens with "You are the Games Master..." at llm/prompts.py:426 — but the stated ordering fact is wrong.
+    - `engine/sim_loop.py:322 -> llm/inject_generator.py:71`
+- All four line numbers are off. The config reads are at llm/gemini_driver.py:92 (`temperature = getattr(config, "GEMINI_TEMPERATURE", 0.7)`) and :93 (`max_tokens = getattr(config, "GEMINI_MAX_TOKENS", 2048)`); the GenerationConfig fields are at :100 (`temperature=temperature`) and :103 (`max_output_tokens=max_tokens`). Line 90 is a bare `try:`, line 91 is `import config`, line 98 is a comment, line 101 is `top_p=0.9`. The 0.7/2048 values and the substance are correct.
+    - `llm/gemini_driver.py:92-93, 100, 103`
+- The strip is at llm/context_builder.py:575 (`line = raw_line.strip()`); line 576 is `if not line:`. The mechanism is real — the transcript element written at engine/sim_loop.py:355 is `f"\n[Narrator] {bridge_text}\n"`, and only the strip at 575 lets the `startswith("[Narrator]")` test at 583 fire.
+    - `llm/context_builder.py:575`
+- The sleep is not unconditional, so "followed by a hard 2.5s sleep" is wrong as stated in the concurrency field (the map's own `affects` field states it correctly). engine/sim_loop.py:374 `time.sleep(2.5)` sits inside three nested conditions: `if not suppress_display:` (362), the `else:` of the Rich import try (364-368), and `if RICH_ENABLED:` (369). GameManager sets suppress_display=True (engine/game_manager.py:151), so the headless/dashboard/API path takes the LLM latency with no pause at all.
+    - `engine/sim_loop.py:362,364-369,374`
 
 ## Discussion
 
@@ -400,25 +398,20 @@ _A correction supersedes the row it concerns._
 - No narrative_state / event ledger reaches this call: run_turn_discussion (engine/sim_loop.py:436-443) has no narrative_state parameter at all, unlike run_turn_briefing (engine/sim_loop.py:320-324).
 - No max_tokens is set on this call - agents/conversation.py:211 passes only (prompt, rng, context), so llm/router.py:261-262 never adds max_tokens and the Gemini driver's config-level default of 2048 applies (llm/gemini_driver.py:91,101). The brevity instruction is prose inside the question, not an API cap.
 
-#### Corrections against this block — 5
+#### Verified notes — 5
 
-_A correction supersedes the row it concerns._
+_Supersedes any row above that conflicts with it._
 
-- **CORRECTED** — advisor_qa input "Active intelligence flags" and narrator input "Active intelligence flags": bounded_by "unbounded - every truthy flag is listed, no cap"; source described as world.flags "populated by engine.flags.update_world_flags" as if it were an independent input.
-    - correction: This input is hard-bounded at FIVE entries and carries zero information beyond metrics already in the prompt. `update_world_flags` (engine/flags.py:38-40) does not augment the dict — it REPLACES it wholesale: `world.flags = compute_risk_flags(world.metrics)`. compute_risk_flags (engine/flags.py:15-35) returns exactly five keys, every one a threshold over the same metrics already printed twice: risk_escalation (escalation_risk >= 60), risk_unrest (domestic_stability <= 40), risk_alliance_fragile (alliance_cohesion <= 40), risk_civilian_harm (casualties_civ > 0), risk_military_losses (casualties_mil > 0). Every WorldState is constructed with flags={} (cli/main.py:763, cli/main_dashboard.py:787, engine/game_manager.py:113, engine/sim_loop.py:713) and update_world_flags is the only writer anywhere (called at engine/sim_loop.py:257 and 426). So the scenario's `initial_flags` block (data/scenarios/war_game_2025/initial_conditions.yaml:27-32: us_commitment, russian_families_departed, severomorsk_attack_false_flag, public_awareness) NEVER reaches any prompt, and "KEY INTELLIGENCE FLAGS" at llm/prompts.py:67-71 is a third rendering of the metrics, not intelligence.
-    - evidence: engine/flags.py:15-40
-- **CORRECTED** — advisor_qa / calls_per_turn: "The /advise panel in cli/main.py:1251-1271 issues 5 separate run_turn_discussion calls (one per advisor), each of which fires at least one LLM call."
-    - correction: Five run_turn_discussion calls, but SIX LLM calls. The Home Secretary's canned question at cli/main.py:1255 is "Home Secretary, what are the domestic security concerns? {brevity_note}". The routing loop at agents/conversation.py:192-196 appends every advisor whose keyword list hits: home_secretary matches on "home" and "domestic" (conversation.py:187) AND national_security_advisor matches on "security" (conversation.py:185) — `_question_matches_keyword` is a \b-anchored regex (conversation.py:92) and \bsecurity\b matches "domestic security". The other four questions each match exactly one advisor ("assess" does not match "assessment" under \b, so the NSA question stays at one). Cost/latency estimates built on "5" are 20% low.
-    - evidence: cli/main.py:1255 + agents/conversation.py:185,187,192-196
-- **CORRECTED** — advisor_qa / model_tier: "On the openai_compat provider the gemini-* name is discarded and OPENAI_COMPAT_MODEL is used instead (llm/openai_compat_driver.py:125-126)"
-    - correction: The cited lines are the wrong branch. Line 125 is the test `if model_name and not model_name.lower().startswith("gemini"):` and line 126 is `self.model_name = model_name` — i.e. the branch that KEEPS the caller's model name. The discard the claim describes happens at lines 127-128 (`else: self.model_name = _config_value("OPENAI_COMPAT_MODEL", "OPENAI_COMPAT_MODEL")`). The behavioural claim is right; the citation points at its opposite.
-    - evidence: llm/openai_compat_driver.py:125-128
-- **CORRECTED** — narrator_bridge inputs: temperature "Gemini instead uses the driver-wide config temperature from llm/gemini_driver.py:90,98"; max_tokens "Gemini uses GEMINI_MAX_TOKENS, default 2048 (llm/gemini_driver.py:91,101)"; and the same 91,101 citation repeated in advisor_qa notable_gaps.
-    - correction: All four line numbers are off. The config reads are at llm/gemini_driver.py:92 (`temperature = getattr(config, "GEMINI_TEMPERATURE", 0.7)`) and :93 (`max_tokens = getattr(config, "GEMINI_MAX_TOKENS", 2048)`); the GenerationConfig fields are at :100 (`temperature=temperature`) and :103 (`max_output_tokens=max_tokens`). Line 90 is a bare `try:`, line 91 is `import config`, line 98 is a comment, line 101 is `top_p=0.9`. The 0.7/2048 values and the substance are correct.
-    - evidence: llm/gemini_driver.py:92-93, 100, 103
-- **CORRECTED** — advisor_qa input "Secret narrative truth": evidence given only as "Only populated in Mystery Mode: engine/game_manager.py:92-99 leaves selected_narrative=None otherwise".
-    - correction: The cited path is not the one the CLI (the primary entry point for this call) uses. engine/game_manager.py drives cli/main_dashboard.py, api/server.py and docs/py/bridge.py. In cli/main.py the narrative is drawn by select_narrative() at cli/main.py:454-515 — returning None on menu choice 1 (:497) or on an empty narrative list (:515), and `random.choice(narratives)` on choice 2 (:504) — called at cli/main.py:637 and set into WorldState at cli/main.py:755 (`narrative=selected_narrative`). The conclusion (block absent in Original Story Mode) holds on both paths; the evidence covers only one of them.
-    - evidence: cli/main.py:454-515, 637, 755
+- This input is hard-bounded at FIVE entries and carries zero information beyond metrics already in the prompt. `update_world_flags` (engine/flags.py:38-40) does not augment the dict — it REPLACES it wholesale: `world.flags = compute_risk_flags(world.metrics)`. compute_risk_flags (engine/flags.py:15-35) returns exactly five keys, every one a threshold over the same metrics already printed twice: risk_escalation (escalation_risk >= 60), risk_unrest (domestic_stability <= 40), risk_alliance_fragile (alliance_cohesion <= 40), risk_civilian_harm (casualties_civ > 0), risk_military_losses (casualties_mil > 0). Every WorldState is constructed with flags={} (cli/main.py:763, cli/main_dashboard.py:787, engine/game_manager.py:113, engine/sim_loop.py:713) and update_world_flags is the only writer anywhere (called at engine/sim_loop.py:257 and 426). So the scenario's `initial_flags` block (data/scenarios/war_game_2025/initial_conditions.yaml:27-32: us_commitment, russian_families_departed, severomorsk_attack_false_flag, public_awareness) NEVER reaches any prompt, and "KEY INTELLIGENCE FLAGS" at llm/prompts.py:67-71 is a third rendering of the metrics, not intelligence.
+    - `engine/flags.py:15-40`
+- Five run_turn_discussion calls, but SIX LLM calls. The Home Secretary's canned question at cli/main.py:1255 is "Home Secretary, what are the domestic security concerns? {brevity_note}". The routing loop at agents/conversation.py:192-196 appends every advisor whose keyword list hits: home_secretary matches on "home" and "domestic" (conversation.py:187) AND national_security_advisor matches on "security" (conversation.py:185) — `_question_matches_keyword` is a \b-anchored regex (conversation.py:92) and \bsecurity\b matches "domestic security". The other four questions each match exactly one advisor ("assess" does not match "assessment" under \b, so the NSA question stays at one). Cost/latency estimates built on "5" are 20% low.
+    - `cli/main.py:1255 + agents/conversation.py:185,187,192-196`
+- The cited lines are the wrong branch. Line 125 is the test `if model_name and not model_name.lower().startswith("gemini"):` and line 126 is `self.model_name = model_name` — i.e. the branch that KEEPS the caller's model name. The discard the claim describes happens at lines 127-128 (`else: self.model_name = _config_value("OPENAI_COMPAT_MODEL", "OPENAI_COMPAT_MODEL")`). The behavioural claim is right; the citation points at its opposite.
+    - `llm/openai_compat_driver.py:125-128`
+- All four line numbers are off. The config reads are at llm/gemini_driver.py:92 (`temperature = getattr(config, "GEMINI_TEMPERATURE", 0.7)`) and :93 (`max_tokens = getattr(config, "GEMINI_MAX_TOKENS", 2048)`); the GenerationConfig fields are at :100 (`temperature=temperature`) and :103 (`max_output_tokens=max_tokens`). Line 90 is a bare `try:`, line 91 is `import config`, line 98 is a comment, line 101 is `top_p=0.9`. The 0.7/2048 values and the substance are correct.
+    - `llm/gemini_driver.py:92-93, 100, 103`
+- The cited path is not the one the CLI (the primary entry point for this call) uses. engine/game_manager.py drives cli/main_dashboard.py, api/server.py and docs/py/bridge.py. In cli/main.py the narrative is drawn by select_narrative() at cli/main.py:454-515 — returning None on menu choice 1 (:497) or on an empty narrative list (:515), and `random.choice(narratives)` on choice 2 (:504) — called at cli/main.py:637 and set into WorldState at cli/main.py:755 (`narrative=selected_narrative`). The conclusion (block absent in Original Story Mode) holds on both paths; the evidence covers only one of them.
+    - `cli/main.py:454-515, 637, 755`
 
 ## Decision
 
@@ -546,25 +539,20 @@ _A correction supersedes the row it concerns._
 - The scenario's intelligence assessment, pre-game timeline, critical_infrastructure and environment sections (initial_conditions.yaml:52-95, :532-537) are loaded into the dict but no prompt in this group reads those keys — llm/prompts.py touches only constraints, uk_forces, stockpiles, characters, objectives, red_objectives.
 - llm/context_builder.py:367 get_decision_interpreter_context — a purpose-built 'only the current turn's discussion' context for exactly this call — is DEAD CODE. Grep across the repo finds only its definition; no caller, not even a test.
 
-#### Corrections against this block — 5
+#### Verified notes — 5
 
-_A correction supersedes the row it concerns._
+_Supersedes any row above that conflicts with it._
 
-- **REFUTED** — decision_interpretation output_shape/consumed_by: "Nothing in the codebase parses or validates this — the string is returned verbatim" / "No parser exists."
-    - correction: A parser exists and runs on every CLI decision. cli/display_utils.py:157 parse_interpretation_simple splits the interpretation on the exact labels the prompt asks for — 'INTERPRETATION:' (:179), 'FORCES INVOLVED:' (:181), 'TIMELINE:' (:188), 'FEASIBILITY:' (:193) — into a {summary, forces, timeline, concerns} dict, and display_decision_summary calls it at :229 to build the OPERATIONAL ORDER panel (:269). It is imported into the CLI at cli/main.py:52. The map also therefore misses two truncations on this output: the forces list is capped at 5 entries (cli/display_utils.py:186 and :200), and when no label parses the raw text is trimmed to 400 chars (cli/display_utils.py:259-261). Note FEASIBILITY is only surfaced when the line contains 'impossible' or 'requires clarification' (:194).
-    - evidence: cli/display_utils.py:157-205, cli/display_utils.py:229
-- **REFUTED** — decision_interpretation affects: parsed EFFECTS of the action-quality prompt become "escalation_risk / domestic_stability / alliance_cohesion / casualties changes".
-    - correction: Casualties are not reachable from this call. The prompt requests exactly three deltas (narrative_adjudication.py:261-263: escalation_risk, alliance_cohesion, domestic_stability). The parser only accepts a metric line if it contains 'escalation', 'alliance' or 'stability' (narrative_adjudication.py:375), so a casualties line is silently discarded. determine_base_effects (:411-446) never emits a casualties key either, and apply_quality_scaling (:449-497) only scales/merges those keys. cli/main.py:1880-1881 does copy casualties from narrative_state.hidden_metrics, but nothing in this adjudication path writes them.
-    - evidence: engine/narrative_adjudication.py:260-264, engine/narrative_adjudication.py:375, engine/narrative_adjudication.py:411-446
-- **CORRECTED** — decision_interpretation affects/consumed_by: "the OPERATIONAL ORDER panel the player reads before confirming (cli/main.py:1702 display_decision_summary, and again with show_details=True at cli/main.py:1712)".
-    - correction: cli/main.py:1702 is `transcript.extend(decision_lines)` — the transcript append, not the display call. display_decision_summary(action, interpretation, show_details=False) is at :1705 (and again at :1769 after re-interpretation); the show_details=True call is at :1713, while :1712 is the `if see_details == "details":` test.
-    - evidence: cli/main.py:1702, cli/main.py:1705, cli/main.py:1713
-- **CORRECTED** — decision_interpretation affects: "Metric deltas ... applied then synced to world.metrics at cli/main.py:1875-1879"; "the text handed to adjudication (cli/main.py:1845/1858)"; "The saved game file, via the transcript (cli/main.py:1979 save_game)".
-    - correction: The metric sync is cli/main.py:1877-1881 (1875 is blank, 1876 a comment; the map's range also omits the two casualties lines at 1880-1881). `action` is passed to adjudication at :1846 (actor path) and :1857 (narrative path) — 1845 is `world.actor_system,` and 1858 is `interpretation,`. save_game is called at :1980, not :1979.
-    - evidence: cli/main.py:1846, cli/main.py:1857, cli/main.py:1877-1881, cli/main.py:1980
-- **CORRECTED** — decision_interpretation affects (via narrative adjudication): "engine/narrative_adjudication.py:404" is where the parsed EFFECTS live.
-    - correction: Line 404 is `"reasoning": _scrub_reasoning(reasoning, world_narrative) or "Action assessed.",`. The effects key is line 405, `"suggested_effects": effects`; the parser that fills it is _parse_quality_response at :347-406.
-    - evidence: engine/narrative_adjudication.py:404-405
+- A parser exists and runs on every CLI decision. cli/display_utils.py:157 parse_interpretation_simple splits the interpretation on the exact labels the prompt asks for — 'INTERPRETATION:' (:179), 'FORCES INVOLVED:' (:181), 'TIMELINE:' (:188), 'FEASIBILITY:' (:193) — into a {summary, forces, timeline, concerns} dict, and display_decision_summary calls it at :229 to build the OPERATIONAL ORDER panel (:269). It is imported into the CLI at cli/main.py:52. The map also therefore misses two truncations on this output: the forces list is capped at 5 entries (cli/display_utils.py:186 and :200), and when no label parses the raw text is trimmed to 400 chars (cli/display_utils.py:259-261). Note FEASIBILITY is only surfaced when the line contains 'impossible' or 'requires clarification' (:194).
+    - `cli/display_utils.py:157-205, cli/display_utils.py:229`
+- Casualties are not reachable from this call. The prompt requests exactly three deltas (narrative_adjudication.py:261-263: escalation_risk, alliance_cohesion, domestic_stability). The parser only accepts a metric line if it contains 'escalation', 'alliance' or 'stability' (narrative_adjudication.py:375), so a casualties line is silently discarded. determine_base_effects (:411-446) never emits a casualties key either, and apply_quality_scaling (:449-497) only scales/merges those keys. cli/main.py:1880-1881 does copy casualties from narrative_state.hidden_metrics, but nothing in this adjudication path writes them.
+    - `engine/narrative_adjudication.py:260-264, engine/narrative_adjudication.py:375, engine/narrative_adjudication.py:411-446`
+- cli/main.py:1702 is `transcript.extend(decision_lines)` — the transcript append, not the display call. display_decision_summary(action, interpretation, show_details=False) is at :1705 (and again at :1769 after re-interpretation); the show_details=True call is at :1713, while :1712 is the `if see_details == "details":` test.
+    - `cli/main.py:1702, cli/main.py:1705, cli/main.py:1713`
+- The metric sync is cli/main.py:1877-1881 (1875 is blank, 1876 a comment; the map's range also omits the two casualties lines at 1880-1881). `action` is passed to adjudication at :1846 (actor path) and :1857 (narrative path) — 1845 is `world.actor_system,` and 1858 is `interpretation,`. save_game is called at :1980, not :1979.
+    - `cli/main.py:1846, cli/main.py:1857, cli/main.py:1877-1881, cli/main.py:1980`
+- Line 404 is `"reasoning": _scrub_reasoning(reasoning, world_narrative) or "Action assessed.",`. The effects key is line 405, `"suggested_effects": effects`; the parser that fills it is _parse_quality_response at :347-406.
+    - `engine/narrative_adjudication.py:404-405`
 
 ### Advisor pushback — cabinet ministers objecting to the order before it is committed
 
@@ -670,13 +658,12 @@ _A correction supersedes the row it concerns._
 - The NarrativeState — per-advisor trust and relationship (models/narrative_state.py:91, CharacterAttitude.trust), active_crises, situation_summary, event_ledger — is never passed to run_turn_decision (engine/sim_loop.py:493-501 has no such parameter), so an advisor whose trust has collapsed pushes back exactly as one who is loyal.
 - The prompt asks the model to label speakers with the scenario's abstract 'role' values ('Government Leader', 'Diplomatic Lead'). The parser accepts those plus a hard-coded alias table of natural titles (agents/conversation.py:24-31) — verified set: attorney general, cds, chief defence staff, chief of the defence staff, diplomatic lead, domestic security, foreign secretary, government leader, home secretary, intelligence coordinator, legal advisor, military commander, national security adviser, national security advisor, nsa, pm, prime minister. Anything outside that set — e.g. 'Defence Secretary:' or 'Chancellor:' — is silently merged into the previous advisor's message (agents/conversation.py:302-304) or dropped (:305).
 
-#### Corrections against this block — 1
+#### Verified notes — 1
 
-_A correction supersedes the row it concerns._
+_Supersedes any row above that conflicts with it._
 
-- **CORRECTED** — advisor_pushback affects: "The ADVISOR CONCERNS panel and the P/A/C gate ... A non-empty list is what makes the decision non-auto-confirming (cli/main.py:1808 else-branch decision_confirmed = True)", cited as cli/main.py:1782-1808.
-    - correction: Three errors. (a) The pushback block is an `elif` (cli/main.py:1790) hanging off `if critical_concerns:` (:1717) — whenever any critical omission survived parsing, the ADVISOR CONCERNS panel and the P/A/C gate are never reached at all and pushback affects nothing in the CLI beyond the transcript. (b) Line 1808 is `amend_pending = True`, not an else-branch; the `decision_confirmed = True` assignments are at :1817 (choice not A/C) and :1819 (no pushback). (c) The block spans 1789-1819, not 1782-1808 — 1782-1787 is the critical-advisory 'I' (Ignore) branch.
-    - evidence: cli/main.py:1790, cli/main.py:1808, cli/main.py:1817-1819
+- Three errors. (a) The pushback block is an `elif` (cli/main.py:1790) hanging off `if critical_concerns:` (:1717) — whenever any critical omission survived parsing, the ADVISOR CONCERNS panel and the P/A/C gate are never reached at all and pushback affects nothing in the CLI beyond the transcript. (b) Line 1808 is `amend_pending = True`, not an else-branch; the `decision_confirmed = True` assignments are at :1817 (choice not A/C) and :1819 (no pushback). (c) The block spans 1789-1819, not 1782-1808 — 1782-1787 is the critical-advisory 'I' (Ignore) branch.
+    - `cli/main.py:1790, cli/main.py:1808, cli/main.py:1817-1819`
 
 ### Critical omissions scan — five advisors independently check what the PM forgot to do (one identical-shaped call per advisor, fired as one parallel group)
 
@@ -925,25 +912,20 @@ _A correction supersedes the row it concerns._
 - max_tokens=400 is silently discarded on Gemini: llm/router.py:255-262 only forwards it when the driver signature declares it, and llm/gemini_driver.py:106 is `generate_text(self, prompt, rng)`. The effective cap becomes the driver-wide max_output_tokens=2048 (llm/gemini_driver.py:93, :103). Only llm/openai_compat_driver.py:150-157 honours it.
 - The advisor's own stance_summary strings are visible to ADJ-2 but not here; conversely this call sees casualties and game_time, which ADJ-2 also sees. Neither sees final_effects.
 
-#### Corrections against this block — 5
+#### Verified notes — 5
 
-_A correction supersedes the row it concerns._
+_Supersedes any row above that conflicts with it._
 
-- **REFUTED** — ADJ-1 notable_gaps: "The event ledger is absent... yet its own return value drives record_event_disposition (:155-158, :779, :864)" — i.e. the quality-assessment output feeds event-disposition recording.
-    - correction: record_event_disposition's signature is `def record_event_disposition(narrative_state, action) -> None` (:137). Neither call site passes the assessment: :779 is `record_event_disposition(narrative_state, action)` and :864 is identical. ADJ-1's return value plays no part whatsoever — the disposition is inferred purely from `infer_event_disposition(current.title, action)` (:155) over the raw player text. The map's own following clause ("which infers closure from keyword overlap instead") contradicts the claim it just made. Nothing from the LLM assessment reaches the ledger.
-    - evidence: engine/narrative_adjudication.py:137, :779, :864
-- **CORRECTED** — ADJ-2 dispatch_site: "Both call sites supply one: engine/game_manager.py:301/:314 and cli/main.py:1851/:1862 pass llm_batch_fn=batch_generate_text". Same two-call-site framing is used in ADJ-1's inputs ("passed in as world_narrative from engine/game_manager.py:300 and cli/main.py:1850/:1861").
-    - correction: There is a THIRD live call-site pair the map never mentions: cli/main_dashboard.py:1614 `adjudicate_with_actor_simulation(...)` and :1626 `adjudicate_with_narrative(...)`, both passing `world_narrative=world.narrative` and `llm_batch_fn=batch_generate_text` (:1621/:1622 and :1633/:1634). It is non-test, runnable code (`python -m cli.main_dashboard`), imported at cli/main_dashboard.py:57. The behavioural conclusions are unchanged because the arguments are identical, but "both call sites" is factually wrong — there are three.
-    - evidence: cli/main_dashboard.py:1614-1622, :1626-1634
-- **CORRECTED** — ADJ-1 (and ADJ-3) input "Game time string and turn number": "game_time is written once at construction (engine/game_manager.py:131, cli/main.py:783, cli/main_dashboard.py:807) and never updated, so it is a frozen date string for the whole campaign."
-    - correction: The enumeration of writers is incomplete and the characterisation is wrong on one branch. Two further construction sites exist for legacy saves that carry no narrative state: cli/main.py:739 and cli/main_dashboard.py:763 both build the NarrativeState with `game_time=f"Turn {world.turn}"`. On that path the string interpolated at models/narrative_state.py:264 is "Turn 7", not a date at all, so "frozen date string" does not hold. ("Never updated after construction" does hold — no assignment to `.game_time` exists anywhere outside these five constructor calls.)
-    - evidence: cli/main.py:736-739, cli/main_dashboard.py:760-763
-- **CORRECTED** — ADJ-1 failure_behaviour: "Bare `except Exception` at engine/narrative_adjudication.py:272-273 falls back to _heuristic_quality_assessment".
-    - correction: The `except Exception:` clause is at :271. Line 272 is the comment `# Fallback to heuristic on error` and :273 is the `return _heuristic_quality_assessment(action, narrative_state)`. The cited range excludes the except statement itself.
-    - evidence: engine/narrative_adjudication.py:271-273
-- **CORRECTED** — ADJ-1 input 'Purpose-built adjudicator context': "get_adjudicator_context has zero callers in code — a repo-wide grep finds it only at its definition (llm/context_builder.py:514) and in docs/PHASE_3_COMPLETE.md:23 and docs/DYNAMIC_NARRATIVE_SYSTEM.md:57."
-    - correction: The grep result is under-reported: the name also appears in docs/handover/PHASE_3_COMPLETE.md:23 and docs/handover/DYNAMIC_NARRATIVE_SYSTEM.md:57 (and in a stale copy at .claude/worktrees/agent-a80faf2d48cc5fbe8/llm/context_builder.py:239). The load-bearing conclusion is confirmed: there is no Python caller anywhere outside the definition, so the function is dead and reaches no prompt.
-    - evidence: docs/handover/DYNAMIC_NARRATIVE_SYSTEM.md:57, docs/handover/PHASE_3_COMPLETE.md:23
+- record_event_disposition's signature is `def record_event_disposition(narrative_state, action) -> None` (:137). Neither call site passes the assessment: :779 is `record_event_disposition(narrative_state, action)` and :864 is identical. ADJ-1's return value plays no part whatsoever — the disposition is inferred purely from `infer_event_disposition(current.title, action)` (:155) over the raw player text. The map's own following clause ("which infers closure from keyword overlap instead") contradicts the claim it just made. Nothing from the LLM assessment reaches the ledger.
+    - `engine/narrative_adjudication.py:137, :779, :864`
+- There is a THIRD live call-site pair the map never mentions: cli/main_dashboard.py:1614 `adjudicate_with_actor_simulation(...)` and :1626 `adjudicate_with_narrative(...)`, both passing `world_narrative=world.narrative` and `llm_batch_fn=batch_generate_text` (:1621/:1622 and :1633/:1634). It is non-test, runnable code (`python -m cli.main_dashboard`), imported at cli/main_dashboard.py:57. The behavioural conclusions are unchanged because the arguments are identical, but "both call sites" is factually wrong — there are three.
+    - `cli/main_dashboard.py:1614-1622, :1626-1634`
+- The enumeration of writers is incomplete and the characterisation is wrong on one branch. Two further construction sites exist for legacy saves that carry no narrative state: cli/main.py:739 and cli/main_dashboard.py:763 both build the NarrativeState with `game_time=f"Turn {world.turn}"`. On that path the string interpolated at models/narrative_state.py:264 is "Turn 7", not a date at all, so "frozen date string" does not hold. ("Never updated after construction" does hold — no assignment to `.game_time` exists anywhere outside these five constructor calls.)
+    - `cli/main.py:736-739, cli/main_dashboard.py:760-763`
+- The `except Exception:` clause is at :271. Line 272 is the comment `# Fallback to heuristic on error` and :273 is the `return _heuristic_quality_assessment(action, narrative_state)`. The cited range excludes the except statement itself.
+    - `engine/narrative_adjudication.py:271-273`
+- The grep result is under-reported: the name also appears in docs/handover/PHASE_3_COMPLETE.md:23 and docs/handover/DYNAMIC_NARRATIVE_SYSTEM.md:57 (and in a stale copy at .claude/worktrees/agent-a80faf2d48cc5fbe8/llm/context_builder.py:239). The load-bearing conclusion is confirmed: there is no Python caller anywhere outside the definition, so the function is dead and reaches no prompt.
+    - `docs/handover/DYNAMIC_NARRATIVE_SYSTEM.md:57, docs/handover/PHASE_3_COMPLETE.md:23`
 
 ### Advisor reactions to the adjudicated decision (the ADVISOR REACTIONS lines)
 
@@ -1060,19 +1042,16 @@ _A correction supersedes the row it concerns._
 - max_tokens=150 is silently dropped on Gemini: llm/router.py:353-361 only forwards it when the driver signature declares it, and llm/gemini_driver.py:151 is `batch_generate_text(self, prompts, rng)`. The comment at engine/narrative_adjudication.py:590-593 warns that a dropped cap yields an empty advisor line; on Gemini it is dropped, leaving only the driver-wide 2048 (llm/gemini_driver.py:93, :103).
 - The prompt has no shared cacheable prefix: it opens with the per-turn metrics block, the exact anti-pattern llm/context_builder.py:288-307 was written to fix — but this call site never adopted build_shared_context_prefix.
 
-#### Corrections against this block — 3
+#### Verified notes — 3
 
-_A correction supersedes the row it concerns._
+_Supersedes any row above that conflicts with it._
 
-- **CORRECTED** — ADJ-2 dispatch_site: "Both call sites supply one: engine/game_manager.py:301/:314 and cli/main.py:1851/:1862 pass llm_batch_fn=batch_generate_text". Same two-call-site framing is used in ADJ-1's inputs ("passed in as world_narrative from engine/game_manager.py:300 and cli/main.py:1850/:1861").
-    - correction: There is a THIRD live call-site pair the map never mentions: cli/main_dashboard.py:1614 `adjudicate_with_actor_simulation(...)` and :1626 `adjudicate_with_narrative(...)`, both passing `world_narrative=world.narrative` and `llm_batch_fn=batch_generate_text` (:1621/:1622 and :1633/:1634). It is non-test, runnable code (`python -m cli.main_dashboard`), imported at cli/main_dashboard.py:57. The behavioural conclusions are unchanged because the arguments are identical, but "both call sites" is factually wrong — there are three.
-    - evidence: cli/main_dashboard.py:1614-1622, :1626-1634
-- **CORRECTED** — ADJ-2 failure_behaviour: "the live drivers catch inside their thread pools and return \"[ERROR: ...]\" strings (llm/openai_compat_driver.py:240-242)".
-    - correction: Lines 240-242 are the *docstring* of batch_generate_text ("Mirrors GeminiDriver.batch_generate_text: individual failures are returned as \"[ERROR: ...]\" strings..."), not the code. The behaviour is real but lives at :260-265 (`generate_single`'s `except Exception as e: return f"[ERROR: {_truncate(str(e), 200)}]"`) and :283-284, and at llm/gemini_driver.py:192-193 and :210-211. Citing a docstring as evidence for runtime behaviour is precisely the error this audit is meant to exclude; the substance survives, the evidence does not.
-    - evidence: llm/openai_compat_driver.py:240-242 vs :260-265, :283-284; llm/gemini_driver.py:192-193, :210-211
-- **CORRECTED** — ADJ-2 concurrency and inputs: "No advisor sees another's reply — engine/narrative_adjudication.py:532-533 states this" (cited twice, also under 'Other advisors' reactions this turn').
-    - correction: Line 532 is blank. The comment is at :533-534 ("Each advisor reacts to the same decision and the same assessment; none / of them reads another's line. Asked together rather than in sequence."). The independence claim itself is confirmed by the prompt construction at :536-544 and the fan-out at llm/fanout.py:67, but the cited lines are off by one.
-    - evidence: engine/narrative_adjudication.py:532-534
+- There is a THIRD live call-site pair the map never mentions: cli/main_dashboard.py:1614 `adjudicate_with_actor_simulation(...)` and :1626 `adjudicate_with_narrative(...)`, both passing `world_narrative=world.narrative` and `llm_batch_fn=batch_generate_text` (:1621/:1622 and :1633/:1634). It is non-test, runnable code (`python -m cli.main_dashboard`), imported at cli/main_dashboard.py:57. The behavioural conclusions are unchanged because the arguments are identical, but "both call sites" is factually wrong — there are three.
+    - `cli/main_dashboard.py:1614-1622, :1626-1634`
+- Lines 240-242 are the *docstring* of batch_generate_text ("Mirrors GeminiDriver.batch_generate_text: individual failures are returned as \"[ERROR: ...]\" strings..."), not the code. The behaviour is real but lives at :260-265 (`generate_single`'s `except Exception as e: return f"[ERROR: {_truncate(str(e), 200)}]"`) and :283-284, and at llm/gemini_driver.py:192-193 and :210-211. Citing a docstring as evidence for runtime behaviour is precisely the error this audit is meant to exclude; the substance survives, the evidence does not.
+    - `llm/openai_compat_driver.py:240-242 vs :260-265, :283-284; llm/gemini_driver.py:192-193, :210-211`
+- Line 532 is blank. The comment is at :533-534 ("Each advisor reacts to the same decision and the same assessment; none / of them reads another's line. Asked together rather than in sequence."). The independence claim itself is confirmed by the prompt construction at :536-544 and the fan-out at llm/fanout.py:67, but the cited lines are off by one.
+    - `engine/narrative_adjudication.py:532-534`
 
 ### Situation summary refresh (the PM's daily brief paragraph)
 
@@ -1163,13 +1142,12 @@ _A correction supersedes the row it concerns._
 - recent_events, one of only two narrative signals it does receive, is effectively frozen at three seed strings (models/narrative_state.py:459-463) since nothing appends injects or decisions to it.
 - max_tokens=150 is silently dropped on Gemini (llm/router.py:255-262 vs llm/gemini_driver.py:106); the 2-3 sentence limit rests entirely on the instruction text at engine/narrative_adjudication.py:680-681.
 
-#### Corrections against this block — 1
+#### Verified notes — 1
 
-_A correction supersedes the row it concerns._
+_Supersedes any row above that conflicts with it._
 
-- **CORRECTED** — ADJ-1 (and ADJ-3) input "Game time string and turn number": "game_time is written once at construction (engine/game_manager.py:131, cli/main.py:783, cli/main_dashboard.py:807) and never updated, so it is a frozen date string for the whole campaign."
-    - correction: The enumeration of writers is incomplete and the characterisation is wrong on one branch. Two further construction sites exist for legacy saves that carry no narrative state: cli/main.py:739 and cli/main_dashboard.py:763 both build the NarrativeState with `game_time=f"Turn {world.turn}"`. On that path the string interpolated at models/narrative_state.py:264 is "Turn 7", not a date at all, so "frozen date string" does not hold. ("Never updated after construction" does hold — no assignment to `.game_time` exists anywhere outside these five constructor calls.)
-    - evidence: cli/main.py:736-739, cli/main_dashboard.py:760-763
+- The enumeration of writers is incomplete and the characterisation is wrong on one branch. Two further construction sites exist for legacy saves that carry no narrative state: cli/main.py:739 and cli/main_dashboard.py:763 both build the NarrativeState with `game_time=f"Turn {world.turn}"`. On that path the string interpolated at models/narrative_state.py:264 is "Turn 7", not a date at all, so "frozen date string" does not hold. ("Never updated after construction" does hold — no assignment to `.game_time` exists anywhere outside these five constructor calls.)
+    - `cli/main.py:736-739, cli/main_dashboard.py:760-763`
 
 ## External
 
@@ -1330,28 +1308,22 @@ _A correction supersedes the row it concerns._
 - Actor history is stateless across turns: recent_actions/trust_trajectory/last_contacted_turn exist on the model (models/state_actors.py:51-53) but are never shown, so an actor cannot recall what it said last turn - only its drifted relationship_uk number carries forward.
 - identify_relevant_actors (engine/actor_simulation.py:226-276) selects by keyword match on the raw action string and can return codes not present in actor_system.actors; engine/narrative_adjudication.py:846 filters those out, so a NATO-keyword action naming USA/FRA/DEU/POL is silently reduced to whichever exist.
 
-#### Corrections against this block — 6
+#### Verified notes — 6
 
-_A correction supersedes the row it concerns._
+_Supersedes any row above that conflicts with it._
 
-- **REFUTED** — state_actor_response / affects: "DEAD OUTPUTS: private_assessment, conditions and intel_shared are parsed into ActorResponse (engine/actor_simulation.py:204-212) and read by nothing outside the model - a repo-wide grep finds no consumer"
-    - correction: `conditions` HAS a consumer and is shown to the player. docs/py/bridge.py:1002 reads `result.get("international_reactions")` (the dicts produced at engine/game_manager.py:348) and lines 1014-1015 render each one: `for cond in (r.get("conditions") or []): pen.wrap(f"· {cond}", ...)` inside the INTERNATIONAL RESPONSE section. `will_support` is also consumed there (bridge.py:1008-1011, drives the ✓/○/✗ mark). Only `private_assessment` and `intel_shared` are genuinely dead — they ride along in `r.dict()` but no renderer reads them (api/server.py:795 pushes `r['public_response']` only). The map's own "affects" bullet citing docs/py/bridge.py:1012 contradicts its DEAD OUTPUTS bullet.
-    - evidence: docs/py/bridge.py:1002,1014-1015
-- **CORRECTED** — state_actor_response input "SECRET NARRATIVE TRUTH ... reaches_prompt: true" and diplomacy_conversation input "SECURE CONTEXT part 5: global secret narrative truth ... reaches_prompt: true", both stated unconditionally
-    - correction: Both are gated on `world.narrative` being non-None, and it is None in the default game type. engine/game_manager.py:91-92: `selected_narrative = None` / `if self.mystery_mode:` — Original Story Mode leaves it None. cli/main.py:490-493: `choice = typer.prompt(..., default=1)`; choice 1 (the DEFAULT) `return None`. Downstream, engine/narrative_adjudication.py:843 `if world_narrative:` and llm/context_builder.py:501 `if world_state.narrative:` both skip the block. So in a default (non-Mystery) campaign no SECRET NARRATIVE TRUTH reaches either prompt — the actor prompt's `{world_context}` (actor_simulation.py:55) carries only NarrativeState.to_llm_context(), and the diplomat's `{secure_context}` carries only metrics + filtered transcript. The entries should read "reaches_prompt: only in Mystery Mode".
-    - evidence: engine/game_manager.py:90-92; cli/main.py:493; engine/narrative_adjudication.py:843; llm/context_builder.py:501
-- **CORRECTED** — state_actor_response / notable_gaps: "narratives.yaml defines stances keyed RUS/USA/CHN/IRL (data/scenarios/war_game_2025/narratives.yaml:8,13,18,23) which exactly match StateActor.country_code values in data/state_actors.yaml (USA/FRA/DEU/POL/RUS)"
-    - correction: The two sets do NOT match. Stances are {RUS, USA, CHN, IRL}; state actors are {USA, FRA, DEU, POL, RUS}. Only USA and RUS intersect. CHN and IRL have stances but are not state actors at all, and FRA/DEU/POL are state actors with no stance. So even if engine/narrative_adjudication.py:844 were fixed to pass a country code, three of the five actors — including two of the three defaults chosen at engine/actor_simulation.py:264 (`["USA","FRA","POL"]`) — would still fall through the `next((s for s in self.stances if s.country_code == target_country_code), None)` lookup at models/narrative.py:47 and receive no SECRET MOTIVE. Only the format matches, not the values.
-    - evidence: data/scenarios/war_game_2025/narratives.yaml:8,13,18,23 vs data/state_actors.yaml:5,36,69,99,124
-- **CORRECTED** — state_actor_response / notable_gaps: identify_relevant_actors "can return codes not present in actor_system.actors; engine/narrative_adjudication.py:846 filters those out, so a NATO-keyword action naming USA/FRA/DEU/POL is silently reduced to whichever exist"
-    - correction: Two errors. (a) With shipped data all four of USA/FRA/DEU/POL exist (data/state_actors.yaml:5,36,69,99), so the :846 filter removes nothing; the NATO branch's 4 codes are cut to 3 by the max_actors slice at actor_simulation.py:273-274, sorted by relationship_uk descending — a different mechanism with a different result than "whichever exist". (b) In the hypothetical the gap describes, the reduction would NOT be silent: line 274 is `sorted(relevant, key=lambda c: actor_system.actors[c].relationship_uk, ...)`, a bare dict index that raises KeyError for a missing code before narrative_adjudication.py:846 is ever reached. That exception escapes into the callers' broad try/except (engine/game_manager.py:323, cli/main.py:1907), which aborts the whole adjudication, not just that actor.
-    - evidence: engine/actor_simulation.py:273-274; data/state_actors.yaml:5,36,69,99
-- **CORRECTED** — state_actor_response / affects: "PUBLIC_RESPONSE -> word-boundary truncated to 90 chars ... into the 'International Response' reasoning block (:910-925), which is displayed and written to the save transcript (cli/main.py:1886, 1903)"
-    - correction: cli/main.py:1903 does not write the truncated reasoning block. It is a separate, independent write of the FULL untruncated text: `adjudication_lines.append(f"{response.actor_id}: \"{response.public_response}\"")` under an "International Reactions:" header appended at :1901. Only :1886 (`reasoning`) carries the 90-char word-boundary version. The save transcript therefore contains each PUBLIC_RESPONSE twice — once truncated to 90 chars via reasoning, once in full — which the map does not state.
-    - evidence: cli/main.py:1886 vs cli/main.py:1900-1903
-- **CORRECTED** — state_actor_response input: "WORLD CONTEXT block, part 5: every UK advisor's name, relationship label and trust score"
-    - correction: models/narrative_state.py:262 iterates `self.characters.values()` unconditionally, and the dict built by create_initial_narrative_state is not all-UK: models/narrative_state.py:404-410 seeds `usa_nsa` / "US National Security Advisor" (trust=50) alongside the four uk_* advisors. So a foreign capital's prompt is fed the US NSA's trust score as well as the UK cell's. (The related "leaks internal UK advisor trust levels" note stands and is if anything understated.)
-    - evidence: models/narrative_state.py:262, 404-410
+- `conditions` HAS a consumer and is shown to the player. docs/py/bridge.py:1002 reads `result.get("international_reactions")` (the dicts produced at engine/game_manager.py:348) and lines 1014-1015 render each one: `for cond in (r.get("conditions") or []): pen.wrap(f"· {cond}", ...)` inside the INTERNATIONAL RESPONSE section. `will_support` is also consumed there (bridge.py:1008-1011, drives the ✓/○/✗ mark). Only `private_assessment` and `intel_shared` are genuinely dead — they ride along in `r.dict()` but no renderer reads them (api/server.py:795 pushes `r['public_response']` only). The map's own "affects" bullet citing docs/py/bridge.py:1012 contradicts its DEAD OUTPUTS bullet.
+    - `docs/py/bridge.py:1002,1014-1015`
+- Both are gated on `world.narrative` being non-None, and it is None in the default game type. engine/game_manager.py:91-92: `selected_narrative = None` / `if self.mystery_mode:` — Original Story Mode leaves it None. cli/main.py:490-493: `choice = typer.prompt(..., default=1)`; choice 1 (the DEFAULT) `return None`. Downstream, engine/narrative_adjudication.py:843 `if world_narrative:` and llm/context_builder.py:501 `if world_state.narrative:` both skip the block. So in a default (non-Mystery) campaign no SECRET NARRATIVE TRUTH reaches either prompt — the actor prompt's `{world_context}` (actor_simulation.py:55) carries only NarrativeState.to_llm_context(), and the diplomat's `{secure_context}` carries only metrics + filtered transcript. The entries should read "reaches_prompt: only in Mystery Mode".
+    - `engine/game_manager.py:90-92; cli/main.py:493; engine/narrative_adjudication.py:843; llm/context_builder.py:501`
+- The two sets do NOT match. Stances are {RUS, USA, CHN, IRL}; state actors are {USA, FRA, DEU, POL, RUS}. Only USA and RUS intersect. CHN and IRL have stances but are not state actors at all, and FRA/DEU/POL are state actors with no stance. So even if engine/narrative_adjudication.py:844 were fixed to pass a country code, three of the five actors — including two of the three defaults chosen at engine/actor_simulation.py:264 (`["USA","FRA","POL"]`) — would still fall through the `next((s for s in self.stances if s.country_code == target_country_code), None)` lookup at models/narrative.py:47 and receive no SECRET MOTIVE. Only the format matches, not the values.
+    - `data/scenarios/war_game_2025/narratives.yaml:8,13,18,23 vs data/state_actors.yaml:5,36,69,99,124`
+- Two errors. (a) With shipped data all four of USA/FRA/DEU/POL exist (data/state_actors.yaml:5,36,69,99), so the :846 filter removes nothing; the NATO branch's 4 codes are cut to 3 by the max_actors slice at actor_simulation.py:273-274, sorted by relationship_uk descending — a different mechanism with a different result than "whichever exist". (b) In the hypothetical the gap describes, the reduction would NOT be silent: line 274 is `sorted(relevant, key=lambda c: actor_system.actors[c].relationship_uk, ...)`, a bare dict index that raises KeyError for a missing code before narrative_adjudication.py:846 is ever reached. That exception escapes into the callers' broad try/except (engine/game_manager.py:323, cli/main.py:1907), which aborts the whole adjudication, not just that actor.
+    - `engine/actor_simulation.py:273-274; data/state_actors.yaml:5,36,69,99`
+- cli/main.py:1903 does not write the truncated reasoning block. It is a separate, independent write of the FULL untruncated text: `adjudication_lines.append(f"{response.actor_id}: \"{response.public_response}\"")` under an "International Reactions:" header appended at :1901. Only :1886 (`reasoning`) carries the 90-char word-boundary version. The save transcript therefore contains each PUBLIC_RESPONSE twice — once truncated to 90 chars via reasoning, once in full — which the map does not state.
+    - `cli/main.py:1886 vs cli/main.py:1900-1903`
+- models/narrative_state.py:262 iterates `self.characters.values()` unconditionally, and the dict built by create_initial_narrative_state is not all-UK: models/narrative_state.py:404-410 seeds `usa_nsa` / "US National Security Advisor" (trust=50) alongside the four uk_* advisors. So a foreign capital's prompt is fed the US NSA's trust score as well as the UK cell's. (The related "leaks internal UK advisor trust levels" note stands and is if anything understated.)
+    - `models/narrative_state.py:262, 404-410`
 
 ### Foreign leader/diplomat's reply on a live diplomatic call
 

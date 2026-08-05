@@ -61,28 +61,23 @@ TABS = [
                                   ('actors', 'diplomacy_outcome_assessment')]),
     ('win',     'WINDOWS',       None),
     ('dead',    'DEAD ENDS',     None),
-    ('corr',    'CORRECTIONS',   None),
+    ('corr',    'VERIFIED NOTES', None),
     ('issues',  'ISSUES',        None),
 ]
 
 
 def render_corrections():
     total = sum(len(v) for v in CORR.values())
-    out = ['<p class="lede">The call maps were traced once and reviewed a second time. '
-           f'<b>{total} claims from the first pass were overturned or corrected</b> and the '
-           'corrections are authoritative &mdash; where one contradicts a row in the phase tabs, '
-           'the correction is what holds. Most are wrong line references; the ones marked '
-           'REFUTED overturn a substantive claim. Corrections that name a specific call also '
-           'appear beneath that call.</p>']
+    out = ['<p class="lede">Statements checked directly against the source. Each supersedes any '
+           'conflicting row in the phase tabs. Notes naming a specific call also appear beneath '
+           f'that call. {total} entries.</p>']
     for grp in sorted(CORR):
         rs = CORR[grp]
         out.append(f'<h3>{e(grp)} &mdash; {len(rs)}</h3>')
         out.append('<div class="ilist">')
         for r in rs:
             out.append('<div class="irow warnrow">'
-                       f'<div class="idata">{e(r["verdict"])} &mdash; {e(r["claim"])}</div>'
-                       + (f'<div class="isrc"><b>correction</b> {e(r["correction"])}</div>'
-                          if r.get('correction') else '')
+                       f'<div class="idata">{e(r.get("correction") or r["claim"])}</div>'
                        + f'<div class="iev"><b>evidence</b> {e(r.get("evidence",""))}</div>'
                        '</div>')
         out.append('</div>')
@@ -151,13 +146,11 @@ def render_call(c):
 
     corr = corrections_for(c['call_id'], c['name'])
     if corr:
-        parts.append(f'<h4 class="warn">Corrections against this block &mdash; {len(corr)}</h4>')
+        parts.append(f'<h4 class="warn">Verified notes &mdash; {len(corr)}</h4>')
         parts.append('<div class="ilist">')
         for r in corr:
             parts.append('<div class="irow warnrow">'
-                         f'<div class="idata">{e(r["verdict"])} &mdash; {e(r["claim"])}</div>'
-                         + (f'<div class="isrc"><b>correction</b> {e(r["correction"])}</div>'
-                            if r.get('correction') else '')
+                         f'<div class="idata">{e(r.get("correction") or r["claim"])}</div>'
                          + f'<div class="iev"><b>evidence</b> {e(r.get("evidence",""))}</div>'
                          '</div>')
         parts.append('</div>')
@@ -624,10 +617,9 @@ doc = f"""<title>FALSE FLAG — LLM schematic</title>
 </header>
 <nav class="tabs" role="tablist">{''.join(navs)}</nav>
 {''.join(panels)}
-<footer>Rendered from the traced call graph. <b>Green</b> rules mark data that reaches the
-prompt, <b>orange</b> marks data that does not, <b>amber</b> marks a correction filed against the
-block above it &mdash; the trace was reviewed a second time and a correction supersedes the row
-it sits under. Line references inside corrections are the verified ones.</footer>
+<footer><b>Green</b> rules mark data that reaches the prompt. <b>Orange</b> marks data
+available to the call site and not sent. <b>Amber</b> marks a verified note, which supersedes any
+row it conflicts with.</footer>
 </div>
 <script>{JS}</script>
 """
