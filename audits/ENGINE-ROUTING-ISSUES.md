@@ -52,11 +52,41 @@ the change is stated inside the entry rather than hidden. `ER-015` onward are ne
 | ER-011 | open | low | dispatch | Narrator output constraints dropped on three of four drivers |
 | ER-013 | open | low | state | Advisor pushback mutates nothing |
 
-Measurements quoted below come from two headless ten-turn campaigns played through
-`dev-scripts/play_campaign.py` against the local recording endpoint
-`dev-scripts/fake_openrouter.py`, one with no artificial latency and one holding every call at
-1.2 seconds. Both runs reported no calls falling back to the built-in offline driver, so all 148
-game calls in each run were answered by the endpoint under measurement.
+## How the measurements below were taken
+
+Two headless campaigns played through `dev-scripts/play_campaign.py` against the local recording
+endpoint `dev-scripts/fake_openrouter.py`, one with no artificial latency and one holding every
+call at 1.2 seconds. Both reached a terminal ending on turn 10 and issued 148 game calls.
+
+Inputs, so the figures can be reproduced: engine at commit `9f0c3fa` (the merge base of this
+branch; the only change on the branch is this document); scenario `war_game_2025`, default
+`standard` variant; seed 42; play mode `emergent`; Mystery Mode on; endings on; one player
+question per turn. Those are `play_campaign.py`'s own defaults except for the turn cap and the
+question count, both passed explicitly.
+
+```
+python3 dev-scripts/fake_openrouter.py --port 8099 --log calls.jsonl --latency 0
+# and, for the timing run, the same with --latency 1.2
+
+WARGAME_LLM=openai_compat \
+OPENAI_COMPAT_BASE_URL=http://127.0.0.1:8099/v1 \
+OPENAI_COMPAT_MODEL=fake OPENAI_COMPAT_API_KEY=x \
+NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost \
+python3 dev-scripts/play_campaign.py --turns 18 --questions 1
+
+python3 dev-scripts/analyse_calls.py calls.jsonl
+```
+
+Both runs ended with `play_campaign.py` reporting "no calls fell back to the mock driver", so
+every one of the 148 calls in each run was answered by the endpoint under measurement rather than
+by the built-in offline driver. That line is the check that makes the call counts and character
+totals mean anything, and it should be quoted with any future measurement.
+
+The raw logs are not committed: `calls.jsonl` and its `.prompts` sidecar together run to several
+megabytes of prompt text and regenerate deterministically from the commands above in under two
+minutes. Parser behaviour in ER-015 and ER-016, and the transcript filter in ER-018, were
+demonstrated by calling those functions directly on paired inputs rather than through a campaign;
+each entry states the inputs it used.
 
 ---
 
@@ -321,8 +351,10 @@ game calls in each run were answered by the endpoint under measurement.
   bare label: `line.startswith("QUALITY:")`, `line.startswith("REASONING:")`,
   `line.startswith("QUALITY MULTIPLIER:")`. The effects branch takes everything before the first
   colon as the metric name verbatim. If the model emits the same content with markdown emphasis,
-  which is the commonest formatting variant a chat model produces, every one of these misses. The
-  sibling parser in `agents/conversation.py` was already hardened against exactly this through
+  every one of these misses. How often a given model does that was not measured here, so no
+  frequency is claimed; what is established is that the failure is total when it happens and that
+  nothing detects it. The sibling parser in `agents/conversation.py` was already hardened against
+  this same shape through
   `_extract_labeled_text`, which accepts `**CONCERN:**` and `- concern:`; the adjudication parser
   was not.
 - **Evidence:** `engine/narrative_adjudication.py:366`, `:371`, `:374-381`, `:383`;
@@ -371,9 +403,12 @@ game calls in each run were answered by the endpoint under measurement.
 - **Status:** open
 - **Severity:** high
 - **Area:** context
-- **Observed:** Four call families decide what actually happens to the player: the action quality
-  assessment, the state-actor simulation, the advisor reactions and the situation summary. All
-  four build their world context from `NarrativeState.to_llm_context()`, which contains the three
+- **Observed:** Four call families run the adjudication. Three of them decide what happens: the
+  action quality assessment and the state-actor simulation set the metric changes, and the
+  diplomatic outcome assessment sets the alliance delta from a call. The other two are outputs of
+  the adjudication rather than inputs to it: the advisor reactions are shown to the player, and
+  the situation summary reaches nobody at all (ER-010). All of them
+  build their world context from `NarrativeState.to_llm_context()`, which contains the three
   metrics, up to three entries from `recent_events`, the active-crisis list, character trust
   scores and a game clock, plus the hidden narrative block in Mystery Mode and nothing else.
   `recent_events` is seeded once at campaign start with three fixed
@@ -391,11 +426,12 @@ game calls in each run were answered by the endpoint under measurement.
   block held one turn-one backstory line and two crisis banners, and the clock read
   "Game Time: 17:00 (Turn 9)" for a crisis spanning days. The referee that sets the metrics is
   told nothing that happened in nine turns of play. Measured over the same ten-turn campaign, the
-  four state-changing families received 7.4 per cent of every prompt character the engine sent,
-  against 89.0 per cent for the four advisory families that change nothing. On a long campaign
-  where the history window is at its 320,000-character ceiling the split widens to roughly 0.6
-  per cent against 97.5 per cent, because the advisory prompts grow with the transcript and these
-  do not.
+  three families that decide the metric changes received 5.9 per cent of every prompt character
+  the engine sent, and the two adjudication outputs a further 1.5 per cent, against 89.0 per cent
+  for the four advisory families that change nothing and 3.7 per cent for story generation. On a
+  long campaign where the history window is at its 320,000-character ceiling the gap widens to
+  roughly 0.5 per cent against 97.5 per cent, because the advisory prompts grow with the
+  transcript and these do not.
 - **Raised by:** engine LLM review 2026-08-05
 
 ## ER-018 — The COBRA-deliberation filter matches no shipped advisor label
