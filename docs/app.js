@@ -9,7 +9,10 @@
  *                    {type:'ask', advisor, text}
  *                    {type:'call', country, text}
  *                    {type:'endTurn'}
- *                    {type:'setKey', key, source} // source: 'shared'|'own'
+ *                    {type:'setKey', key, source, model, baseUrl}
+ *                      // source: 'shared'|'own'. model is always sent (ER-028);
+ *                      // baseUrl only for source 'own' — the worker pins the
+ *                      // shared key to OpenRouter regardless.
  *                    {type:'save'} / {type:'load', data}
  *
  *   worker -> page : {type:'booting', pct, note}
@@ -37,6 +40,7 @@
   var REAL_WORKER = ['worker.js'];
   var STUB_WORKER = 'stub-worker.js';
   var KEY_STORE = 'falseflag.openrouter.key';
+  var MODEL_STORE = 'falseflag.model';
   var WIDTH_STORE = 'falseflag.width';
   var COLS = 78;              // the game's own layout width
   var MAX_NODES = 2400;       // transcript trim point
@@ -46,8 +50,8 @@
   [
     'gate', 'stage', 'apikey', 'remember', 'useKey', 'keystate',
     'sharedPanel', 'sharedPass', 'unlockShared', 'sharedState', 'startShared',
-    'ownPanel', 'ownCap', 'ownLede', 'startHint',
-    'scenario', 'playMode', 'mysteryMode', 'seed', 'startWithKey',
+    'ownPanel', 'ownCap', 'ownLede', 'startHint', 'ownBaseUrl',
+    'scenario', 'playMode', 'mysteryMode', 'seed', 'modelChoice', 'startWithKey',
     'screen', 'metrics', 'termTitle', 'termRef', 'widthToggle',
     'awaiting', 'awaitingTag', 'awaitingWhat', 'controls',
     'decideText', 'sendDecide', 'endTurn', 'advisor', 'askText', 'sendAsk',
@@ -216,7 +220,20 @@
     if (ui.bootBuf) write(ui.bootBuf + '\n');
     if (A.masthead) write('\n' + A.masthead + '\n');
     el.controls.hidden = false;
-    send({ type: 'setKey', key: ui.keyForRun || '', source: ui.keySource });
+    // The model choice always travels; the endpoint only with your own key
+    // (ER-028) — the worker pins the shared key to OpenRouter regardless,
+    // so sending an override for it would only misstate what will happen.
+    var keyMsg = {
+      type: 'setKey',
+      key: ui.keyForRun || '',
+      source: ui.keySource,
+      model: modelChoice()
+    };
+    if (ui.keySource === 'own') {
+      var base = el.ownBaseUrl && el.ownBaseUrl.value.trim();
+      if (base) keyMsg.baseUrl = base;
+    }
+    send(keyMsg);
     send({ type: 'newGame', config: campaignConfig() });
   }
 
@@ -861,6 +878,27 @@
       seed: isFinite(seed) ? seed : 42
     };
   }
+
+  /** The model id to run on; '' lets the worker use its default (ER-028). */
+  function modelChoice() {
+    return el.modelChoice ? el.modelChoice.value.trim() : '';
+  }
+
+  // The model choice survives the tab. Only ever a model id — never a key —
+  // so localStorage is fine for it.
+  (function restoreModel() {
+    if (!el.modelChoice) return;
+    var stored = null;
+    try { stored = localStorage.getItem(MODEL_STORE); } catch (e) { /* ignore */ }
+    if (stored) el.modelChoice.value = stored;
+    el.modelChoice.addEventListener('change', function () {
+      var v = el.modelChoice.value.trim();
+      try {
+        if (v) localStorage.setItem(MODEL_STORE, v);
+        else localStorage.removeItem(MODEL_STORE);
+      } catch (e) { /* private mode */ }
+    });
+  })();
 
   /* `source` is 'own' (the key you pasted) or 'shared' (the owner's key,
      unlocked with the passphrase). There is no third value: a campaign is

@@ -8,7 +8,7 @@ presenting narrative consequences to player.
 
 import logging
 import re
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any
 from random import Random
 
 logger = logging.getLogger(__name__)
@@ -20,6 +20,7 @@ from engine.utils import clamp
 # Actor Simulation Imports
 from models.state_actors import StateActorSystem, ActorResponse
 from llm.fanout import generate_group
+from llm.model_config import LLMContext
 from llm.parse_health import record_miss
 from llm.parsing import extract_label, find_float, find_signed_int, strip_decoration
 from engine.actor_simulation import (
@@ -269,7 +270,8 @@ QUALITY MULTIPLIER: [0.5 to 2.5]
 """
     
     try:
-        response = llm_generate_fn(prompt, rng, max_tokens=400)
+        response = llm_generate_fn(prompt, rng, max_tokens=400,
+                                   context=LLMContext.QUALITY_ASSESSMENT)
         return _parse_quality_response(response, world_narrative)
     except Exception:
         # Fallback to heuristic on error
@@ -587,6 +589,7 @@ def generate_character_responses(
         for char in chars
     ]
     raw = generate_group(prompts, llm_generate_fn, rng, llm_batch_fn,
+                         context=LLMContext.CHARACTER_RESPONSE,
                          max_tokens=CHARACTER_RESPONSE_MAX_TOKENS)
 
     responses = []
@@ -727,6 +730,70 @@ def _effect_directions(final_effects) -> str:
     return ", ".join(parts) if parts else "no measurable shift in the situation"
 
 
+def compute_situation_summary(
+    narrative_state: NarrativeState,
+    action: str,
+    llm_generate_fn = None,
+    rng: Random = None,
+    quality_assessment: Dict[str, Any] = None,
+    final_effects: Dict[str, int] = None
+) -> Optional[str]:
+    """The fold's LLM half: return the new synopsis text, or None.
+
+    Split out of update_situation_summary so the concurrent round in the
+    decision pipeline (ER-023) can run the fold alongside the character
+    reactions WITHOUT mutating ``narrative_state`` mid-round - the reaction
+    prompts render the (old) summary via to_llm_context(), so an in-round
+    write would make their content depend on thread scheduling. The caller
+    assigns the returned text after the round joins.
+
+    Returns None when no LLM is available or the call fails/returns empty;
+    the caller then applies fallback_situation_summary.
+    """
+    if llm_generate_fn is None or rng is None:
+        return None
+
+    previous = (narrative_state.situation_summary or "").strip()
+
+    event_block = ""
+    if narrative_state.event_ledger:
+        event_block = f"\nTHIS TURN'S EVENT: {narrative_state.event_ledger[-1].title}\n"
+
+    outcome_block = ""
+    if quality_assessment:
+        quality = quality_assessment.get("quality", "adequate")
+        outcome_block = (
+            f"\nADJUDICATED OUTCOME: the decision was judged {quality}; "
+            f"{_effect_directions(final_effects)}.\n"
+        )
+
+    prompt = f"""
+PREVIOUS SUMMARY:
+{previous or "(none - the campaign has just begun)"}
+{event_block}
+THE PRIME MINISTER'S DECISION THIS TURN: {action}
+{outcome_block}
+Summarise the current situation as a running synopsis of the campaign, in
+4-6 sentences for the Prime Minister's daily brief. Fold the previous summary
+and this turn together: cover what has happened so far, the player's major
+decisions, and the current diplomatic posture. Write in plain, serious
+prose - no headings, no numbers, no bullet points.
+
+Summary:"""
+    try:
+        summary = llm_generate_fn(
+            prompt, rng, max_tokens=250,
+            context=LLMContext.SITUATION_SUMMARY).strip().strip('"')
+        if summary:
+            return summary
+    except Exception:
+        logger.debug(
+            "LLM situation summary failed; using deterministic fallback",
+            exc_info=True,
+        )
+    return None
+
+
 def update_situation_summary(
     narrative_state: NarrativeState,
     action: str,
@@ -751,46 +818,15 @@ def update_situation_summary(
         final_effects: The applied metric deltas, rendered as direction
             words ("escalation risk rising"), not values.
     """
-    if llm_generate_fn is not None and rng is not None:
-        previous = (narrative_state.situation_summary or "").strip()
+    summary = compute_situation_summary(
+        narrative_state, action, llm_generate_fn, rng,
+        quality_assessment=quality_assessment, final_effects=final_effects)
+    narrative_state.situation_summary = (
+        summary if summary else fallback_situation_summary(narrative_state))
 
-        event_block = ""
-        if narrative_state.event_ledger:
-            event_block = f"\nTHIS TURN'S EVENT: {narrative_state.event_ledger[-1].title}\n"
 
-        outcome_block = ""
-        if quality_assessment:
-            quality = quality_assessment.get("quality", "adequate")
-            outcome_block = (
-                f"\nADJUDICATED OUTCOME: the decision was judged {quality}; "
-                f"{_effect_directions(final_effects)}.\n"
-            )
-
-        prompt = f"""
-PREVIOUS SUMMARY:
-{previous or "(none - the campaign has just begun)"}
-{event_block}
-THE PRIME MINISTER'S DECISION THIS TURN: {action}
-{outcome_block}
-Summarise the current situation as a running synopsis of the campaign, in
-4-6 sentences for the Prime Minister's daily brief. Fold the previous summary
-and this turn together: cover what has happened so far, the player's major
-decisions, and the current diplomatic posture. Write in plain, serious
-prose - no headings, no numbers, no bullet points.
-
-Summary:"""
-        try:
-            summary = llm_generate_fn(prompt, rng, max_tokens=250).strip().strip('"')
-            if summary:
-                narrative_state.situation_summary = summary
-                return
-        except Exception:
-            logger.debug(
-                "LLM situation summary failed; using deterministic fallback",
-                exc_info=True,
-            )
-
-    # Deterministic fallback composed from the current hidden state
+def fallback_situation_summary(narrative_state: NarrativeState) -> str:
+    """Deterministic fallback synopsis composed from the current hidden state."""
     m = narrative_state.hidden_metrics
     if m.escalation_risk >= 85:
         risk = "The situation stands at the threshold of open war."
@@ -822,7 +858,45 @@ Summary:"""
     parts = [risk, alliance, domestic]
     if narrative_state.active_crises:
         parts.append("Active crises: " + ", ".join(narrative_state.active_crises[-3:]) + ".")
-    narrative_state.situation_summary = " ".join(parts)
+    return " ".join(parts)
+
+
+def _run_reactions_and_summary_round(
+    narrative_state: NarrativeState,
+    action: str,
+    quality_assessment: Dict[str, Any],
+    final_effects: Dict[str, int],
+    llm_generate_fn,
+    rng: Random,
+    llm_batch_fn,
+) -> Tuple[List[Tuple[str, str]], Optional[str]]:
+    """Round 3 of the decision pipeline: reactions ∥ summary fold (ER-023).
+
+    Returns (character_responses, summary_text_or_None). The summary is
+    returned rather than assigned so the caller can order the write after
+    its attitude and crisis bookkeeping. Child-seed order: reactions first,
+    summary second (see engine/decision_phase.py for the discipline).
+    """
+    # Lazy import: decision_phase imports this module at its top level.
+    from engine.decision_phase import quiet_generate, run_round
+
+    gen = quiet_generate(llm_generate_fn)
+    batch = quiet_generate(llm_batch_fn)
+
+    return run_round(
+        [("character_responses",
+          lambda task_rng: generate_character_responses(
+              action, quality_assessment, final_effects, narrative_state,
+              gen, task_rng, llm_batch_fn=batch),
+          lambda: _generate_templated_responses(
+              action, quality_assessment, narrative_state)),
+         ("situation_summary",
+          lambda task_rng: compute_situation_summary(
+              narrative_state, action, gen, task_rng,
+              quality_assessment=quality_assessment,
+              final_effects=final_effects),
+          lambda: None)],
+        rng, status="THE ROOM REACTS ── 2 CHANNELS")
 
 
 # === MAIN ADJUDICATION FUNCTIONS ===
@@ -880,22 +954,26 @@ def adjudicate_with_narrative(
     # 3b. Record how this turn's event was left (issue #25)
     record_event_disposition(narrative_state, action)
 
-    # 4. Generate character responses
-    character_responses = generate_character_responses(
-        action, quality_assessment, final_effects, narrative_state,
-        llm_generate_fn, rng, llm_batch_fn=llm_batch_fn
-    )
-    
+    # 4+7. Character reactions ∥ situation-summary fold: round 3 of the
+    # decision pipeline (ER-023). Both read the applied outcome and neither
+    # reads the other. The fold's text is assigned only after the round
+    # joins (and after the crisis check), so the reaction prompts never
+    # race the summary mutation and the deterministic fallback sees the
+    # same post-check crisis list it always did.
+    character_responses, summary_text = _run_reactions_and_summary_round(
+        narrative_state, action, quality_assessment, final_effects,
+        llm_generate_fn, rng, llm_batch_fn)
+
     # 5. Update character attitudes based on action quality
     _update_character_attitudes(narrative_state, quality_assessment["quality"])
-    
+
     # 6. Check for crisis triggers
     _check_and_trigger_crises(narrative_state)
 
-    # 7. Fold this turn into the rolling situation summary
-    update_situation_summary(narrative_state, action, llm_generate_fn, rng,
-                             quality_assessment=quality_assessment,
-                             final_effects=final_effects)
+    # 7. Assign the fold (computed above, alongside the reactions)
+    narrative_state.situation_summary = (
+        summary_text if summary_text
+        else fallback_situation_summary(narrative_state))
 
     return final_effects, character_responses, quality_assessment["reasoning"]
 
@@ -992,11 +1070,13 @@ def adjudicate_with_actor_simulation(
             updated = clamp(current + delta)
             setattr(narrative_state.hidden_metrics, metric, updated)
     
-    # 7. Generate character responses (Advisors)
-    character_responses = generate_character_responses(
-        action, quality_assessment, final_effects, narrative_state,
-        llm_generate_fn, rng, llm_batch_fn=llm_batch_fn
-    )
+    # 7+11. Character reactions ∥ situation-summary fold: round 3 of the
+    # decision pipeline (ER-023). The fold's text is assigned only after
+    # the round joins (and after the crisis check) - see
+    # adjudicate_with_narrative for the reasoning.
+    character_responses, summary_text = _run_reactions_and_summary_round(
+        narrative_state, action, quality_assessment, final_effects,
+        llm_generate_fn, rng, llm_batch_fn)
 
     # 8. Update character attitudes based on action quality. This is the
     # path every live entry point takes whenever the actor file loads, so
@@ -1009,10 +1089,10 @@ def adjudicate_with_actor_simulation(
     # 10. Check for crisis triggers
     _check_and_trigger_crises(narrative_state)
 
-    # 11. Fold this turn into the rolling situation summary
-    update_situation_summary(narrative_state, action, llm_generate_fn, rng,
-                             quality_assessment=quality_assessment,
-                             final_effects=final_effects)
+    # 11. Assign the fold (computed above, alongside the reactions)
+    narrative_state.situation_summary = (
+        summary_text if summary_text
+        else fallback_situation_summary(narrative_state))
 
     return final_effects, actor_responses, character_responses, reasoning
 

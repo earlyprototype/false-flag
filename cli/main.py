@@ -65,7 +65,8 @@ from engine.sim_loop import (
     run_turn_discussion,
     run_turn_decision,
     run_turn_adjudication as run_turn_adjudication_fallback,  # Renamed for fallback
-    run_single_scene
+    run_single_scene,
+    stochastic_generation_status
 )
 from engine.narrative_adjudication import adjudicate_with_narrative
 from engine.intro import get_intro_lines
@@ -823,36 +824,43 @@ def play(
     # covers that turn.
     parse_health_seen = parse_health.total()
 
+    # The DYNAMIC GENERATION banner plays once per session, on the first
+    # turn generation actually fires (ER-026).
+    generation_banner_shown = False
+
     # Main game loop
     while True:
         # Refresh colors at start of loop in case theme changed
         COLORS = theme_manager.get_colors()
-        
+
         # Capture metrics at START of turn (before inject effects)
         from copy import deepcopy
         turn_start_metrics = deepcopy(world.metrics)
-        
-        # Auto-enable stochastic generation when reaching the transition point
-        if world.turn >= stochastic_from_turn:
-            if not stochastic_injects:
-                # First time reaching stochastic content - show transition message
-                stochastic_injects = True
-                console.print("")
-                console.print(ae.classification_strip(
-                    label="ENTERING DYNAMIC SCENARIO GENERATION",
-                    seed=f"stochastic-{world.turn}", edge="top"))
-                console.print("")
-                console.print("The scripted scenario has concluded. From this point forward,")
-                console.print("events will be dynamically generated based on your decisions.")
-                console.print("")
-                console.print(ae.classification_strip(
-                    seed=f"stochastic-{world.turn}", edge="bottom"))
-                console.print("")
-                wait_for_space("Press SPACE (or Enter) to continue...")
-                console.print("")
-        
-        # Determine if we should use stochastic generation for this turn
-        use_stochastic = stochastic_injects and world.turn >= stochastic_from_turn
+
+        # Determine if dynamic generation fires this turn, and announce the
+        # transition the first time it does. ER-026: the flag is honoured
+        # now — the loop used to force it back on here, so
+        # --no-stochastic-injects was nothing but an (inverted) banner
+        # switch. With the flag off, run_turn_briefing serves the
+        # no-new-developments brief once the scripted content runs out.
+        use_stochastic, show_generation_banner = stochastic_generation_status(
+            world.turn, stochastic_from_turn, stochastic_injects,
+            generation_banner_shown)
+        if show_generation_banner:
+            generation_banner_shown = True
+            console.print("")
+            console.print(ae.classification_strip(
+                label="ENTERING DYNAMIC SCENARIO GENERATION",
+                seed=f"stochastic-{world.turn}", edge="top"))
+            console.print("")
+            console.print("The scripted scenario has concluded. From this point forward,")
+            console.print("events will be dynamically generated based on your decisions.")
+            console.print("")
+            console.print(ae.classification_strip(
+                seed=f"stochastic-{world.turn}", edge="bottom"))
+            console.print("")
+            wait_for_space("Press SPACE (or Enter) to continue...")
+            console.print("")
         
         # Get turn filename based on scenario variant
         turn_filename = get_turn_filename(world.turn, scenario_config)

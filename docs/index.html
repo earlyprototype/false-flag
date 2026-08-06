@@ -116,6 +116,21 @@
         close the tab.</label>
       </div>
       <p class="keystate idle" id="keystate">No key set.</p>
+
+      <!-- Own-key only, by design: the shared key is pinned to OpenRouter
+           in the worker (bridge.set_key), so an endpoint override for it
+           would be silently ignored — better not to offer one at all. -->
+      <div class="fields" style="margin-top:12px">
+        <div>
+          <label for="ownBaseUrl">ENDPOINT (OPTIONAL — YOUR KEY ONLY)</label>
+          <input type="url" id="ownBaseUrl" autocomplete="off" spellcheck="false"
+                 placeholder="https://openrouter.ai/api/v1">
+        </div>
+      </div>
+      <p class="hint">Any OpenAI-compatible chat-completions endpoint —
+      OpenRouter, Groq, a local Ollama. Leave it empty for OpenRouter. This
+      applies only to a key you paste yourself; the shared key always talks
+      to OpenRouter, whatever is typed here.</p>
     </div>
 
     <div class="panel">
@@ -146,7 +161,16 @@
           <label for="seed">SEED</label>
           <input type="number" id="seed" value="42" min="0" step="1">
         </div>
+        <div>
+          <label for="modelChoice">MODEL</label>
+          <input type="text" id="modelChoice" autocomplete="off" spellcheck="false"
+                 placeholder="openai/gpt-4o-mini">
+        </div>
       </div>
+      <p class="hint">MODEL is the OpenRouter model id the advisors run on
+      (see <a href="https://openrouter.ai/models" rel="noopener">the model
+      list</a>). Leave it empty for the default, <b>openai/gpt-4o-mini</b>.
+      Your choice is remembered in this browser.</p>
       <div class="actions">
         <button type="button" id="startShared" hidden>Begin campaign</button>
         <button type="button" id="startWithKey" hidden>Begin campaign — your key</button>

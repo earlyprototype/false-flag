@@ -20,7 +20,7 @@ from engine.scenario_loader import (
     get_turn_filename,
     load_narrative_configs,
 )
-from engine.sim_loop import run_turn_briefing, run_turn_decision, run_turn_discussion
+from engine.sim_loop import run_turn_briefing, run_turn_decision, run_turn_discussion  # noqa: F401 (run_turn_decision: preview path)
 
 # Environment flag to disable Rich output in engine modules
 os.environ["WARGAME_RICH_UI"] = "false"
@@ -337,30 +337,26 @@ class GameManager:
         return self.ending is not None
 
     def resolve_decision(self, action_text: str) -> Dict[str, Any]:
-        """Commit and resolve a decision (Adjudication phase)."""
-        # 1. Final Interpretation (commit to transcript)
-        interpretation, pushback, critical_concerns, decision_lines = run_turn_decision(
-            self.world,
-            self.scenario_id,
-            action_text,
-            self.rng,
-            self.root_path,
-            self.transcript,
-            dry_run=False, # Commit phase change
-            narrative_state=self.narrative_state
-        )
-        self.transcript.extend(decision_lines)
+        """Commit and resolve a decision (Adjudication phase).
 
+        This is the one-step commit path (headless, browser, HTTP), so it
+        runs the full three-round decision pipeline (ER-023) rather than
+        the terminal CLIs' interpret → preview → confirm shape.
+        """
         # The preview raised pushback and the player committed the identical
         # text unamended: the overridden advisors lose a point of trust
         # (ER-013). Amending the text, or committing without a preview,
-        # costs nothing.
+        # costs nothing. Applied before the pipeline runs, so the prompts
+        # that render trust (quality assessment, reactions) see the cost -
+        # the same ordering the serial path had.
         pending = self._pending_pushback
         self._pending_pushback = None
         if pending and pending[0] == action_text and pending[1]:
             self._apply_pushback_trust_cost(pending[1])
 
-        # 2. Adjudicate
+        interpretation = ""
+        pushback = []
+        critical_concerns = []
         final_effects = {}
         character_responses = []
         actor_responses = []
@@ -368,33 +364,29 @@ class GameManager:
         error = None
 
         try:
-            if self.world.actor_system:
-                from engine.narrative_adjudication import adjudicate_with_actor_simulation
-                from llm.router import generate_text, batch_generate_text
+            from engine.decision_phase import run_decision_pipeline
+            from llm.router import generate_text, batch_generate_text
 
-                final_effects, actor_responses, character_responses, reasoning = adjudicate_with_actor_simulation(
-                    self.narrative_state,
-                    self.world.actor_system,
-                    action_text,
-                    interpretation,
-                    self.rng,
-                    llm_generate_fn=generate_text,
-                    world_narrative=self.world.narrative,
-                    llm_batch_fn=batch_generate_text
-                )
-            else:
-                from engine.narrative_adjudication import adjudicate_with_narrative
-                from llm.router import generate_text, batch_generate_text
-                
-                final_effects, character_responses, reasoning = adjudicate_with_narrative(
-                    self.narrative_state,
-                    action_text,
-                    interpretation,
-                    self.rng,
-                    llm_generate_fn=generate_text,
-                    world_narrative=self.world.narrative,
-                    llm_batch_fn=batch_generate_text
-                )
+            result = run_decision_pipeline(
+                self.world,
+                self.scenario_id,
+                action_text,
+                self.rng,
+                root_path=self.root_path,
+                full_transcript=self.transcript,
+                narrative_state=self.narrative_state,
+                llm_generate_fn=generate_text,
+                llm_batch_fn=batch_generate_text,
+            )
+            interpretation = result.interpretation
+            pushback = result.pushback
+            critical_concerns = result.critical_concerns
+            final_effects = result.final_effects
+            character_responses = result.character_responses
+            actor_responses = result.actor_responses
+            reasoning = result.reasoning
+            self.transcript.extend(result.transcript)
+
             # Sync world metrics with narrative state (keep both in sync)
             self.world.metrics.escalation_risk = self.narrative_state.hidden_metrics.escalation_risk
             self.world.metrics.domestic_stability = self.narrative_state.hidden_metrics.domestic_stability

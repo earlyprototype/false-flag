@@ -43,9 +43,9 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-041 | fixed | med | context | The scripted call drops its premise and shows hidden numbers |
 | ER-042 | fixed | med | parsing | A generated event's effect is dropped when its delta is not an integer |
 | ER-021 | fixed | med | context | Mystery Mode tells the player's own advisors to deceive them |
-| ER-023 | open | med | dispatch | The decision phase runs seven waits where three would do |
+| ER-023 | fixed | med | dispatch | The decision phase runs seven waits where three would do |
 | ER-025 | fixed | med | state | Mystery Mode draws its secret from an unseeded generator |
-| ER-005 | in-progress | med | routing | Five of twelve call families bypass the model configuration |
+| ER-005 | fixed | med | routing | Five of twelve call families bypass the model configuration |
 | ER-006 | fixed | med | parsing | The effects parser accepts any colon line naming a metric |
 | ER-007 | fixed | med | state | Advisor trust updates on one adjudication path only |
 | ER-008 | fixed | med | context | Two context builders apply no character bound |
@@ -56,8 +56,8 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-043 | fixed | low | context | The narrator is never told what the player decided |
 | ER-044 | fixed | low | parsing | The decision summary panel empties on decorated output |
 | ER-024 | fixed | low | context | Player questions are written to the transcript twice |
-| ER-028 | open | low | routing | The play page offers no way to choose or change the model |
-| ER-026 | open | low | dispatch | `--no-stochastic-injects` inverts into a banner switch |
+| ER-028 | fixed | low | routing | The play page offers no way to choose or change the model |
+| ER-026 | fixed | low | dispatch | `--no-stochastic-injects` inverts into a banner switch |
 | ER-001 | fixed | low | context | An empty event ledger removes the do-not-restage rule |
 | ER-009 | fixed | low | context | The metrics are rendered twice and a third block adds nothing |
 | ER-011 | fixed | low | dispatch | Output caps are dropped on three of four drivers |
@@ -183,13 +183,16 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-005 — Five of twelve call families bypass the model configuration
 
-- **Status:** in-progress
-- **Progress:** the routing layer is ready: `LLMContext` gained `QUALITY_ASSESSMENT` (PRO),
+- **Status:** fixed
+- **Fixed:** the routing layer landed first: `LLMContext` gained `QUALITY_ASSESSMENT` (PRO),
   `ACTOR_SIMULATION` (PRO), `SITUATION_SUMMARY` (FLASH) and `NARRATOR` (FLASH), each with a
   default tier, a cost-table entry and a row in the model settings menu, and all four resolve
-  through the provider-aware table (see ER-019). The call-site wiring — passing `context=` at the
-  five bypassing dispatch sites — is deliberately deferred to the pipeline PR to avoid conflicts
-  with concurrent engine work.
+  through the provider-aware table (see ER-019). The pipeline PR then wired the call sites: the
+  narrator bridge passes `NARRATOR`, the quality assessment `QUALITY_ASSESSMENT`, the advisor
+  reactions group `CHARACTER_RESPONSE` (the long-defined member finally has a caller), the
+  situation-summary fold `SITUATION_SUMMARY` and the state-actor batch `ACTOR_SIMULATION`
+  (engine/narrator.py, engine/narrative_adjudication.py, engine/actor_simulation.py). All twelve
+  call families now dispatch with a `context=`.
 - **Severity:** medium
 - **Area:** routing
 - **Observed:** The narrator bridge, the action quality assessment, the advisor reactions, the
@@ -620,7 +623,18 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-023 — The decision phase runs seven waits where three would do
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** `engine/decision_phase.py::run_decision_pipeline` runs the three dependency-ordered
+  rounds (interpretation ∥ actor simulation; pushback ∥ omissions ∥ quality; reactions ∥
+  situation-summary fold) on a `ThreadPoolExecutor(max_workers=3)`, with one child seed per task
+  pre-drawn from the master rng in a fixed documented order so results are independent of thread
+  scheduling, and per-task failure degrading to that family's existing fallback plus a
+  `decision_phase` parse-health fallback. `GameManager.resolve_decision` (headless/browser/HTTP)
+  takes the full pipeline; the terminal CLIs keep their interpret → preview → confirm gate and get
+  the intra-phase wins — `run_preview_round` (pushback ∥ omissions, inside `run_turn_decision`)
+  and the reactions ∥ summary round inside both adjudication functions. Measured with every call
+  held at 0.2 s: 3.4 waits of wall clock against the serial shape's 7
+  (tests/test_decision_phase.py).
 - **Severity:** medium
 - **Area:** dispatch
 - **Observed:** Committing a decision issues seven dispatch rounds one after another: interpretation,
@@ -676,7 +690,13 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-026 — `--no-stochastic-injects` inverts into a banner switch
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** the `stochastic_injects = True` override at the transition turn is deleted from both
+  CLI loops; the per-turn decision lives in `engine.sim_loop.stochastic_generation_status`, which
+  fires generation only when the flag is on and the scripted content has run out, and shows the
+  DYNAMIC GENERATION banner only when generation is enabled and firing for the first time. With
+  the flag off, `run_turn_briefing` already yields the no-new-developments brief
+  (cli/main.py, cli/main_dashboard.py, engine/sim_loop.py; tests/test_cli_modes.py).
 - **Severity:** low
 - **Area:** dispatch
 - **Observed:** The flag defaults to true. At the top of every turn the loop tests whether the turn
@@ -718,7 +738,15 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-028 — The play page offers no way to choose or change the model
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** the campaign-setup panel gained a MODEL input (persisted to localStorage; empty means
+  the default), and the own-key panel — only there, by design — an ENDPOINT input. The `setKey`
+  message now always carries `model`, and `baseUrl` only from the own-key source. The security
+  rule is enforced in the worker, not the page: `bridge.set_key` pins `key_source == "shared"` to
+  `https://openrouter.ai/api/v1` regardless of what the message says and regardless of anything an
+  earlier own-key session left in the environment, so the shared key can never be redirected. The
+  resolved model/endpoint line still prints at game start
+  (docs/index.html, docs/app.js, docs/py/bridge.py; tests/test_web_bridge.py).
 - **Severity:** low
 - **Area:** routing
 - **Observed:** The play page sends the worker a key and a source, and no model or base URL, so the

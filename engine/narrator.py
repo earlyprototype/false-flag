@@ -4,6 +4,7 @@ from typing import List
 from random import Random
 
 from models.world import WorldState
+from llm.model_config import LLMContext
 from llm.prompts import build_narrator_intro_prompt
 from llm.router import generate_text
 
@@ -36,6 +37,7 @@ def generate_narrator_bridge(
         bridge_text = generate_text(
             prompt,
             rng,
+            context=LLMContext.NARRATOR,
             system_instruction="You are a master storyteller for a political thriller. Be concise, atmospheric, and serious.",
             temperature=0.7,
             max_tokens=150

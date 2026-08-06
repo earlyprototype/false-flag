@@ -23,9 +23,8 @@ from engine.narrator import generate_narrator_bridge
 from agents.conversation import (
     handle_player_question,
     interpret_player_action,
-    generate_advisor_pushback,
-    check_critical_omissions
 )
+from engine.decision_phase import format_decision_transcript, run_preview_round
 from llm.router import generate_text, batch_generate_text
 from llm.inject_generator import generate_inject
 from llm.parse_health import record_miss
@@ -278,6 +277,30 @@ def apply_inject_effects(world: WorldState, inject: Dict[str, Any], silent: bool
     update_world_flags(world)
     
     return lines
+
+
+def stochastic_generation_status(
+    turn: int,
+    stochastic_from: int,
+    stochastic_injects: bool,
+    banner_shown: bool,
+) -> Tuple[bool, bool]:
+    """Whether dynamic generation fires this turn, and whether to announce it.
+
+    ER-026: the CLI loops used to FORCE the flag back on at the transition
+    turn, which made ``--no-stochastic-injects`` nothing but a banner switch
+    — and an inverted one, since the DYNAMIC GENERATION banner showed only
+    to whoever had asked for no generation. The flag now means what it
+    says: generation fires only when it is enabled and the scripted content
+    has run out (a disabled flag yields the no-new-developments brief), and
+    the banner shows only when generation is enabled and firing for the
+    first time.
+
+    Returns:
+        (use_stochastic, show_banner)
+    """
+    use_stochastic = bool(stochastic_injects) and turn >= stochastic_from
+    return use_stochastic, use_stochastic and not banner_shown
 
 
 def run_turn_briefing(
@@ -590,10 +613,6 @@ def run_turn_decision(
     event_ledger = (narrative_state.recent_played_events()
                     if narrative_state is not None else None)
 
-    # Store decision in transcript (for save files) but don't echo it
-    transcript.append(f"Prime Minister's Decision: {action}")
-    transcript.append("")
-
     # Interpret action
     interpretation = interpret_player_action(
         world,
@@ -605,51 +624,25 @@ def run_turn_decision(
         event_ledger=event_ledger
     )
 
-    transcript.append("Interpretation:")
-    transcript.append(interpretation)
-    transcript.append("")
-
-    # Generate advisor pushback
-    pushback = generate_advisor_pushback(
+    # Pushback ∥ critical omissions: both consume the interpretation and
+    # neither reads the other, so after the interpretation they go out as
+    # one round instead of two sequential waits (ER-023). The confirm gate
+    # this function feeds stays exactly where it was.
+    pushback, critical_concerns = run_preview_round(
         world,
         action,
         interpretation,
         initial_conditions,
-        generate_text,
         rng,
-        full_transcript,
-        event_ledger=event_ledger
-    )
-    
-    if pushback:
-        transcript.append("Advisor Concerns:")
-        for role, concern in pushback:
-            transcript.append(f"\n{role}: {concern}")
-        transcript.append("")
-    else:
-        transcript.append("No advisor concerns raised.")
-        transcript.append("")
-    
-    # Check for critical omissions (high-priority strategic gaps)
-    critical_concerns = check_critical_omissions(
-        world,
-        action,
-        interpretation,
-        initial_conditions,
-        generate_text,
-        rng,
-        full_transcript,
+        full_transcript=full_transcript,
+        event_ledger=event_ledger,
+        llm_generate_fn=generate_text,
         llm_batch_fn=batch_generate_text,
-        event_ledger=event_ledger
     )
-    
-    if critical_concerns:
-        transcript.append("CRITICAL ADVISORY:")
-        for role, concern, recommendation in critical_concerns:
-            transcript.append(f"\n{role}: {concern}")
-            transcript.append(f"RECOMMENDATION: {recommendation}")
-        transcript.append("")
-    
+
+    transcript.extend(format_decision_transcript(
+        action, interpretation, pushback, critical_concerns))
+
     return interpretation, pushback, critical_concerns, transcript
 
 

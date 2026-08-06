@@ -139,6 +139,50 @@ def test_play_intro_smoke_non_tty():
     print("[PASS] play --intro-only smoke: WORKING")
 
 
+def test_no_stochastic_injects_is_honoured():
+    """ER-026: --no-stochastic-injects must actually disable generation.
+
+    The old loop forced the flag back on at the transition turn, so the
+    option's only effect was to trigger (and pause on) the DYNAMIC
+    GENERATION banner. The decision now lives in
+    engine.sim_loop.stochastic_generation_status, which both CLI loops
+    consume for the same (use_stochastic, show_banner) pair.
+    """
+    from engine.sim_loop import stochastic_generation_status
+
+    # Flag off: generation never fires and the banner never shows, on any
+    # turn either side of the transition point.
+    for turn in (1, 6, 7, 8, 20):
+        use, banner = stochastic_generation_status(
+            turn, 7, stochastic_injects=False, banner_shown=False)
+        assert use is False, f"turn {turn}: generation fired with the flag off"
+        assert banner is False, f"turn {turn}: banner shown with the flag off"
+
+    # Flag on: nothing before the transition...
+    use, banner = stochastic_generation_status(6, 7, True, False)
+    assert (use, banner) == (False, False)
+    # ...then generation fires and the banner plays exactly once...
+    use, banner = stochastic_generation_status(7, 7, True, False)
+    assert (use, banner) == (True, True)
+    # ...and never again once it has been shown.
+    use, banner = stochastic_generation_status(8, 7, True, True)
+    assert (use, banner) == (True, False)
+    print("[PASS] --no-stochastic-injects honoured")
+
+
+def test_cli_loops_no_longer_force_the_flag_back_on():
+    """ER-026 regression tripwire: the override `stochastic_injects = True`
+    is gone from both CLI loops, and both consume the shared helper."""
+    for cli_file in ("cli/main.py", "cli/main_dashboard.py"):
+        source = (root / cli_file).read_text(encoding="utf-8")
+        assert "stochastic_injects = True" not in source, (
+            f"{cli_file} still overrides --no-stochastic-injects at the "
+            "transition turn")
+        assert "stochastic_generation_status" in source, (
+            f"{cli_file} does not use the shared transition helper")
+    print("[PASS] CLI loops honour the flag")
+
+
 if __name__ == "__main__":
     print("Running CLI integration tests...\n")
     
