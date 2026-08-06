@@ -60,6 +60,12 @@ _TRANSCRIPT_HEAD_SHARE = 0.2
 # context window of the models used in play, and a turn makes ~15 calls.
 MAX_INJECT_CONTINUITY_LINES = 400
 
+# Character bound on the narrator bridge's transcript window. The narrator
+# takes the last twenty transcript elements, and one element can be a full
+# unwrapped paragraph — twenty of the long ones are unbounded by anything
+# but the input (ER-008). ~2,000 tokens is plenty for a two-sentence bridge.
+MAX_NARRATOR_CONTEXT_CHARS = 8_000
+
 # Cap on a ledger title so one long headline cannot stretch the column
 _LEDGER_TITLE_MAX = 60
 
@@ -71,15 +77,27 @@ def _ledger_field(entry, key: str, default=""):
     return getattr(entry, key, default)
 
 
-def render_event_ledger(event_ledger) -> str:
+def render_event_ledger(event_ledger, always: bool = False) -> str:
     """Render the EVENTS ALREADY PLAYED block, or '' when there is nothing.
 
     States each past event's disposition outright. The rolling summary only
     *implies* that a thread was closed, and inferring it from prose is what
     failed in live play - the same submarine surfaced four turns running,
     once after the player had it escorted out of UK waters (issue #25).
+
+    ``always=True`` renders the header over an empty ledger too, so a prompt
+    rule that names this block never points at nothing (ER-001): the
+    generation path issues its do-not-restage rule unconditionally, and the
+    rule must always have a block to name.
     """
     if not event_ledger:
+        if always:
+            return "\n".join([
+                "=" * 60,
+                "EVENTS ALREADY PLAYED - do not re-introduce these",
+                "=" * 60,
+                "(nothing has been staged yet)",
+            ])
         return ""
 
     def _title(entry) -> str:
@@ -142,28 +160,28 @@ def get_last_turn_slice(transcript: FullTranscript, max_lines: int = 120,
             start = max(0, i - 1)  # include the ruler above the header
             break
     if start is None:
-        return _bound_chars(transcript[-max_lines:], max_chars)
+        return bound_chars(transcript[-max_lines:], max_chars)
     turn_slice = transcript[start:]
     if len(turn_slice) <= max_lines:
         # Bounded here too. A turn that fits the line cap can still be huge:
         # 398 lines of a full unwrapped paragraph is ~796,000 characters, and
         # this return path skipped the budget entirely.
-        return _bound_chars(turn_slice, max_chars)
+        return bound_chars(turn_slice, max_chars)
     # Too small to hold head + marker + tail: spend the whole budget on the
     # opening, since preserving the turn's inject is the point of this window.
     if max_lines < 3:
-        return _bound_chars(turn_slice[:max_lines], max_chars)
+        return bound_chars(turn_slice[:max_lines], max_chars)
     budget = max_lines - 1  # the elision marker occupies one line
     head = (budget * 2) // 3
     tail = budget - head
     # A zero-length tail must stay empty; turn_slice[-0:] is the whole list.
     tail_lines = turn_slice[-tail:] if tail else []
-    return _bound_chars([*turn_slice[:head],
+    return bound_chars([*turn_slice[:head],
                          "[... mid-turn discussion elided for length ...]",
                          *tail_lines], max_chars)
 
 
-def _bound_chars(lines: FullTranscript, max_chars: int) -> FullTranscript:
+def bound_chars(lines: FullTranscript, max_chars: int) -> FullTranscript:
     """Trim from the head until the block fits ``max_chars``.
 
     The line window is the wrong unit for a model context, and a turn of
@@ -359,14 +377,17 @@ def build_shared_context_prefix(transcript: FullTranscript,
         parts.append(ledger_block)
         parts.append("")
 
-    # The narrative rendering of the same numbers, plus the standing
-    # instruction not to talk about them as numbers. The decision, pushback
-    # and omissions prompts each carried this and the advisor prompt did not;
-    # merging the two context shapes must not quietly drop it from four call
-    # sites. Imported here rather than at module scope because llm.prompts
+    # The standing instruction not to talk about the numbers as numbers. The
+    # decision, pushback and omissions prompts each carried this and the
+    # advisor prompt did not; merging the two context shapes must not quietly
+    # drop it from four call sites. The prose bands and the intelligence-flags
+    # block that used to travel with it are gone (ER-009): the bands restated
+    # the raw values printed directly above, and the flags' only non-duplicate
+    # content — the casualty thresholds — is already present as raw counts two
+    # lines up. Imported here rather than at module scope because llm.prompts
     # imports this module.
-    from llm.prompts import build_world_state_summary
-    parts.append(build_world_state_summary(world_state))
+    from llm.prompts import ADVISOR_VOICE_INSTRUCTIONS
+    parts.append(ADVISOR_VOICE_INSTRUCTIONS)
     parts.append("")
 
     return "\n".join(parts)
@@ -444,11 +465,11 @@ def get_stochastic_inject_context(summary: str, last_turn_transcript: List[str],
     context_parts.append(summary)
     context_parts.append("")
     
-    # What has already been staged, and how each thread was left
-    ledger_block = render_event_ledger(event_ledger)
-    if ledger_block:
-        context_parts.append(ledger_block)
-        context_parts.append("")
+    # What has already been staged, and how each thread was left. Rendered
+    # even over an empty ledger (always=True): the generation prompt's
+    # do-not-restage rule names this block unconditionally (ER-001).
+    context_parts.append(render_event_ledger(event_ledger, always=True))
+    context_parts.append("")
 
     # Add last turn's transcript for continuity
     context_parts.append("=" * 60)
@@ -539,7 +560,7 @@ def get_diplomatic_context(transcript: FullTranscript, world_state: WorldState, 
         if _is_structural_line(stripped) or not _SPEAKER_PREFIX_RE.match(stripped):
             filtered_lines.append(text)
 
-    filtered_lines = _bound_chars(filtered_lines, MAX_DIPLOMATIC_CONTEXT_CHARS)
+    filtered_lines = bound_chars(filtered_lines, MAX_DIPLOMATIC_CONTEXT_CHARS)
 
     # Build the final context
     context_parts = []

@@ -153,3 +153,102 @@ def test_get_intel_actors_categorizes_usa_as_ally():
     assert "USA" in actors, "Codes must match data/state_actors.yaml"
     assert actors["USA"]["category"] == "ally"
     assert actors["RUS"]["category"] == "adversary"
+
+
+def test_each_question_lands_in_the_transcript_exactly_once():
+    """ER-024: process_question pre-appended the Prime Minister line and then
+    extended the same line from run_turn_discussion, doubling every question
+    in every history-carrying prompt."""
+    gm = make_manager()
+    gm.get_turn_briefing()
+
+    question = "What is the Russian submarine actually doing?"
+    gm.process_question(question)
+
+    line = f"Prime Minister: {question}"
+    assert gm.transcript.count(line) == 1
+
+
+def _play_turn(gm, turn):
+    gm.get_turn_briefing()
+    gm.process_question(f"Turn {turn}: what changed overnight?")
+    gm.resolve_decision(DECISION)
+
+
+def test_save_load_resumes_the_draw_sequence(monkeypatch):
+    """ER-037: a campaign saved after three turns and resumed must play turn
+    four exactly as an uninterrupted campaign does — the restored generator
+    continues from the saved position instead of replaying spent draws.
+
+    fast_start puts the stochastic transition at turn 4, so the campaign has
+    spent generation draws by the time it is saved and the turn played after
+    the reload is itself a *generated* one. Both halves matter: the mock
+    driver spends no randomness on scripted turns, so a save taken before
+    the transition resumes identically with or without the stored position.
+    With one generated turn behind the save, deleting rng_state from the
+    payload fails this test (verified) — the fresh-seeded generator re-rolls
+    the spent draws and stages a different turn-5 event.
+    """
+    monkeypatch.setenv("WARGAME_LLM", "mock")
+
+    # Uninterrupted: five straight turns (4 and 5 generated).
+    straight = GameManager(scenario_id="war_game_2025", variant="fast_start",
+                           seed=42)
+    for turn in range(1, 6):
+        _play_turn(straight, turn)
+
+    # Interrupted: four turns, a save/load round-trip, then turn five.
+    interrupted = GameManager(scenario_id="war_game_2025", variant="fast_start",
+                              seed=42)
+    for turn in range(1, 5):
+        _play_turn(interrupted, turn)
+    resumed = GameManager.from_dict(interrupted.to_dict())
+    _play_turn(resumed, 5)
+
+    assert resumed.transcript == straight.transcript, (
+        "a save/load round-trip changed the campaign"
+    )
+    assert snapshot_metrics(resumed.world.metrics) == snapshot_metrics(
+        straight.world.metrics)
+
+
+def test_old_payload_without_rng_state_still_loads():
+    """A pre-ER-037 payload (no state.rng_state) restores exactly as before:
+    fresh-seeded generator, no error."""
+    gm = make_manager()
+    gm.get_turn_briefing()
+    payload = gm.to_dict()
+    del payload["state"]["rng_state"]
+
+    restored = GameManager.from_dict(payload)
+    assert restored.world.turn == gm.world.turn
+    # Fresh generator from the seed, the pre-2.3 behaviour.
+    from random import Random
+    assert restored.rng.getstate() == Random(gm.seed).getstate()
+
+
+def test_mid_turn_load_replays_briefing_without_reapplying(monkeypatch):
+    """ER-004: a save taken mid-turn (after the briefing ran) must replay the
+    briefing for context on resume — same metrics, no re-applied effects, no
+    duplicated ledger entry."""
+    monkeypatch.setenv("WARGAME_LLM", "mock")
+
+    gm = make_manager()
+    gm.get_turn_briefing()
+    gm.process_question("Who else knows about this?")  # phase -> discussion
+    saved_metrics = snapshot_metrics(gm.world.metrics)
+    saved_ledger = [e.dict() for e in gm.narrative_state.event_ledger]
+    payload = gm.to_dict()
+
+    resumed = GameManager.from_dict(payload)
+    assert resumed._resume_replay is True
+
+    resumed.get_turn_briefing()
+
+    # Effects applied exactly once, not once per load.
+    assert snapshot_metrics(resumed.world.metrics) == saved_metrics
+    assert snapshot_metrics(resumed.narrative_state.hidden_metrics) == saved_metrics
+    # The ledger entry was not re-recorded.
+    assert [e.dict() for e in resumed.narrative_state.event_ledger] == saved_ledger
+    # The replay flag is one-shot.
+    assert resumed._resume_replay is False

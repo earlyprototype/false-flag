@@ -6,6 +6,7 @@ Provides JSON-based persistence for WorldState and game transcript.
 import json
 import os
 from pathlib import Path
+from random import Random
 from typing import Any, List, Optional, Tuple
 
 from models.world import WorldState
@@ -21,6 +22,30 @@ def _default_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+def encode_rng_state(rng: Random) -> list:
+    """JSON-safe encoding of ``rng.getstate()``.
+
+    getstate() returns (version, (int, ...), gauss_next); JSON has no tuples,
+    so the shape becomes [version, [int, ...], gauss_next].
+    """
+    version, internal, gauss_next = rng.getstate()
+    return [version, list(internal), gauss_next]
+
+
+def decode_rng_state(payload) -> Optional[tuple]:
+    """Rebuild the tuple ``Random.setstate`` expects from the JSON encoding.
+
+    Returns None for a missing or malformed payload — old saves (pre-2.3)
+    simply have no stored position, and the caller keeps its fresh-seeded
+    generator, which is exactly the pre-2.3 behaviour.
+    """
+    try:
+        version, internal, gauss_next = payload
+        return (version, tuple(internal), gauss_next)
+    except (TypeError, ValueError):
+        return None
+
+
 
 def save_game(
     world: WorldState,
@@ -31,7 +56,8 @@ def save_game(
     play_mode: str = "immersive",
     narrative_state: Optional[NarrativeState] = None,
     variant: str = "standard",
-    initial_metrics: Optional[dict] = None
+    initial_metrics: Optional[dict] = None,
+    rng: Optional[Random] = None
 ) -> Path:
     """Save game state and transcript to JSON file.
 
@@ -47,6 +73,9 @@ def save_game(
             pick the right turn files and stochastic transition point
         initial_metrics: Metrics snapshot from the start of the campaign, so
             a resumed game's debrief reports deltas from the true start
+        rng: Optional campaign generator; when provided its position is
+            stored so a resumed game continues the draw sequence instead of
+            replaying spent randomness (ER-037)
 
     Returns:
         Path to saved file
@@ -67,7 +96,8 @@ def save_game(
         "narrative_state": narrative_state.model_dump() if narrative_state else None,
         "variant": variant,
         "initial_metrics": initial_metrics,
-        "version": "2.2"  # 2.1: adds scenario variant; 2.2: adds initial_metrics
+        "rng_state": encode_rng_state(rng) if rng is not None else None,
+        "version": "2.3"  # 2.1: adds scenario variant; 2.2: adds initial_metrics; 2.3: adds rng_state
     }
 
     save_path.write_text(json.dumps(save_data, indent=2), encoding="utf-8")
@@ -97,6 +127,16 @@ def read_save_variant(save_path: Path) -> str:
     "standard".
     """
     return read_save_field(save_path, "variant", "standard")
+
+
+def read_rng_state(save_path: Path) -> Optional[tuple]:
+    """Read the saved generator position, ready for ``Random.setstate``.
+
+    Same pattern as initial_metrics: a separate field reader, so load_game's
+    return shape stays stable for existing callers. Old saves (pre-2.3)
+    return None and the caller keeps its fresh-seeded generator.
+    """
+    return decode_rng_state(read_save_field(save_path, "rng_state"))
 
 
 def load_game(save_path: Path) -> Tuple[str, WorldState, List[str], str, Optional[NarrativeState]]:

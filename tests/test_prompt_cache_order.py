@@ -117,8 +117,9 @@ def test_the_event_ledger_sits_after_the_transcript_block():
     assert with_ledger.index("GAME HISTORY") < with_ledger.index("EVENTS ALREADY PLAYED")
     assert with_ledger.index("assessment 1.0") < with_ledger.index("EVENTS ALREADY PLAYED")
     assert with_ledger.index("CURRENT SITUATION") < with_ledger.index("EVENTS ALREADY PLAYED")
-    # ...and before the narrative world-state summary that closes the dossier.
-    assert with_ledger.index("EVENTS ALREADY PLAYED") < with_ledger.index("THREAT ASSESSMENT")
+    # ...and before the standing advisor-voice instructions that close the
+    # dossier (the prose bands that used to close it are gone - ER-009).
+    assert with_ledger.index("EVENTS ALREADY PLAYED") < with_ledger.index("Do NOT reference")
     # Everything above the transcript is untouched by the ledger.
     assert _shared_prefix(with_ledger, without) > with_ledger.index("CURRENT SITUATION")
 
@@ -260,3 +261,62 @@ def test_a_transcript_with_no_turn_headers_still_renders():
                                     max_chars=5000)
     assert "elided" in block
     assert len(block) < 12_000
+
+
+# --- the dossier says each thing once (ER-009) ------------------------------
+
+def test_the_dossier_renders_the_metrics_once_not_three_times():
+    """The raw values stay; the prose bands and the flags block that restated
+    them (and the casualty counts two lines up) are gone. What survives of
+    build_world_state_summary is the standing advisor-voice instruction."""
+    world = _world()
+    world.flags = {"risk_escalation": True}
+    block = build_shared_context_prefix(_transcript(), world)
+
+    # Raw values, once.
+    assert block.count(f"Escalation Risk: {world.metrics.escalation_risk}/100") == 1
+    # The duplicate renderings are out.
+    assert "THREAT ASSESSMENT" not in block
+    assert "KEY INTELLIGENCE FLAGS" not in block
+    # The deliberate carry-over survives the slimming.
+    assert "Do NOT reference 'metrics', 'game mechanics', 'scores', or 'values'." in block
+
+
+def test_the_outcome_assessor_is_not_told_to_avoid_values(monkeypatch):
+    """ER-027: a prompt that must answer ALLIANCE_COHESION_DELTA: [number]
+    must not carry the advisor instruction never to reference values."""
+    from random import Random
+    from engine.diplomacy import assess_diplomatic_outcome
+
+    captured = {}
+
+    def fake_generate(prompt, rng, **kwargs):
+        captured["prompt"] = prompt
+        return ("ASSESSMENT: Constructive call.\n"
+                "ALLIANCE_COHESION_DELTA: +3\n"
+                "REASONING: Reassured the counterpart.")
+
+    assess_diplomatic_outcome(_world(), "US",
+                              [("Prime Minister", "We stand with you.")],
+                              fake_generate, Random(0))
+
+    assert "ALLIANCE_COHESION_DELTA" in captured["prompt"]
+    assert "Do NOT reference" not in captured["prompt"]
+    # The prose situation summary is still there.
+    assert "THREAT ASSESSMENT" in captured["prompt"]
+
+
+# --- the narrator window is bounded (ER-008) --------------------------------
+
+def test_the_narrator_slice_is_character_bounded():
+    """Twenty transcript elements can be twenty unwrapped paragraphs; the
+    element count alone bounded nothing."""
+    from llm.context_builder import MAX_NARRATOR_CONTEXT_CHARS
+    from llm.prompts import build_narrator_intro_prompt
+
+    fat_turn = ["X" * 4000 for _ in range(20)]
+    prompt = build_narrator_intro_prompt(_world(), fat_turn, "Next Event")
+    # The transcript window inside the prompt is bounded; the rest of the
+    # prompt is fixed-size scaffolding.
+    assert len(prompt) < MAX_NARRATOR_CONTEXT_CHARS + 4000
+    assert "elided for length" in prompt

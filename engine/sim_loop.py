@@ -334,7 +334,10 @@ def run_turn_briefing(
     # If no inject file and stochastic mode enabled, generate one. No meta
     # marker in the transcript — the Narrator bridge already carries the
     # transition, and "[Stochastically generated inject]" leaked to players.
-    if inject is None and stochastic_injects:
+    # Never on replay (ER-004): the resumed turn already had its event, and
+    # generating a second, different one leaves the first event's effects
+    # applied while the ledger names the second.
+    if inject is None and stochastic_injects and not replay:
         initial_conditions = load_initial_conditions(scenario_id, root_path)
         # The ledger tells the generator which threads are already closed, so
         # a resolved event is not restaged as a fresh one (issue #25). The
@@ -356,8 +359,9 @@ def run_turn_briefing(
     
     if inject:
         # Log the staged event; its disposition is set at adjudication once
-        # we know what the player did about it.
-        if narrative_state is not None:
+        # we know what the player did about it. Not on replay (ER-004): the
+        # resumed turn's entry is already in the ledger.
+        if narrative_state is not None and not replay:
             try:
                 narrative_state.record_played_event(
                     world.turn, inject.get("title", ""))
@@ -466,6 +470,11 @@ def run_turn_briefing(
                         "country": country,
                         "context": context,
                     }
+    elif replay:
+        # Replaying a generated-inject turn (ER-004): the generated event is
+        # already in the transcript above and must not be re-rolled, so this
+        # briefing has nothing new of its own to show.
+        transcript.append("(resuming mid-turn — the morning's events are above)")
     else:
         # Scripted content exhausted with stochastic generation disabled:
         # stay in-fiction rather than reporting a missing file
