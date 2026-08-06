@@ -452,12 +452,14 @@ def select_difficulty(scenario_id: str) -> str:
             console.print(f"[{COLORS['danger']}]Invalid input. Please enter a number.[/{COLORS['danger']}]")
 
 
-def select_narrative(scenario_id: str) -> Optional[NarrativeConfig]:
+def select_narrative(scenario_id: str, rng: Random) -> Optional[NarrativeConfig]:
     """Display game type selection menu (Original Story Mode vs Mystery Mode).
-    
+
     Args:
         scenario_id: Base scenario identifier
-    
+        rng: The campaign's seeded generator — the Mystery draw must come
+            from it, or a fixed seed does not fix the hidden truth (ER-025)
+
     Returns:
         None if Original Story Mode selected,
         NarrativeConfig (randomly chosen) if Mystery Mode selected
@@ -499,10 +501,9 @@ def select_narrative(scenario_id: str) -> Optional[NarrativeConfig]:
             elif choice == 2:
                 # Mystery Mode - randomly select narrative
                 narratives = load_narrative_configs(scenario_id)
-                
+
                 if narratives:
-                    import random
-                    selected_narrative = random.choice(narratives)
+                    selected_narrative = rng.choice(narratives)
                     console.print("")
                     console.print(f"[{COLORS['success']} bold]✓ Mystery Mode activated[/{COLORS['success']} bold]")
                     console.print("")
@@ -575,7 +576,12 @@ def play(
         typer.echo("")
         typer.echo("[Flash-only mode enabled - using gemini-2.5-flash for all calls]")
         typer.echo("")
-    
+
+    # The campaign generator, created before the setup screens because the
+    # Mystery Mode draw in select_narrative must come from it (ER-025) — the
+    # first draw of a campaign, same ordering as the headless GameManager.
+    rng = Random(seed)
+
     # Operation Tuman title sequence: fog banks condense into the FALSE
     # FLAG masthead, then the secure terminal boots. Any key skips; on
     # non-TTY stdout the finished frame prints instantly with no sleeps.
@@ -635,8 +641,8 @@ def play(
     # Select game type (Original or Mystery mode) - only for new games
     selected_narrative = None
     if load_save is None:
-        selected_narrative = select_narrative(scenario)  # Returns None for Original, NarrativeConfig for Mystery
-    
+        selected_narrative = select_narrative(scenario, rng)  # Returns None for Original, NarrativeConfig for Mystery
+
     # Display intro with pauses
     if intro_only or load_save is None:
         # Display each beat: animated scene card, then the body streamed
@@ -698,8 +704,7 @@ def play(
     
     if intro_only:
         return
-    
-    rng = Random(seed)
+
     root = Path(__file__).resolve().parents[1]  # cli/main.py -> project root
     
     # For NEW games, load and display Turn 1 briefing as part of intro sequence
@@ -718,8 +723,16 @@ def play(
                 play_mode = loaded_play_mode
             # Campaign-start snapshot (2.2+ saves); old saves fall back to
             # the resume point's metrics below.
-            from engine.persistence import read_save_field
+            from engine.persistence import read_save_field, read_rng_state
             loaded_initial_metrics = read_save_field(save_path, "initial_metrics")
+
+            # Resume the generator where the save left it (2.3+ saves), so
+            # generated content continues instead of replaying draws the
+            # campaign already spent (ER-037). Old saves keep the fresh seed.
+            saved_rng_state = read_rng_state(save_path)
+            if saved_rng_state is not None:
+                rng.setstate(saved_rng_state)
+
             typer.echo(f"Loaded game from {save_path}")
             typer.echo(f"Resuming at Turn {world.turn}")
             typer.echo("")
@@ -728,7 +741,7 @@ def play(
             # first briefing must replay for context WITHOUT re-applying its
             # effects or re-running its mandatory diplomatic encounter.
             resume_replay = world.phase in ("discussion", "decision", "adjudication")
-            
+
             # Use loaded narrative state if available, otherwise create new
             if loaded_narrative_state:
                 narrative_state = loaded_narrative_state
@@ -1043,7 +1056,7 @@ def play(
                     continue
             
                 if user_input.lower() in ["/save", "save"]:
-                    save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot)
+                    save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng)
                     typer.echo(f"Game saved to {save_path}")
                     continue
             
@@ -1984,7 +1997,7 @@ def play(
         world.discussion_transcript = []
         world.phase = "briefing"
 
-        save_path = save_game(world, transcript, scenario, "autosave", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot)
+        save_path = save_game(world, transcript, scenario, "autosave", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng)
 
         if ending:
             debrief_lines = build_debrief_lines(world, ending, initial_metrics_snapshot, transcript)

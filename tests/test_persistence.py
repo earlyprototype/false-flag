@@ -4,11 +4,14 @@ tolerance of old save formats."""
 import json
 import sys
 from pathlib import Path
+from random import Random
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from engine.persistence import (  # noqa: E402
+    decode_rng_state,
     load_game,
+    read_rng_state,
     read_save_field,
     read_save_variant,
     save_game,
@@ -54,7 +57,7 @@ def test_save_round_trips_initial_metrics_and_variant(tmp_path):
     # The raw payload carries the snapshot and the bumped version
     raw = json.loads(save_path.read_text(encoding="utf-8"))
     assert raw["initial_metrics"] == snapshot
-    assert raw["version"] == "2.2"
+    assert raw["version"] == "2.3"
 
     # load_game still round-trips the world unchanged
     scenario_id, world, transcript, play_mode, narrative_state = load_game(save_path)
@@ -105,3 +108,69 @@ def test_read_save_field_unreadable_file_returns_default(tmp_path):
     corrupt.write_text("{not json", encoding="utf-8")
     assert read_save_field(corrupt, "initial_metrics", None) is None
     assert read_save_variant(corrupt) == "standard"
+
+
+# --- rng position (ER-037) ---------------------------------------------------
+
+def test_save_round_trips_the_rng_position(tmp_path):
+    """A save taken mid-campaign stores the generator position, and a fresh
+    generator restored from it continues the exact draw sequence."""
+    rng = Random(42)
+    rng.random()  # spend some of the campaign's randomness
+    rng.choice(["a", "b", "c"])
+
+    save_path = save_game(
+        make_world(),
+        transcript=[],
+        scenario_id="war_game_2025",
+        save_name="rng",
+        root_path=tmp_path,
+        rng=rng,
+    )
+
+    # The payload is plain JSON (no tuples), and the reader rebuilds the
+    # tuple shape Random.setstate requires.
+    restored_state = read_rng_state(save_path)
+    assert restored_state is not None
+    resumed = Random(0)  # any seed; setstate overrides it completely
+    resumed.setstate(restored_state)
+
+    assert [resumed.random() for _ in range(5)] == [rng.random() for _ in range(5)]
+
+
+def test_save_without_rng_stores_null_and_reads_none(tmp_path):
+    save_path = save_game(
+        make_world(),
+        transcript=[],
+        scenario_id="war_game_2025",
+        save_name="no_rng",
+        root_path=tmp_path,
+    )
+    raw = json.loads(save_path.read_text(encoding="utf-8"))
+    assert raw["rng_state"] is None
+    assert read_rng_state(save_path) is None
+
+
+def test_old_save_without_rng_state_loads_exactly_as_today(tmp_path):
+    """Pre-2.3 saves have no rng_state field at all: read_rng_state answers
+    None and load_game round-trips the world untouched."""
+    old_save = tmp_path / "war_game_2025_pre23.json"
+    old_save.write_text(json.dumps({
+        "scenario_id": "war_game_2025",
+        "world": make_world().model_dump(),
+        "transcript": ["Turn 1 briefing"],
+        "version": "2.2",
+    }), encoding="utf-8")
+
+    assert read_rng_state(old_save) is None
+
+    scenario_id, world, transcript, play_mode, narrative_state = load_game(old_save)
+    assert scenario_id == "war_game_2025"
+    assert world.turn == 3
+    assert transcript == ["Turn 1 briefing"]
+
+
+def test_decode_rng_state_rejects_malformed_payloads():
+    assert decode_rng_state(None) is None
+    assert decode_rng_state("garbage") is None
+    assert decode_rng_state([1]) is None

@@ -76,6 +76,13 @@ class GameManager:
         # costs a point of trust with each objecting advisor (ER-013).
         self._pending_pushback: Optional[tuple] = None
 
+        # True when the next briefing is a replay of one that already ran
+        # before a save/load (ER-004): show it for context, but do not
+        # re-apply its effects, re-record its ledger entry, regenerate its
+        # event, or re-open its mandatory diplomatic call. Set by from_dict
+        # when the restored world is mid-turn.
+        self._resume_replay: bool = False
+
         # Initialize World
         self._init_world()
 
@@ -145,6 +152,10 @@ class GameManager:
         use_stochastic = self.world.turn >= stochastic_from
         turn_filename = get_turn_filename(self.world.turn, self.scenario_config)
 
+        # Only the first briefing after a mid-turn load is a replay (ER-004).
+        replay = self._resume_replay
+        self._resume_replay = False
+
         inject, lines = run_turn_briefing(
             self.world,
             self.scenario_id,
@@ -155,6 +166,7 @@ class GameManager:
             turn_filename=turn_filename,
             suppress_display=True,
             silent_effects=True,
+            replay=replay,  # Loaded mid-turn save: show briefing, don't re-apply it
             narrative_state=self.narrative_state  # Feeds the event ledger (issue #25)
         )
 
@@ -189,21 +201,27 @@ class GameManager:
         # narrative_state.hidden_metrics and the result is copied back over
         # world.metrics at end of turn, so any briefing effect left only on
         # world.metrics would be silently reverted. This also snapshots
-        # previous_metrics, giving the immersive-mode vibes a real trend baseline.
-        self.narrative_state.update_hidden_metrics({
-            "escalation_risk": self.world.metrics.escalation_risk,
-            "domestic_stability": self.world.metrics.domestic_stability,
-            "alliance_cohesion": self.world.metrics.alliance_cohesion,
-            "casualties_mil": self.world.metrics.casualties_mil,
-            "casualties_civ": self.world.metrics.casualties_civ,
-        })
+        # previous_metrics, giving the immersive-mode vibes a real trend
+        # baseline. Not on replay (ER-004): nothing was applied, so there is
+        # nothing to sync — the same guard the CLI loop carries.
+        if not replay:
+            self.narrative_state.update_hidden_metrics({
+                "escalation_risk": self.world.metrics.escalation_risk,
+                "domestic_stability": self.world.metrics.domestic_stability,
+                "alliance_cohesion": self.world.metrics.alliance_cohesion,
+                "casualties_mil": self.world.metrics.casualties_mil,
+                "casualties_civ": self.world.metrics.casualties_civ,
+            })
 
         return inject or {}
 
     def process_question(self, question_text: str) -> List[str]:
-        """Process a player question during Discussion phase."""
-        self.transcript.append(f"Prime Minister: {question_text}")
-        
+        """Process a player question during Discussion phase.
+
+        No pre-append of the question here: run_turn_discussion writes the
+        "Prime Minister: ..." line into the lines extended below, and doing
+        both put every question in the transcript twice (ER-024).
+        """
         discussion_lines = run_turn_discussion(
             self.world,
             self.scenario_id,
@@ -620,6 +638,8 @@ class GameManager:
         """
         from datetime import datetime
 
+        from engine.persistence import encode_rng_state
+
         return {
             "metadata": {
                 "save_name": save_name,
@@ -640,7 +660,10 @@ class GameManager:
                 "narrative_state": self.narrative_state.dict(),
                 "transcript": self.transcript,
                 "initial_metrics": self.initial_metrics_snapshot,
-                "ending_id": self.ending.ending_id if self.ending else None
+                "ending_id": self.ending.ending_id if self.ending else None,
+                # Generator position, so a resumed session continues the
+                # draw sequence instead of replaying spent randomness (ER-037)
+                "rng_state": encode_rng_state(self.rng)
             }
         }
 
@@ -697,6 +720,21 @@ class GameManager:
         # that answer (the browser build does) drops the player back into a
         # graded, finished game instead of showing them the ending.
         manager.ending = get_ending(state.get("ending_id"))
+
+        # Restore the generator position AFTER construction — the constructor
+        # burns draws (the Mystery Mode narrative draw), and restoring first
+        # would let them corrupt the saved position (ER-037). Old payloads
+        # without the field keep the fresh-seeded generator, as before.
+        from engine.persistence import decode_rng_state
+        rng_state = decode_rng_state(state.get("rng_state"))
+        if rng_state is not None:
+            manager.rng.setstate(rng_state)
+
+        # A save taken mid-turn already ran this turn's briefing: the next
+        # get_turn_briefing must replay it for context without re-applying
+        # its effects or re-running its diplomatic encounter (ER-004).
+        manager._resume_replay = manager.world.phase in (
+            "discussion", "decision", "adjudication")
 
         return manager
 

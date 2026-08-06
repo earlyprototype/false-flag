@@ -256,6 +256,35 @@ def test_full_turn_and_autosave_resume(game_runs):
     )
 
 
+def test_saves_carry_the_rng_position(game_runs):
+    """ER-037: every save written by the CLI stores the generator position
+    (version 2.3), so a resumed campaign continues the draw sequence instead
+    of replaying spent randomness. Old saves without the field still load —
+    run C consumed the autosave whether or not it carried one."""
+    for name, payload in [("cancel-save", game_runs.cancel_save),
+                          ("autosave", game_runs.autosave),
+                          ("mid-turn save", game_runs.turn2_first)]:
+        assert payload.get("version") == "2.3", f"{name} not written as 2.3"
+        state = payload.get("rng_state")
+        assert state, f"{name} carries no rng_state"
+        version, internal, _gauss = state
+        assert version == 3 and len(internal) == 625, (
+            f"{name} rng_state is not a Mersenne Twister state"
+        )
+
+
+def test_reloading_a_mid_turn_save_does_not_regrow_the_ledger(game_runs):
+    """ER-004: replaying a mid-turn briefing must not re-record the turn's
+    event. Run D reloaded run C's mid-turn save; the ledger it saved back
+    must be exactly the one it loaded."""
+    first = (game_runs.turn2_first.get("narrative_state") or {}).get("event_ledger")
+    second = (game_runs.turn2_second.get("narrative_state") or {}).get("event_ledger")
+    assert first, "run C recorded no played events"
+    assert second == first, (
+        f"replayed briefing changed the event ledger: {first} -> {second}"
+    )
+
+
 def test_no_traceback_in_output(game_runs):
     """None of the scripted runs may emit a Python traceback."""
     for name, result in game_runs.outputs:
