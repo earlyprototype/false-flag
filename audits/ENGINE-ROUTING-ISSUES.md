@@ -19,9 +19,9 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 
 | id | status | sev | area | summary |
 |---|---|---|---|---|
-| ER-012 | open | high | data | Authored per-country content reaches no prompt |
+| ER-012 | fixed | high | data | Authored per-country content reaches no prompt |
 | ER-032 | open | high | dispatch | The rate limiter is discarded on every model-tier switch |
-| ER-033 | open | high | dispatch | The scripted diplomatic call answers itself on two front ends |
+| ER-033 | fixed | high | dispatch | The scripted diplomatic call answers itself on two front ends |
 | ER-034 | fixed | high | parsing | An annotated number is dropped and its siblings are applied |
 | ER-035 | fixed | high | parsing | A bulleted cabinet objection is read as no objection |
 | ER-036 | fixed | high | parsing | Two acceptance rules discard real critical omissions |
@@ -30,7 +30,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-029 | fixed | high | parsing | The diplomatic outcome parser shares the same defect |
 | ER-030 | fixed | high | parsing | A worded refusal is read as conditional support |
 | ER-017 | open | high | context | The calls that change the game never learn what happened in it |
-| ER-018 | open | high | context | The diplomatic transcript filter is erratic in both directions |
+| ER-018 | fixed | high | context | The diplomatic transcript filter is erratic in both directions |
 | ER-019 | open | high | routing | The per-call model table is inert on the shipped provider |
 | ER-020 | open | high | context | The story generator is given a digest instead of a synopsis |
 | ER-022 | open | high | dispatch | The HTTP path serves no briefing after turn one |
@@ -39,10 +39,10 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-004 | open | high | dispatch | A resumed mid-turn save re-runs the briefing |
 | ER-045 | fixed | med | dispatch | A partial batch failure is invisible on the omissions scan |
 | ER-037 | open | med | state | The random number position is not saved |
-| ER-038 | open | med | context | A foreign counterpart is given the UK's private metrics |
-| ER-041 | open | med | context | The scripted call drops its premise and shows hidden numbers |
+| ER-038 | fixed | med | context | A foreign counterpart is given the UK's private metrics |
+| ER-041 | fixed | med | context | The scripted call drops its premise and shows hidden numbers |
 | ER-042 | fixed | med | parsing | A generated event's effect is dropped when its delta is not an integer |
-| ER-021 | open | med | context | Mystery Mode tells the player's own advisors to deceive them |
+| ER-021 | fixed | med | context | Mystery Mode tells the player's own advisors to deceive them |
 | ER-023 | open | med | dispatch | The decision phase runs seven waits where three would do |
 | ER-025 | open | med | state | Mystery Mode draws its secret from an unseeded generator |
 | ER-005 | open | med | routing | Five of twelve call families bypass the model configuration |
@@ -52,7 +52,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-010 | open | med | state | The situation summary costs a call per turn and reaches no prompt |
 | ER-014 | open | med | context | The state-actor prompt carries UK internal advisor trust |
 | ER-039 | fixed | low | parsing | The quality multiplier's effect is halved before it lands |
-| ER-040 | open | low | context | The diplomatic exchange counter advances twice per exchange |
+| ER-040 | fixed | low | context | The diplomatic exchange counter advances twice per exchange |
 | ER-043 | open | low | context | The narrator is never told what the player decided |
 | ER-044 | fixed | low | parsing | The decision summary panel empties on decorated output |
 | ER-024 | open | low | context | Player questions are written to the transcript twice |
@@ -64,6 +64,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-013 | open | low | state | Advisor pushback mutates nothing |
 | ER-031 | fixed | low | parsing | An explicit multiplier of 1.0 is indistinguishable from silence |
 | ER-027 | open | low | context | An advisor instruction contradicts the outcome assessor's task |
+| ER-046 | open | low | data | The stance list and the state-actor roster barely overlap |
 
 ## How the measurements below were taken
 
@@ -305,7 +306,11 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-012 — Authored per-country content reaches no prompt
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** The stance lookup canonicalises both sides through a module-level alias table in
+  `models/narrative.py` (a miss logs `[PARSE-MISS] narrative_stance <code>`), and the actor path
+  passes the narrative per-actor so each capital is played from its own authored stance. The
+  roster/stance overlap gap noted below is filed separately as ER-046.
 - **Severity:** high
 - **Area:** data
 - **Observed:** `NarrativeConfig.to_llm_context` resolves a country's stance by exact string match
@@ -458,7 +463,10 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-018 — The diplomatic transcript filter is erratic in both directions
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** `get_diplomatic_context` rewritten as a structural fail-closed whitelist: a call
+  block is shared whole with its own country only, and outside call blocks only unattributed or
+  structural lines pass, bounded at 60,000 characters.
 - **Severity:** high
 - **Area:** context
 - **Observed:** `get_diplomatic_context` promises in its docstring to exclude all internal UK COBRA
@@ -531,7 +539,10 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-021 — Mystery Mode tells the player's own advisors to deceive them
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** `to_llm_context` gained an `audience` parameter; briefing audiences (shared dossier,
+  inject generation, quality assessment) get judge-plausibility-never-deceive instructions and
+  only roleplay audiences (foreign leaders, state actors) keep the deceive block.
 - **Severity:** medium
 - **Area:** context
 - **Observed:** `NarrativeConfig.to_llm_context` always appends a four-line instruction block
@@ -773,7 +784,12 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-033 — The scripted diplomatic call answers itself on two front ends
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** A headless briefing no longer auto-runs the encounter: the spec rides back on the
+  inject, `GameManager` opens the call as a live `active_encounter` (driven by the existing
+  `process_diplomacy`), the browser bridge puts the player on the line and refuses decisions until
+  the call ends, the HTTP server exposes `pending_encounter` and returns 409 on decisions, and an
+  in-encounter exchange cap guarantees a required call terminates.
 - **Severity:** high
 - **Area:** dispatch
 - **Observed:** `run_diplomatic_encounter` substitutes the line "Thank you." for the player's reply
@@ -883,7 +899,9 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-038 — A foreign counterpart is given the UK's private metrics
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** The UK private-metrics block is removed from the diplomatic context entirely; the
+  counterpart gets the turn number and one neutral sentence about the crisis.
 - **Severity:** medium
 - **Area:** context
 - **Observed:** `get_diplomatic_context` opens the foreign counterpart's roleplay context with the
@@ -915,7 +933,10 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-040 — The diplomatic exchange counter advances twice per exchange
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** The count divides the two-entries-per-exchange history, and the prompt is built
+  before the player's line joins it (which also stops that line rendering twice) — the first
+  player message is exchange 1.
 - **Severity:** low
 - **Area:** context
 - **Observed:** The counterpart's prompt is told which exchange it is on, computed as the length of
@@ -930,7 +951,10 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-041 — The scripted call drops its premise and shows hidden numbers
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** The stored encounter context now renders as a `=== WHY YOU ARE CALLING ===` block in
+  the counterpart's prompt, and every mandatory and dashboard call passes
+  `show_metrics=(play mode == "classic")`.
 - **Severity:** medium
 - **Area:** context
 - **Observed:** Two arguments are lost on the mandatory-encounter path. The inject's authored context,
@@ -1018,3 +1042,22 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
   group. When the remaining advisors are also clear, the result is indistinguishable at the call
   site from a genuine all-clear. It is a silent false negative on the one call family whose job is
   to warn, and the advisor most likely to be missing is unknowable after the fact.
+
+## ER-046 — The stance list and the state-actor roster barely overlap
+
+- **Status:** open
+- **Severity:** low
+- **Area:** data
+- **Observed:** Both shipped Mystery narratives author stances for RUS, USA, CHN and IRL, while the
+  state-actor roster simulates USA, FRA, DEU, POL and RUS. Only USA and RUS appear in both. Split
+  out of ER-012: the lookup mismatch that hid all of this is fixed, and what remains is a content
+  gap in the scenario data.
+- **Evidence:** `data/scenarios/war_game_2025/narratives.yaml` (stance codes RUS, USA, CHN, IRL in
+  both narratives); `data/state_actors.yaml` (roster USA, FRA, DEU, POL, RUS); the
+  `[PARSE-MISS] narrative_stance FRA` / `POL` warnings a Mystery campaign now logs on
+  actor-adjudicated turns
+- **Effect:** In Mystery Mode, three of the five simulated capitals (FRA, DEU, POL) are roleplayed
+  with no authored stance behind them, and the CHN and IRL stances exist but no state actor can
+  voice them — they reach a prompt only if the player telephones Beijing or Dublin. The gap is now
+  visible in the logs rather than silent, but closing it needs authored content: stances for the
+  missing capitals, or actors for the missing stances.
