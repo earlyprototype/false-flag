@@ -302,14 +302,17 @@ def assess_diplomatic_outcome(
     Returns:
         Tuple of (assessment_text, alliance_cohesion_delta)
     """
-    from llm.prompts import build_world_state_summary
+    from llm.prompts import _state_bands
 
     # Build conversation transcript
     conversation_text = "\n".join(
         f"{speaker}: {message}" for speaker, message in conversation_history
     )
 
-    world_summary = build_world_state_summary(world)
+    # The prose bands only — NOT build_world_state_summary, whose standing
+    # advisor-voice instruction ("Do NOT reference ... 'values'") contradicts
+    # a prompt that must answer with ALLIANCE_COHESION_DELTA: [number] (ER-027).
+    world_summary = _state_bands(world)
 
     # The campaign memory, when the caller has it (ER-017)
     memory_block = ""

@@ -18,42 +18,49 @@ from models.world import WorldState
 # other. There is one renderer now - context_builder.render_transcript_block.
 
 
-def build_world_state_summary(world: WorldState) -> str:
-    """Build a narrative summary of current world state for LLM context.
-    
-    Translates game metrics into narrative descriptions to maintain immersion.
-    Advisors should speak naturally about the situation, not reference "metrics".
-    
-    Args:
-        world: Current world state
-    
-    Returns:
-        Formatted string summarizing situation in narrative terms
+# The four standing lines that keep an advisor speaking in-fiction. They are
+# on-role for every advisor-voiced prompt and on-role ONLY there: the
+# diplomatic outcome assessor must answer with a number, so it takes
+# _state_bands without these (ER-027).
+ADVISOR_VOICE_INSTRUCTIONS = "\n".join([
+    "IMPORTANT: You are a real advisor in COBRA during a national crisis.",
+    "Speak naturally about intelligence assessments, strategic concerns, and operational realities.",
+    "Do NOT reference 'metrics', 'game mechanics', 'scores', or 'values'.",
+    "Use professional crisis management language.",
+])
+
+
+def _state_bands(world: WorldState) -> str:
+    """The prose rendering of the metrics: bands plus the casualty counts.
+
+    Split out of build_world_state_summary so a caller that wants the
+    situation in words - without the advisor-voice instructions or the
+    flags block - can take just this (ER-009, ER-027).
     """
     # Translate metrics into narrative descriptions
     escalation_desc = (
-        "low" if world.metrics.escalation_risk < 30 
-        else "moderate" if world.metrics.escalation_risk < 60 
-        else "high" if world.metrics.escalation_risk < 80 
+        "low" if world.metrics.escalation_risk < 30
+        else "moderate" if world.metrics.escalation_risk < 60
+        else "high" if world.metrics.escalation_risk < 80
         else "critical"
     )
-    
+
     stability_desc = (
-        "stable" if world.metrics.domestic_stability > 70 
-        else "uncertain" if world.metrics.domestic_stability > 40 
-        else "fragile" if world.metrics.domestic_stability > 20 
+        "stable" if world.metrics.domestic_stability > 70
+        else "uncertain" if world.metrics.domestic_stability > 40
+        else "fragile" if world.metrics.domestic_stability > 20
         else "in crisis"
     )
-    
+
     alliance_desc = (
-        "strong and unified" if world.metrics.alliance_cohesion > 70 
-        else "uncertain" if world.metrics.alliance_cohesion > 40 
-        else "fragile" if world.metrics.alliance_cohesion > 20 
+        "strong and unified" if world.metrics.alliance_cohesion > 70
+        else "uncertain" if world.metrics.alliance_cohesion > 40
+        else "fragile" if world.metrics.alliance_cohesion > 20
         else "fractured"
     )
-    
+
     # Mission progress removed - crisis continues indefinitely (even in post-apocalyptic wasteland!)
-    
+
     lines = [
         f"=== CURRENT SITUATION (Turn {world.turn}, {world.phase.upper()} phase) ===",
         "",
@@ -63,19 +70,41 @@ def build_world_state_summary(world: WorldState) -> str:
         "",
         f"CASUALTIES TO DATE: {world.metrics.casualties_mil} military personnel, {world.metrics.casualties_civ} civilians",
     ]
-    
+
+    return "\n".join(lines)
+
+
+def _intel_flags(world: WorldState) -> str:
+    """The KEY INTELLIGENCE FLAGS line, or '' when no flag is active."""
     if world.flags:
         active_flags = [k.replace('_', ' ').title() for k, v in world.flags.items() if v]
         if active_flags:
-            lines.append("")
-            lines.append(f"KEY INTELLIGENCE FLAGS: {', '.join(active_flags)}")
-    
+            return f"KEY INTELLIGENCE FLAGS: {', '.join(active_flags)}"
+    return ""
+
+
+def build_world_state_summary(world: WorldState) -> str:
+    """Build a narrative summary of current world state for LLM context.
+
+    Translates game metrics into narrative descriptions to maintain immersion.
+    Advisors should speak naturally about the situation, not reference "metrics".
+
+    Args:
+        world: Current world state
+
+    Returns:
+        Formatted string summarizing situation in narrative terms
+    """
+    lines = [_state_bands(world)]
+
+    flags_line = _intel_flags(world)
+    if flags_line:
+        lines.append("")
+        lines.append(flags_line)
+
     lines.append("")
-    lines.append("IMPORTANT: You are a real advisor in COBRA during a national crisis.")
-    lines.append("Speak naturally about intelligence assessments, strategic concerns, and operational realities.")
-    lines.append("Do NOT reference 'metrics', 'game mechanics', 'scores', or 'values'.")
-    lines.append("Use professional crisis management language.")
-    
+    lines.append(ADVISOR_VOICE_INSTRUCTIONS)
+
     return "\n".join(lines)
 
 
@@ -421,23 +450,24 @@ Use these as inspiration, NOT rigid scripts. Adapt based on player's previous ac
         story_context = get_stochastic_inject_context(
             summary, last_turn_transcript, world, event_ledger=event_ledger)
     else:
-        # No history yet (first inject of a campaign). A ledger can still
-        # exist here if a caller omits the transcript, and rule 8 below
-        # would then name a block that was never rendered.
+        # No history yet (first inject of a campaign). The ledger block is
+        # rendered even when empty (always=True), because rule 8 below names
+        # it unconditionally on this path (ER-001).
         story_context = build_world_state_summary(world)
-        ledger_block = render_event_ledger(event_ledger)
-        if ledger_block:
-            story_context = f"{story_context}\n\n{ledger_block}"
+        ledger_block = render_event_ledger(event_ledger, always=True)
+        story_context = f"{story_context}\n\n{ledger_block}"
 
-    # Each rule names a context section, so each is issued only when its
+    # Rule 7 names the LAST TURN section, so it is issued only when that
     # section exists — a rule pointing at an absent block is the same class
-    # of bug as the continuity gap it is meant to close.
+    # of bug as the continuity gap it is meant to close. Rule 8's section
+    # (EVENTS ALREADY PLAYED) is rendered on every generation path, empty or
+    # not, so the rule itself is unconditional (ER-001): an empty ledger must
+    # not silently retire the do-not-restage instruction.
     continuity_rule = ""
     if transcript:
         continuity_rule += """
 7. CONTINUITY IS MANDATORY: the previous turn's event (shown above under LAST TURN) must be acknowledged, advanced, or explicitly resolved. Open threads — impacts, casualties, recoveries, ultimatums, running deadlines — never disappear; if the last event was a missile launch, this inject addresses where it landed and what followed before introducing anything new"""
-    if event_ledger:
-        continuity_rule += """
+    continuity_rule += """
 8. DO NOT RESTAGE RESOLVED EVENTS: anything listed above under EVENTS ALREADY PLAYED has happened. Never re-introduce one as a fresh discovery. An entry marked RESOLVED is closed — write a *consequence* of how it ended, or something genuinely new, but do not stage it again. If a submarine was escorted out of UK waters last turn, it is not discovered in those same waters this turn. Entries marked OPEN may be advanced, never merely restated"""
     
     prompt = f"""You are the Games Master for a UK-Russia crisis wargame. Generate the next inject/event for turn {turn_number}.
@@ -627,8 +657,16 @@ THE PLAYER'S LAST DECISION:
     # Use the narrative context builder if available
     world_summary = build_world_state_summary(world)
 
-    # Extract recent context (last ~20 lines)
-    recent_context = "\n".join(last_turn_transcript[-20:]) if last_turn_transcript else "No recent context."
+    # Extract recent context (last ~20 lines). Element count alone does not
+    # bound this — one element can be a full unwrapped paragraph — so the
+    # slice is also character-bounded, the same fix the diplomatic and
+    # inject windows already carry (ER-008).
+    from llm.context_builder import bound_chars, MAX_NARRATOR_CONTEXT_CHARS
+    if last_turn_transcript:
+        recent_context = "\n".join(
+            bound_chars(last_turn_transcript[-20:], MAX_NARRATOR_CONTEXT_CHARS))
+    else:
+        recent_context = "No recent context."
 
     prompt = f"""You are the Narrator of a high-stakes political thriller wargame (like 'The West Wing' meets 'Hunt for Red October').
 

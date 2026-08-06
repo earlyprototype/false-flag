@@ -159,6 +159,15 @@ def test_empty_or_absent_ledger_renders_nothing():
     assert render_event_ledger([]) == ""
 
 
+def test_always_renders_a_placeholder_over_an_empty_ledger():
+    """ER-001: the generation prompt's rule 8 names this block
+    unconditionally, so the generation path renders it even when empty."""
+    for empty in (None, []):
+        block = render_event_ledger(empty, always=True)
+        assert "EVENTS ALREADY PLAYED - do not re-introduce these" in block
+        assert "(nothing has been staged yet)" in block
+
+
 def test_long_titles_are_truncated_not_left_to_stretch_the_column():
     block = render_event_ledger([
         PlayedEvent(turn=1, title="A" * 200, disposition="open"),
@@ -204,9 +213,14 @@ def test_resolved_event_reaches_the_prompt_with_a_do_not_restage_rule(monkeypatc
     assert "CONTINUITY IS MANDATORY" in prompt
 
 
-def test_prompt_without_a_ledger_is_unchanged(monkeypatch):
+def test_prompt_without_a_ledger_keeps_rule_8_and_an_empty_block(monkeypatch):
+    """ER-001: an empty ledger used to remove rule 8 and the block it names
+    together. Now the generation path always carries both — the block just
+    says nothing has been staged yet."""
     prompt = _prompt_with(None, monkeypatch)
-    assert "EVENTS ALREADY PLAYED" not in prompt
+    assert "EVENTS ALREADY PLAYED" in prompt
+    assert "(nothing has been staged yet)" in prompt
+    assert "DO NOT RESTAGE RESOLVED EVENTS" in prompt
     assert "CONTINUITY IS MANDATORY" in prompt
 
 
