@@ -236,34 +236,74 @@ class NarrativeState(BaseModel):
         return lines
     
     # === LLM CONTEXT GENERATION ===
-    
-    def to_llm_context(self) -> str:
+
+    def render_decisions_and_outcomes(self) -> str:
+        """DECISIONS AND OUTCOMES block from the event ledger, or '' when empty.
+
+        One line per staged event: turn, title, how the thread was left, and
+        the note record_event_disposition attached — which carries the
+        (truncated) decision the player took about it. This is the memory the
+        adjudication prompts fold in: what happened and what the player did.
         """
-        Generate context string for LLM with hidden metrics.
-        
-        This gives the LLM numerical guidance without showing player.
-        """
+        if not self.event_ledger:
+            return ""
+        lines = ["DECISIONS AND OUTCOMES (turn | event | how it was left | what the PM did):"]
+        for entry in self.event_ledger:
+            line = f"- Turn {entry.turn} | {entry.title} | {entry.disposition.upper()}"
+            if entry.note:
+                line += f" | {entry.note}"
+            lines.append(line)
+        return "\n".join(lines)
+
+    def _llm_context(self, include_characters: bool) -> str:
+        """Shared body of to_llm_context / to_actor_context."""
         m = self.hidden_metrics
-        
-        context = f"""
-Current Situation Metrics (hidden from player):
+
+        parts = [f"""Current Situation Metrics (hidden from player):
 - Escalation Risk: {m.escalation_risk}/100 ({"CRITICAL" if m.escalation_risk >= 85 else "HIGH" if m.escalation_risk >= 70 else "MODERATE"})
 - Alliance Cohesion: {m.alliance_cohesion}/100 ({"STRONG" if m.alliance_cohesion >= 70 else "MODERATE" if m.alliance_cohesion >= 40 else "WEAK"})
 - Domestic Stability: {m.domestic_stability}/100 ({"STABLE" if m.domestic_stability >= 70 else "WAVERING" if m.domestic_stability >= 40 else "FRAGILE"})
-- Casualties: {m.casualties_mil} military, {m.casualties_civ} civilian
+- Casualties: {m.casualties_mil} military, {m.casualties_civ} civilian"""]
 
-Recent Events:
-{chr(10).join(f"- {event}" for event in self.recent_events[-3:])}
+        if self.situation_summary:
+            parts.append(f"SITUATION SUMMARY:\n{self.situation_summary}")
 
-Active Crises:
-{chr(10).join(f"- {crisis}" for crisis in self.active_crises)}
+        parts.append("Recent Events:\n" + "\n".join(
+            f"- {event}" for event in self.recent_events[-3:]))
 
-Character Relationships:
-{chr(10).join(f"- {char.name}: {char.relationship.upper()} (trust: {char.trust}/100)" for char in self.characters.values())}
+        parts.append("Active Crises:\n" + "\n".join(
+            f"- {crisis}" for crisis in self.active_crises))
 
-Game Time: {self.game_time} (Turn {self.turn})
-"""
-        return context.strip()
+        ledger_block = self.render_decisions_and_outcomes()
+        if ledger_block:
+            parts.append(ledger_block)
+
+        if include_characters:
+            parts.append("Character Relationships:\n" + "\n".join(
+                f"- {char.name}: {char.relationship.upper()} (trust: {char.trust}/100)"
+                for char in self.characters.values()))
+
+        return "\n\n".join(parts).strip()
+
+    def to_llm_context(self) -> str:
+        """
+        Generate context string for LLM with hidden metrics.
+
+        This gives the LLM numerical guidance without showing player, plus
+        the campaign memory: the rolling situation summary and the ledger of
+        decisions and outcomes (ER-010, ER-017). The stale game clock is
+        gone — the turn is already shown on every ledger line.
+        """
+        return self._llm_context(include_characters=True)
+
+    def to_actor_context(self) -> str:
+        """Context for a foreign state actor's roleplay prompt.
+
+        Identical to to_llm_context minus the Character Relationships block:
+        the UK cabinet's private trust scores are internal state and must not
+        reach a foreign government's reasoning (ER-014).
+        """
+        return self._llm_context(include_characters=False)
     
     # === CHARACTER MANAGEMENT ===
     

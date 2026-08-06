@@ -701,34 +701,86 @@ def _generate_templated_responses(
 
 # === SITUATION SUMMARY ===
 
+# The three metrics whose movement the fold reports, in a fixed order so the
+# rendered direction words are deterministic.
+_EFFECT_LABELS = (
+    ("escalation_risk", "escalation risk"),
+    ("alliance_cohesion", "alliance cohesion"),
+    ("domestic_stability", "domestic stability"),
+)
+
+
+def _effect_directions(final_effects) -> str:
+    """Direction words for the applied effects - never the raw numbers.
+
+    The summary is shown to the player in emergent mode and quoted into
+    later prompts, so the referee's deltas travel as prose ("escalation
+    risk rising"), not as a scoreboard.
+    """
+    parts = []
+    for key, label in _EFFECT_LABELS:
+        delta = (final_effects or {}).get(key, 0)
+        if delta > 0:
+            parts.append(f"{label} rising")
+        elif delta < 0:
+            parts.append(f"{label} falling")
+    return ", ".join(parts) if parts else "no measurable shift in the situation"
+
+
 def update_situation_summary(
     narrative_state: NarrativeState,
     action: str,
     llm_generate_fn = None,
-    rng: Random = None
+    rng: Random = None,
+    quality_assessment: Dict[str, Any] = None,
+    final_effects: Dict[str, int] = None
 ) -> None:
     """
-    Refresh the player-facing situation summary after adjudication.
+    Fold this turn into the rolling campaign synopsis (ER-010, ER-017).
 
     The summary is the primary end-of-turn display in emergent mode and feeds
     to_llm_context() for every downstream prompt, so it must track the story
-    rather than stay frozen at its initial value.
+    rather than stay frozen at its initial value. It is written as a *fold*:
+    the previous summary goes back into the prompt alongside this turn's
+    event, the player's decision and the adjudicated outcome, so the synopsis
+    accumulates the campaign instead of restating the current metrics.
+
+    Args:
+        quality_assessment: This turn's quality dict, if adjudication ran.
+            Only the quality word is used - never the numbers.
+        final_effects: The applied metric deltas, rendered as direction
+            words ("escalation risk rising"), not values.
     """
     if llm_generate_fn is not None and rng is not None:
-        context = narrative_state.to_llm_context()
+        previous = (narrative_state.situation_summary or "").strip()
+
+        event_block = ""
+        if narrative_state.event_ledger:
+            event_block = f"\nTHIS TURN'S EVENT: {narrative_state.event_ledger[-1].title}\n"
+
+        outcome_block = ""
+        if quality_assessment:
+            quality = quality_assessment.get("quality", "adequate")
+            outcome_block = (
+                f"\nADJUDICATED OUTCOME: the decision was judged {quality}; "
+                f"{_effect_directions(final_effects)}.\n"
+            )
+
         prompt = f"""
-{context}
-
-THE PRIME MINISTER'S LATEST DECISION: {action}
-
-Summarise the current situation in 2-3 sentences for the Prime Minister's
-daily brief. Cover how the crisis stands after this decision, the state of
-the alliance, and the mood at home. Write in plain, serious prose - no
-headings, no numbers, no bullet points.
+PREVIOUS SUMMARY:
+{previous or "(none - the campaign has just begun)"}
+{event_block}
+THE PRIME MINISTER'S DECISION THIS TURN: {action}
+{outcome_block}
+Summarise the current situation as a running synopsis of the campaign, in
+4-6 sentences for the Prime Minister's daily brief. Fold the previous summary
+and this turn together: cover what has happened so far, the player's major
+decisions, and the current diplomatic posture. Write in plain, serious
+prose - no headings, no numbers, no bullet points.
 
 Summary:"""
         try:
-            summary = llm_generate_fn(prompt, rng, max_tokens=150).strip().strip('"')
+            summary = llm_generate_fn(prompt, rng, max_tokens=250).strip().strip('"')
             if summary:
                 narrative_state.situation_summary = summary
                 return
@@ -840,8 +892,10 @@ def adjudicate_with_narrative(
     # 6. Check for crisis triggers
     _check_and_trigger_crises(narrative_state)
 
-    # 7. Refresh the player-facing situation summary
-    update_situation_summary(narrative_state, action, llm_generate_fn, rng)
+    # 7. Fold this turn into the rolling situation summary
+    update_situation_summary(narrative_state, action, llm_generate_fn, rng,
+                             quality_assessment=quality_assessment,
+                             final_effects=final_effects)
 
     return final_effects, character_responses, quality_assessment["reasoning"]
 
@@ -889,8 +943,10 @@ def adjudicate_with_actor_simulation(
     
     # 2. Simulate each actor's response. The Mystery narrative is passed
     # per-actor rather than concatenated into the shared world context, so
-    # each capital is played from its OWN authored stance (ER-012).
-    world_context = narrative_state.to_llm_context()
+    # each capital is played from its OWN authored stance (ER-012). The actor
+    # variant of the context omits the UK cabinet's private trust scores -
+    # a foreign government must not reason from them (ER-014).
+    world_context = narrative_state.to_actor_context()
 
     actors = [a for a in (actor_system.get_actor(i) for i in relevant_actor_ids) if a]
     actor_responses = simulate_actor_responses(
@@ -941,15 +997,22 @@ def adjudicate_with_actor_simulation(
         action, quality_assessment, final_effects, narrative_state,
         llm_generate_fn, rng, llm_batch_fn=llm_batch_fn
     )
-    
-    # 8. Generate narrative summary
+
+    # 8. Update character attitudes based on action quality. This is the
+    # path every live entry point takes whenever the actor file loads, so
+    # without this call advisor trust never moved in real play (ER-007).
+    _update_character_attitudes(narrative_state, quality_assessment["quality"])
+
+    # 9. Generate narrative summary
     reasoning = _generate_actor_summary(actor_responses, quality_assessment)
-    
-    # 9. Check for crisis triggers
+
+    # 10. Check for crisis triggers
     _check_and_trigger_crises(narrative_state)
 
-    # 10. Refresh the player-facing situation summary
-    update_situation_summary(narrative_state, action, llm_generate_fn, rng)
+    # 11. Fold this turn into the rolling situation summary
+    update_situation_summary(narrative_state, action, llm_generate_fn, rng,
+                             quality_assessment=quality_assessment,
+                             final_effects=final_effects)
 
     return final_effects, actor_responses, character_responses, reasoning
 
@@ -980,7 +1043,15 @@ def _generate_actor_summary(responses: List[ActorResponse], quality: Dict) -> st
 
 
 def _update_character_attitudes(narrative_state: NarrativeState, quality: str):
-    """Update character trust based on action quality"""
+    """Update UK advisor trust based on action quality.
+
+    Every ``uk_``-prefixed character moves (dict insertion order, so the
+    iteration is deterministic) rather than a hardcoded four-id list that a
+    scenario with a different roster would silently miss. The ``usa_nsa``
+    character seeded alongside them stays static by design: their commitment
+    is moved by diplomacy and the actor simulation, not by how well the PM
+    runs the cabinet (ER-007).
+    """
     trust_deltas = {
         "exceptional": +5,
         "good": +2,
@@ -988,13 +1059,12 @@ def _update_character_attitudes(narrative_state: NarrativeState, quality: str):
         "poor": -3,
         "catastrophic": -8
     }
-    
+
     delta = trust_deltas.get(quality, 0)
-    
+
     # Update UK advisors
-    for char_id in ["uk_nsa", "uk_foreign_sec", "uk_home_sec", "uk_cds"]:
-        if char_id in narrative_state.characters:
-            narrative_state.update_character_attitude(char_id, trust_delta=delta)
+    for char_id in [cid for cid in narrative_state.characters if cid.startswith("uk_")]:
+        narrative_state.update_character_attitude(char_id, trust_delta=delta)
 
 
 def _check_and_trigger_crises(narrative_state: NarrativeState):
