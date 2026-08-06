@@ -337,12 +337,17 @@ def run_turn_briefing(
     if inject is None and stochastic_injects:
         initial_conditions = load_initial_conditions(scenario_id, root_path)
         # The ledger tells the generator which threads are already closed, so
-        # a resolved event is not restaged as a fresh one (issue #25).
+        # a resolved event is not restaged as a fresh one (issue #25). The
+        # rolling synopsis fills the STORY SO FAR block, so the generator gets
+        # an account of the campaign rather than a mechanical digest (ER-020).
         event_ledger = (narrative_state.recent_played_events()
                         if narrative_state is not None else None)
+        story_summary = (narrative_state.situation_summary
+                         if narrative_state is not None else None)
         inject = generate_inject(world, world.turn, initial_conditions, rng,
                                  root_path, full_transcript,
-                                 event_ledger=event_ledger)
+                                 event_ledger=event_ledger,
+                                 story_summary=story_summary)
         if inject is None:
             # Generation failed: details are logged by the generator; keep the
             # fiction intact with a quiet turn instead of surfacing errors
@@ -474,10 +479,11 @@ def run_turn_discussion(
     questions: List[str],
     rng: Random,
     root_path: Optional[Path] = None,
-    full_transcript: Optional[List[str]] = None
+    full_transcript: Optional[List[str]] = None,
+    narrative_state: Optional[Any] = None
 ) -> List[str]:
     """Run discussion phase: handle player questions.
-    
+
     Args:
         world: Current world state
         scenario_id: Scenario identifier
@@ -485,35 +491,42 @@ def run_turn_discussion(
         rng: Random number generator
         root_path: Optional root path override
         full_transcript: Optional full game transcript for conversation history
-    
+        narrative_state: Optional narrative state; supplies the event ledger
+            so the advisor dossier holds the campaign's decisions and
+            outcomes (ER-003)
+
     Returns:
         Transcript lines
     """
     if root_path is None:
         root_path = Path(__file__).resolve().parents[1]
-    
+
     world.phase = "discussion"
     transcript = []
-    
+
     initial_conditions = load_initial_conditions(scenario_id, root_path)
-    
+
     # Debug: Check if initial conditions loaded
     if not initial_conditions:
         transcript.append(f"[DEBUG] Failed to load initial conditions from {root_path / 'data' / 'scenarios' / scenario_id}")
         return transcript
-    
+
+    event_ledger = (narrative_state.recent_played_events()
+                    if narrative_state is not None else None)
+
     for question in questions:
         # Don't echo the player's question - they just typed it
         # Just store it in transcript for save files
         transcript.append(f"Prime Minister: {question}")
-        
+
         responses = handle_player_question(
             world,
             question,
             initial_conditions,
             generate_text,
             rng,
-            full_transcript
+            full_transcript,
+            event_ledger=event_ledger
         )
         
         for role, response in responses:
@@ -532,10 +545,11 @@ def run_turn_decision(
     rng: Random,
     root_path: Optional[Path] = None,
     full_transcript: Optional[List[str]] = None,
-    dry_run: bool = False
+    dry_run: bool = False,
+    narrative_state: Optional[Any] = None
 ) -> Tuple[str, List[Tuple[str, str]], List[Tuple[str, str, str]], List[str]]:
     """Run decision phase: interpret action, generate pushback, and check critical omissions.
-    
+
     Args:
         world: Current world state
         scenario_id: Scenario identifier
@@ -544,25 +558,31 @@ def run_turn_decision(
         root_path: Optional root path override
         full_transcript: Optional full game transcript for conversation history
         dry_run: If True, do not update world phase (preview mode)
-    
+        narrative_state: Optional narrative state; supplies the event ledger
+            so the decision-phase dossiers hold the campaign's decisions and
+            outcomes (ER-003)
+
     Returns:
         Tuple of (interpretation, pushback_list, critical_concerns, transcript_lines)
         critical_concerns: List of (advisor_role, concern, recommendation) tuples
     """
     if root_path is None:
         root_path = Path(__file__).resolve().parents[1]
-    
+
     if not dry_run:
         world.phase = "decision"
-        
+
     transcript = []
-    
+
     initial_conditions = load_initial_conditions(scenario_id, root_path)
-    
+
+    event_ledger = (narrative_state.recent_played_events()
+                    if narrative_state is not None else None)
+
     # Store decision in transcript (for save files) but don't echo it
     transcript.append(f"Prime Minister's Decision: {action}")
     transcript.append("")
-    
+
     # Interpret action
     interpretation = interpret_player_action(
         world,
@@ -570,13 +590,14 @@ def run_turn_decision(
         initial_conditions,
         generate_text,
         rng,
-        full_transcript
+        full_transcript,
+        event_ledger=event_ledger
     )
-    
+
     transcript.append("Interpretation:")
     transcript.append(interpretation)
     transcript.append("")
-    
+
     # Generate advisor pushback
     pushback = generate_advisor_pushback(
         world,
@@ -585,7 +606,8 @@ def run_turn_decision(
         initial_conditions,
         generate_text,
         rng,
-        full_transcript
+        full_transcript,
+        event_ledger=event_ledger
     )
     
     if pushback:
@@ -606,7 +628,8 @@ def run_turn_decision(
         generate_text,
         rng,
         full_transcript,
-        llm_batch_fn=batch_generate_text
+        llm_batch_fn=batch_generate_text,
+        event_ledger=event_ledger
     )
     
     if critical_concerns:

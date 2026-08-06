@@ -199,12 +199,13 @@ class GameManager:
         self.transcript.append(f"Prime Minister: {question_text}")
         
         discussion_lines = run_turn_discussion(
-            self.world, 
-            self.scenario_id, 
-            [question_text], 
-            self.rng, 
+            self.world,
+            self.scenario_id,
+            [question_text],
+            self.rng,
             self.root_path,
-            self.transcript
+            self.transcript,
+            narrative_state=self.narrative_state  # Feeds the event ledger (ER-003)
         )
         
         self.transcript.extend(discussion_lines)
@@ -221,7 +222,8 @@ class GameManager:
             self.rng,
             self.root_path,
             self.transcript,
-            dry_run=True  # Don't advance phase or commit to transcript yet
+            dry_run=True,  # Don't advance phase or commit to transcript yet
+            narrative_state=self.narrative_state
         )
         
         # Format critical concerns for API
@@ -298,7 +300,8 @@ class GameManager:
             self.rng,
             self.root_path,
             self.transcript,
-            dry_run=False # Commit phase change
+            dry_run=False, # Commit phase change
+            narrative_state=self.narrative_state
         )
         self.transcript.extend(decision_lines)
         

@@ -126,13 +126,14 @@ def handle_player_question(
     initial_conditions: Dict[str, Any],
     llm_generate_fn,
     rng: Random,
-    transcript: List[str] = None
+    transcript: List[str] = None,
+    event_ledger=None
 ) -> List[Tuple[str, str]]:
     """Handle player's question during discussion phase.
-    
+
     Determines which advisor(s) should respond based on question content
     and their knowledge domains, then generates in-character responses.
-    
+
     Args:
         world: Current world state
         question: Player's question
@@ -140,7 +141,8 @@ def handle_player_question(
         llm_generate_fn: Function to call LLM (signature: prompt, rng -> str)
         rng: Random number generator for determinism
         transcript: Optional full game transcript for conversation history
-    
+        event_ledger: Optional played-event ledger for the dossier (ER-003)
+
     Returns:
         List of (advisor_role, response) tuples
     """
@@ -194,7 +196,8 @@ def handle_player_question(
     responses = []
     for char_id in responding_advisors:
         try:
-            prompt = build_advisor_context(world, initial_conditions, char_id, question, transcript)
+            prompt = build_advisor_context(world, initial_conditions, char_id,
+                                           question, transcript, event_ledger)
             response = llm_generate_fn(prompt, rng, context=LLMContext.ADVISOR_QA)
             
             char_info = uk_advisors[char_id]
@@ -212,10 +215,11 @@ def interpret_player_action(
     initial_conditions: Dict[str, Any],
     llm_generate_fn,
     rng: Random,
-    transcript: List[str] = None
+    transcript: List[str] = None,
+    event_ledger=None
 ) -> str:
     """Interpret player's free-form action into structured summary.
-    
+
     Args:
         world: Current world state
         action: Player's action description
@@ -223,11 +227,13 @@ def interpret_player_action(
         llm_generate_fn: Function to call LLM
         rng: Random number generator
         transcript: Optional full game transcript for conversation history
-    
+        event_ledger: Optional played-event ledger for the dossier (ER-003)
+
     Returns:
         Structured interpretation of the action
     """
-    prompt = build_decision_interpretation_prompt(world, action, initial_conditions, transcript)
+    prompt = build_decision_interpretation_prompt(world, action, initial_conditions,
+                                                  transcript, event_ledger)
     interpretation = llm_generate_fn(prompt, rng, context=LLMContext.DECISION_INTERPRETATION)
     return interpretation
 
@@ -239,10 +245,11 @@ def generate_advisor_pushback(
     initial_conditions: Dict[str, Any],
     llm_generate_fn,
     rng: Random,
-    transcript: List[str] = None
+    transcript: List[str] = None,
+    event_ledger=None
 ) -> List[Tuple[str, str]]:
     """Generate advisor warnings/pushback for player's action.
-    
+
     Args:
         world: Current world state
         action: Player's action description
@@ -251,11 +258,13 @@ def generate_advisor_pushback(
         llm_generate_fn: Function to call LLM
         rng: Random number generator
         transcript: Optional full game transcript for conversation history
-    
+        event_ledger: Optional played-event ledger for the dossier (ER-003)
+
     Returns:
         List of (advisor_role, pushback_message) tuples, or empty list if no pushback
     """
-    prompt = build_pushback_prompt(world, action, interpretation, initial_conditions, transcript)
+    prompt = build_pushback_prompt(world, action, interpretation, initial_conditions,
+                                   transcript, event_ledger)
     pushback_text = llm_generate_fn(prompt, rng, context=LLMContext.ADVISOR_PUSHBACK)
     
     # Parse pushback response.
@@ -306,7 +315,8 @@ def check_critical_omissions(
     llm_generate_fn,
     rng: Random,
     transcript: List[str] = None,
-    llm_batch_fn=None
+    llm_batch_fn=None,
+    event_ledger=None
 ) -> List[Tuple[str, str, str]]:
     """Check if player has failed to take critical actions.
     
@@ -328,6 +338,7 @@ def check_critical_omissions(
         transcript: Optional full game transcript for conversation history
         llm_batch_fn: Optional batch generator. When supplied the five
             advisor prompts go out as one group rather than in sequence.
+        event_ledger: Optional played-event ledger for the dossier (ER-003)
 
     Returns:
         List of (advisor_role, concern, recommendation) tuples
@@ -366,7 +377,13 @@ def check_critical_omissions(
     prompts = [
         build_critical_omissions_prompt(
             world, initial_conditions, char_id, player_decision,
-            recent_events, transcript
+            recent_events, transcript,
+            # The structured reading of the decision, produced one call
+            # earlier for exactly this purpose - the scan is about what the
+            # decision omits, so the advisors get the reading, not just the
+            # raw typed sentence (ER-002).
+            interpretation=interpretation,
+            event_ledger=event_ledger
         )
         for char_id in checking
     ]
