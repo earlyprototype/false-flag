@@ -308,7 +308,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 - **Status:** fixed
 - **Fixed:** The stance lookup canonicalises both sides through a module-level alias table in
-  `models/narrative.py` (a miss logs `[PARSE-MISS] narrative_stance <code>`), and the actor path
+  `models/narrative.py` (a miss logs `[PARSE-MISS] narrative_stance.<code>` via `llm/parse_health`), and the actor path
   passes the narrative per-actor so each capital is played from its own authored stance. The
   roster/stance overlap gap noted below is filed separately as ER-046.
 - **Severity:** high
@@ -1054,7 +1054,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
   gap in the scenario data.
 - **Evidence:** `data/scenarios/war_game_2025/narratives.yaml` (stance codes RUS, USA, CHN, IRL in
   both narratives); `data/state_actors.yaml` (roster USA, FRA, DEU, POL, RUS); the
-  `[PARSE-MISS] narrative_stance FRA` / `POL` warnings a Mystery campaign now logs on
+  `[PARSE-MISS] narrative_stance.FRA` / `.POL` warnings a Mystery campaign now logs on
   actor-adjudicated turns
 - **Effect:** In Mystery Mode, three of the five simulated capitals (FRA, DEU, POL) are roleplayed
   with no authored stance behind them, and the CHN and IRL stances exist but no state actor can

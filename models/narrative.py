@@ -107,7 +107,8 @@ class NarrativeConfig(BaseModel):
                     for tool in stance.economic_leverage:
                         context_lines.append(f"  • {tool}")
             else:
-                logger.warning("[PARSE-MISS] narrative_stance %s", target_country_code)
+                from llm.parse_health import record_miss
+                record_miss("narrative_stance", target_country_code)
 
         if audience == "briefing":
             # The reader advises or judges the Prime Minister. The truth is

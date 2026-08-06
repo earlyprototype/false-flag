@@ -67,7 +67,7 @@ def test_missing_stance_logs_a_parse_miss(caplog):
     with caplog.at_level(logging.WARNING):
         context = narrative.to_llm_context("FJI")
     assert "SECRET MOTIVE" not in context
-    assert any("[PARSE-MISS] narrative_stance FJI" in rec.getMessage()
+    assert any("[PARSE-MISS] narrative_stance.FJI" in rec.getMessage()
                for rec in caplog.records)
 
 
