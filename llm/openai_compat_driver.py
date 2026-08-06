@@ -102,10 +102,13 @@ class OpenAICompatDriver:
         """Initialize the driver.
 
         Args:
-            model_name: Optional explicit model id. Gemini-style names
-                (``gemini-*``) coming from the tier-based model config are
-                ignored in favour of OPENAI_COMPAT_MODEL, so the game's
-                Flash/Pro tier selection doesn't break other providers.
+            model_name: Optional explicit model id. The router resolves the
+                Flash/Pro tier table through llm.model_config.resolve_model_name,
+                so this is normally a real provider model id
+                (OPENAI_COMPAT_MODEL_FLASH / _PRO / OPENAI_COMPAT_MODEL).
+                Gemini-style names (``gemini-*``) are still ignored in favour
+                of OPENAI_COMPAT_MODEL as a safety net, so a raw tier name
+                reaching this driver can't break it.
 
         Raises:
             ValueError: If OPENAI_COMPAT_BASE_URL or a model id is not
