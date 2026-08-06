@@ -29,13 +29,13 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-016 | fixed | high | parsing | Decorated actor replies invert a refusal |
 | ER-029 | fixed | high | parsing | The diplomatic outcome parser shares the same defect |
 | ER-030 | fixed | high | parsing | A worded refusal is read as conditional support |
-| ER-017 | open | high | context | The calls that change the game never learn what happened in it |
+| ER-017 | fixed | high | context | The calls that change the game never learn what happened in it |
 | ER-018 | fixed | high | context | The diplomatic transcript filter is erratic in both directions |
 | ER-019 | open | high | routing | The per-call model table is inert on the shipped provider |
-| ER-020 | open | high | context | The story generator is given a digest instead of a synopsis |
+| ER-020 | fixed | high | context | The story generator is given a digest instead of a synopsis |
 | ER-022 | open | high | dispatch | The HTTP path serves no briefing after turn one |
-| ER-002 | open | high | context | Decision interpretation never reaches the omissions prompt |
-| ER-003 | open | high | context | No prompt holds both campaign history and event ledger |
+| ER-002 | fixed | high | context | Decision interpretation never reaches the omissions prompt |
+| ER-003 | fixed | high | context | No prompt holds both campaign history and event ledger |
 | ER-004 | open | high | dispatch | A resumed mid-turn save re-runs the briefing |
 | ER-045 | fixed | med | dispatch | A partial batch failure is invisible on the omissions scan |
 | ER-037 | open | med | state | The random number position is not saved |
@@ -47,13 +47,13 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-025 | open | med | state | Mystery Mode draws its secret from an unseeded generator |
 | ER-005 | open | med | routing | Five of twelve call families bypass the model configuration |
 | ER-006 | fixed | med | parsing | The effects parser accepts any colon line naming a metric |
-| ER-007 | open | med | state | Advisor trust updates on one adjudication path only |
+| ER-007 | fixed | med | state | Advisor trust updates on one adjudication path only |
 | ER-008 | open | med | context | Two context builders apply no character bound |
-| ER-010 | open | med | state | The situation summary costs a call per turn and reaches no prompt |
-| ER-014 | open | med | context | The state-actor prompt carries UK internal advisor trust |
+| ER-010 | fixed | med | state | The situation summary costs a call per turn and reaches no prompt |
+| ER-014 | fixed | med | context | The state-actor prompt carries UK internal advisor trust |
 | ER-039 | fixed | low | parsing | The quality multiplier's effect is halved before it lands |
 | ER-040 | fixed | low | context | The diplomatic exchange counter advances twice per exchange |
-| ER-043 | open | low | context | The narrator is never told what the player decided |
+| ER-043 | fixed | low | context | The narrator is never told what the player decided |
 | ER-044 | fixed | low | parsing | The decision summary panel empties on decorated output |
 | ER-024 | open | low | context | Player questions are written to the transcript twice |
 | ER-028 | open | low | routing | The play page offers no way to choose or change the model |
@@ -61,7 +61,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-001 | open | low | context | An empty event ledger removes the do-not-restage rule |
 | ER-009 | open | low | context | The metrics are rendered twice and a third block adds nothing |
 | ER-011 | open | low | dispatch | Output caps are dropped on three of four drivers |
-| ER-013 | open | low | state | Advisor pushback mutates nothing |
+| ER-013 | fixed | low | state | Advisor pushback mutates nothing |
 | ER-031 | fixed | low | parsing | An explicit multiplier of 1.0 is indistinguishable from silence |
 | ER-027 | open | low | context | An advisor instruction contradicts the outcome assessor's task |
 | ER-046 | open | low | data | The stance list and the state-actor roster barely overlap |
@@ -121,7 +121,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-002 — Decision interpretation never reaches the omissions prompt
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** build_critical_omissions_prompt renders the interpretation as a HOW THE CABINET OFFICE READS IT block under the decision, and check_critical_omissions passes the parameter it already received (llm/prompts.py, agents/conversation.py).
 - **Severity:** high
 - **Area:** context
 - **Observed:** `check_critical_omissions` takes `interpretation` as its third parameter and never
@@ -138,7 +139,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-003 — No prompt holds both campaign history and event ledger
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** build_shared_context_prefix renders the ledger in the fast-moving tail — after CURRENT SITUATION, before the world-state summary — threaded from run_turn_discussion/run_turn_decision via new optional narrative_state params, leaving the append-only cacheable prefix untouched.
 - **Severity:** high
 - **Area:** context
 - **Observed:** The event ledger reaches the inject generation prompt and nothing else. That prompt
@@ -214,7 +216,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-007 — Advisor trust updates on one adjudication path only
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** adjudicate_with_actor_simulation now calls _update_character_attitudes, which walks every uk_-prefixed character in deterministic dict order; usa_nsa stays static by design and the docstring says so (engine/narrative_adjudication.py).
 - **Severity:** medium
 - **Area:** state
 - **Observed:** `_update_character_attitudes` is called from `adjudicate_with_narrative` and from
@@ -267,7 +270,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-010 — The situation summary costs a call per turn and reaches no prompt
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** update_situation_summary is a fold (previous summary + this turn's event, decision and outcome direction words in; a 4-6 sentence running synopsis out), and to_llm_context finally renders the SITUATION SUMMARY block so every downstream prompt sees it.
 - **Severity:** medium
 - **Area:** state
 - **Observed:** `update_situation_summary` issues a model call every turn and overwrites
@@ -338,7 +342,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-013 — Advisor pushback mutates nothing
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed (partial):** the headless preview returns pushback as its own "pushback" list instead of flattening it into critical_concerns, and committing the identical text unamended costs each objecting advisor one point of trust via the existing attitude machinery (engine/game_manager.py); the terminal confirm gates are unchanged.
 - **Severity:** low
 - **Area:** state
 - **Observed:** No metric, flag, trust value or ledger entry is written from pushback output
@@ -356,7 +361,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-014 — The state-actor prompt carries UK internal advisor trust
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** NarrativeState.to_actor_context() — the same context minus the Character Relationships block — is what the actor simulation now passes (models/narrative_state.py, engine/narrative_adjudication.py).
 - **Severity:** medium
 - **Area:** context
 - **Observed:** The world context handed to a foreign government's roleplay prompt is
@@ -429,7 +435,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-017 — The calls that change the game never learn what happened in it
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** the quality assessment, actor simulation and character reactions read the rolling summary and the decisions-and-outcomes ledger via to_llm_context/to_actor_context, and the diplomatic outcome assessment takes an optional narrative_state carrying the same memory; the frozen Game Time clock is gone.
 - **Severity:** high
 - **Area:** context
 - **Observed:** Five call families run the adjudication. Three decide what happens: the action
@@ -516,7 +523,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-020 — The story generator is given a digest instead of a synopsis
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** the STORY SO FAR block is filled from the rolling situation summary when non-empty (threaded run_turn_briefing → generate_inject → build_inject_generation_prompt); the mechanical digest remains the fallback.
 - **Severity:** high
 - **Area:** context
 - **Observed:** The inject prompt's block headed "STORY SO FAR (HIGH-LEVEL SUMMARY)" is filled by
@@ -991,7 +999,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-043 — The narrator is never told what the player decided
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** the dead loop is implemented — the transcript is walked backwards for the last "Prime Minister's Decision:" line, which renders as THE PLAYER'S LAST DECISION (llm/prompts.py).
 - **Severity:** low
 - **Area:** context
 - **Observed:** The narrator prompt builder walks the previous turn's transcript backwards looking
