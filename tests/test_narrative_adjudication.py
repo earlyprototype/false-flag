@@ -174,7 +174,7 @@ class _FakeNarrative:
         "opportunistic."
     )
 
-    def to_llm_context(self, target_country_code=None):
+    def to_llm_context(self, target_country_code=None, audience="roleplay"):
         return (
             "SECRET NARRATIVE CONTEXT (DO NOT REVEAL DIRECTLY)\n"
             f"GLOBAL TRUTH: {self.description}"

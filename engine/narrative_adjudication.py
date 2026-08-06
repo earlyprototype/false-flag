@@ -217,10 +217,11 @@ def assess_action_quality(
     # Build LLM prompt for quality assessment
     context = narrative_state.to_llm_context()
     
-    # Add secret narrative truth if available
+    # Add secret narrative truth if available. Briefing audience: the referee
+    # judges the player's decision, it is not roleplaying a faction (ER-021).
     narrative_context = ""
     if world_narrative:
-        narrative_context = "\n" + world_narrative.to_llm_context() + "\n"
+        narrative_context = "\n" + world_narrative.to_llm_context(audience="briefing") + "\n"
     
     prompt = f"""
 {context}
@@ -886,16 +887,16 @@ def adjudicate_with_actor_simulation(
     # 1. Identify which actors should respond
     relevant_actor_ids = identify_relevant_actors(action, actor_system, max_actors=3)
     
-    # 2. Simulate each actor's response
+    # 2. Simulate each actor's response. The Mystery narrative is passed
+    # per-actor rather than concatenated into the shared world context, so
+    # each capital is played from its OWN authored stance (ER-012).
     world_context = narrative_state.to_llm_context()
-    
-    if world_narrative:
-        world_context += "\n\nSECRET NARRATIVE TRUTH:\n" + world_narrative.to_llm_context()
-    
+
     actors = [a for a in (actor_system.get_actor(i) for i in relevant_actor_ids) if a]
     actor_responses = simulate_actor_responses(
         actors, action, world_context, llm_generate_fn, rng,
-        llm_batch_fn=llm_batch_fn
+        llm_batch_fn=llm_batch_fn,
+        world_narrative=world_narrative
     )
     for actor, response in zip(actors, actor_responses):
         # Update actor's relationship with UK

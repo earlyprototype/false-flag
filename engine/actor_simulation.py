@@ -24,13 +24,22 @@ def display_country_name(country_code: str) -> str:
 
 
 def build_actor_prompt(actor: StateActor, player_action: str,
-                      world_context: str) -> str:
+                      world_context: str, world_narrative=None) -> str:
     """Build one actor's roleplay prompt (no call - see simulate_actor_responses).
 
     The prompt carries the actor's HIDDEN STATE - motivations, agendas,
     dependencies - which is what makes the response something other than a
     press release.
+
+    ``world_narrative`` is the Mystery-mode NarrativeConfig, if any. It is
+    rendered per actor so each capital gets its OWN authored stance (secret
+    motive, public posture, leverage) rather than a shared global block
+    (ER-012). Actor country codes are already ISO-3.
     """
+    narrative_block = ""
+    if world_narrative is not None:
+        narrative_block = "\n" + world_narrative.to_llm_context(
+            actor.country_code, audience="roleplay") + "\n"
     return f"""
 You are simulating {actor.full_name}'s response to a UK government action.
 
@@ -55,7 +64,7 @@ Strategic Capabilities:
 
 === WORLD CONTEXT ===
 {world_context}
-
+{narrative_block}
 === UK ACTION ===
 {player_action}
 
@@ -112,6 +121,7 @@ def simulate_actor_responses(
     llm_generate_fn,
     rng: Random,
     llm_batch_fn=None,
+    world_narrative=None,
 ) -> list:
     """Simulate several actors' responses to the same UK action.
 
@@ -128,7 +138,8 @@ def simulate_actor_responses(
     if not actors:
         return []
 
-    prompts = [build_actor_prompt(actor, player_action, world_context)
+    prompts = [build_actor_prompt(actor, player_action, world_context,
+                                  world_narrative=world_narrative)
                for actor in actors]
     raw = generate_group(prompts, llm_generate_fn, rng, llm_batch_fn)
 
