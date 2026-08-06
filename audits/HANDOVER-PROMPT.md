@@ -7,14 +7,16 @@ Paste the text below to brief a fresh session on this work.
 You are working on FALSE FLAG (github.com/earlyprototype/false-flag), an LLM-driven UK
 political-military crisis wargame written in Python. It runs as a terminal application and as a
 browser build that executes the same engine inside Pyodide. The test suite is run with
-`python -m pytest tests/` and 335 tests pass.
+`python -m pytest tests/` and 465 tests pass.
 
 ## Where to start
 
-Read `audits/HANDOVER.md` first. It describes how the engine talks to a language model, what is
-wrong with it, and the order the problems should be addressed in. Then read
-`audits/ENGINE-ROUTING-ISSUES.md`, which is the register of forty-five filed defects, each with the
-file and line that establishes it and what it causes during play.
+Read `audits/HANDOVER.md` first. It describes how the engine talks to a language model as it now
+stands, after the six-PR campaign (#41 to #46) that fixed 45 of the register's 46 entries. Then
+read `audits/ENGINE-ROUTING-ISSUES.md`, which is the register of forty-six filed defects, each
+with the file and line that established it, what it caused during play, and how it was fixed;
+only ER-046 remains open, as authored-content work. The current measurements are in
+`audits/2026-08-06-campaign-measurements.md`.
 
 `audits/2026-08-05-llm-context/` is an earlier reference trace of every call the engine makes. It is
 useful for orientation and it is not authoritative: several of its claims were found to be wrong.
@@ -45,7 +47,8 @@ work. Where the honest claim is narrower, the narrower claim is usually still se
 **Count the fallbacks.** A failed call to the language model is answered by the built-in offline
 driver rather than raising, so a campaign can appear to run flawlessly while no model answered any
 part of it. `dev-scripts/play_campaign.py` counts these and prints the result. Any measurement you
-report must quote that line. A run with fallbacks does not support a measurement.
+report must quote that line, and the `parse health:` line printed beside it. A run with fallbacks
+does not support a measurement.
 
 ## Reproducing the measurements
 
@@ -62,8 +65,9 @@ python3 dev-scripts/analyse_calls.py calls.jsonl
 ```
 
 Scenario `war_game_2025`, default `standard` variant, seed 42, play mode `emergent`, Mystery Mode
-on, endings on, one question per turn. That reaches an ending on turn 10 and issues 148 calls. Add
-`--latency 1.2` to the endpoint for timing work.
+on, endings on, one question per turn. That reaches an ending on turn 10 and issues 159 calls. Add
+`--latency 1.2` to the endpoint for timing work, and `--fixtures overrides.json` to substitute
+adversarial replies for chosen calls (a JSON object mapping a prompt substring to the reply body).
 
 ## Constraints
 

@@ -1,5 +1,18 @@
 # Engine routing issues register
 
+## Close-out, 2026-08-06
+
+This register is closed. A six-PR campaign fixed 45 of the 46 entries: #41 (tolerant parsers and
+the parse-health registry), #42 (the playable scripted call, audience-aware context, the
+fail-closed diplomatic filter), #44 (referee memory), #43 (provider-aware routing and persistent
+rate limiters), #45 (determinism, replay and the slimmed dossier) and #46 (the three-round
+decision pipeline, honest flags, the play-page model picker). Each fixed entry's `Fixed:` note
+names its PR. The one remaining entry, ER-046, stays open by design: it is a content gap
+(authored Mystery stances for three simulated capitals, or actors for two authored stances)
+rather than an engine defect, and it is visible in the logs as `narrative_stance` parse misses.
+The fixed engine was re-measured with the original protocol on the close-out date; the numbers
+are in `2026-08-06-campaign-measurements.md` beside this file.
+
 Open register of defects and design gaps in how the engine assembles context, routes calls and
 consumes results.
 
@@ -68,12 +81,16 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 
 ## How the measurements below were taken
 
-Two headless campaigns played through `dev-scripts/play_campaign.py` against the local recording
-endpoint `dev-scripts/fake_openrouter.py`, one with no artificial latency and one holding every
-call at 1.2 seconds. Both reached a terminal ending on turn 10 and issued 148 game calls.
+The entries below quote numbers measured against the engine as it stood when they were filed, at
+commit `9f0c3fa`, before any of the fixes. They are the "before" side of the story and are left
+as written. The same protocol re-run against the fixed engine, with the after numbers for every
+claim it can measure, is in `2026-08-06-campaign-measurements.md`.
 
-Inputs: engine at commit `9f0c3fa`; scenario `war_game_2025`, default `standard` variant; seed 42;
-play mode `emergent`; Mystery Mode on; endings on; one player question per turn.
+The protocol itself, which is the reproduction recipe: two headless campaigns played through
+`dev-scripts/play_campaign.py` against the local recording endpoint
+`dev-scripts/fake_openrouter.py`, one with no artificial latency and one holding every call at
+1.2 seconds. Scenario `war_game_2025`, default `standard` variant; seed 42; play mode `emergent`;
+Mystery Mode on; endings on; one player question per turn.
 
 ```shell
 python3 dev-scripts/fake_openrouter.py --port 8099 --log calls.jsonl --latency 0
@@ -88,22 +105,19 @@ python3 dev-scripts/play_campaign.py --turns 18 --questions 1
 python3 dev-scripts/analyse_calls.py calls.jsonl
 ```
 
-Both runs ended with `play_campaign.py` reporting "no calls fell back to the mock driver", so every
-one of the 148 calls in each run was answered by the endpoint under measurement rather than by the
-built-in offline driver. That line is what makes the call counts and character totals mean
-anything, and it should be quoted with any future measurement.
-
-Timing figures are wall-clock and vary with the machine. The 8.5-second decision phase reproduces
-across machines; the share of wall clock with exactly one call in flight measures between 76 and 80
-per cent, so treat it as roughly three-quarters to four-fifths. Character counts and call counts do
-not vary. Raw logs are not committed; they regenerate from the commands above in under two minutes.
+Any run supporting a measurement must end with `play_campaign.py` reporting "no calls fell back
+to the mock driver", which establishes that every call was answered by the endpoint under
+measurement rather than by the built-in offline driver, and its `parse health:` line should be
+quoted alongside. Timing figures are wall-clock and vary with the machine; character counts and
+call counts do not. Raw logs are not committed; they regenerate from the commands above in under
+two minutes.
 
 ---
 
 ## ER-001 — An empty event ledger removes the do-not-restage rule
 
 - **Status:** fixed
-- **Fixed:** `render_event_ledger` gained `always=True` for the generation path, which renders the header plus "(nothing has been staged yet)" over an empty ledger, and rule 8 is now issued unconditionally when generating — the rule always has a block to name (llm/context_builder.py, llm/prompts.py).
+- **Fixed (PR #45):** `render_event_ledger` gained `always=True` for the generation path, which renders the header plus "(nothing has been staged yet)" over an empty ledger, and rule 8 is now issued unconditionally when generating — the rule always has a block to name (llm/context_builder.py, llm/prompts.py).
 - **Severity:** low
 - **Area:** context
 - **Observed:** Continuity rule 8, the instruction not to restage a resolved event, is appended to
@@ -123,7 +137,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-002 — Decision interpretation never reaches the omissions prompt
 
 - **Status:** fixed
-- **Fixed:** build_critical_omissions_prompt renders the interpretation as a HOW THE CABINET OFFICE READS IT block under the decision, and check_critical_omissions passes the parameter it already received (llm/prompts.py, agents/conversation.py).
+- **Fixed (PR #44):** build_critical_omissions_prompt renders the interpretation as a HOW THE CABINET OFFICE READS IT block under the decision, and check_critical_omissions passes the parameter it already received (llm/prompts.py, agents/conversation.py).
 - **Severity:** high
 - **Area:** context
 - **Observed:** `check_critical_omissions` takes `interpretation` as its third parameter and never
@@ -141,7 +155,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-003 — No prompt holds both campaign history and event ledger
 
 - **Status:** fixed
-- **Fixed:** build_shared_context_prefix renders the ledger in the fast-moving tail — after CURRENT SITUATION, before the world-state summary — threaded from run_turn_discussion/run_turn_decision via new optional narrative_state params, leaving the append-only cacheable prefix untouched.
+- **Fixed (PR #44):** build_shared_context_prefix renders the ledger in the fast-moving tail — after CURRENT SITUATION, before the world-state summary — threaded from run_turn_discussion/run_turn_decision via new optional narrative_state params, leaving the append-only cacheable prefix untouched.
 - **Severity:** high
 - **Area:** context
 - **Observed:** The event ledger reaches the inject generation prompt and nothing else. That prompt
@@ -162,7 +176,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-004 — A resumed mid-turn save re-runs the briefing
 
 - **Status:** fixed
-- **Fixed:** the replay guard moved into the engine: `run_turn_briefing` no longer generates a fresh inject, writes the ledger entry, or attaches a pending encounter on `replay` (a generated-inject turn resumes with a "(resuming mid-turn — the morning's events are above)" line), and `GameManager.from_dict` sets a one-shot `_resume_replay` flag that `get_turn_briefing` passes through — so the headless/HTTP path inherits the same behaviour the CLIs had (engine/sim_loop.py, engine/game_manager.py).
+- **Fixed (PR #45):** the replay guard moved into the engine: `run_turn_briefing` no longer generates a fresh inject, writes the ledger entry, or attaches a pending encounter on `replay` (a generated-inject turn resumes with a "(resuming mid-turn — the morning's events are above)" line), and `GameManager.from_dict` sets a one-shot `_resume_replay` flag that `get_turn_briefing` passes through — so the headless/HTTP path inherits the same behaviour the CLIs had (engine/sim_loop.py, engine/game_manager.py).
 - **Severity:** high
 - **Area:** dispatch
 - **Observed:** The dynamic-generation branch of `run_turn_briefing` tests only whether the scripted
@@ -184,7 +198,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-005 — Five of twelve call families bypass the model configuration
 
 - **Status:** fixed
-- **Fixed:** the routing layer landed first: `LLMContext` gained `QUALITY_ASSESSMENT` (PRO),
+- **Fixed (PR #43, #46):** the routing layer landed first: `LLMContext` gained `QUALITY_ASSESSMENT` (PRO),
   `ACTOR_SIMULATION` (PRO), `SITUATION_SUMMARY` (FLASH) and `NARRATOR` (FLASH), each with a
   default tier, a cost-table entry and a row in the model settings menu, and all four resolve
   through the provider-aware table (see ER-019). The pipeline PR then wired the call sites: the
@@ -212,7 +226,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-006 — The effects parser accepts any colon line naming a metric
 
 - **Status:** fixed
-- **Fixed:** effects lines now require the pre-colon token (decoration-stripped) to equal one of the three requested metric names, so reasoning prose cannot move a metric (llm/parsing.py, engine/narrative_adjudication.py).
+- **Fixed (PR #41):** effects lines now require the pre-colon token (decoration-stripped) to equal one of the three requested metric names, so reasoning prose cannot move a metric (llm/parsing.py, engine/narrative_adjudication.py).
 - **Severity:** medium
 - **Area:** parsing
 - **Observed:** The effects branch accepts any line containing a colon together with the substring
@@ -228,7 +242,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-007 — Advisor trust updates on one adjudication path only
 
 - **Status:** fixed
-- **Fixed:** adjudicate_with_actor_simulation now calls _update_character_attitudes, which walks every uk_-prefixed character in deterministic dict order; usa_nsa stays static by design and the docstring says so (engine/narrative_adjudication.py).
+- **Fixed (PR #44):** adjudicate_with_actor_simulation now calls _update_character_attitudes, which walks every uk_-prefixed character in deterministic dict order; usa_nsa stays static by design and the docstring says so (engine/narrative_adjudication.py).
 - **Severity:** medium
 - **Area:** state
 - **Observed:** `_update_character_attitudes` is called from `adjudicate_with_narrative` and from
@@ -248,7 +262,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-008 — Two context builders apply no character bound
 
 - **Status:** fixed
-- **Fixed:** the diplomatic filter's bound landed with ER-018/ER-038 (`MAX_DIPLOMATIC_CONTEXT_CHARS`, 60,000); the narrator's twenty-element slice is now bounded to `MAX_NARRATOR_CONTEXT_CHARS` (8,000) through the shared `bound_chars` helper, exported under a public name (llm/context_builder.py, llm/prompts.py).
+- **Fixed (PR #45):** the diplomatic filter's bound landed with ER-018/ER-038 (`MAX_DIPLOMATIC_CONTEXT_CHARS`, 60,000); the narrator's twenty-element slice is now bounded to `MAX_NARRATOR_CONTEXT_CHARS` (8,000) through the shared `bound_chars` helper, exported under a public name (llm/context_builder.py, llm/prompts.py).
 - **Severity:** medium
 - **Area:** context
 - **Observed:** `get_diplomatic_context` applies no character bound to the filtered transcript it
@@ -265,7 +279,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-009 — The metrics are rendered twice and a third block adds nothing
 
 - **Status:** fixed
-- **Fixed:** `build_world_state_summary` is split into `_state_bands`, `_intel_flags` and a module-level `ADVISOR_VOICE_INSTRUCTIONS` (public behaviour unchanged for external callers); the shared dossier keeps the raw values plus the voice instructions and drops the duplicate prose bands and the flags block (llm/prompts.py, llm/context_builder.py).
+- **Fixed (PR #45):** `build_world_state_summary` is split into `_state_bands`, `_intel_flags` and a module-level `ADVISOR_VOICE_INSTRUCTIONS` (public behaviour unchanged for external callers); the shared dossier keeps the raw values plus the voice instructions and drops the duplicate prose bands and the flags block (llm/prompts.py, llm/context_builder.py).
 - **Severity:** low
 - **Area:** context
 - **Observed:** The shared dossier prints escalation, stability and cohesion as raw values out of
@@ -284,7 +298,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-010 — The situation summary costs a call per turn and reaches no prompt
 
 - **Status:** fixed
-- **Fixed:** update_situation_summary is a fold (previous summary + this turn's event, decision and outcome direction words in; a 4-6 sentence running synopsis out), and to_llm_context finally renders the SITUATION SUMMARY block so every downstream prompt sees it.
+- **Fixed (PR #44):** update_situation_summary is a fold (previous summary + this turn's event, decision and outcome direction words in; a 4-6 sentence running synopsis out), and to_llm_context finally renders the SITUATION SUMMARY block so every downstream prompt sees it.
 - **Severity:** medium
 - **Area:** state
 - **Observed:** `update_situation_summary` issues a model call every turn and overwrites
@@ -304,7 +318,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-011 — Output caps are dropped on three of four drivers
 
 - **Status:** fixed
-- **Fixed:** `GeminiDriver.generate_text` accepts `system_instruction`/`temperature`/`max_tokens`
+- **Fixed (PR #43):** `GeminiDriver.generate_text` accepts `system_instruction`/`temperature`/`max_tokens`
   and maps them into the SDK's generation config (system instructions via a per-call model
   variant), and its `batch_generate_text` accepts and forwards `max_tokens`. The mock and offline
   drivers accept-and-ignore the same options via `**kwargs`, the router's signature sniffing
@@ -331,7 +345,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-012 — Authored per-country content reaches no prompt
 
 - **Status:** fixed
-- **Fixed:** The stance lookup canonicalises both sides through a module-level alias table in
+- **Fixed (PR #42):** The stance lookup canonicalises both sides through a module-level alias table in
   `models/narrative.py` (a miss logs `[PARSE-MISS] narrative_stance.<code>` via `llm/parse_health`), and the actor path
   passes the narrative per-actor so each capital is played from its own authored stance. The
   roster/stance overlap gap noted below is filed separately as ER-046.
@@ -363,7 +377,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-013 — Advisor pushback mutates nothing
 
 - **Status:** fixed
-- **Fixed (partial):** the headless preview returns pushback as its own "pushback" list instead of flattening it into critical_concerns, and committing the identical text unamended costs each objecting advisor one point of trust via the existing attitude machinery (engine/game_manager.py); the terminal confirm gates are unchanged.
+- **Fixed (partial, PR #44):** the headless preview returns pushback as its own "pushback" list instead of flattening it into critical_concerns, and committing the identical text unamended costs each objecting advisor one point of trust via the existing attitude machinery (engine/game_manager.py); the terminal confirm gates are unchanged.
 - **Severity:** low
 - **Area:** state
 - **Observed:** No metric, flag, trust value or ledger entry is written from pushback output
@@ -382,7 +396,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-014 — The state-actor prompt carries UK internal advisor trust
 
 - **Status:** fixed
-- **Fixed:** NarrativeState.to_actor_context() — the same context minus the Character Relationships block — is what the actor simulation now passes (models/narrative_state.py, engine/narrative_adjudication.py).
+- **Fixed (PR #44):** NarrativeState.to_actor_context() — the same context minus the Character Relationships block — is what the actor simulation now passes (models/narrative_state.py, engine/narrative_adjudication.py).
 - **Severity:** medium
 - **Area:** context
 - **Observed:** The world context handed to a foreign government's roleplay prompt is
@@ -397,7 +411,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-015 — Decorated labels drop the decision's metric effects
 
 - **Status:** fixed
-- **Fixed:** all quality-assessment labels and delta lines now parse through the shared decoration-tolerant reader, so emphasised labels and bulleted deltas land intact (llm/parsing.py, engine/narrative_adjudication.py).
+- **Fixed (PR #41):** all quality-assessment labels and delta lines now parse through the shared decoration-tolerant reader, so emphasised labels and bulleted deltas land intact (llm/parsing.py, engine/narrative_adjudication.py).
 - **Severity:** high
 - **Area:** parsing
 - **Observed:** `_parse_quality_response` recognises a field only when the line begins with the bare
@@ -432,7 +446,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-016 — Decorated actor replies invert a refusal
 
 - **Status:** fixed
-- **Fixed:** every actor field parses through the shared decoration-tolerant label reader, and a reply with no readable labels records a parse miss instead of silently defaulting (engine/actor_simulation.py).
+- **Fixed (PR #41):** every actor field parses through the shared decoration-tolerant label reader, and a reply with no readable labels records a parse miss instead of silently defaulting (engine/actor_simulation.py).
 - **Severity:** high
 - **Area:** parsing
 - **Observed:** `_parse_actor_response` recognises each field only from a bare label at the start of
@@ -456,7 +470,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-017 — The calls that change the game never learn what happened in it
 
 - **Status:** fixed
-- **Fixed:** the quality assessment, actor simulation and character reactions read the rolling summary and the decisions-and-outcomes ledger via to_llm_context/to_actor_context, and the diplomatic outcome assessment takes an optional narrative_state carrying the same memory; the frozen Game Time clock is gone.
+- **Fixed (PR #44):** the quality assessment, actor simulation and character reactions read the rolling summary and the decisions-and-outcomes ledger via to_llm_context/to_actor_context, and the diplomatic outcome assessment takes an optional narrative_state carrying the same memory; the frozen Game Time clock is gone.
 - **Severity:** high
 - **Area:** context
 - **Observed:** Five call families run the adjudication. Three decide what happens: the action
@@ -491,7 +505,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-018 — The diplomatic transcript filter is erratic in both directions
 
 - **Status:** fixed
-- **Fixed:** `get_diplomatic_context` rewritten as a structural fail-closed whitelist: a call
+- **Fixed (PR #42):** `get_diplomatic_context` rewritten as a structural fail-closed whitelist: a call
   block is shared whole with its own country only, and outside call blocks only unattributed or
   structural lines pass, bounded at 60,000 characters.
 - **Severity:** high
@@ -524,7 +538,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-019 — The per-call model table is inert on the shipped provider
 
 - **Status:** fixed
-- **Fixed:** `llm/model_config.py` gained `resolve_model_name(provider, tier)` — Gemini keeps the
+- **Fixed (PR #43):** `llm/model_config.py` gained `resolve_model_name(provider, tier)` — Gemini keeps the
   `MODEL_NAMES` tier names, openai_compat resolves `OPENAI_COMPAT_MODEL_FLASH` /
   `OPENAI_COMPAT_MODEL_PRO` (environment first, then config.py) with `OPENAI_COMPAT_MODEL` as the
   fallback and `None` when nothing is configured, and mock/offline resolve to `None`. Both router
@@ -554,7 +568,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-020 — The story generator is given a digest instead of a synopsis
 
 - **Status:** fixed
-- **Fixed:** the STORY SO FAR block is filled from the rolling situation summary when non-empty (threaded run_turn_briefing → generate_inject → build_inject_generation_prompt); the mechanical digest remains the fallback.
+- **Fixed (PR #44):** the STORY SO FAR block is filled from the rolling situation summary when non-empty (threaded run_turn_briefing → generate_inject → build_inject_generation_prompt); the mechanical digest remains the fallback.
 - **Severity:** high
 - **Area:** context
 - **Observed:** The inject prompt's block headed "STORY SO FAR (HIGH-LEVEL SUMMARY)" is filled by
@@ -578,7 +592,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-021 — Mystery Mode tells the player's own advisors to deceive them
 
 - **Status:** fixed
-- **Fixed:** `to_llm_context` gained an `audience` parameter; briefing audiences (shared dossier,
+- **Fixed (PR #42):** `to_llm_context` gained an `audience` parameter; briefing audiences (shared dossier,
   inject generation, quality assessment) get judge-plausibility-never-deceive instructions and
   only roleplay audiences (foreign leaders, state actors) keep the deceive block.
 - **Severity:** medium
@@ -605,7 +619,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-022 — The HTTP path serves no briefing after turn one
 
 - **Status:** fixed
-- **Fixed:** `POST /game/{session_id}/briefing` runs `get_turn_briefing()` for the current turn and returns the same payload shape as `POST /game/new` (including `pending_encounter`); it 409s while a scripted mandatory call is live, and the endpoint is covered by TestClient tests (api/server.py, tests/test_api_server.py).
+- **Fixed (PR #45):** `POST /game/{session_id}/briefing` runs `get_turn_briefing()` for the current turn and returns the same payload shape as `POST /game/new` (including `pending_encounter`); it 409s while a scripted mandatory call is live, and the endpoint is covered by TestClient tests (api/server.py, tests/test_api_server.py).
 - **Severity:** high
 - **Area:** dispatch
 - **Observed:** `manager.get_turn_briefing()` appears exactly once in the HTTP server, inside the
@@ -624,7 +638,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-023 — The decision phase runs seven waits where three would do
 
 - **Status:** fixed
-- **Fixed:** `engine/decision_phase.py::run_decision_pipeline` runs the three dependency-ordered
+- **Fixed (PR #46):** `engine/decision_phase.py::run_decision_pipeline` runs the three dependency-ordered
   rounds (interpretation ∥ actor simulation; pushback ∥ omissions ∥ quality; reactions ∥
   situation-summary fold) on a `ThreadPoolExecutor(max_workers=3)`, with one child seed per task
   pre-drawn from the master rng in a fixed documented order so results are independent of thread
@@ -659,7 +673,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-024 — Player questions are written to the transcript twice
 
 - **Status:** fixed
-- **Fixed:** `GameManager.process_question` no longer pre-appends the "Prime Minister:" line — `run_turn_discussion` writes it into the lines that get extended, so each question appears exactly once (engine/game_manager.py).
+- **Fixed (PR #45):** `GameManager.process_question` no longer pre-appends the "Prime Minister:" line — `run_turn_discussion` writes it into the lines that get extended, so each question appears exactly once (engine/game_manager.py).
 - **Severity:** low
 - **Area:** context
 - **Observed:** `GameManager.process_question` appends `f"Prime Minister: {question_text}"` to the
@@ -674,7 +688,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-025 — Mystery Mode draws its secret from an unseeded generator
 
 - **Status:** fixed
-- **Fixed:** both terminal front ends hoist `rng = Random(seed)` above the setup screens and `select_narrative` draws with `rng.choice`, matching the headless GameManager's ordering (the draw is the campaign's first). Deliberate behaviour change: a fixed seed's narrative draw changes once, from unseeded to seeded (cli/main.py, cli/main_dashboard.py).
+- **Fixed (PR #45):** both terminal front ends hoist `rng = Random(seed)` above the setup screens and `select_narrative` draws with `rng.choice`, matching the headless GameManager's ordering (the draw is the campaign's first). Deliberate behaviour change: a fixed seed's narrative draw changes once, from unseeded to seeded (cli/main.py, cli/main_dashboard.py).
 - **Severity:** medium
 - **Area:** state
 - **Observed:** Both terminal front ends import the `random` module inside the selection function and
@@ -691,7 +705,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-026 — `--no-stochastic-injects` inverts into a banner switch
 
 - **Status:** fixed
-- **Fixed:** the `stochastic_injects = True` override at the transition turn is deleted from both
+- **Fixed (PR #46):** the `stochastic_injects = True` override at the transition turn is deleted from both
   CLI loops; the per-turn decision lives in `engine.sim_loop.stochastic_generation_status`, which
   fires generation only when the flag is on and the scripted content has run out, and shows the
   DYNAMIC GENERATION banner only when generation is enabled and firing for the first time. With
@@ -715,7 +729,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-027 — An advisor instruction contradicts the outcome assessor's task
 
 - **Status:** fixed
-- **Fixed:** `assess_diplomatic_outcome` now takes `_state_bands(world)` — the prose situation without the advisor-voice block — so the prompt that must answer `ALLIANCE_COHESION_DELTA: [number]` is no longer told never to reference values; the three advisor-role uses of the dossier keep the instruction (engine/diplomacy.py, llm/prompts.py).
+- **Fixed (PR #45):** `assess_diplomatic_outcome` now takes `_state_bands(world)` — the prose situation without the advisor-voice block — so the prompt that must answer `ALLIANCE_COHESION_DELTA: [number]` is no longer told never to reference values; the three advisor-role uses of the dossier keep the instruction (engine/diplomacy.py, llm/prompts.py).
 - **Severity:** low
 - **Area:** context
 - **Observed:** `build_world_state_summary` ends with four standing instructions written for a
@@ -739,7 +753,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-028 — The play page offers no way to choose or change the model
 
 - **Status:** fixed
-- **Fixed:** the campaign-setup panel gained a MODEL input (persisted to localStorage; empty means
+- **Fixed (PR #46):** the campaign-setup panel gained a MODEL input (persisted to localStorage; empty means
   the default), and the own-key panel — only there, by design — an ENDPOINT input. The `setKey`
   message now always carries `model`, and `baseUrl` only from the own-key source. The security
   rule is enforced in the worker, not the page: `bridge.set_key` pins `key_source == "shared"` to
@@ -766,7 +780,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-029 — The diplomatic outcome parser shares the same defect
 
 - **Status:** fixed
-- **Fixed:** the outcome parser uses tolerant labels, validates OUTCOME against the enumeration, recovers annotated deltas, accumulates SUMMARY continuations, and records every defaulted field (engine/diplomacy.py).
+- **Fixed (PR #41):** the outcome parser uses tolerant labels, validates OUTCOME against the enumeration, recovers annotated deltas, accumulates SUMMARY continuations, and records every defaulted field (engine/diplomacy.py).
 - **Severity:** high
 - **Area:** parsing
 - **Observed:** `assess_diplomatic_outcome` reads its three fields with the same bare `startswith`
@@ -788,7 +802,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-030 — A worded refusal is read as conditional support
 
 - **Status:** fixed
-- **Fixed:** WILL_SUPPORT reads the exact enum first, then a negation-aware refusal pattern, so worded refusals ("absolutely not", "no, we will not assist") register as no (llm/parsing.py match_enum).
+- **Fixed (PR #41):** WILL_SUPPORT reads the exact enum first, then a negation-aware refusal pattern, so worded refusals ("absolutely not", "no, we will not assist") register as no (llm/parsing.py match_enum).
 - **Severity:** high
 - **Area:** parsing
 - **Observed:** The `WILL_SUPPORT:` branch of the actor parser tests
@@ -809,7 +823,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-031 — An explicit multiplier of 1.0 is indistinguishable from silence
 
 - **Status:** fixed
-- **Fixed:** the multiplier initialises to None and the quality table only applies when the model stated none, so an explicit 1.0 survives (engine/narrative_adjudication.py).
+- **Fixed (PR #41):** the multiplier initialises to None and the quality table only applies when the model stated none, so an explicit 1.0 survives (engine/narrative_adjudication.py).
 - **Severity:** low
 - **Area:** parsing
 - **Observed:** `multiplier` is initialised to 1.0 and, after parsing, any value still equal to 1.0
@@ -825,7 +839,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-032 — The rate limiter is discarded on every model-tier switch
 
 - **Status:** fixed
-- **Fixed:** the single module-level limiter slot is replaced by a dict keyed `(provider, rpm)`,
+- **Fixed (PR #43):** the single module-level limiter slot is replaced by a dict keyed `(provider, rpm)`,
   so Flash/Pro alternation reuses two persistent limiters and each keeps its `request_times`
   history across tier switches. The conservative Pro-rate default for a `None` model name is
   kept. `RateLimiter.wait_if_needed` is now thread-safe: check-and-record runs under a
@@ -859,7 +873,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-033 — The scripted diplomatic call answers itself on two front ends
 
 - **Status:** fixed
-- **Fixed:** A headless briefing no longer auto-runs the encounter: the spec rides back on the
+- **Fixed (PR #42):** A headless briefing no longer auto-runs the encounter: the spec rides back on the
   inject, `GameManager` opens the call as a live `active_encounter` (driven by the existing
   `process_diplomacy`), the browser bridge puts the player on the line and refuses decisions until
   the call ends, the HTTP server exposes `pending_encounter` and returns 409 on decisions, and an
@@ -883,7 +897,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-034 — An annotated number is dropped and its siblings are applied
 
 - **Status:** fixed
-- **Fixed:** both parsers recover the first signed integer from the remainder instead of int() over the whole line, so annotated numbers land and misses are recorded (llm/parsing.py find_signed_int).
+- **Fixed (PR #41):** both parsers recover the first signed integer from the remainder instead of int() over the whole line, so annotated numbers land and misses are recorded (llm/parsing.py find_signed_int).
 - **Severity:** high
 - **Area:** parsing
 - **Observed:** Two of the three parsers that set metric changes recover their number with a bare
@@ -909,7 +923,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-035 — A bulleted cabinet objection is read as no objection
 
 - **Status:** fixed
-- **Fixed:** role-prefix normalisation strips leading hyphens/bullets so bulleted objections match their roles, and orphan leading lines record a parse miss instead of vanishing (agents/conversation.py).
+- **Fixed (PR #41):** role-prefix normalisation strips leading hyphens/bullets so bulleted objections match their roles, and orphan leading lines record a parse miss instead of vanishing (agents/conversation.py).
 - **Severity:** high
 - **Area:** parsing
 - **Observed:** A pushback line is recognised only when the text before its first colon normalises to
@@ -933,7 +947,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-036 — Two acceptance rules discard real critical omissions
 
 - **Status:** fixed
-- **Fixed:** the sentinel only counts as a standalone line, and a concern without a recommendation surfaces with a placeholder recommendation plus a recorded miss (agents/conversation.py).
+- **Fixed (PR #41):** the sentinel only counts as a standalone line, and a concern without a recommendation surfaces with a placeholder recommendation plus a recorded miss (agents/conversation.py).
 - **Severity:** high
 - **Area:** parsing
 - **Observed:** The critical-omissions consumer applies two acceptance rules after its label reader
@@ -955,7 +969,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-037 — The random number position is not saved
 
 - **Status:** fixed
-- **Fixed:** both save formats persist the generator position (`rng_state`, save version 2.3; JSON-safe encode/decode plus a `read_rng_state` reader in engine/persistence.py). The CLIs restore it after `Random(seed)` and pass `rng` at every save site; `GameManager.to_dict`/`from_dict` store and restore it, restoring AFTER construction because the constructor burns draws. Old saves without the field load exactly as before (engine/persistence.py, engine/game_manager.py, cli/main.py, cli/main_dashboard.py).
+- **Fixed (PR #45):** both save formats persist the generator position (`rng_state`, save version 2.3; JSON-safe encode/decode plus a `read_rng_state` reader in engine/persistence.py). The CLIs restore it after `Random(seed)` and pass `rng` at every save site; `GameManager.to_dict`/`from_dict` store and restore it, restoring AFTER construction because the constructor burns draws. Old saves without the field load exactly as before (engine/persistence.py, engine/game_manager.py, cli/main.py, cli/main_dashboard.py).
 - **Severity:** medium
 - **Area:** state
 - **Observed:** Neither save format persists the random number generator or its position. The
@@ -975,7 +989,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-038 — A foreign counterpart is given the UK's private metrics
 
 - **Status:** fixed
-- **Fixed:** The UK private-metrics block is removed from the diplomatic context entirely; the
+- **Fixed (PR #42):** The UK private-metrics block is removed from the diplomatic context entirely; the
   counterpart gets the turn number and one neutral sentence about the crisis.
 - **Severity:** medium
 - **Area:** context
@@ -993,7 +1007,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-039 — The quality multiplier's effect is halved before it lands
 
 - **Status:** fixed
-- **Fixed:** the narrative path passes the model's deltas as the base with empty suggestions, so the multiplier applies once instead of being averaged with the unscaled values (engine/narrative_adjudication.py).
+- **Fixed (PR #41):** the narrative path passes the model's deltas as the base with empty suggestions, so the multiplier applies once instead of being averaged with the unscaled values (engine/narrative_adjudication.py).
 - **Severity:** low
 - **Area:** parsing
 - **Observed:** On the narrative adjudication path `apply_quality_scaling` is handed the model's
@@ -1009,7 +1023,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-040 — The diplomatic exchange counter advances twice per exchange
 
 - **Status:** fixed
-- **Fixed:** The count divides the two-entries-per-exchange history, and the prompt is built
+- **Fixed (PR #42):** The count divides the two-entries-per-exchange history, and the prompt is built
   before the player's line joins it (which also stops that line rendering twice) — the first
   player message is exchange 1.
 - **Severity:** low
@@ -1027,7 +1041,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-041 — The scripted call drops its premise and shows hidden numbers
 
 - **Status:** fixed
-- **Fixed:** The stored encounter context now renders as a `=== WHY YOU ARE CALLING ===` block in
+- **Fixed (PR #42):** The stored encounter context now renders as a `=== WHY YOU ARE CALLING ===` block in
   the counterpart's prompt, and every mandatory and dashboard call passes
   `show_metrics=(play mode == "classic")`.
 - **Severity:** medium
@@ -1049,7 +1063,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-042 — A generated event's effect is dropped when its delta is not an integer
 
 - **Status:** fixed
-- **Fixed:** inject deltas coerce from float/quoted/annotated forms, and an unreadable delta emits a transcript "Skipped: unreadable delta" line plus a recorded miss (engine/sim_loop.py).
+- **Fixed (PR #41):** inject deltas coerce from float/quoted/annotated forms, and an unreadable delta emits a transcript "Skipped: unreadable delta" line plus a recorded miss (engine/sim_loop.py).
 - **Severity:** medium
 - **Area:** parsing
 - **Observed:** `apply_inject_effects` accepts a delta only as a Python integer or as a string
@@ -1067,7 +1081,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-043 — The narrator is never told what the player decided
 
 - **Status:** fixed
-- **Fixed:** the dead loop is implemented — the transcript is walked backwards for the last "Prime Minister's Decision:" line, which renders as THE PLAYER'S LAST DECISION (llm/prompts.py).
+- **Fixed (PR #44):** the dead loop is implemented — the transcript is walked backwards for the last "Prime Minister's Decision:" line, which renders as THE PLAYER'S LAST DECISION (llm/prompts.py).
 - **Severity:** low
 - **Area:** context
 - **Observed:** The narrator prompt builder walks the previous turn's transcript backwards looking
@@ -1084,7 +1098,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-044 — The decision summary panel empties on decorated output
 
 - **Status:** fixed
-- **Fixed:** the panel parser reads its four labels through the tolerant reader, accepts -/• bullets, and records a miss before the raw-text fallback (cli/display_utils.py).
+- **Fixed (PR #41):** the panel parser reads its four labels through the tolerant reader, accepts -/• bullets, and records a miss before the raw-text fallback (cli/display_utils.py).
 - **Severity:** low
 - **Area:** parsing
 - **Observed:** The panel that shows the player their interpreted order parses it with four bare
@@ -1100,7 +1114,7 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 ## ER-045 — A partial batch failure is invisible on the omissions scan
 
 - **Status:** fixed
-- **Fixed:** the omissions consumer now guards "[ERROR:" slots, recording a fallback and warning instead of reading a failed call as a clean scan (agents/conversation.py).
+- **Fixed (PR #41):** the omissions consumer now guards "[ERROR:" slots, recording a fallback and warning instead of reading a failed call as a clean scan (agents/conversation.py).
 - **Severity:** medium
 - **Area:** dispatch
 - **Observed:** On the concurrent path a per-prompt failure is returned as the string
