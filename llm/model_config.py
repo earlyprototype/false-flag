@@ -3,6 +3,7 @@
 Allows fine-grained control over which systems use which models.
 """
 
+import os
 from enum import Enum
 from typing import Dict, Optional
 
@@ -17,6 +18,10 @@ class LLMContext(Enum):
     DIPLOMACY_CONVERSATION = "diplomacy_conversation"  # Leader/diplomat responses
     DIPLOMACY_OUTCOME = "diplomacy_outcome"      # Assess conversation results
     CHARACTER_RESPONSE = "character_response"    # Flavor text
+    QUALITY_ASSESSMENT = "quality_assessment"    # Action quality adjudication
+    ACTOR_SIMULATION = "actor_simulation"        # State-actor responses
+    SITUATION_SUMMARY = "situation_summary"      # End-of-turn summary refresh
+    NARRATOR = "narrator"                        # Atmospheric bridges
 
 
 class ModelTier(Enum):
@@ -35,14 +40,62 @@ DEFAULT_MODEL_CONFIG: Dict[LLMContext, ModelTier] = {
     LLMContext.DIPLOMACY_CONVERSATION: ModelTier.PRO,  # Sophisticated dialogue
     LLMContext.DIPLOMACY_OUTCOME: ModelTier.PRO,       # Strategic assessment
     LLMContext.CHARACTER_RESPONSE: ModelTier.FLASH,    # Simple flavor text
+    LLMContext.QUALITY_ASSESSMENT: ModelTier.PRO,      # Decides what happens
+    LLMContext.ACTOR_SIMULATION: ModelTier.PRO,        # In-character statecraft
+    LLMContext.SITUATION_SUMMARY: ModelTier.FLASH,     # Routine summarisation
+    LLMContext.NARRATOR: ModelTier.FLASH,              # Short atmosphere text
 }
 
 
-# Model name mappings
+# Model name mappings (Gemini tier names; other providers resolve through
+# resolve_model_name below)
 MODEL_NAMES: Dict[ModelTier, str] = {
     ModelTier.FLASH: "gemini-2.5-flash",
     ModelTier.PRO: "gemini-2.5-pro",
 }
+
+
+def _env_or_config(name: str) -> Optional[str]:
+    """Resolve a setting from the environment first, then config.py."""
+    value = os.getenv(name)
+    if value:
+        return value
+    try:
+        import config
+        value = getattr(config, name, None)
+        if value:
+            return value
+    except ImportError:
+        pass
+    return None
+
+
+def resolve_model_name(provider: str, tier: ModelTier) -> Optional[str]:
+    """Translate a model tier into a name the given provider understands.
+
+    The tier table used to speak only Gemini: every name it produced began
+    with "gemini", which the OpenAI-compatible driver rightly discards, so
+    the table was inert on that provider. Resolving per provider makes the
+    Flash/Pro selection meaningful everywhere it can be.
+
+    Args:
+        provider: Provider name ("gemini", "openai_compat", "mock", ...)
+        tier: The model tier to resolve
+
+    Returns:
+        - gemini: the MODEL_NAMES entry for the tier
+        - openai_compat: OPENAI_COMPAT_MODEL_FLASH / OPENAI_COMPAT_MODEL_PRO
+          (environment first, then config.py), each falling back to
+          OPENAI_COMPAT_MODEL; None when nothing is configured
+        - mock/offline (and anything else): None - no notion of a model name
+    """
+    if provider == "gemini":
+        return MODEL_NAMES[tier]
+    if provider == "openai_compat":
+        tier_var = ("OPENAI_COMPAT_MODEL_FLASH" if tier == ModelTier.FLASH
+                    else "OPENAI_COMPAT_MODEL_PRO")
+        return _env_or_config(tier_var) or _env_or_config("OPENAI_COMPAT_MODEL")
+    return None
 
 
 class ModelConfig:
@@ -69,7 +122,18 @@ class ModelConfig:
         """
         tier = self.config.get(context, ModelTier.FLASH)
         return MODEL_NAMES[tier]
-    
+
+    def get_tier_for_context(self, context: LLMContext) -> ModelTier:
+        """Get the configured model tier for a specific context.
+
+        Args:
+            context: The LLM usage context
+
+        Returns:
+            The ModelTier assigned to the context (FLASH if unconfigured)
+        """
+        return self.config.get(context, ModelTier.FLASH)
+
     def set_model_for_context(self, context: LLMContext, tier: ModelTier):
         """Override model for a specific context.
         
@@ -116,6 +180,10 @@ class ModelConfig:
             LLMContext.DIPLOMACY_CONVERSATION: 1.5,  # If used
             LLMContext.DIPLOMACY_OUTCOME: 0.5,  # If used
             LLMContext.CHARACTER_RESPONSE: 0.5,
+            LLMContext.QUALITY_ASSESSMENT: 1,
+            LLMContext.ACTOR_SIMULATION: 5,     # One per simulated capital
+            LLMContext.SITUATION_SUMMARY: 1,
+            LLMContext.NARRATOR: 1,
         }
         
         # Cost per call (very rough)

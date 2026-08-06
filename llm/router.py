@@ -17,9 +17,12 @@ Configuration priority:
 Model selection per context:
 - Configured via llm.model_config
 - Allows Flash vs Pro per system (advisor, inject, diplomacy, etc.)
+- Tiers resolve to provider-specific model names via resolve_model_name,
+  so the table works on gemini and openai_compat alike
 """
 
 import os
+import threading
 import time
 from random import Random
 from typing import Optional
@@ -27,54 +30,74 @@ from collections import deque
 
 from llm.mock_driver import MockDeterministicDriver
 from llm.offline_driver import OfflineDriver
-from llm.model_config import LLMContext, get_model_config
+from llm.model_config import LLMContext, get_model_config, resolve_model_name
+
+
+# Injectable clock, so tests can drive the rate limiter with a fake clock
+# instead of real sleeps. Looked up at call time (module globals), which is
+# what lets monkeypatching router._now / router._sleep take effect.
+_now = time.time
+_sleep = time.sleep
 
 
 class RateLimiter:
     """Rate limiter for API calls to prevent hitting provider limits.
-    
+
     Google Gemini free tier: 2 requests per minute (RPM)
     Google Gemini paid tier: 1000 requests per minute
     """
-    
+
     def __init__(self, requests_per_minute: int = 2):
         """Initialize rate limiter.
-        
+
         Args:
             requests_per_minute: Maximum requests allowed per minute
         """
         self.requests_per_minute = requests_per_minute
         self.request_times = deque()  # Track timestamps of recent requests
         self.window_seconds = 60.0  # 1 minute window
-    
+        self._lock = threading.Lock()  # Guards request_times
+
     def wait_if_needed(self, verbose: bool = True):
         """Wait if necessary to stay within rate limits.
-        
+
+        Thread-safe: the check-and-record runs under a lock, while any
+        sleeping happens outside it with a re-check loop, so one waiting
+        caller neither blocks the others nor lets them slip past the cap.
+        A slot is only ever claimed under the lock, which is what makes the
+        cap hold when a thread pool drives this limiter concurrently.
+
         Args:
             verbose: If True, print messages when waiting
         """
-        now = time.time()
-        
-        # Remove requests older than the window
-        while self.request_times and (now - self.request_times[0]) > self.window_seconds:
-            self.request_times.popleft()
-        
-        # If we've hit the limit, wait until the oldest request expires
-        if len(self.request_times) >= self.requests_per_minute:
-            oldest_request = self.request_times[0]
-            wait_time = self.window_seconds - (now - oldest_request)
-            
-            if wait_time > 0:
-                if verbose:
-                    print(f"\n[Rate Limit] Waiting {wait_time:.1f}s to stay within {self.requests_per_minute} requests/min limit...")
-                time.sleep(wait_time + 0.1)  # Add small buffer
-        
-        # Record this request
-        self.request_times.append(time.time())
+        while True:
+            with self._lock:
+                now = _now()
+
+                # Remove requests older than the window
+                while self.request_times and (now - self.request_times[0]) > self.window_seconds:
+                    self.request_times.popleft()
+
+                # Under the limit: claim a slot and go
+                if len(self.request_times) < self.requests_per_minute:
+                    self.request_times.append(now)
+                    return
+
+                # At the limit: wait until the oldest request expires
+                oldest_request = self.request_times[0]
+                wait_time = self.window_seconds - (now - oldest_request)
+
+            if verbose and wait_time > 0:
+                print(f"\n[Rate Limit] Waiting {wait_time:.1f}s to stay within {self.requests_per_minute} requests/min limit...")
+            _sleep(max(wait_time, 0.0) + 0.1)  # Small buffer, then re-check
 
 
-# Global rate limiter instance
-_rate_limiter: Optional[RateLimiter] = None
+# Rate limiters keyed by (provider, rpm). Keeping one limiter per rate -
+# rather than one global limiter rebuilt whenever the rate changes - means
+# Flash/Pro alternation reuses two persistent limiters, each of which keeps
+# its record of recent requests (ER-032: the old single-slot swap discarded
+# that history on every tier switch).
+_rate_limiters: dict = {}
 
 # Cache of constructed text drivers, keyed by (provider, model_name).
 # Reusing drivers avoids re-initialising the API client on every call and
@@ -97,6 +120,23 @@ def _get_provider() -> str:
     return provider
 
 
+def _resolve_call_model(provider: str,
+                        context: Optional[LLMContext],
+                        model_override: Optional[str]) -> Optional[str]:
+    """Model name for one dispatch: explicit override, else context tier
+    resolved through the provider-aware table (ER-019).
+
+    Returns None when neither is given, or when the provider has no notion
+    of a model name (mock/offline) - the driver's own default then applies.
+    """
+    if model_override:
+        return model_override
+    if context:
+        tier = get_model_config().get_tier_for_context(context)
+        return resolve_model_name(provider, tier)
+    return None
+
+
 def get_rate_limiter(model_name: Optional[str] = None) -> Optional[RateLimiter]:
     """Get or create the global rate limiter.
 
@@ -106,8 +146,6 @@ def get_rate_limiter(model_name: Optional[str] = None) -> Optional[RateLimiter]:
     Returns:
         RateLimiter instance if using a rate-limited provider, None otherwise
     """
-    global _rate_limiter
-
     # Check provider
     provider = _get_provider()
 
@@ -137,13 +175,17 @@ def get_rate_limiter(model_name: Optional[str] = None) -> Optional[RateLimiter]:
             if model_name and "flash" in model_name.lower():
                 rpm = 10  # Flash models: 10 RPM
             else:
-                rpm = 2   # Pro models: 2 RPM
-    
-    # Create rate limiter if not exists or if RPM changed
-    if _rate_limiter is None or _rate_limiter.requests_per_minute != rpm:
-        _rate_limiter = RateLimiter(requests_per_minute=rpm)
-    
-    return _rate_limiter
+                rpm = 2   # Pro models: 2 RPM (conservative default for None)
+
+    # One persistent limiter per (provider, rpm): alternating tiers reuse
+    # their own limiters instead of rebuilding one and losing its history
+    key = (provider, rpm)
+    limiter = _rate_limiters.get(key)
+    if limiter is None:
+        limiter = RateLimiter(requests_per_minute=rpm)
+        _rate_limiters[key] = limiter
+
+    return limiter
 
 
 def _construct_text_driver(provider: str, model_name: Optional[str] = None):
@@ -225,14 +267,10 @@ def generate_text(
     Returns:
         Generated text response
     """
-    # Determine model to use
-    if model_override:
-        model_name = model_override
-    elif context:
-        model_name = get_model_config().get_model_for_context(context)
-    else:
-        model_name = None  # Use driver default
-    
+    # Determine model to use: override, else context tier resolved per provider
+    provider = _get_provider()
+    model_name = _resolve_call_model(provider, context, model_override)
+
     driver = _get_text_driver(model_name)
 
     # Apply rate limiting before making request (model-specific limits).
@@ -244,21 +282,25 @@ def generate_text(
             rate_limiter.wait_if_needed(verbose=True)
 
     # Show spinner if requested (and not in mock mode)
-    provider = _get_provider()
     use_spinner = show_spinner and provider not in ["mock", "offline"]
 
     # Helper to call driver with optional args
     def call_driver():
         if hasattr(driver, 'generate_text'):
-            # Check if driver accepts additional args
+            # Check if driver accepts additional args - by name, or via a
+            # **kwargs catch-all (the mock/offline drivers accept-and-ignore)
             import inspect
             sig = inspect.signature(driver.generate_text)
+            catch_all = any(p.kind is inspect.Parameter.VAR_KEYWORD
+                            for p in sig.parameters.values())
+            def accepts(name):
+                return name in sig.parameters or catch_all
             kwargs = {}
-            if 'system_instruction' in sig.parameters and system_instruction:
+            if accepts('system_instruction') and system_instruction:
                 kwargs['system_instruction'] = system_instruction
-            if 'temperature' in sig.parameters and temperature is not None:
+            if accepts('temperature') and temperature is not None:
                 kwargs['temperature'] = temperature
-            if 'max_tokens' in sig.parameters and max_tokens is not None:
+            if accepts('max_tokens') and max_tokens is not None:
                 kwargs['max_tokens'] = max_tokens
 
             return driver.generate_text(prompt, rng, **kwargs)
@@ -328,14 +370,10 @@ def batch_generate_text(
     if not prompts:
         return []
     
-    # Determine model to use
-    if model_override:
-        model_name = model_override
-    elif context:
-        model_name = get_model_config().get_model_for_context(context)
-    else:
-        model_name = None
-    
+    # Determine model to use: override, else context tier resolved per provider
+    provider = _get_provider()
+    model_name = _resolve_call_model(provider, context, model_override)
+
     driver = _get_text_driver(model_name)
 
     # Get rate limiter (will apply per request in sequential mode, model-specific).
@@ -346,20 +384,23 @@ def batch_generate_text(
         rate_limiter = get_rate_limiter(model_name)
 
     # Show spinner if requested (and not in mock mode)
-    provider = _get_provider()
     use_spinner = show_spinner and provider not in ["mock", "offline"]
 
-    # Only forward max_tokens to drivers that accept it. The mock and offline
-    # drivers take (prompts, rng) alone, and passing an argument they do not
-    # declare would turn a graceful fallback into a TypeError.
+    # Only forward max_tokens to callables that accept it - by name, or via
+    # a **kwargs catch-all (the mock/offline drivers accept-and-ignore).
+    # Passing an argument a signature does not admit would turn a graceful
+    # fallback into a TypeError.
     def batch_kwargs(fn):
         import inspect
         if max_tokens is None:
             return {}
         try:
-            accepts = 'max_tokens' in inspect.signature(fn).parameters
+            sig = inspect.signature(fn)
         except (TypeError, ValueError):
             return {}
+        accepts = ('max_tokens' in sig.parameters
+                   or any(p.kind is inspect.Parameter.VAR_KEYWORD
+                          for p in sig.parameters.values()))
         return {'max_tokens': max_tokens} if accepts else {}
 
     # Helper for batch call
@@ -398,13 +439,15 @@ def batch_generate_text(
                     from llm.parse_health import record_fallback
                     record_fallback("router", f"batch {type(e).__name__}")
                     return MockDeterministicDriver().batch_generate_text(prompts, rng)
-        # Fallback sequential
+        # Fallback sequential - forwards max_tokens where the signature
+        # admits it, same as the batch path (ER-011: this used to call bare)
         results = []
         for prompt in prompts:
             if rate_limiter:
                 rate_limiter.wait_if_needed(verbose=False)
             if hasattr(driver, 'generate_text'):
-                results.append(driver.generate_text(prompt, rng))
+                results.append(driver.generate_text(
+                    prompt, rng, **batch_kwargs(driver.generate_text)))
             else:
                 results.append(f"[LLM response to: {prompt[:50]}...]")
         return results
