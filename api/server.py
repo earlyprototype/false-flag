@@ -605,6 +605,63 @@ async def stream_game_events(session_id: str, request: Request):
     return EventSourceResponse(event_generator())
 
 
+@app.post("/game/{session_id}/briefing", response_model=SessionResponse)
+async def run_turn_briefing_endpoint(session_id: str):
+    """Run the current turn's briefing and return it (ER-022).
+
+    POST /game/new runs turn one's briefing itself; this endpoint is how
+    every later turn gets its inject, inject effects, narrator bridge and
+    mandatory diplomatic encounter — without it the HTTP path had no
+    briefing after turn one. Same payload shape as /game/new. Refused while
+    a scripted mandatory call is still live.
+    """
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = sessions[session_id]
+    manager = session.manager
+    _require_no_mandatory_call(manager)
+
+    pending_encounter = None
+    try:
+        inject = manager.get_turn_briefing()
+        pending_encounter = inject.get("pending_encounter")
+
+        # Push Briefing as event
+        await session.push_event("transcript", {
+            "type": "inject",
+            "title": inject.get("title", "SITUATION UPDATE"),
+            "content": inject.get("description", "") or "\n".join(inject.get("description_lines", []))
+        })
+
+        # Push ready prompt
+        await session.push_event("system", {
+            "content": "BRIEFING COMPLETE. AWAITING ACKNOWLEDGEMENT."
+        })
+
+    except Exception as e:
+        print(f"Error generating briefing: {e}")
+        await session.push_event("transcript", {
+            "type": "error",
+            "content": "FAILED TO LOAD BRIEFING DATA"
+        })
+
+    return SessionResponse(
+        session_id=session_id,
+        turn=manager.world.turn,
+        phase=manager.world.phase,
+        metrics=manager.world.metrics.dict(),
+        pending_encounter=pending_encounter,
+        advisors=[
+            {"role": "NSA", "status": "online"},
+            {"role": "CDS", "status": "online"},
+            {"role": "Foreign Sec", "status": "online"},
+            {"role": "Home Sec", "status": "online"},
+            {"role": "Attorney General", "status": "online"}
+        ]
+    )
+
+
 @app.post("/game/{session_id}/briefing/ack")
 async def acknowledge_briefing(session_id: str):
     """Acknowledge briefing and move to discussion phase."""
