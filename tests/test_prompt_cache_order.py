@@ -117,8 +117,9 @@ def test_the_event_ledger_sits_after_the_transcript_block():
     assert with_ledger.index("GAME HISTORY") < with_ledger.index("EVENTS ALREADY PLAYED")
     assert with_ledger.index("assessment 1.0") < with_ledger.index("EVENTS ALREADY PLAYED")
     assert with_ledger.index("CURRENT SITUATION") < with_ledger.index("EVENTS ALREADY PLAYED")
-    # ...and before the narrative world-state summary that closes the dossier.
-    assert with_ledger.index("EVENTS ALREADY PLAYED") < with_ledger.index("THREAT ASSESSMENT")
+    # ...and before the standing advisor-voice instructions that close the
+    # dossier (the prose bands that used to close it are gone - ER-009).
+    assert with_ledger.index("EVENTS ALREADY PLAYED") < with_ledger.index("Do NOT reference")
     # Everything above the transcript is untouched by the ledger.
     assert _shared_prefix(with_ledger, without) > with_ledger.index("CURRENT SITUATION")
 
