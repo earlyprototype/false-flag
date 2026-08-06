@@ -276,6 +276,8 @@ def generate_text(
             except Exception as e:
                 print(f"[WARNING] LLM call failed ({type(e).__name__}: {e}); "
                       "using offline advisor response for this call")
+                from llm.parse_health import record_fallback
+                record_fallback("router", type(e).__name__)
                 return MockDeterministicDriver().generate_text(prompt, rng)
 
     if use_spinner:
@@ -393,6 +395,8 @@ def batch_generate_text(
                 except Exception as e:
                     print(f"[WARNING] LLM batch call failed ({type(e).__name__}: {e}); "
                           "using offline advisor responses for this call")
+                    from llm.parse_health import record_fallback
+                    record_fallback("router", f"batch {type(e).__name__}")
                     return MockDeterministicDriver().batch_generate_text(prompts, rng)
         # Fallback sequential
         results = []

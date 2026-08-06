@@ -16,6 +16,8 @@ from llm.prompts import (
 )
 from llm.model_config import LLMContext
 from llm.fanout import generate_group
+from llm.parse_health import record_fallback, record_miss
+from llm.parsing import extract_label, is_sentinel_line, strip_decoration
 from engine.initial_conditions import get_all_uk_advisors
 
 
@@ -109,28 +111,13 @@ def _known_pushback_roles(initial_conditions: Dict[str, Any]) -> Set[str]:
 
 
 def _normalize_role_prefix(prefix: str) -> str:
-    """Strip markdown/bracket decoration from a candidate 'Role:' prefix."""
-    return prefix.strip().strip("*_`[]").strip()
+    """Strip markdown/bullet/bracket decoration from a candidate 'Role:' prefix.
 
-
-def _extract_labeled_text(line: str, label: str) -> Optional[str]:
-    """Return text after a "LABEL:" prefix, tolerating markdown decoration.
-
-    Accepts variants like "CONCERN:", "**CONCERN:**", "**CONCERN**:" and
-    "- concern:" (case-insensitive). Returns None if the line doesn't start
-    with the label.
+    Delegates to the shared strip_decoration, which also removes leading
+    hyphens and bullet glyphs so a bulleted roster line ("- Legal Advisor:")
+    resolves to the role it names.
     """
-    pattern = r"^[\s*_`\-]*" + re.escape(label) + r"[\s*_`]*:[\s*_`]*(.*)$"
-    match = re.match(pattern, line.strip(), re.IGNORECASE)
-    if match:
-        return match.group(1).strip()
-    return None
-
-
-def _is_no_pushback_line(line: str) -> bool:
-    """True only when a line IS the "NO PUSHBACK" sentinel (modulo decoration)."""
-    normalized = line.strip().strip("*_`[]().:;!- \t").upper()
-    return normalized == "NO PUSHBACK"
+    return strip_decoration(prefix)
 
 
 def handle_player_question(
@@ -275,7 +262,7 @@ def generate_advisor_pushback(
     # "NO PUSHBACK" only counts when it appears as a standalone line, so an
     # advisor mentioning the phrase mid-sentence doesn't drop real pushback.
     lines = pushback_text.strip().split("\n")
-    if any(_is_no_pushback_line(line) for line in lines):
+    if any(is_sentinel_line(line, "NO PUSHBACK") for line in lines):
         return []
 
     # A line starts a new pushback only when the prefix before ":" is a known
@@ -302,7 +289,11 @@ def generate_advisor_pushback(
         elif pushback_list:
             prev_role, prev_message = pushback_list[-1]
             pushback_list[-1] = (prev_role, f"{prev_message} {stripped}".strip())
-        # Lines before any recognised advisor (e.g. preamble) are dropped
+        else:
+            # A line before any recognised advisor is still dropped (it is
+            # usually preamble), but no longer silently: if it was a real
+            # objection under an unrecognised prefix, the record shows it.
+            record_miss("pushback", "orphan_line", stripped[:60])
 
     return pushback_list
 
@@ -386,8 +377,21 @@ def check_critical_omissions(
 
     for char_id, response in zip(checking, responses):
         try:
-            # Parse response
-            if not response or "NO_CONCERN" in response or "NO CONCERN" in response:
+            # A batch driver marks a per-prompt failure as "[ERROR: ...]" in
+            # that slot rather than raising (see llm/fanout.py). That is a
+            # failed call, not an advisor finding nothing wrong.
+            if response and response.startswith("[ERROR:"):
+                record_fallback("critical_omissions", char_id)
+                print(f"[WARN] Critical omissions check failed for {char_id}: "
+                      f"{response[:80]}")
+                continue
+
+            # The all-clear sentinel only counts as a standalone line, so an
+            # answer that merely mentions NO_CONCERN mid-sentence still parses
+            if not response or any(
+                is_sentinel_line(line, "NO_CONCERN")
+                for line in response.splitlines()
+            ):
                 continue
 
             # Extract concern and recommendation (tolerating markdown-bold
@@ -401,8 +405,8 @@ def check_critical_omissions(
                 line = line.strip()
                 if not line:
                     continue
-                concern_text = _extract_labeled_text(line, "CONCERN")
-                recommendation_text = _extract_labeled_text(line, "RECOMMENDATION")
+                concern_text = extract_label(line, "CONCERN")
+                recommendation_text = extract_label(line, "RECOMMENDATION")
                 if concern_text is not None:
                     concern = concern_text
                     last_field = "concern"
@@ -416,6 +420,15 @@ def check_critical_omissions(
                     # Multi-line recommendation
                     recommendation = f"{recommendation} {line}".strip()
 
+            if concern and not recommendation:
+                # A concern with no recommendation is still a concern - it
+                # must surface, not vanish over a missing second field
+                record_miss("critical_omissions", "recommendation", char_id)
+                recommendation = "(no specific recommendation given)"
+            elif recommendation and not concern:
+                record_miss("critical_omissions", "concern", char_id)
+                continue
+
             if concern and recommendation:
                 char_info = uk_advisors[char_id]
                 role = char_info.get("role", "Advisor")
@@ -425,6 +438,6 @@ def check_critical_omissions(
             # Keep checking the remaining advisors, but don't fail silently
             print(f"[WARN] Critical omissions check failed for {char_id}: {e}")
             continue
-    
+
     return critical_concerns
 

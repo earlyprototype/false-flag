@@ -22,13 +22,13 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-012 | open | high | data | Authored per-country content reaches no prompt |
 | ER-032 | open | high | dispatch | The rate limiter is discarded on every model-tier switch |
 | ER-033 | open | high | dispatch | The scripted diplomatic call answers itself on two front ends |
-| ER-034 | open | high | parsing | An annotated number is dropped and its siblings are applied |
-| ER-035 | open | high | parsing | A bulleted cabinet objection is read as no objection |
-| ER-036 | open | high | parsing | Two acceptance rules discard real critical omissions |
-| ER-015 | open | high | parsing | Decorated labels drop the decision's metric effects |
-| ER-016 | open | high | parsing | Decorated actor replies invert a refusal |
-| ER-029 | open | high | parsing | The diplomatic outcome parser shares the same defect |
-| ER-030 | open | high | parsing | A worded refusal is read as conditional support |
+| ER-034 | fixed | high | parsing | An annotated number is dropped and its siblings are applied |
+| ER-035 | fixed | high | parsing | A bulleted cabinet objection is read as no objection |
+| ER-036 | fixed | high | parsing | Two acceptance rules discard real critical omissions |
+| ER-015 | fixed | high | parsing | Decorated labels drop the decision's metric effects |
+| ER-016 | fixed | high | parsing | Decorated actor replies invert a refusal |
+| ER-029 | fixed | high | parsing | The diplomatic outcome parser shares the same defect |
+| ER-030 | fixed | high | parsing | A worded refusal is read as conditional support |
 | ER-017 | open | high | context | The calls that change the game never learn what happened in it |
 | ER-018 | open | high | context | The diplomatic transcript filter is erratic in both directions |
 | ER-019 | open | high | routing | The per-call model table is inert on the shipped provider |
@@ -37,24 +37,24 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-002 | open | high | context | Decision interpretation never reaches the omissions prompt |
 | ER-003 | open | high | context | No prompt holds both campaign history and event ledger |
 | ER-004 | open | high | dispatch | A resumed mid-turn save re-runs the briefing |
-| ER-045 | open | med | dispatch | A partial batch failure is invisible on the omissions scan |
+| ER-045 | fixed | med | dispatch | A partial batch failure is invisible on the omissions scan |
 | ER-037 | open | med | state | The random number position is not saved |
 | ER-038 | open | med | context | A foreign counterpart is given the UK's private metrics |
 | ER-041 | open | med | context | The scripted call drops its premise and shows hidden numbers |
-| ER-042 | open | med | parsing | A generated event's effect is dropped when its delta is not an integer |
+| ER-042 | fixed | med | parsing | A generated event's effect is dropped when its delta is not an integer |
 | ER-021 | open | med | context | Mystery Mode tells the player's own advisors to deceive them |
 | ER-023 | open | med | dispatch | The decision phase runs seven waits where three would do |
 | ER-025 | open | med | state | Mystery Mode draws its secret from an unseeded generator |
 | ER-005 | open | med | routing | Five of twelve call families bypass the model configuration |
-| ER-006 | open | med | parsing | The effects parser accepts any colon line naming a metric |
+| ER-006 | fixed | med | parsing | The effects parser accepts any colon line naming a metric |
 | ER-007 | open | med | state | Advisor trust updates on one adjudication path only |
 | ER-008 | open | med | context | Two context builders apply no character bound |
 | ER-010 | open | med | state | The situation summary costs a call per turn and reaches no prompt |
 | ER-014 | open | med | context | The state-actor prompt carries UK internal advisor trust |
-| ER-039 | open | low | parsing | The quality multiplier's effect is halved before it lands |
+| ER-039 | fixed | low | parsing | The quality multiplier's effect is halved before it lands |
 | ER-040 | open | low | context | The diplomatic exchange counter advances twice per exchange |
 | ER-043 | open | low | context | The narrator is never told what the player decided |
-| ER-044 | open | low | parsing | The decision summary panel empties on decorated output |
+| ER-044 | fixed | low | parsing | The decision summary panel empties on decorated output |
 | ER-024 | open | low | context | Player questions are written to the transcript twice |
 | ER-028 | open | low | routing | The play page offers no way to choose or change the model |
 | ER-026 | open | low | dispatch | `--no-stochastic-injects` inverts into a banner switch |
@@ -62,7 +62,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-009 | open | low | context | The metrics are rendered twice and a third block adds nothing |
 | ER-011 | open | low | dispatch | Output caps are dropped on three of four drivers |
 | ER-013 | open | low | state | Advisor pushback mutates nothing |
-| ER-031 | open | low | parsing | An explicit multiplier of 1.0 is indistinguishable from silence |
+| ER-031 | fixed | low | parsing | An explicit multiplier of 1.0 is indistinguishable from silence |
 | ER-027 | open | low | context | An advisor instruction contradicts the outcome assessor's task |
 
 ## How the measurements below were taken
@@ -197,7 +197,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-006 — The effects parser accepts any colon line naming a metric
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** effects lines now require the pre-colon token (decoration-stripped) to equal one of the three requested metric names, so reasoning prose cannot move a metric (llm/parsing.py, engine/narrative_adjudication.py).
 - **Severity:** medium
 - **Area:** parsing
 - **Observed:** The effects branch accepts any line containing a colon together with the substring
@@ -364,7 +365,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-015 — Decorated labels drop the decision's metric effects
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** all quality-assessment labels and delta lines now parse through the shared decoration-tolerant reader, so emphasised labels and bulleted deltas land intact (llm/parsing.py, engine/narrative_adjudication.py).
 - **Severity:** high
 - **Area:** parsing
 - **Observed:** `_parse_quality_response` recognises a field only when the line begins with the bare
@@ -398,7 +400,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-016 — Decorated actor replies invert a refusal
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** every actor field parses through the shared decoration-tolerant label reader, and a reply with no readable labels records a parse miss instead of silently defaulting (engine/actor_simulation.py).
 - **Severity:** high
 - **Area:** parsing
 - **Observed:** `_parse_actor_response` recognises each field only from a bare label at the start of
@@ -684,7 +687,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-029 — The diplomatic outcome parser shares the same defect
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** the outcome parser uses tolerant labels, validates OUTCOME against the enumeration, recovers annotated deltas, accumulates SUMMARY continuations, and records every defaulted field (engine/diplomacy.py).
 - **Severity:** high
 - **Area:** parsing
 - **Observed:** `assess_diplomatic_outcome` reads its three fields with the same bare `startswith`
@@ -705,7 +709,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-030 — A worded refusal is read as conditional support
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** WILL_SUPPORT reads the exact enum first, then a negation-aware refusal pattern, so worded refusals ("absolutely not", "no, we will not assist") register as no (llm/parsing.py match_enum).
 - **Severity:** high
 - **Area:** parsing
 - **Observed:** The `WILL_SUPPORT:` branch of the actor parser tests
@@ -725,7 +730,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-031 — An explicit multiplier of 1.0 is indistinguishable from silence
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** the multiplier initialises to None and the quality table only applies when the model stated none, so an explicit 1.0 survives (engine/narrative_adjudication.py).
 - **Severity:** low
 - **Area:** parsing
 - **Observed:** `multiplier` is initialised to 1.0 and, after parsing, any value still equal to 1.0
@@ -786,7 +792,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-034 — An annotated number is dropped and its siblings are applied
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** both parsers recover the first signed integer from the remainder instead of int() over the whole line, so annotated numbers land and misses are recorded (llm/parsing.py find_signed_int).
 - **Severity:** high
 - **Area:** parsing
 - **Observed:** Two of the three parsers that set metric changes recover their number with a bare
@@ -811,7 +818,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-035 — A bulleted cabinet objection is read as no objection
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** role-prefix normalisation strips leading hyphens/bullets so bulleted objections match their roles, and orphan leading lines record a parse miss instead of vanishing (agents/conversation.py).
 - **Severity:** high
 - **Area:** parsing
 - **Observed:** A pushback line is recognised only when the text before its first colon normalises to
@@ -834,7 +842,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-036 — Two acceptance rules discard real critical omissions
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** the sentinel only counts as a standalone line, and a concern without a recommendation surfaces with a placeholder recommendation plus a recorded miss (agents/conversation.py).
 - **Severity:** high
 - **Area:** parsing
 - **Observed:** The critical-omissions consumer applies two acceptance rules after its label reader
@@ -890,7 +899,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-039 — The quality multiplier's effect is halved before it lands
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** the narrative path passes the model's deltas as the base with empty suggestions, so the multiplier applies once instead of being averaged with the unscaled values (engine/narrative_adjudication.py).
 - **Severity:** low
 - **Area:** parsing
 - **Observed:** On the narrative adjudication path `apply_quality_scaling` is handed the model's
@@ -939,7 +949,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-042 — A generated event's effect is dropped when its delta is not an integer
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** inject deltas coerce from float/quoted/annotated forms, and an unreadable delta emits a transcript "Skipped: unreadable delta" line plus a recorded miss (engine/sim_loop.py).
 - **Severity:** medium
 - **Area:** parsing
 - **Observed:** `apply_inject_effects` accepts a delta only as a Python integer or as a string
@@ -972,7 +983,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-044 — The decision summary panel empties on decorated output
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** the panel parser reads its four labels through the tolerant reader, accepts -/• bullets, and records a miss before the raw-text fallback (cli/display_utils.py).
 - **Severity:** low
 - **Area:** parsing
 - **Observed:** The panel that shows the player their interpreted order parses it with four bare
@@ -987,7 +999,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-045 — A partial batch failure is invisible on the omissions scan
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** the omissions consumer now guards "[ERROR:" slots, recording a fallback and warning instead of reading a failed call as a clean scan (agents/conversation.py).
 - **Severity:** medium
 - **Area:** dispatch
 - **Observed:** On the concurrent path a per-prompt failure is returned as the string

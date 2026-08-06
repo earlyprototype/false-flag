@@ -75,6 +75,7 @@ from engine.persistence import save_game, load_game
 from engine.initial_conditions import load_initial_conditions
 from engine.diplomacy import run_diplomatic_encounter, list_available_diplomatic_contacts
 from llm.router import generate_text, batch_generate_text
+from llm import parse_health
 from cli.model_settings_menu import model_settings_menu
 
 # Task 2.5: Enable Rich help panel
@@ -804,6 +805,10 @@ def play(
     # Between-turn vignette rotation: remembers the previous pick so the
     # same joke never plays twice in a row.
     last_vignette = None
+
+    # Parse-health events already reported, so each turn's footer line only
+    # covers that turn.
+    parse_health_seen = parse_health.total()
 
     # Main game loop
     while True:
@@ -2028,6 +2033,10 @@ def play(
         typer.echo("")
         console.print(ae.sonar_divider(seed=f"turn-{world.turn - 1}-close"))
         console.print(f"[{COLORS['muted']}]TURN {world.turn - 1} COMPLETE ── auto-saved to {save_path.name}[/{COLORS['muted']}]")
+        ph_total = parse_health.total()
+        if ph_total > parse_health_seen:
+            console.print(f"[{COLORS['muted']}]parse health: {ph_total - parse_health_seen} model fields defaulted this turn (see log)[/{COLORS['muted']}]")
+            parse_health_seen = ph_total
         console.print(ae.sonar_divider(seed=f"turn-{world.turn - 1}-close-b"))
         typer.echo("")
 

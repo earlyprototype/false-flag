@@ -54,6 +54,9 @@ def main():
     from engine.game_manager import GameManager
     from llm.router import _get_text_driver, _get_provider
     from llm.mock_driver import MockDeterministicDriver
+    from llm import parse_health
+
+    parse_health.reset()
 
     # The router answers a refused call from the mock driver, and the mock
     # driver returns a perfectly well-formed reply. A campaign can therefore
@@ -139,6 +142,19 @@ def main():
               f"this campaign was not adjudicated by an LLM throughout ***")
     else:
         print("no calls fell back to the mock driver")
+
+    # Parse health: how much of what the player saw was the model's answer
+    # rather than a tolerant parser's default.
+    health = parse_health.snapshot()
+    miss_count = sum(health["misses"].values())
+    if miss_count:
+        detail = ", ".join(f"{k} x{v}" for k, v in health["misses"].items())
+        print(f"parse health: {miss_count} misses ({detail})")
+    else:
+        print("parse health: 0 misses")
+    if health["fallbacks"]:
+        detail = ", ".join(f"{k} x{v}" for k, v in health["fallbacks"].items())
+        print(f"parse health: fallbacks recorded ({detail})")
 
 
 if __name__ == "__main__":

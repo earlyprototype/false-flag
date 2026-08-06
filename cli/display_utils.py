@@ -14,6 +14,8 @@ from rich.markup import escape as rich_escape
 from cli import aesthetics as ae
 from cli.rich_ui import console, format_markdown, RICH_ENABLED
 from cli.theme import theme_manager, SYMBOLS
+from llm.parse_health import record_miss
+from llm.parsing import extract_label
 
 
 _MD_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
@@ -176,27 +178,31 @@ def parse_interpretation_simple(interpretation: str) -> dict:
     for line in lines:
         line = line.strip()
 
-        if line.startswith("INTERPRETATION:"):
-            sections["summary"] = line.replace("INTERPRETATION:", "").strip()
-        elif line.startswith("FORCES INVOLVED:"):
+        interpretation = extract_label(line, "INTERPRETATION")
+        forces = extract_label(line, "FORCES INVOLVED")
+        timeline = extract_label(line, "TIMELINE")
+        feasibility = extract_label(line, "FEASIBILITY")
+
+        if interpretation is not None:
+            sections["summary"] = interpretation
+        elif forces is not None:
             # Inline value ("FORCES INVOLVED: a, b") or bullet list on
             # following lines - support both.
-            inline = line.replace("FORCES INVOLVED:", "").strip()
-            if inline:
-                sections["forces"] = [f.strip() for f in inline.split(",") if f.strip()][:5]
+            if forces:
+                sections["forces"] = [f.strip() for f in forces.split(",") if f.strip()][:5]
             current_section = "forces"
-        elif line.startswith("TIMELINE:"):
-            inline = line.replace("TIMELINE:", "").strip()
-            if inline:
-                sections["timeline"] = inline
+        elif timeline is not None:
+            if timeline:
+                sections["timeline"] = timeline
             current_section = "timeline"
-        elif line.startswith("FEASIBILITY:"):
+        elif feasibility is not None:
             if "impossible" in line.lower() or "requires clarification" in line.lower():
-                sections["concerns"] = line.replace("FEASIBILITY:", "").strip()
+                sections["concerns"] = feasibility
             current_section = None
-        elif current_section == "forces" and line and line.startswith("*"):
+        elif current_section == "forces" and line and line.startswith(("*", "-", "•")):
             # Extract force name from bullet point
-            force = line.lstrip("* ").split(":")[0] if ":" in line else line.lstrip("* ")
+            stripped = line.lstrip("*-• ")
+            force = stripped.split(":")[0] if ":" in stripped else stripped
             if force and len(sections["forces"]) < 5:  # Max 5 forces shown
                 sections["forces"].append(force)
         elif current_section == "timeline" and line and not sections["timeline"]:
@@ -256,6 +262,7 @@ def display_decision_summary(action: str, interpretation: str, show_details: boo
         # Nothing parsed from the structured format: fall back to the raw
         # interpretation (trimmed) rather than showing an empty panel.
         if not any([parsed["summary"], parsed["forces"], parsed["timeline"], parsed["concerns"]]):
+            record_miss("interpretation_display", "all_fields")
             fallback = " ".join(interpretation.split())
             if len(fallback) > 400:
                 fallback = fallback[:400].rstrip() + "..."
