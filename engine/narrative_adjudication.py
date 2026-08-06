@@ -20,6 +20,7 @@ from engine.utils import clamp
 # Actor Simulation Imports
 from models.state_actors import StateActorSystem, ActorResponse
 from llm.fanout import generate_group
+from llm.model_config import LLMContext
 from llm.parse_health import record_miss
 from llm.parsing import extract_label, find_float, find_signed_int, strip_decoration
 from engine.actor_simulation import (
@@ -269,7 +270,8 @@ QUALITY MULTIPLIER: [0.5 to 2.5]
 """
     
     try:
-        response = llm_generate_fn(prompt, rng, max_tokens=400)
+        response = llm_generate_fn(prompt, rng, max_tokens=400,
+                                   context=LLMContext.QUALITY_ASSESSMENT)
         return _parse_quality_response(response, world_narrative)
     except Exception:
         # Fallback to heuristic on error
@@ -587,6 +589,7 @@ def generate_character_responses(
         for char in chars
     ]
     raw = generate_group(prompts, llm_generate_fn, rng, llm_batch_fn,
+                         context=LLMContext.CHARACTER_RESPONSE,
                          max_tokens=CHARACTER_RESPONSE_MAX_TOKENS)
 
     responses = []
@@ -780,7 +783,9 @@ prose - no headings, no numbers, no bullet points.
 
 Summary:"""
         try:
-            summary = llm_generate_fn(prompt, rng, max_tokens=250).strip().strip('"')
+            summary = llm_generate_fn(
+                prompt, rng, max_tokens=250,
+                context=LLMContext.SITUATION_SUMMARY).strip().strip('"')
             if summary:
                 narrative_state.situation_summary = summary
                 return

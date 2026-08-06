@@ -45,7 +45,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-021 | fixed | med | context | Mystery Mode tells the player's own advisors to deceive them |
 | ER-023 | open | med | dispatch | The decision phase runs seven waits where three would do |
 | ER-025 | fixed | med | state | Mystery Mode draws its secret from an unseeded generator |
-| ER-005 | in-progress | med | routing | Five of twelve call families bypass the model configuration |
+| ER-005 | fixed | med | routing | Five of twelve call families bypass the model configuration |
 | ER-006 | fixed | med | parsing | The effects parser accepts any colon line naming a metric |
 | ER-007 | fixed | med | state | Advisor trust updates on one adjudication path only |
 | ER-008 | fixed | med | context | Two context builders apply no character bound |
@@ -183,13 +183,16 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-005 — Five of twelve call families bypass the model configuration
 
-- **Status:** in-progress
-- **Progress:** the routing layer is ready: `LLMContext` gained `QUALITY_ASSESSMENT` (PRO),
+- **Status:** fixed
+- **Fixed:** the routing layer landed first: `LLMContext` gained `QUALITY_ASSESSMENT` (PRO),
   `ACTOR_SIMULATION` (PRO), `SITUATION_SUMMARY` (FLASH) and `NARRATOR` (FLASH), each with a
   default tier, a cost-table entry and a row in the model settings menu, and all four resolve
-  through the provider-aware table (see ER-019). The call-site wiring — passing `context=` at the
-  five bypassing dispatch sites — is deliberately deferred to the pipeline PR to avoid conflicts
-  with concurrent engine work.
+  through the provider-aware table (see ER-019). The pipeline PR then wired the call sites: the
+  narrator bridge passes `NARRATOR`, the quality assessment `QUALITY_ASSESSMENT`, the advisor
+  reactions group `CHARACTER_RESPONSE` (the long-defined member finally has a caller), the
+  situation-summary fold `SITUATION_SUMMARY` and the state-actor batch `ACTOR_SIMULATION`
+  (engine/narrator.py, engine/narrative_adjudication.py, engine/actor_simulation.py). All twelve
+  call families now dispatch with a `context=`.
 - **Severity:** medium
 - **Area:** routing
 - **Observed:** The narrator bridge, the action quality assessment, the advisor reactions, the

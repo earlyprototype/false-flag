@@ -3,6 +3,7 @@ from random import Random
 import re
 
 from models.state_actors import StateActor, ActorResponse, StateActorSystem
+from llm.model_config import LLMContext
 from llm.parse_health import record_miss
 from llm.parsing import extract_label, find_signed_int, match_enum
 
@@ -141,7 +142,8 @@ def simulate_actor_responses(
     prompts = [build_actor_prompt(actor, player_action, world_context,
                                   world_narrative=world_narrative)
                for actor in actors]
-    raw = generate_group(prompts, llm_generate_fn, rng, llm_batch_fn)
+    raw = generate_group(prompts, llm_generate_fn, rng, llm_batch_fn,
+                         context=LLMContext.ACTOR_SIMULATION)
 
     responses = []
     for actor, text in zip(actors, raw):
