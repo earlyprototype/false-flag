@@ -155,6 +155,30 @@ class GameManager:
 
         self.transcript.extend(lines)
 
+        # A scripted mandatory encounter: the briefing hands back the spec
+        # rather than playing the call for the player (ER-033). Open the
+        # line here so the existing process_diplomacy plumbing can drive it.
+        pending = (inject or {}).pop("_pending_encounter", None)
+        if pending:
+            from engine.diplomacy import DiplomaticEncounter, normalize_country
+
+            self.active_encounter = DiplomaticEncounter(
+                self.world,
+                normalize_country(pending.get("country")),
+                pending.get("context"),
+                self.root_path,
+                full_transcript=self.transcript,
+                show_metrics=self.play_mode == "classic",
+                required=True
+            )
+            opening = self.active_encounter.start(self.rng)
+            self.transcript.extend(opening)
+            inject["pending_encounter"] = {
+                "country": pending.get("country"),
+                "context": pending.get("context"),
+                "title": self.active_encounter.title,
+            }
+
         # Sync inject effects into the narrative state. Adjudication mutates
         # narrative_state.hidden_metrics and the result is copied back over
         # world.metrics at end of turn, so any briefing effect left only on
@@ -493,10 +517,13 @@ class GameManager:
         # the secret narrative truth); without it Mystery Mode never colours
         # foreign leaders' responses. Raw metric numbers must stay out of the
         # call in metric-hiding modes.
+        # No encounter_context: that block is the authored premise of a
+        # scripted call, and a meta string here would leak into the
+        # counterpart's prompt as a stage direction.
         self.active_encounter = DiplomaticEncounter(
             self.world,
             country_code,
-            "Player initiated call",
+            None,
             self.root_path,
             full_transcript=self.transcript,
             show_metrics=self.play_mode == "classic"
@@ -514,10 +541,27 @@ class GameManager:
             return {"error": "No active diplomatic call", "active": False}
             
         from llm.router import generate_text
-        
+
+        mark = len(self.active_encounter.transcript)
         transcript = self.active_encounter.process_turn(message, generate_text, self.rng)
         outcome = self.active_encounter.outcome
-        
+
+        if self.active_encounter.required:
+            # A scripted call is part of the campaign record: mirror its new
+            # lines into the session transcript, the way the CLI extends the
+            # game transcript after a call. (Its opening lines were mirrored
+            # by get_turn_briefing.)
+            self.transcript.extend(transcript[mark:])
+
+        if outcome is not None:
+            # The call has ended and its cohesion delta landed on
+            # world.metrics. Mirror it into the narrative state, the way the
+            # CLI does after a call: resolve_decision copies hidden_metrics
+            # back over world.metrics, so a delta left only on world.metrics
+            # would be silently reverted at the next decision.
+            self.narrative_state.hidden_metrics.alliance_cohesion = \
+                self.world.metrics.alliance_cohesion
+
         return {
             "transcript": transcript,
             "active": self.active_encounter.active,

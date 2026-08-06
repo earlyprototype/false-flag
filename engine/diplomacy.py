@@ -186,18 +186,24 @@ def build_diplomatic_conversation_prompt(
     counterpart_profile: Dict[str, Any],
     conversation_history: List[Tuple[str, str]],
     player_message: str,
-    full_transcript: Optional[List[str]] = None
+    full_transcript: Optional[List[str]] = None,
+    encounter_context: Optional[str] = None
 ) -> str:
     """Build LLM prompt for diplomatic conversation.
-    
+
     Args:
         world: Current world state
         country: Country code
         counterpart_profile: Dict with personality, concerns, etc.
-        conversation_history: List of (speaker, message) tuples for this call
+        conversation_history: List of (speaker, message) tuples for this call,
+            NOT including the player's current message (it is rendered
+            separately below)
         player_message: Player's current message
         full_transcript: Optional full game transcript for context
-    
+        encounter_context: The authored premise of a scripted encounter — why
+            the counterpart placed this call (ER-041). None for
+            player-initiated calls.
+
     Returns:
         Formatted prompt for LLM
     """
@@ -225,10 +231,18 @@ def build_diplomatic_conversation_prompt(
     
     # Key concerns formatted
     concerns_text = "\n".join(f"- {concern}" for concern in key_concerns)
-    
-    # Exchange count
-    exchange_count = len(conversation_history) + 1
-    
+
+    # The scripted premise of the call, when there is one (ER-041)
+    premise = ""
+    if encounter_context:
+        premise = f"\n=== WHY YOU ARE CALLING ===\n{str(encounter_context).strip()}\n"
+
+    # Exchange count. The history gains two entries per exchange (the
+    # counterpart's line and the player's), so dividing by two counts
+    # exchanges rather than lines (ER-040): the first player message is
+    # exchange 1, not exchange 3.
+    exchange_count = len(conversation_history) // 2 + 1
+
     prompt = f"""You are roleplaying as the {title} of {country} in a crisis simulation.
 
 === YOUR CHARACTER ===
@@ -240,7 +254,7 @@ Key Concerns:
 {concerns_text}
 
 {secure_context}
-
+{premise}
 === THIS DIPLOMATIC CALL ===
 {call_history}
 
@@ -383,12 +397,17 @@ class DiplomaticEncounter:
     
     def __init__(self, world: WorldState, country: str, context: Optional[str], root_path: Optional[Path] = None,
                  full_transcript: Optional[List[str]] = None,
-                 show_metrics: bool = True):
+                 show_metrics: bool = True,
+                 required: bool = False):
         self.world = world
         self.country = country
         self.context = context
         self.root_path = root_path
         self.show_metrics = show_metrics
+        # A mandatory (inject-scripted) encounter: front ends must not let
+        # the player walk away from it, and the exchange cap below is what
+        # guarantees a headless required call still terminates (ER-033).
+        self.required = required
         # Full game transcript feeds get_diplomatic_context (public events plus
         # the secret narrative truth); without it the conversation prompt falls
         # back to a bare turn/escalation stub and Mystery mode never colours
@@ -403,6 +422,11 @@ class DiplomaticEncounter:
         self.history: List[Tuple[str, str]] = []
         self.active = True
         self.outcome: Optional[Dict[str, Any]] = None
+        # Same lookup the legacy runner uses; enforced here so every caller
+        # gets a call that terminates, not just the blocking CLI loop.
+        self.max_exchanges = (self.profile.get("conversation_rules", {})
+                              .get("max_exchanges", 11)) if self.profile else 11
+        self._player_exchanges = 0
         
         if not self.profile:
             self.active = False
@@ -445,8 +469,8 @@ class DiplomaticEncounter:
         # Player line
         pm_line = f"Prime Minister: {player_message}"
         self.transcript.append(pm_line)
-        self.history.append(("Prime Minister", player_message))
-        
+        self._player_exchanges += 1
+
         # Check for end conditions: only an explicit, standalone closer ends
         # the call. A substring test hung up on lines like "Thank you for the
         # intel, but I need firm Article 5 commitments."
@@ -454,19 +478,31 @@ class DiplomaticEncounter:
         normalized = "".join(c for c in msg_lower if c.isalpha() or c.isspace()).strip()
         closers = {"end", "goodbye", "thank you", "thank you goodbye", "that will be all", "end call"}
         if msg_lower == "/end" or normalized in closers:
+            self.history.append(("Prime Minister", player_message))
             return self.end(llm_generate, rng)
 
-        # Generate response
+        # Generate response. The prompt is built BEFORE the player's line
+        # joins the history: it renders that line itself, and the exchange
+        # counter divides the history length, so appending first both doubled
+        # the line and inflated the count (ER-040).
         prompt = build_diplomatic_conversation_prompt(
             self.world, self.country, self.profile, self.history, player_message,
-            full_transcript=self.full_transcript
+            full_transcript=self.full_transcript,
+            encounter_context=self.context
         )
+        self.history.append(("Prime Minister", player_message))
         response = llm_generate(prompt, rng, context=LLMContext.DIPLOMACY_CONVERSATION)
         response = response.strip()
-        
+
         self.transcript.append(f"{self.title}: {response}")
         self.history.append((self.title, response))
-        
+
+        # Exchange cap: the counterpart is busy running a country. Without
+        # this only the legacy CLI runner enforced the limit, so a headless
+        # required call could run forever (ER-033).
+        if self._player_exchanges >= self.max_exchanges:
+            return self.end(llm_generate, rng)
+
         return self.transcript
 
     def end(self, llm_generate: Callable, rng: Random,
@@ -539,7 +575,8 @@ def run_diplomatic_encounter(
         echo_player = not sys.stdin.isatty()
     encounter = DiplomaticEncounter(world, country, context, root_path,
                                     full_transcript=full_transcript,
-                                    show_metrics=show_metrics)
+                                    show_metrics=show_metrics,
+                                    required=required)
 
     if not encounter.active:
         # Surface the in-fiction failure (unknown country / no access) —

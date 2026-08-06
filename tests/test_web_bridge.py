@@ -488,6 +488,48 @@ def test_call_opens_a_line_and_stays_open():
     assert "CALL ENDED" in rec.ansi()
 
 
+def test_mandatory_call_puts_the_player_on_the_line():
+    """The scripted turn-6 encounter must be played BY the player (ER-033):
+    the briefing lands in awaiting-question with the incoming-call header,
+    decisions are refused until the call ends, and the call is drivable
+    through the ordinary `call` message."""
+    game, rec = make_game(scenario="standard")
+    game.gm.world.turn = 6
+    rec.clear()
+    game.start_briefing()
+    play_through_pauses(game, rec)
+
+    assert rec.last("awaiting")["kind"] == "question"
+    text = rec.ansi()
+    assert "INCOMING CALL" in text
+    assert "YOU MUST TAKE THIS" in text
+    assert "DIPLOMATIC CALL" in text
+    # Nobody answered in the player's name.
+    assert not any(line.startswith("Prime Minister:")
+                   for line in game.gm.active_encounter.transcript)
+
+    # The turn is not open while the President is waiting.
+    rec.clear()
+    game.handle({"type": "decide", "text": DECISION})
+    assert "waiting on the line" in rec.last("error")["message"]
+    assert rec.last("awaiting")["kind"] == "question"
+
+    rec.clear()
+    game.handle({"type": "ask", "advisor": "chief_defence_staff",
+                 "text": "Can we stall him?"})
+    assert "waiting on the line" in rec.last("error")["message"]
+    assert rec.last("awaiting")["kind"] == "question"
+
+    # The player takes the call and hangs up; the turn opens.
+    rec.clear()
+    game.handle({"type": "call", "text": "We are coordinating fully with NATO."})
+    assert rec.last("awaiting")["kind"] == "question"
+    game.handle({"type": "call", "text": "Thank you, goodbye."})
+    assert "CALL ENDED" in rec.ansi()
+    assert rec.last("awaiting")["kind"] == "decision"
+    assert game.gm.active_encounter.outcome is not None
+
+
 def test_call_to_an_unknown_country_fails_in_fiction():
     game, rec = make_game()
     rec.clear()

@@ -163,6 +163,10 @@ class SessionResponse(BaseModel):
     phase: str
     metrics: Dict[str, int]
     advisors: List[Dict[str, str]] = []
+    # A scripted mandatory diplomatic call left live by the briefing
+    # (ER-033): {"country", "context", "title"}. The client answers it via
+    # /game/action/diplomacy/reply before any decision is accepted.
+    pending_encounter: Optional[Dict[str, Any]] = None
 
 
 class ForceUnit(BaseModel):
@@ -271,9 +275,11 @@ async def new_game(request: NewGameRequest):
     sessions[session_id] = session
     
     # Generate initial briefing
+    pending_encounter = None
     try:
         inject = manager.get_turn_briefing()
-        
+        pending_encounter = inject.get("pending_encounter")
+
         # Push Narrator Intro if available (from sim_loop integration)
         # Note: sim_loop might have added lines to transcript directly
         
@@ -301,6 +307,7 @@ async def new_game(request: NewGameRequest):
         turn=manager.world.turn,
         phase=manager.world.phase,
         metrics=manager.world.metrics.dict(),
+        pending_encounter=pending_encounter,
         advisors=[
             {"role": "NSA", "status": "online"},
             {"role": "CDS", "status": "online"},
@@ -665,6 +672,23 @@ async def post_discussion(request: DiscussionRequest):
     return {"status": "processed"}
 
 
+def _require_no_mandatory_call(manager: GameManager) -> None:
+    """Refuse a decision while a scripted mandatory call is unanswered.
+
+    The briefing leaves the encounter live on the manager (ER-033); the
+    client drives it through /game/action/diplomacy/reply. Until it ends,
+    deciding the turn would abandon the President mid-sentence.
+    """
+    encounter = manager.active_encounter
+    if encounter is not None and encounter.active and \
+            getattr(encounter, "required", False):
+        raise HTTPException(
+            status_code=409,
+            detail="A mandatory diplomatic call is live; answer it via "
+                   "/game/action/diplomacy/reply before deciding."
+        )
+
+
 @app.post("/game/decision", summary="[LEGACY] Commit to a decision (One-shot)")
 async def post_decision(request: DecisionRequest):
     """Commit to a decision (Legacy endpoint).
@@ -680,9 +704,10 @@ async def post_decision(request: DecisionRequest):
     
     if manager.world.phase not in ["discussion", "decision"]:
         raise HTTPException(status_code=400, detail=f"Wrong phase: {manager.world.phase}")
-    
+    _require_no_mandatory_call(manager)
+
     manager.world.phase = "decision"
-    
+
     # Process decision (legacy one-shot)
     result = manager.resolve_decision(request.action_text)
     
@@ -704,7 +729,8 @@ async def interpret_decision(request: InterpretDecisionRequest):
     
     if manager.world.phase not in ["discussion", "decision"]:
         raise HTTPException(status_code=400, detail=f"Wrong phase: {manager.world.phase}")
-    
+    _require_no_mandatory_call(manager)
+
     # Interpret without committing
     try:
         print(f"DEBUG: calling manager.interpret_decision with '{request.action_text}'")
@@ -743,7 +769,8 @@ async def commit_decision(request: CommitDecisionRequest):
     # Allow 'discussion' phase too, as client might come straight from there if skipping interpret
     if manager.world.phase not in ["discussion", "decision"]:
         raise HTTPException(status_code=400, detail=f"Wrong phase: {manager.world.phase}")
-    
+    _require_no_mandatory_call(manager)
+
     manager.world.phase = "decision"
     
     # Resolve decision

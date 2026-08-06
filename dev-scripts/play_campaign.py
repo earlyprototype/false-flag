@@ -101,6 +101,14 @@ def main():
     for turn in range(1, args.turns + 1):
         t0 = time.time()
         inject = gm.get_turn_briefing()
+        # A scripted mandatory call is left live for the player rather than
+        # answered in their name (ER-033). Play it the way a front end would:
+        # through process_diplomacy, until the exchange cap or a closer ends it.
+        while gm.active_encounter is not None and gm.active_encounter.active:
+            gm.process_diplomacy(
+                "We are coordinating fully with NATO and will share our "
+                "deployment plan within the hour."
+            )
         t_brief = time.time() - t0
 
         for i in range(args.questions):
