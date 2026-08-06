@@ -71,6 +71,11 @@ class GameManager:
         self.transcript: List[str] = []
         self.active_encounter = None
 
+        # The last previewed decision and the advisors who pushed back on it,
+        # set by interpret_decision. Committing the identical text unamended
+        # costs a point of trust with each objecting advisor (ER-013).
+        self._pending_pushback: Optional[tuple] = None
+
         # Initialize World
         self._init_world()
 
@@ -169,7 +174,8 @@ class GameManager:
                 self.root_path,
                 full_transcript=self.transcript,
                 show_metrics=self.play_mode == "classic",
-                required=True
+                required=True,
+                narrative_state=self.narrative_state  # Memory for the outcome call (ER-017)
             )
             opening = self.active_encounter.start(self.rng)
             self.transcript.extend(opening)
@@ -214,7 +220,13 @@ class GameManager:
     # PHASE 1: DECISION LOOP -------------------------------------------
 
     def interpret_decision(self, action_text: str) -> Dict[str, Any]:
-        """Interpret decision and gather advisor feedback without committing."""
+        """Interpret decision and gather advisor feedback without committing.
+
+        Pushback and critical omissions are returned as separate lists - a
+        consumer must be able to tell a cabinet objection from an omissions
+        warning (ER-013). The commit path (resolve_decision) keeps them
+        separate too.
+        """
         interpretation, pushback, critical_concerns, decision_lines = run_turn_decision(
             self.world,
             self.scenario_id,
@@ -225,7 +237,7 @@ class GameManager:
             dry_run=True,  # Don't advance phase or commit to transcript yet
             narrative_state=self.narrative_state
         )
-        
+
         # Format critical concerns for API
         concerns_list = []
         if critical_concerns:
@@ -235,24 +247,40 @@ class GameManager:
                     "concern": concern,
                     "recommendation": recommendation
                 })
-        
-        # Include pushback in concerns list as well (simpler UI model)
-        if pushback:
-            for role, concern in pushback:
-                concerns_list.append({
-                    "role": role,
-                    "concern": concern,
-                    "recommendation": "Consider revising your approach."
-                })
+
+        # Remember who objected to exactly this text: overriding them
+        # unamended at commit time has a trust cost (ER-013).
+        self._pending_pushback = (
+            (action_text, [role for role, _ in pushback]) if pushback else None
+        )
 
         # Create placeholder data for missing fields
         return {
             "interpretation": interpretation,
             "critical_concerns": concerns_list,
+            "pushback": [{"role": r, "concern": c} for r, c in (pushback or [])],
             "raw_transcript": decision_lines,
             "forces_involved": [],  # Placeholder
             "timeline": "Immediate" # Placeholder
         }
+
+    def _apply_pushback_trust_cost(self, objecting_roles: List[str]) -> None:
+        """Overriding a raised objection verbatim costs one point of trust.
+
+        Deterministic and deliberately small: the roles the pushback parser
+        returns ("Foreign Secretary") are matched by name against the
+        narrative state's characters, and each match takes a -1 through the
+        existing attitude machinery. Roles with no seeded character (e.g. the
+        Attorney General) are simply skipped (ER-013).
+        """
+        by_name = {}
+        for char_id, char in self.narrative_state.characters.items():
+            name = char.get("name", "") if isinstance(char, dict) else getattr(char, "name", "")
+            by_name.setdefault(str(name).strip().lower(), char_id)
+        for role in objecting_roles:
+            char_id = by_name.get(str(role).strip().lower())
+            if char_id:
+                self.narrative_state.update_character_attitude(char_id, trust_delta=-1)
 
     # CAMPAIGN TERMINATION ----------------------------------------------
 
@@ -304,7 +332,16 @@ class GameManager:
             narrative_state=self.narrative_state
         )
         self.transcript.extend(decision_lines)
-        
+
+        # The preview raised pushback and the player committed the identical
+        # text unamended: the overridden advisors lose a point of trust
+        # (ER-013). Amending the text, or committing without a preview,
+        # costs nothing.
+        pending = self._pending_pushback
+        self._pending_pushback = None
+        if pending and pending[0] == action_text and pending[1]:
+            self._apply_pushback_trust_cost(pending[1])
+
         # 2. Adjudicate
         final_effects = {}
         character_responses = []
@@ -529,7 +566,8 @@ class GameManager:
             None,
             self.root_path,
             full_transcript=self.transcript,
-            show_metrics=self.play_mode == "classic"
+            show_metrics=self.play_mode == "classic",
+            narrative_state=self.narrative_state  # Memory for the outcome call (ER-017)
         )
         transcript = self.active_encounter.start(self.rng)
         return {

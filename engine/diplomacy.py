@@ -283,33 +283,54 @@ def assess_diplomatic_outcome(
     country: str,
     conversation_history: List[Tuple[str, str]],
     llm_generate: Callable[[str, Random], str],
-    rng: Random
+    rng: Random,
+    narrative_state=None
 ) -> Tuple[str, int]:
     """Assess the outcome of a diplomatic conversation and determine metric impact.
-    
+
     Args:
         world: Current world state
         country: Country code
         conversation_history: Full conversation history
         llm_generate: LLM text generation function
         rng: Random number generator
-    
+        narrative_state: Optional NarrativeState. When present, the rolling
+            campaign summary and the decisions-and-outcomes ledger join the
+            context, so the third deciding call family judges the call
+            against the campaign rather than a bare metric snapshot (ER-017).
+
     Returns:
         Tuple of (assessment_text, alliance_cohesion_delta)
     """
     from llm.prompts import build_world_state_summary
-    
+
     # Build conversation transcript
     conversation_text = "\n".join(
         f"{speaker}: {message}" for speaker, message in conversation_history
     )
-    
+
     world_summary = build_world_state_summary(world)
-    
+
+    # The campaign memory, when the caller has it (ER-017)
+    memory_block = ""
+    if narrative_state is not None:
+        memory_parts = []
+        summary = (getattr(narrative_state, "situation_summary", "") or "").strip()
+        if summary:
+            memory_parts.append(f"=== THE CAMPAIGN SO FAR ===\n{summary}")
+        try:
+            ledger_block = narrative_state.render_decisions_and_outcomes()
+        except AttributeError:
+            ledger_block = ""
+        if ledger_block:
+            memory_parts.append(ledger_block)
+        if memory_parts:
+            memory_block = "\n\n" + "\n\n".join(memory_parts)
+
     prompt = f"""You are assessing the outcome of a diplomatic conversation in a crisis simulation.
 
 === SITUATION ===
-{world_summary}
+{world_summary}{memory_block}
 
 === DIPLOMATIC CONVERSATION WITH {country} ===
 {conversation_text}
@@ -398,12 +419,18 @@ class DiplomaticEncounter:
     def __init__(self, world: WorldState, country: str, context: Optional[str], root_path: Optional[Path] = None,
                  full_transcript: Optional[List[str]] = None,
                  show_metrics: bool = True,
-                 required: bool = False):
+                 required: bool = False,
+                 narrative_state=None):
         self.world = world
         self.country = country
         self.context = context
         self.root_path = root_path
         self.show_metrics = show_metrics
+        # Campaign memory for the outcome assessment: the rolling summary and
+        # the event ledger join that call's context when present (ER-017).
+        # The conversation prompt itself does not carry it - a foreign
+        # counterpart is not shown the UK's running synopsis.
+        self.narrative_state = narrative_state
         # A mandatory (inject-scripted) encounter: front ends must not let
         # the player walk away from it, and the exchange cap below is what
         # guarantees a headless required call still terminates (ER-033).
@@ -523,7 +550,8 @@ class DiplomaticEncounter:
 
         # Assess outcome
         assessment, delta = assess_diplomatic_outcome(
-            self.world, self.country, self.history, llm_generate, rng
+            self.world, self.country, self.history, llm_generate, rng,
+            narrative_state=self.narrative_state
         )
 
         self.outcome = {
@@ -558,7 +586,8 @@ def run_diplomatic_encounter(
     get_player_input: Optional[Callable[[str], str]] = None,
     print_fn: Optional[Callable[[str], None]] = None,
     echo_player: Optional[bool] = None,
-    show_metrics: bool = True
+    show_metrics: bool = True,
+    narrative_state=None
 ) -> Tuple[List[str], int]:
     """Legacy blocking runner for CLI.
 
@@ -570,13 +599,16 @@ def run_diplomatic_encounter(
             echoes them and the transcript shows only one side of the
             conversation. Defaults to echoing exactly when stdin is not a
             TTY.
+        narrative_state: Optional NarrativeState; campaign memory for the
+            end-of-call outcome assessment (ER-017).
     """
     if echo_player is None:
         echo_player = not sys.stdin.isatty()
     encounter = DiplomaticEncounter(world, country, context, root_path,
                                     full_transcript=full_transcript,
                                     show_metrics=show_metrics,
-                                    required=required)
+                                    required=required,
+                                    narrative_state=narrative_state)
 
     if not encounter.active:
         # Surface the in-fiction failure (unknown country / no access) —

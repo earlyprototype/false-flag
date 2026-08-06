@@ -444,7 +444,9 @@ def run_turn_briefing(
                         get_player_input=get_player_input,
                         print_fn=print,  # Print in real-time
                         show_metrics=(narrative_state is None
-                                      or narrative_state.play_mode == "classic")
+                                      or narrative_state.play_mode == "classic"),
+                        # Campaign memory for the outcome assessment (ER-017)
+                        narrative_state=narrative_state
                     )
 
                     transcript.extend(encounter_transcript)

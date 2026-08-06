@@ -1221,7 +1221,9 @@ def play(
                             print_fn=typer.echo,  # Print in real-time
                             # Immersive/emergent hide metrics everywhere else;
                             # the call's closing line follows the same rule
-                            show_metrics=play_mode == "classic"
+                            show_metrics=play_mode == "classic",
+                            # Campaign memory for the outcome assessment (ER-017)
+                            narrative_state=narrative_state
                         )
 
                         # Transcript already printed, just save it
