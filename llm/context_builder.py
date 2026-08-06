@@ -318,9 +318,10 @@ def build_shared_context_prefix(transcript: FullTranscript,
 
     # Mystery mode's secret truth is drawn once at setup and never changes,
     # so it belongs with the static framing rather than below the transcript.
-    # Global truth only - no per-country stance.
+    # Global truth only - no per-country stance. Briefing audience: the
+    # readers advise the player, they are not roleplaying a faction (ER-021).
     if world_state.narrative:
-        parts.append(world_state.narrative.to_llm_context())
+        parts.append(world_state.narrative.to_llm_context(audience="briefing"))
         parts.append("")
 
     parts.append(render_transcript_block(transcript))
@@ -411,9 +412,11 @@ def get_stochastic_inject_context(summary: str, last_turn_transcript: List[str],
     context_parts.append(f"Alliance Cohesion: {world_state.metrics.alliance_cohesion}/100")
     context_parts.append("")
     
-    # Add narrative context (the secret truth that guides story generation)
+    # Add narrative context (the secret truth that guides story generation).
+    # Briefing audience: the generator stages events, it is not a faction
+    # deceiving the UK (ER-021).
     if world_state.narrative:
-        narrative_context = world_state.narrative.to_llm_context()  # No specific country - global truth
+        narrative_context = world_state.narrative.to_llm_context(audience="briefing")  # No specific country - global truth
         context_parts.append(narrative_context)
         context_parts.append("")
     
@@ -438,77 +441,115 @@ def get_stochastic_inject_context(summary: str, last_turn_transcript: List[str],
 
     return "\n".join(context_parts)
 
+# Character bound on the foreign counterpart's transcript window. Smaller
+# than the advisor budget: the counterpart needs the public shape of the
+# crisis and its own calls, not the whole campaign.
+MAX_DIPLOMATIC_CONTEXT_CHARS = 60_000
+
+# A line spoken by someone: a short leading label ending in a colon
+# ("Government Leader: ...", "Prime Minister: ...", "Effect: ..."). Anything
+# matching this outside a diplomatic-call block is treated as internal UK
+# material and excluded — fail closed (ER-018).
+_SPEAKER_PREFIX_RE = re.compile(r"^[A-Z][^:]{0,47}:")
+
+# Structural transcript furniture that carries no UK deliberation.
+_STRUCTURAL_PREFIX_RE = re.compile(r"^(BREAKING|INTEL|BRIEFING)\b", re.IGNORECASE)
+
+_CALL_HEADER_MARKER = "=== DIPLOMATIC CALL"
+_CALL_FOOTER_MARKER = "=== CALL ENDED ==="
+
+
+def _is_structural_line(stripped: str) -> bool:
+    """A transcript element that is scenery rather than speech."""
+    first = stripped.split("\n", 1)[0].strip()
+    if first.startswith("==="):
+        return True
+    if _TURN_HEADER_RE.match(first):
+        return True
+    if first.startswith("[Narrator]"):
+        return True
+    return bool(_STRUCTURAL_PREFIX_RE.match(first))
+
+
 def get_diplomatic_context(transcript: FullTranscript, world_state: WorldState, target_country_code: str) -> str:
     """
     Returns a securely filtered transcript for diplomatic conversations.
 
-    - Includes all direct communications with the target country.
-    - Includes all public events (news, official statements).
-    - EXCLUDES all internal UK COBRA deliberations.
+    Structural fail-closed whitelist (ER-018, ER-038):
+
+    - A diplomatic-call block (from its ``=== DIPLOMATIC CALL`` header to
+      ``=== CALL ENDED ===`` inclusive) is included whole when its header
+      names the TARGET country, and excluded whole otherwise — one country
+      never reads another's calls.
+    - Outside call blocks, a line passes only when it carries NO speaker
+      prefix or is structural (rulers, TURN headers, ``[Narrator]``,
+      BREAKING/INTEL/BRIEFING). Every advisor line, player question and
+      decision line is excluded by construction; scripted cast-list lines
+      going with them is the accepted price of failing closed.
+    - The UK's private metric numbers are not in the context at all.
     """
-    filtered_lines = []
-    in_public_event = False
-    in_diplomatic_exchange = False
-    in_cobra_deliberation = False
-    
-    for line in transcript:
-        line_lower = line.lower()
-        
-        # Detect public events (briefings, news, injects)
-        if any(marker in line_lower for marker in ["===", "turn ", "briefing", "breaking news", "intel report"]):
-            in_public_event = True
-            in_cobra_deliberation = False
-            filtered_lines.append(line)
+    target = str(target_country_code or "").strip().lower()
+    filtered_lines: FullTranscript = []
+    in_call_block = False
+    call_is_with_target = False
+
+    for entry in transcript:
+        text = str(entry)
+        stripped = text.strip()
+
+        if not in_call_block and _CALL_HEADER_MARKER.lower() in stripped.lower():
+            # e.g. "=== DIPLOMATIC CALL: President of the United States (US) ==="
+            in_call_block = True
+            call_is_with_target = bool(target) and f"({target})" in stripped.lower()
+            if call_is_with_target:
+                filtered_lines.append(text)
             continue
-        
-        # Detect diplomatic exchanges with the target country
-        if target_country_code.lower() in line_lower or "diplomatic" in line_lower:
-            in_diplomatic_exchange = True
-            in_cobra_deliberation = False
-        
-        # Detect COBRA internal discussions
-        if any(marker in line_lower for marker in [
-            "prime minister:", 
-            "national security advisor:", 
-            "chief of the defence staff:",
-            "home secretary:",
-            "foreign secretary:",
-            "attorney general:",
-            "discussion phase"
-        ]):
-            in_cobra_deliberation = True
-            in_public_event = False
-            in_diplomatic_exchange = False
-        
-        # Include line if it's public or part of a diplomatic exchange
-        if (in_public_event or in_diplomatic_exchange) and not in_cobra_deliberation:
-            filtered_lines.append(line)
-    
+
+        if in_call_block:
+            if call_is_with_target:
+                filtered_lines.append(text)
+            # The closing assessment is appended as one element that begins
+            # with the footer, so the element carrying it closes the block.
+            if _CALL_FOOTER_MARKER in text:
+                in_call_block = False
+                call_is_with_target = False
+            continue
+
+        if stripped[:1] in ("┌", "│", "└"):
+            # Effect-box furniture: raw UK metric deltas (ER-038)
+            continue
+
+        if _is_structural_line(stripped) or not _SPEAKER_PREFIX_RE.match(stripped):
+            filtered_lines.append(text)
+
+    filtered_lines = _bound_chars(filtered_lines, MAX_DIPLOMATIC_CONTEXT_CHARS)
+
     # Build the final context
     context_parts = []
-    
-    # Add world state summary
+
+    # World framing: the turn and one neutral sentence. The UK's private
+    # metrics stay out of a foreign counterpart's head (ER-038).
     context_parts.append("=" * 60)
     context_parts.append("CURRENT SITUATION")
     context_parts.append("=" * 60)
     context_parts.append(f"Turn: {world_state.turn}")
-    context_parts.append(f"UK Escalation Risk: {world_state.metrics.escalation_risk}/100")
-    context_parts.append(f"UK Domestic Stability: {world_state.metrics.domestic_stability}/100")
-    context_parts.append(f"NATO Alliance Cohesion: {world_state.metrics.alliance_cohesion}/100")
+    context_parts.append("A serious security crisis involving Russia and NATO is under way.")
     context_parts.append("")
-    
-    # Add narrative context if available
+
+    # Add narrative context if available: the counterpart IS a faction being
+    # roleplayed, so it gets its stance and the roleplay instructions.
     if world_state.narrative:
-        narrative_context = world_state.narrative.to_llm_context(target_country_code)
+        narrative_context = world_state.narrative.to_llm_context(
+            target_country_code, audience="roleplay")
         context_parts.append(narrative_context)
         context_parts.append("")
-    
+
     # Add filtered transcript
     context_parts.append("=" * 60)
     context_parts.append("KNOWN EVENTS AND COMMUNICATIONS")
     context_parts.append("=" * 60)
     context_parts.extend(filtered_lines)
-    
+
     return "\n".join(context_parts)
 
 def get_adjudicator_context(decision: str, summary: str, world_state: WorldState) -> str:
