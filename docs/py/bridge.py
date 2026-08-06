@@ -398,6 +398,9 @@ class WebGame:
         # Which key is behind the live endpoint, so a refusal can be described
         # to the right person. '' until setKey says.
         self.key_source = ""
+        # Parse-health events already reported, so each turn's report only
+        # covers that turn.
+        self._parse_health_seen = 0
         # Beats waiting on the space bar. The engine is synchronous inside the
         # worker, so a paced sequence cannot block for input: it emits one
         # beat, parks the rest here, and resumes on the next `continue`.
@@ -1252,6 +1255,7 @@ class WebGame:
         what the player thought they were getting, and that is the thing worth
         one clear sentence.
         """
+        self._report_parse_health()
         if not _LLM_FAULTS:
             return
         faults = list(_LLM_FAULTS)
@@ -1268,3 +1272,21 @@ class WebGame:
         self.out(pen)
 
         self.error(message, fatal=False)
+
+    def _report_parse_health(self) -> None:
+        """One dim line when this turn's model output needed tolerant defaults.
+
+        The tolerant parsers already recovered what they could; this only
+        notes how many fields still fell back, so a decorated-but-dropped
+        answer is never invisible.
+        """
+        from llm import parse_health
+        current = parse_health.total()
+        delta = current - self._parse_health_seen
+        self._parse_health_seen = current
+        if delta <= 0:
+            return
+        pen = AnsiPen(self.width)
+        pen.raw(_c(DIM, f"[ parse health: {delta} model "
+                        f"field{'s' if delta != 1 else ''} defaulted this turn ]"))
+        self.out(pen)

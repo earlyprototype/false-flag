@@ -61,6 +61,7 @@ from engine.persistence import save_game, load_game
 from engine.initial_conditions import load_initial_conditions
 from engine.diplomacy import run_diplomatic_encounter, list_available_diplomatic_contacts
 from llm.router import generate_text, batch_generate_text
+from llm import parse_health
 from cli.model_settings_menu import model_settings_menu
 
 # Task 2.5: Enable Rich help panel
@@ -821,6 +822,10 @@ def play(
         "domestic_stability": world.metrics.domestic_stability,
         "alliance_cohesion": world.metrics.alliance_cohesion,
     }
+
+    # Parse-health events already reported, so each turn's footer line only
+    # covers that turn.
+    parse_health_seen = parse_health.total()
 
     # Main game loop
     while True:
@@ -1747,6 +1752,10 @@ def play(
         typer.echo("")
         console.print(ae.sonar_divider(seed=f"turn-{world.turn - 1}-close"))
         typer.echo(f"Turn {world.turn - 1} complete. Auto-saved to {save_path.name}")
+        ph_total = parse_health.total()
+        if ph_total > parse_health_seen:
+            typer.echo(f"parse health: {ph_total - parse_health_seen} model fields defaulted this turn (see log)")
+            parse_health_seen = ph_total
         console.print(ae.sonar_divider(seed=f"turn-{world.turn - 1}-close-b"))
         typer.echo("")
         
