@@ -56,7 +56,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-043 | fixed | low | context | The narrator is never told what the player decided |
 | ER-044 | fixed | low | parsing | The decision summary panel empties on decorated output |
 | ER-024 | fixed | low | context | Player questions are written to the transcript twice |
-| ER-028 | open | low | routing | The play page offers no way to choose or change the model |
+| ER-028 | fixed | low | routing | The play page offers no way to choose or change the model |
 | ER-026 | fixed | low | dispatch | `--no-stochastic-injects` inverts into a banner switch |
 | ER-001 | fixed | low | context | An empty event ledger removes the do-not-restage rule |
 | ER-009 | fixed | low | context | The metrics are rendered twice and a third block adds nothing |
@@ -738,7 +738,15 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-028 — The play page offers no way to choose or change the model
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** the campaign-setup panel gained a MODEL input (persisted to localStorage; empty means
+  the default), and the own-key panel — only there, by design — an ENDPOINT input. The `setKey`
+  message now always carries `model`, and `baseUrl` only from the own-key source. The security
+  rule is enforced in the worker, not the page: `bridge.set_key` pins `key_source == "shared"` to
+  `https://openrouter.ai/api/v1` regardless of what the message says and regardless of anything an
+  earlier own-key session left in the environment, so the shared key can never be redirected. The
+  resolved model/endpoint line still prints at game start
+  (docs/index.html, docs/app.js, docs/py/bridge.py; tests/test_web_bridge.py).
 - **Severity:** low
 - **Area:** routing
 - **Observed:** The play page sends the worker a key and a source, and no model or base URL, so the

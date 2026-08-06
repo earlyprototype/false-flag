@@ -58,6 +58,9 @@ DEFAULT_WIDTH = 84
 MIN_WIDTH = 40
 MAX_WIDTH = 200
 
+# The one endpoint the shared key is ever allowed to talk to (ER-028).
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
 
 def clamp_width(width: Any, default: int = DEFAULT_WIDTH) -> int:
     """A column width that every consumer of it can survive.
@@ -517,6 +520,13 @@ class WebGame:
         can still play a whole campaign. The key only ever goes into this
         worker's process environment and from there into the Authorization
         header of the configured endpoint.
+
+        HARD RULE (ER-028): when the key came from the shared blob, any
+        ``base_url`` in the message is discarded — and so is anything an
+        earlier own-key session left in the environment. The shared key
+        only ever talks to OpenRouter; an endpoint override would let a
+        tampered page redirect the owner's key (and its spend limit) to an
+        arbitrary host. The model choice is honoured for both sources.
         """
         import llm.router as router
 
@@ -524,10 +534,13 @@ class WebGame:
         self.key_source = (source or "").strip().lower()
         if key:
             install_fault_probe()
+            if self.key_source == "shared":
+                base_url = None
+                os.environ["OPENAI_COMPAT_BASE_URL"] = OPENROUTER_BASE_URL
             os.environ["OPENAI_COMPAT_API_KEY"] = key
             os.environ["OPENAI_COMPAT_BASE_URL"] = (
                 base_url or os.environ.get("OPENAI_COMPAT_BASE_URL")
-                or "https://openrouter.ai/api/v1"
+                or OPENROUTER_BASE_URL
             )
             os.environ["OPENAI_COMPAT_MODEL"] = (
                 model or os.environ.get("OPENAI_COMPAT_MODEL")

@@ -585,6 +585,58 @@ def test_set_key_switches_provider_and_back():
     assert "OPENAI_COMPAT_API_KEY" not in os.environ
 
 
+def test_shared_key_source_cannot_be_pointed_at_another_endpoint(monkeypatch):
+    """ER-028 hard rule: the shared key only ever talks to OpenRouter.
+
+    A hostile baseUrl in the message is discarded, and so is a custom
+    endpoint an earlier own-key session left in the environment. The model
+    choice, by contrast, is honoured.
+    """
+    import os
+
+    # A leftover from an earlier own-key session must not leak through.
+    monkeypatch.setenv("OPENAI_COMPAT_BASE_URL", "http://leftover.example/v1")
+    monkeypatch.setenv("OPENAI_COMPAT_MODEL", "leftover/model")
+
+    game, rec = make_game()
+    game.handle({"type": "setKey", "key": "sk-or-v1-not-a-real-key",
+                 "source": "shared",
+                 "baseUrl": "https://evil.example/steal/v1",
+                 "model": "openai/gpt-4o-mini"})
+
+    assert os.environ["OPENAI_COMPAT_BASE_URL"] == bridge.OPENROUTER_BASE_URL
+    assert os.environ["OPENAI_COMPAT_MODEL"] == "openai/gpt-4o-mini"
+
+    game.handle({"type": "setKey", "key": ""})
+
+
+def test_own_key_source_honours_model_and_endpoint(monkeypatch):
+    """The player's own key may go wherever they point it; the play page's
+    model choice must reach OPENAI_COMPAT_MODEL for both sources."""
+    import os
+
+    monkeypatch.delenv("OPENAI_COMPAT_BASE_URL", raising=False)
+    monkeypatch.delenv("OPENAI_COMPAT_MODEL", raising=False)
+
+    game, rec = make_game()
+    game.handle({"type": "setKey", "key": "sk-or-v1-not-a-real-key",
+                 "source": "own",
+                 "baseUrl": "http://127.0.0.1:11434/v1",
+                 "model": "llama3.1:8b"})
+    assert os.environ["OPENAI_COMPAT_BASE_URL"] == "http://127.0.0.1:11434/v1"
+    assert os.environ["OPENAI_COMPAT_MODEL"] == "llama3.1:8b"
+
+    # Without an explicit endpoint or model, the defaults stand.
+    monkeypatch.delenv("OPENAI_COMPAT_BASE_URL", raising=False)
+    monkeypatch.delenv("OPENAI_COMPAT_MODEL", raising=False)
+    game.handle({"type": "setKey", "key": "sk-or-v1-not-a-real-key",
+                 "source": "own"})
+    assert os.environ["OPENAI_COMPAT_BASE_URL"] == bridge.OPENROUTER_BASE_URL
+    assert os.environ["OPENAI_COMPAT_MODEL"] == "openai/gpt-4o-mini"
+
+    game.handle({"type": "setKey", "key": ""})
+
+
 def test_commands_before_new_game_error_instead_of_crashing():
     rec = Recorder()
     game = bridge.WebGame(rec)
