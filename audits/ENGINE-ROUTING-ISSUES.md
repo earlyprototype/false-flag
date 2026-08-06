@@ -57,7 +57,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-044 | fixed | low | parsing | The decision summary panel empties on decorated output |
 | ER-024 | fixed | low | context | Player questions are written to the transcript twice |
 | ER-028 | open | low | routing | The play page offers no way to choose or change the model |
-| ER-026 | open | low | dispatch | `--no-stochastic-injects` inverts into a banner switch |
+| ER-026 | fixed | low | dispatch | `--no-stochastic-injects` inverts into a banner switch |
 | ER-001 | fixed | low | context | An empty event ledger removes the do-not-restage rule |
 | ER-009 | fixed | low | context | The metrics are rendered twice and a third block adds nothing |
 | ER-011 | fixed | low | dispatch | Output caps are dropped on three of four drivers |
@@ -690,7 +690,13 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-026 — `--no-stochastic-injects` inverts into a banner switch
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** the `stochastic_injects = True` override at the transition turn is deleted from both
+  CLI loops; the per-turn decision lives in `engine.sim_loop.stochastic_generation_status`, which
+  fires generation only when the flag is on and the scripted content has run out, and shows the
+  DYNAMIC GENERATION banner only when generation is enabled and firing for the first time. With
+  the flag off, `run_turn_briefing` already yields the no-new-developments brief
+  (cli/main.py, cli/main_dashboard.py, engine/sim_loop.py; tests/test_cli_modes.py).
 - **Severity:** low
 - **Area:** dispatch
 - **Observed:** The flag defaults to true. At the top of every turn the loop tests whether the turn

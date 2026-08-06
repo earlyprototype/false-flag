@@ -279,6 +279,30 @@ def apply_inject_effects(world: WorldState, inject: Dict[str, Any], silent: bool
     return lines
 
 
+def stochastic_generation_status(
+    turn: int,
+    stochastic_from: int,
+    stochastic_injects: bool,
+    banner_shown: bool,
+) -> Tuple[bool, bool]:
+    """Whether dynamic generation fires this turn, and whether to announce it.
+
+    ER-026: the CLI loops used to FORCE the flag back on at the transition
+    turn, which made ``--no-stochastic-injects`` nothing but a banner switch
+    — and an inverted one, since the DYNAMIC GENERATION banner showed only
+    to whoever had asked for no generation. The flag now means what it
+    says: generation fires only when it is enabled and the scripted content
+    has run out (a disabled flag yields the no-new-developments brief), and
+    the banner shows only when generation is enabled and firing for the
+    first time.
+
+    Returns:
+        (use_stochastic, show_banner)
+    """
+    use_stochastic = bool(stochastic_injects) and turn >= stochastic_from
+    return use_stochastic, use_stochastic and not banner_shown
+
+
 def run_turn_briefing(
     world: WorldState,
     scenario_id: str,
