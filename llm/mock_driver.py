@@ -1137,16 +1137,20 @@ class MockDeterministicDriver:
     prompt (variant choice hashes the question/prompt, not process state).
     """
 
-    def generate_text(self, prompt: str, rng: Random) -> str:
+    def generate_text(self, prompt: str, rng: Random, **kwargs) -> str:
         """Generate mock response based on prompt structure and keywords.
 
         Args:
             prompt: Input prompt
             rng: Random number generator (for future use)
+            **kwargs: Generation options (system_instruction, temperature,
+                max_tokens) accepted and ignored, so the router forwards
+                uniformly to every driver
 
         Returns:
             Mock response text
         """
+        _ = kwargs
         prompt_lower = prompt.lower()
 
         # Task-shaped prompts are checked BEFORE advisor personas: these prompts
@@ -1322,16 +1326,18 @@ class MockDeterministicDriver:
         # Default response
         return "Understood, Prime Minister. I'll provide my assessment based on the current situation."
 
-    def batch_generate_text(self, prompts: list[str], rng: Random) -> list[str]:
+    def batch_generate_text(self, prompts: list[str], rng: Random, **kwargs) -> list[str]:
         """Generate multiple mock responses in parallel (simulated).
 
         Args:
             prompts: List of prompt texts
             rng: Random number generator
+            **kwargs: Generation options (max_tokens) accepted and ignored
 
         Returns:
             List of mock responses in same order as prompts
         """
+        _ = kwargs
         # For mock driver, just call generate_text sequentially
         # (No actual parallelism needed for testing)
         return [self.generate_text(prompt, rng) for prompt in prompts]

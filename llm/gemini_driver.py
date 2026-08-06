@@ -81,11 +81,12 @@ class GeminiDriver:
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
         ]
         
+        self.safety_settings = safety_settings
         self.model = genai.GenerativeModel(
             model_name,
             safety_settings=safety_settings
         )
-        
+
         # Get generation config from config.py
         try:
             import config
@@ -94,7 +95,10 @@ class GeminiDriver:
         except ImportError:
             temperature = 0.7
             max_tokens = 2048
-        
+
+        self.default_temperature = temperature
+        self.default_max_tokens = max_tokens
+
         # Generation config for deterministic output
         self.generation_config = genai.GenerationConfig(
             temperature=temperature,
@@ -102,17 +106,54 @@ class GeminiDriver:
             top_k=40,
             max_output_tokens=max_tokens,
         )
-    
-    def generate_text(self, prompt: str, rng: Random) -> str:
+
+    def _build_generation_config(self, temperature: Optional[float] = None,
+                                 max_tokens: Optional[int] = None):
+        """Generation config with optional per-call overrides (ER-011).
+
+        Returns the shared default config when no override is given, so the
+        common path allocates nothing new.
+        """
+        if temperature is None and max_tokens is None:
+            return self.generation_config
+        return genai.GenerationConfig(
+            temperature=temperature if temperature is not None else self.default_temperature,
+            top_p=0.9,
+            top_k=40,
+            max_output_tokens=max_tokens if max_tokens is not None else self.default_max_tokens,
+        )
+
+    def _model_for(self, system_instruction: Optional[str] = None):
+        """The shared model, or a per-call variant carrying a system instruction.
+
+        The SDK takes system instructions on the model object rather than in
+        the generation config, so a call that supplies one gets a throwaway
+        model built with the same name and safety settings.
+        """
+        if not system_instruction:
+            return self.model
+        return genai.GenerativeModel(
+            self.model_name,
+            safety_settings=self.safety_settings,
+            system_instruction=system_instruction,
+        )
+
+    def generate_text(self, prompt: str, rng: Random,
+                      system_instruction: Optional[str] = None,
+                      temperature: Optional[float] = None,
+                      max_tokens: Optional[int] = None) -> str:
         """Generate text response from prompt using Gemini.
-        
+
         Args:
             prompt: Input prompt text
             rng: Random number generator (used to set seed for determinism)
-        
+            system_instruction: Optional system instruction for the model
+            temperature: Optional temperature override
+            max_tokens: Optional output cap override
+
         Returns:
             Generated text response
-        
+
         Raises:
             Exception: If API call fails
         """
@@ -121,18 +162,21 @@ class GeminiDriver:
             # Note: Gemini doesn't support explicit seed, but we can use temperature
             _seed = rng.randint(0, 2**31 - 1)
 
+            generation_config = self._build_generation_config(temperature, max_tokens)
+            model = self._model_for(system_instruction)
+
             # Generate response (60s timeout so a hung request can't stall the game)
             try:
-                response = self.model.generate_content(
+                response = model.generate_content(
                     prompt,
-                    generation_config=self.generation_config,
+                    generation_config=generation_config,
                     request_options={"timeout": 60},
                 )
             except TypeError:
                 # Older SDK versions don't accept request_options
-                response = self.model.generate_content(
+                response = model.generate_content(
                     prompt,
-                    generation_config=self.generation_config,
+                    generation_config=generation_config,
                 )
 
             # Extract text from response
@@ -148,40 +192,44 @@ class GeminiDriver:
             # original type in the message and truncating verbose payloads
             raise Exception(f"Gemini API Error ({type(e).__name__}): {_truncate(str(e), 300)}") from e
     
-    def batch_generate_text(self, prompts: list[str], rng: Random) -> list[str]:
+    def batch_generate_text(self, prompts: list[str], rng: Random,
+                            max_tokens: Optional[int] = None) -> list[str]:
         """Generate multiple text responses in parallel using concurrent processing.
-        
+
         Uses ThreadPoolExecutor to make parallel API calls for faster processing.
-        
+
         Args:
             prompts: List of prompt texts to generate responses for
             rng: Random number generator (used to set seed for determinism)
-        
+            max_tokens: Optional output cap applied to every prompt
+
         Returns:
             List of generated text responses in same order as prompts
-        
+
         Raises:
             Exception: If API call fails
         """
         if not prompts:
             return []
-        
+
         from concurrent.futures import ThreadPoolExecutor, as_completed
-        
+
+        generation_config = self._build_generation_config(max_tokens=max_tokens)
+
         def generate_single(prompt: str) -> str:
             """Generate single response - used by thread pool."""
             try:
                 try:
                     response = self.model.generate_content(
                         prompt,
-                        generation_config=self.generation_config,
+                        generation_config=generation_config,
                         request_options={"timeout": 60},
                     )
                 except TypeError:
                     # Older SDK versions don't accept request_options
                     response = self.model.generate_content(
                         prompt,
-                        generation_config=self.generation_config,
+                        generation_config=generation_config,
                     )
 
                 if response.text:
