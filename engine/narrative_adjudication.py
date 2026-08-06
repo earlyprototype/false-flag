@@ -20,6 +20,8 @@ from engine.utils import clamp
 # Actor Simulation Imports
 from models.state_actors import StateActorSystem, ActorResponse
 from llm.fanout import generate_group
+from llm.parse_health import record_miss
+from llm.parsing import extract_label, find_float, find_signed_int, strip_decoration
 from engine.actor_simulation import (
     simulate_actor_responses,
     calculate_effects_from_responses,
@@ -354,41 +356,82 @@ def _parse_quality_response(response: str, world_narrative=None) -> Dict[str, An
             the player before it reaches the screen, transcript or save.
     """
     lines = response.strip().split("\n")
-    
-    quality = "adequate"
+
+    quality = None
     reasoning = ""
     effects = {}
-    multiplier = 1.0
-    
+    # None marks "not stated" so an explicit 1.0 survives; the quality table
+    # below only fills in when the model gave no multiplier at all.
+    multiplier = None
+    last_field = None
+
     for line in lines:
         line = line.strip()
-        
-        if line.startswith("QUALITY:"):
-            quality_str = line.split(":", 1)[1].strip().lower()
+        if not line:
+            continue
+
+        # QUALITY MULTIPLIER before QUALITY: the shorter label must not
+        # shadow the longer one.
+        value = extract_label(line, "QUALITY MULTIPLIER")
+        if value is not None:
+            parsed = find_float(value)
+            if parsed is not None:
+                multiplier = max(0.5, min(2.5, parsed))
+            else:
+                record_miss("quality_assessment", "multiplier", value)
+            last_field = None
+            continue
+
+        value = extract_label(line, "QUALITY")
+        if value is not None:
+            quality_str = strip_decoration(value).lower()
             if quality_str in ["exceptional", "good", "adequate", "poor", "catastrophic"]:
                 quality = quality_str
-        
-        elif line.startswith("REASONING:"):
-            reasoning = line.split(":", 1)[1].strip()
-        
-        elif ":" in line and any(metric in line.lower() for metric in ["escalation", "alliance", "stability"]):
-            parts = line.split(":")
-            metric = parts[0].strip().lower().replace(" ", "_").replace("-", "_")
-            try:
-                value = int(parts[1].strip())
-                effects[metric] = value
-            except:
-                pass
-        
-        elif line.startswith("QUALITY MULTIPLIER:"):
-            try:
-                multiplier = float(line.split(":", 1)[1].strip())
-                multiplier = max(0.5, min(2.5, multiplier))
-            except:
-                pass
-    
-    # Map quality to multiplier if not explicitly provided
-    if multiplier == 1.0:
+            else:
+                record_miss("quality_assessment", "quality", value)
+            last_field = None
+            continue
+
+        value = extract_label(line, "REASONING")
+        if value is not None:
+            reasoning = value
+            last_field = "reasoning"
+            continue
+
+        if extract_label(line, "EFFECTS") is not None or strip_decoration(line).upper() == "EFFECTS":
+            last_field = None
+            continue
+
+        # A delta line only counts when the pre-colon token IS one of the
+        # three requested metrics (modulo decoration and space/hyphen for
+        # underscore) - a REASONING continuation like "escalation: rising"
+        # must not move a metric.
+        if ":" in line:
+            prefix, remainder = line.split(":", 1)
+            metric = strip_decoration(prefix).lower().replace(" ", "_").replace("-", "_")
+            if metric in ("escalation_risk", "alliance_cohesion", "domestic_stability"):
+                value = find_signed_int(remainder)
+                if value is not None:
+                    effects[metric] = value
+                else:
+                    record_miss("quality_assessment", metric, remainder.strip())
+                last_field = None
+                continue
+
+        # Wrapped continuation of the REASONING paragraph
+        if last_field == "reasoning":
+            reasoning = f"{reasoning} {line}".strip()
+
+    if quality is None:
+        quality = "adequate"
+        record_miss("quality_assessment", "quality", "no QUALITY label found")
+    if not reasoning:
+        record_miss("quality_assessment", "reasoning", "no REASONING label found")
+    if not effects:
+        record_miss("quality_assessment", "effects", "no metric deltas found")
+
+    # Map quality to multiplier only when the model stated none
+    if multiplier is None:
         quality_multipliers = {
             "exceptional": 2.5,
             "good": 1.5,
@@ -397,7 +440,7 @@ def _parse_quality_response(response: str, world_narrative=None) -> Dict[str, An
             "catastrophic": 2.0  # amplify the harmful effects; negative would invert them
         }
         multiplier = quality_multipliers.get(quality, 1.0)
-    
+
     return {
         "quality": quality,
         "multiplier": multiplier,
@@ -763,9 +806,15 @@ def adjudicate_with_narrative(
         action, narrative_state, interpretation, llm_generate_fn, world_narrative, rng
     )
     
-    # 2. Use LLM's suggested effects directly (with quality scaling already applied)
+    # 2. Scale the LLM's suggested effects by its quality multiplier. The
+    # suggestions are the BASE here, so they go in with an empty suggestion
+    # dict: passing the same dict as both arguments made apply_quality_scaling
+    # merge the unscaled values back in, averaging the multiplier's effect
+    # away (a suggested +10 at 0.5 landed as +7, not +5).
+    assessment_for_scaling = dict(quality_assessment)
+    assessment_for_scaling["suggested_effects"] = {}
     final_effects = apply_quality_scaling(
-        quality_assessment["suggested_effects"], quality_assessment, narrative_state
+        quality_assessment["suggested_effects"], assessment_for_scaling, narrative_state
     )
     
     # 3. Apply effects to hidden metrics
@@ -862,6 +911,10 @@ def adjudicate_with_actor_simulation(
     # here rather than through adjudicate_with_narrative, so this path needs
     # the same bookkeeping or the ledger never closes (issue #25).
     record_event_disposition(narrative_state, action)
+    # Here - unlike adjudicate_with_narrative - the base is the keyword
+    # heuristic and the assessment's suggested_effects are a separate second
+    # opinion, so apply_quality_scaling's merge of the two is the point of
+    # the call rather than a double-count.
     base_effects = determine_base_effects(action, narrative_state)
     quality_effects = apply_quality_scaling(base_effects, quality_assessment, narrative_state)
     

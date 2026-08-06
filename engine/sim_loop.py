@@ -28,6 +28,8 @@ from agents.conversation import (
 )
 from llm.router import generate_text, batch_generate_text
 from llm.inject_generator import generate_inject
+from llm.parse_health import record_miss
+from llm.parsing import find_float, find_signed_int
 from engine.diplomacy import run_diplomatic_encounter
 
 logger = logging.getLogger(__name__)
@@ -208,19 +210,38 @@ def apply_inject_effects(world: WorldState, inject: Dict[str, Any], silent: bool
         metric_name = eff.get("metric")
         delta_spec = eff.get("delta")
         
-        # Determine delta value deterministically
+        # Determine delta value deterministically. Generated injects hand the
+        # delta back in whatever shape the model chose - int, float, quoted
+        # string, annotated number - and each readable shape must land.
         delta_value: Optional[int] = None
         if isinstance(delta_spec, int):
             delta_value = delta_spec
-        elif isinstance(delta_spec, str) and ".." in delta_spec:
-            try:
-                left_str, right_str = delta_spec.split("..", 1)
-                left = int(left_str.strip())
-                right = int(right_str.strip())
-                delta_value = int((left + right) / 2)
-            except Exception:
-                delta_value = None
-        
+        elif isinstance(delta_spec, float):
+            delta_value = round(delta_spec)
+        elif isinstance(delta_spec, str):
+            cleaned = delta_spec.strip().strip("'\"").strip().lstrip("+")
+            if ".." in cleaned:
+                try:
+                    left_str, right_str = cleaned.split("..", 1)
+                    left = int(left_str.strip())
+                    right = int(right_str.strip())
+                    delta_value = int((left + right) / 2)
+                except Exception:
+                    delta_value = None
+            else:
+                delta_value = find_signed_int(cleaned)
+                if delta_value is None:
+                    as_float = find_float(cleaned)
+                    if as_float is not None:
+                        delta_value = round(as_float)
+
+        if delta_value is None:
+            # Mirror the unknown-metric line below: an effect the model
+            # authored and the player was shown must not vanish silently
+            lines.append(f"Skipped: unreadable delta for '{metric_name}'")
+            record_miss("inject_effects", str(metric_name), repr(delta_spec))
+            continue
+
         # Apply difficulty multiplier to scenario effects (not casualties).
         # A non-zero scripted effect always keeps at least magnitude 1:
         # int() truncated ±1 effects to no-ops on 0.5x/0.7x, and round()

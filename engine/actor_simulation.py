@@ -3,6 +3,8 @@ from random import Random
 import re
 
 from models.state_actors import StateActor, ActorResponse, StateActorSystem
+from llm.parse_health import record_miss
+from llm.parsing import extract_label, find_signed_int, match_enum
 
 # ISO country codes -> short display names for player-facing summaries.
 # (StateActor.full_name holds the formal name, e.g. "Republic of Poland";
@@ -145,62 +147,78 @@ def simulate_actor_responses(
 def _parse_actor_response(actor_id: str, response_text: str) -> ActorResponse:
     """Parse LLM response into structured ActorResponse (Robust Version)."""
     lines = response_text.strip().split('\n')
-    
+
     public_response = ""
     private_assessment = ""
     trust_change = 0
-    will_support = "conditional"
+    will_support = None
     conditions = []
     intel_shared = None
-    
-    # Regex patterns for robust extraction
-    trust_pattern = re.compile(r"TRUST_CHANGE:\s*([+-]?\d+)")
-    
+    any_label = False
+    will_support_seen = False
+
     for line in lines:
         line = line.strip()
-        
-        if line.startswith("PUBLIC_RESPONSE:"):
-            public_response = line.split(":", 1)[1].strip()
-        
-        elif line.startswith("PRIVATE_ASSESSMENT:"):
-            private_assessment = line.split(":", 1)[1].strip()
-        
-        elif line.startswith("TRUST_CHANGE:"):
-            match = trust_pattern.search(line)
-            if match:
-                try:
-                    val = int(match.group(1))
-                    trust_change = max(-20, min(20, val))
-                except ValueError:
-                    trust_change = 0
-        
-        elif line.startswith("WILL_SUPPORT:"):
-            content = line.split(":", 1)[1].strip().lower()
-            if "yes" in content:
-                will_support = "yes"
-            elif "no" in content and "not" not in content: # Avoid "not conditional" false positives if phrasing implies it
-                will_support = "no"
-            elif "conditional" in content:
-                will_support = "conditional"
-            # Default to conditional if ambiguous
-        
-        elif line.startswith("CONDITIONS:"):
-            try:
-                cond_text = line.split(":", 1)[1].strip()
-                if cond_text and cond_text.lower() != "none":
-                    # Split by semicolons or commas if they look like list items
-                    conditions = [c.strip() for c in re.split(r'[;,]', cond_text) if c.strip()]
-            except:
-                pass
-        
-        elif line.startswith("INTEL_SHARED:"):
-            try:
-                intel_text = line.split(":", 1)[1].strip()
-                if intel_text and intel_text.lower() != "none":
-                    intel_shared = intel_text
-            except:
-                pass
-    
+
+        value = extract_label(line, "PUBLIC_RESPONSE")
+        if value is not None:
+            public_response = value
+            any_label = True
+            continue
+
+        value = extract_label(line, "PRIVATE_ASSESSMENT")
+        if value is not None:
+            private_assessment = value
+            any_label = True
+            continue
+
+        value = extract_label(line, "TRUST_CHANGE")
+        if value is not None:
+            any_label = True
+            parsed = find_signed_int(value)
+            if parsed is not None:
+                trust_change = max(-20, min(20, parsed))
+            else:
+                record_miss("actor_simulation", "trust_change", actor_id)
+            continue
+
+        value = extract_label(line, "WILL_SUPPORT")
+        if value is not None:
+            any_label = True
+            will_support_seen = True
+            # Exact enum first; then a worded refusal ("absolutely not",
+            # "no, we will not assist") with no unnegated yes reads as no;
+            # then unnegated yes; then the conditional token.
+            verdict = match_enum(value, ("yes", "no", "conditional"),
+                                 refusal_value="no")
+            if verdict is not None:
+                will_support = verdict
+            else:
+                record_miss("actor_simulation", "will_support", actor_id)
+            continue
+
+        value = extract_label(line, "CONDITIONS")
+        if value is not None:
+            any_label = True
+            if value and value.lower() != "none":
+                # Split by semicolons or commas if they look like list items
+                conditions = [c.strip() for c in re.split(r'[;,]', value) if c.strip()]
+            continue
+
+        value = extract_label(line, "INTEL_SHARED")
+        if value is not None:
+            any_label = True
+            if value and value.lower() != "none":
+                intel_shared = value
+            continue
+
+    if not any_label:
+        record_miss("actor_simulation", "all_fields", actor_id)
+    elif not will_support_seen and will_support is None:
+        record_miss("actor_simulation", "will_support", actor_id)
+    if will_support is None:
+        will_support = "conditional"
+
     return ActorResponse(
         actor_id=actor_id,
         public_response=public_response or f"{actor_id} acknowledges the action.",

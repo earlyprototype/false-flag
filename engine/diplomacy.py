@@ -16,6 +16,8 @@ import yaml
 
 from models.world import WorldState
 from llm.model_config import LLMContext
+from llm.parse_health import record_miss
+from llm.parsing import extract_label, find_signed_int, match_enum
 
 
 # Parsed diplomatic_profiles.yaml, keyed by (path, mtime_ns, size).
@@ -316,26 +318,58 @@ Your assessment:"""
     response = llm_generate(prompt, rng, context=LLMContext.DIPLOMACY_OUTCOME)
     
     # Parse response
-    outcome = "NEUTRAL"
-    delta = 0
-    summary = "The conversation concluded."
-    
+    outcome = None
+    delta = None
+    summary = ""
+    last_field = None
+
     for line in response.split("\n"):
         line = line.strip()
-        if line.startswith("OUTCOME:"):
-            outcome = line.replace("OUTCOME:", "").strip()
-        elif line.startswith("ALLIANCE_COHESION_DELTA:"):
-            try:
-                delta_str = line.replace("ALLIANCE_COHESION_DELTA:", "").strip()
-                # Extract number (handle +/- prefix)
-                delta_str = delta_str.replace("+", "").replace(" ", "")
-                delta = int(delta_str)
-                delta = max(-15, min(15, delta))  # Clamp to range
-            except ValueError:
+        if not line:
+            continue
+
+        value = extract_label(line, "OUTCOME")
+        if value is not None:
+            verdict = match_enum(value, ("SUCCESS", "NEUTRAL", "FAILURE"))
+            if verdict is not None:
+                outcome = verdict
+            else:
+                record_miss("diplomacy_outcome", "outcome", value)
+                outcome = "NEUTRAL"
+            last_field = None
+            continue
+
+        value = extract_label(line, "ALLIANCE_COHESION_DELTA")
+        if value is not None:
+            parsed = find_signed_int(value)
+            if parsed is not None:
+                delta = max(-15, min(15, parsed))  # Clamp to range
+            else:
+                record_miss("diplomacy_outcome", "delta", value)
                 delta = 0
-        elif line.startswith("SUMMARY:"):
-            summary = line.replace("SUMMARY:", "").strip()
-    
+            last_field = None
+            continue
+
+        value = extract_label(line, "SUMMARY")
+        if value is not None:
+            summary = value
+            last_field = "summary"
+            continue
+
+        # Wrapped continuation of the SUMMARY paragraph
+        if last_field == "summary":
+            summary = f"{summary} {line}".strip()
+
+    if outcome is None:
+        outcome = "NEUTRAL"
+        record_miss("diplomacy_outcome", "outcome", "no OUTCOME label found")
+    if delta is None:
+        delta = 0
+        record_miss("diplomacy_outcome", "delta", "no delta label found")
+    if not summary:
+        summary = "The conversation concluded."
+        record_miss("diplomacy_outcome", "summary", "no SUMMARY label found")
+
     # Build assessment text
     assessment = f"Diplomatic Outcome: {outcome}\n{summary}"
     
