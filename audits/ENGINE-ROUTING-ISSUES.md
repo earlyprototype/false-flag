@@ -33,37 +33,37 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-018 | fixed | high | context | The diplomatic transcript filter is erratic in both directions |
 | ER-019 | fixed | high | routing | The per-call model table is inert on the shipped provider |
 | ER-020 | fixed | high | context | The story generator is given a digest instead of a synopsis |
-| ER-022 | open | high | dispatch | The HTTP path serves no briefing after turn one |
+| ER-022 | fixed | high | dispatch | The HTTP path serves no briefing after turn one |
 | ER-002 | fixed | high | context | Decision interpretation never reaches the omissions prompt |
 | ER-003 | fixed | high | context | No prompt holds both campaign history and event ledger |
-| ER-004 | open | high | dispatch | A resumed mid-turn save re-runs the briefing |
+| ER-004 | fixed | high | dispatch | A resumed mid-turn save re-runs the briefing |
 | ER-045 | fixed | med | dispatch | A partial batch failure is invisible on the omissions scan |
-| ER-037 | open | med | state | The random number position is not saved |
+| ER-037 | fixed | med | state | The random number position is not saved |
 | ER-038 | fixed | med | context | A foreign counterpart is given the UK's private metrics |
 | ER-041 | fixed | med | context | The scripted call drops its premise and shows hidden numbers |
 | ER-042 | fixed | med | parsing | A generated event's effect is dropped when its delta is not an integer |
 | ER-021 | fixed | med | context | Mystery Mode tells the player's own advisors to deceive them |
 | ER-023 | open | med | dispatch | The decision phase runs seven waits where three would do |
-| ER-025 | open | med | state | Mystery Mode draws its secret from an unseeded generator |
+| ER-025 | fixed | med | state | Mystery Mode draws its secret from an unseeded generator |
 | ER-005 | in-progress | med | routing | Five of twelve call families bypass the model configuration |
 | ER-006 | fixed | med | parsing | The effects parser accepts any colon line naming a metric |
 | ER-007 | fixed | med | state | Advisor trust updates on one adjudication path only |
-| ER-008 | open | med | context | Two context builders apply no character bound |
+| ER-008 | fixed | med | context | Two context builders apply no character bound |
 | ER-010 | fixed | med | state | The situation summary costs a call per turn and reaches no prompt |
 | ER-014 | fixed | med | context | The state-actor prompt carries UK internal advisor trust |
 | ER-039 | fixed | low | parsing | The quality multiplier's effect is halved before it lands |
 | ER-040 | fixed | low | context | The diplomatic exchange counter advances twice per exchange |
 | ER-043 | fixed | low | context | The narrator is never told what the player decided |
 | ER-044 | fixed | low | parsing | The decision summary panel empties on decorated output |
-| ER-024 | open | low | context | Player questions are written to the transcript twice |
+| ER-024 | fixed | low | context | Player questions are written to the transcript twice |
 | ER-028 | open | low | routing | The play page offers no way to choose or change the model |
 | ER-026 | open | low | dispatch | `--no-stochastic-injects` inverts into a banner switch |
-| ER-001 | open | low | context | An empty event ledger removes the do-not-restage rule |
-| ER-009 | open | low | context | The metrics are rendered twice and a third block adds nothing |
+| ER-001 | fixed | low | context | An empty event ledger removes the do-not-restage rule |
+| ER-009 | fixed | low | context | The metrics are rendered twice and a third block adds nothing |
 | ER-011 | fixed | low | dispatch | Output caps are dropped on three of four drivers |
 | ER-013 | fixed | low | state | Advisor pushback mutates nothing |
 | ER-031 | fixed | low | parsing | An explicit multiplier of 1.0 is indistinguishable from silence |
-| ER-027 | open | low | context | An advisor instruction contradicts the outcome assessor's task |
+| ER-027 | fixed | low | context | An advisor instruction contradicts the outcome assessor's task |
 | ER-046 | open | low | data | The stance list and the state-actor roster barely overlap |
 
 ## How the measurements below were taken
@@ -102,7 +102,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-001 — An empty event ledger removes the do-not-restage rule
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** `render_event_ledger` gained `always=True` for the generation path, which renders the header plus "(nothing has been staged yet)" over an empty ledger, and rule 8 is now issued unconditionally when generating — the rule always has a block to name (llm/context_builder.py, llm/prompts.py).
 - **Severity:** low
 - **Area:** context
 - **Observed:** Continuity rule 8, the instruction not to restage a resolved event, is appended to
@@ -160,7 +161,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-004 — A resumed mid-turn save re-runs the briefing
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** the replay guard moved into the engine: `run_turn_briefing` no longer generates a fresh inject, writes the ledger entry, or attaches a pending encounter on `replay` (a generated-inject turn resumes with a "(resuming mid-turn — the morning's events are above)" line), and `GameManager.from_dict` sets a one-shot `_resume_replay` flag that `get_turn_briefing` passes through — so the headless/HTTP path inherits the same behaviour the CLIs had (engine/sim_loop.py, engine/game_manager.py).
 - **Severity:** high
 - **Area:** dispatch
 - **Observed:** The dynamic-generation branch of `run_turn_briefing` tests only whether the scripted
@@ -242,7 +244,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-008 — Two context builders apply no character bound
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** the diplomatic filter's bound landed with ER-018/ER-038 (`MAX_DIPLOMATIC_CONTEXT_CHARS`, 60,000); the narrator's twenty-element slice is now bounded to `MAX_NARRATOR_CONTEXT_CHARS` (8,000) through the shared `bound_chars` helper, exported under a public name (llm/context_builder.py, llm/prompts.py).
 - **Severity:** medium
 - **Area:** context
 - **Observed:** `get_diplomatic_context` applies no character bound to the filtered transcript it
@@ -258,7 +261,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-009 — The metrics are rendered twice and a third block adds nothing
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** `build_world_state_summary` is split into `_state_bands`, `_intel_flags` and a module-level `ADVISOR_VOICE_INSTRUCTIONS` (public behaviour unchanged for external callers); the shared dossier keeps the raw values plus the voice instructions and drops the duplicate prose bands and the flags block (llm/prompts.py, llm/context_builder.py).
 - **Severity:** low
 - **Area:** context
 - **Observed:** The shared dossier prints escalation, stability and cohesion as raw values out of
@@ -597,7 +601,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-022 — The HTTP path serves no briefing after turn one
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** `POST /game/{session_id}/briefing` runs `get_turn_briefing()` for the current turn and returns the same payload shape as `POST /game/new` (including `pending_encounter`); it 409s while a scripted mandatory call is live, and the endpoint is covered by TestClient tests (api/server.py, tests/test_api_server.py).
 - **Severity:** high
 - **Area:** dispatch
 - **Observed:** `manager.get_turn_briefing()` appears exactly once in the HTTP server, inside the
@@ -639,7 +644,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-024 — Player questions are written to the transcript twice
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** `GameManager.process_question` no longer pre-appends the "Prime Minister:" line — `run_turn_discussion` writes it into the lines that get extended, so each question appears exactly once (engine/game_manager.py).
 - **Severity:** low
 - **Area:** context
 - **Observed:** `GameManager.process_question` appends `f"Prime Minister: {question_text}"` to the
@@ -653,7 +659,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-025 — Mystery Mode draws its secret from an unseeded generator
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** both terminal front ends hoist `rng = Random(seed)` above the setup screens and `select_narrative` draws with `rng.choice`, matching the headless GameManager's ordering (the draw is the campaign's first). Deliberate behaviour change: a fixed seed's narrative draw changes once, from unseeded to seeded (cli/main.py, cli/main_dashboard.py).
 - **Severity:** medium
 - **Area:** state
 - **Observed:** Both terminal front ends import the `random` module inside the selection function and
@@ -687,7 +694,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-027 — An advisor instruction contradicts the outcome assessor's task
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** `assess_diplomatic_outcome` now takes `_state_bands(world)` — the prose situation without the advisor-voice block — so the prompt that must answer `ALLIANCE_COHESION_DELTA: [number]` is no longer told never to reference values; the three advisor-role uses of the dossier keep the instruction (engine/diplomacy.py, llm/prompts.py).
 - **Severity:** low
 - **Area:** context
 - **Observed:** `build_world_state_summary` ends with four standing instructions written for a
@@ -918,7 +926,8 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-037 — The random number position is not saved
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** both save formats persist the generator position (`rng_state`, save version 2.3; JSON-safe encode/decode plus a `read_rng_state` reader in engine/persistence.py). The CLIs restore it after `Random(seed)` and pass `rng` at every save site; `GameManager.to_dict`/`from_dict` store and restore it, restoring AFTER construction because the constructor burns draws. Old saves without the field load exactly as before (engine/persistence.py, engine/game_manager.py, cli/main.py, cli/main_dashboard.py).
 - **Severity:** medium
 - **Area:** state
 - **Observed:** Neither save format persists the random number generator or its position. The
