@@ -84,22 +84,24 @@ def build_advisor_context(
     initial_conditions: Dict[str, Any],
     character_id: str,
     question: str,
-    transcript: Optional[List[str]] = None
+    transcript: Optional[List[str]] = None,
+    event_ledger=None
 ) -> str:
     """Build LLM prompt for advisor response to player question.
-    
+
     Args:
         world: Current world state
         initial_conditions: Parsed initial conditions
         character_id: Character identifier (e.g., 'chief_defence_staff')
         question: Player's question
         transcript: Optional full game transcript for conversation history
-    
+        event_ledger: Optional played-event ledger for the dossier (ER-003)
+
     Returns:
         Formatted prompt for LLM
     """
     from llm.context_builder import get_advisor_context
-    
+
     characters = initial_conditions.get("characters", {})
     character = characters.get(character_id, {})
     
@@ -110,7 +112,7 @@ def build_advisor_context(
     # The shared dossier, identical to the one every other transcript-carrying
     # call opens with - including when there is no transcript yet, so turn
     # one's calls share a prefix too.
-    full_context = get_advisor_context(transcript or [], world)
+    full_context = get_advisor_context(transcript or [], world, event_ledger)
     
     # Get relevant context based on character role
     context_sections = []
@@ -175,16 +177,18 @@ def build_decision_interpretation_prompt(
     world: WorldState,
     action: str,
     initial_conditions: Dict[str, Any],
-    transcript: Optional[List[str]] = None
+    transcript: Optional[List[str]] = None,
+    event_ledger=None
 ) -> str:
     """Build LLM prompt to interpret player's free-form action.
-    
+
     Args:
         world: Current world state
         action: Player's action description
         initial_conditions: Parsed initial conditions
         transcript: Optional full game transcript for conversation history
-    
+        event_ledger: Optional played-event ledger for the dossier (ER-003)
+
     Returns:
         Formatted prompt for LLM to interpret action
     """
@@ -199,7 +203,7 @@ def build_decision_interpretation_prompt(
     # build_conversation_history_context, a second, differently-formatted
     # window over the same transcript; two renderings of identical material
     # share no prefix, so neither could ever be cached against the other.
-    prompt = f"""{build_shared_context_prefix(transcript or [], world)}
+    prompt = f"""{build_shared_context_prefix(transcript or [], world, event_ledger)}
 
 You are interpreting a decision made by the UK Prime Minister during a crisis.
 
@@ -246,17 +250,19 @@ def build_pushback_prompt(
     action: str,
     interpretation: str,
     initial_conditions: Dict[str, Any],
-    transcript: Optional[List[str]] = None
+    transcript: Optional[List[str]] = None,
+    event_ledger=None
 ) -> str:
     """Build LLM prompt to generate advisor pushback/warnings.
-    
+
     Args:
         world: Current world state
         action: Player's action description
         interpretation: LLM's interpretation of the action
         initial_conditions: Parsed initial conditions
         transcript: Optional full game transcript for conversation history
-    
+        event_ledger: Optional played-event ledger for the dossier (ER-003)
+
     Returns:
         Formatted prompt for LLM to generate advisor warnings
     """
@@ -274,7 +280,7 @@ def build_pushback_prompt(
 
     from llm.context_builder import build_shared_context_prefix
 
-    prompt = f"""{build_shared_context_prefix(transcript or [], world)}
+    prompt = f"""{build_shared_context_prefix(transcript or [], world, event_ledger)}
 
 You are simulating UK government advisors responding to a Prime Minister's decision.
 
@@ -337,17 +343,23 @@ def build_inject_generation_prompt(
     initial_conditions: Dict[str, Any],
     scenario_library: Dict[str, Any] = None,
     transcript: Optional[List[str]] = None,
-    event_ledger=None
+    event_ledger=None,
+    story_summary: Optional[str] = None
 ) -> str:
     """Build LLM prompt to generate next inject/event.
-    
+
     Args:
         world: Current world state
         turn_number: Turn number for which to generate inject
         initial_conditions: Parsed initial conditions
         scenario_library: Optional scenario patterns from podcast episodes
         transcript: Optional full game transcript for conversation history
-    
+        story_summary: The rolling campaign synopsis maintained by
+            update_situation_summary. When non-empty it fills the STORY SO
+            FAR block, so the generator gets an actual account of the
+            campaign under the heading that promises one; the mechanical
+            generate_summary digest remains the fallback (ER-020).
+
     Returns:
         Formatted prompt for LLM to generate plausible next inject
     """
@@ -385,7 +397,12 @@ Use these as inspiration, NOT rigid scripts. Adapt based on player's previous ac
     # compact early turn still contains the event the next inject must
     # build on. Only the LLM summary is reserved for longer histories.
     if transcript:
-        if len(transcript) > 10:
+        if story_summary and story_summary.strip():
+            # The rolling synopsis - what has happened, the player's major
+            # decisions, the diplomatic posture - is exactly what this block's
+            # heading promises (ER-020).
+            summary = story_summary.strip()
+        elif len(transcript) > 10:
             summary_prompt = """Summarize the story so far in 3-4 sentences, focusing on:
 1. The most significant event of the last turn
 2. The player's recent major decisions
@@ -465,14 +482,16 @@ def build_critical_omissions_prompt(
     character_id: str,
     player_decision: str,
     recent_events: List[str],
-    transcript: Optional[List[str]] = None
+    transcript: Optional[List[str]] = None,
+    interpretation: str = "",
+    event_ledger=None
 ) -> str:
     """Build prompt for checking critical strategic omissions.
-    
+
     After the player makes a decision, advisors scan for CRITICAL actions
     the player has NOT taken that could lead to catastrophic outcomes.
     High threshold - only truly critical gaps, not minor suboptimal choices.
-    
+
     Args:
         world: Current world state
         initial_conditions: Parsed initial conditions
@@ -480,7 +499,13 @@ def build_critical_omissions_prompt(
         player_decision: The decision the PM just made
         recent_events: Last 2-3 inject descriptions for context
         transcript: Optional full game transcript for conversation history
-    
+        interpretation: The structured reading of the decision - forces,
+            resources, timeline, feasibility - produced one call earlier.
+            The scan is about what the decision does NOT contain, so the
+            advisors need the reading built for that purpose, not just the
+            raw typed sentence (ER-002).
+        event_ledger: Optional played-event ledger for the dossier (ER-003)
+
     Returns:
         Formatted prompt string
     """
@@ -493,12 +518,20 @@ def build_critical_omissions_prompt(
     # Build context on what actions have been taken recently
     recent_context = "\n".join(recent_events) if recent_events else "No recent major events"
 
+    # The structured reading of the decision, when the caller has one
+    interpretation_block = ""
+    if interpretation and interpretation.strip():
+        interpretation_block = f"""
+HOW THE CABINET OFFICE READS IT:
+{interpretation.strip()}
+"""
+
     # These five calls (one per advisor) are the largest identical-prefix
     # group in a turn, and they used to be the *worst* served: a 100-line
     # window of history where every other call got 500. Same dossier as
     # everyone else now, which both widens what they see and makes all five
     # cacheable against each other.
-    prompt = f"""{build_shared_context_prefix(transcript or [], world)}
+    prompt = f"""{build_shared_context_prefix(transcript or [], world, event_ledger)}
 
 You are the UK {role} advising the Prime Minister during a national security crisis.
 
@@ -507,7 +540,7 @@ RECENT EVENTS:
 
 THE PRIME MINISTER'S DECISION:
 "{player_decision}"
-
+{interpretation_block}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CRITICAL OMISSIONS CHECK
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -573,16 +606,27 @@ def build_narrator_intro_prompt(
     Returns:
         Formatted prompt for LLM
     """
-    # Extract the last decision from the transcript if possible
-    last_decision = "Unknown decision"
+    # Extract the last decision from the transcript: the sim loop writes it
+    # with this exact prefix, so the most recent match walking backwards is
+    # the previous turn's decision (ER-043).
+    decision_prefix = "Prime Minister's Decision:"
+    last_decision = ""
     for line in reversed(last_turn_transcript):
-        if "DECISION:" in line or "YOUR DECISION" in line:
-             # This is a rough heuristic, ideally we pass the decision explicitly
-             pass
-    
+        stripped = line.strip()
+        if stripped.startswith(decision_prefix):
+            last_decision = stripped[len(decision_prefix):].strip()
+            break
+
+    decision_block = ""
+    if last_decision:
+        decision_block = f"""
+THE PLAYER'S LAST DECISION:
+{last_decision}
+"""
+
     # Use the narrative context builder if available
     world_summary = build_world_state_summary(world)
-    
+
     # Extract recent context (last ~20 lines)
     recent_context = "\n".join(last_turn_transcript[-20:]) if last_turn_transcript else "No recent context."
 
@@ -593,14 +637,14 @@ Current Situation:
 
 Recent Events (Transcript):
 {recent_context}
-
+{decision_block}
 Upcoming Event Title (The player is about to see this):
 "{next_inject_title}"
 
 TASK:
 Write a 2-3 sentence atmospheric bridge that transitions from the recent events/decision to the moment just before the new event occurs.
 - Set the scene (time passing, atmosphere in Downing Street, weather, silence, or chaos).
-- Connect the player's previous choice (implied by context) to the passage of time.
+- Connect the player's previous choice (their last decision, shown above when known) to the passage of time.
 - Build tension before the next inject is revealed.
 - DO NOT reveal the inject content itself, just set the stage for it.
 

@@ -228,16 +228,18 @@ def test_full_turn_and_autosave_resume(game_runs):
 
     # Metrics reflect briefing (63/48/40) plus exactly one adjudication pass.
     # The mock pipeline is fully deterministic: the diplomatic decision draws
-    # supportive USA/POL actor responses plus an "adequate" quality
-    # assessment, netting esc -3 / stab +1 / coh +13 on top of the briefing.
-    # Exact equality catches both a skipped and a compounded briefing inject
-    # (run A independently proves the inject applies exactly once).
-    assert autosave_metrics["escalation_risk"] == 60, (
-        f"escalation {autosave_metrics['escalation_risk']} != 60 — briefing "
+    # actor responses and an "adequate" quality assessment, netting
+    # esc 0 / stab +1 / coh +6 on top of the briefing. (The exact draws are a
+    # stable hash of the actor prompts, so they shift when the prompt gains
+    # content — the referee-memory blocks changed them last.) Exact equality
+    # catches both a skipped and a compounded briefing inject (run A
+    # independently proves the inject applies exactly once).
+    assert autosave_metrics["escalation_risk"] == 63, (
+        f"escalation {autosave_metrics['escalation_risk']} != 63 — briefing "
         "inject skipped/compounded, or mock adjudication deltas changed"
     )
     assert autosave_metrics["domestic_stability"] == 49
-    assert autosave_metrics["alliance_cohesion"] == 53
+    assert autosave_metrics["alliance_cohesion"] == 46
 
     # Loading the autosave ran the turn-2 briefing once and saved mid-turn.
     first_world = game_runs.turn2_first["world"]

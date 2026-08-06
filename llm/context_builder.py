@@ -283,7 +283,8 @@ def render_transcript_block(transcript: FullTranscript,
 
 
 def build_shared_context_prefix(transcript: FullTranscript,
-                                world_state: WorldState) -> str:
+                                world_state: WorldState,
+                                event_ledger=None) -> str:
     """The identical opening block every transcript-carrying prompt starts with.
 
     Prompt caches match from the *start* of a prompt, so what a prompt opens
@@ -305,6 +306,12 @@ def build_shared_context_prefix(transcript: FullTranscript,
 
     The role-specific half of each prompt follows this block. Nothing here
     changes *what* a model is shown, only the order it is shown in.
+
+    ``event_ledger``: optional sequence of played events (PlayedEvent objects
+    or dicts). Rendered in the fast-moving tail — after the transcript, with
+    the other per-turn state — so the dossier finally holds both the campaign
+    history and the one structure that survives the history window's elision
+    (ER-003) without moving anything above the transcript.
     """
     ruler = "=" * 60
     parts = [
@@ -343,6 +350,15 @@ def build_shared_context_prefix(transcript: FullTranscript,
         "",
     ])
 
+    # The event ledger: one line per staged event with its disposition. It
+    # belongs down here with the per-turn state - it grows every turn, so
+    # placing it above the transcript would cut the cacheable prefix off at
+    # the first new entry (ER-003).
+    ledger_block = render_event_ledger(event_ledger)
+    if ledger_block:
+        parts.append(ledger_block)
+        parts.append("")
+
     # The narrative rendering of the same numbers, plus the standing
     # instruction not to talk about them as numbers. The decision, pushback
     # and omissions prompts each carried this and the advisor prompt did not;
@@ -356,14 +372,15 @@ def build_shared_context_prefix(transcript: FullTranscript,
     return "\n".join(parts)
 
 
-def get_advisor_context(transcript: FullTranscript, world_state: WorldState) -> str:
+def get_advisor_context(transcript: FullTranscript, world_state: WorldState,
+                        event_ledger=None) -> str:
     """The shared dossier block, for the Advisory Council.
 
     Kept as a named entry point because callers and tests refer to it, but it
     is now exactly the block every other transcript-carrying prompt opens
     with - which is the point: identical text is what a prompt cache matches.
     """
-    return build_shared_context_prefix(transcript, world_state)
+    return build_shared_context_prefix(transcript, world_state, event_ledger)
 
 def get_decision_interpreter_context(current_turn_transcript: List[str], world_state: WorldState) -> str:
     """

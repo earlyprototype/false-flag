@@ -1199,7 +1199,9 @@ def play(
                         print_fn=typer.echo,  # Print in real-time
                         # Immersive/emergent hide metrics everywhere else; the
                         # call's closing line follows the same rule
-                        show_metrics=play_mode == "classic"
+                        show_metrics=play_mode == "classic",
+                        # Campaign memory for the outcome assessment (ER-017)
+                        narrative_state=narrative_state
                     )
                 
                     # Transcript already printed, just save it
@@ -1273,7 +1275,7 @@ def play(
                         typer.echo("")
                     
                         # Get response from this advisor
-                        discussion_lines = run_turn_discussion(world, scenario, [question], rng, root, transcript)
+                        discussion_lines = run_turn_discussion(world, scenario, [question], rng, root, transcript, narrative_state=narrative_state)
                         for line in discussion_lines:
                             # Skip the "Prime Minister:" echo and strip the conciseness instruction
                             if not line.startswith("Prime Minister:"):
@@ -1623,7 +1625,7 @@ def play(
 
                 # Handle question
                 questions.append(user_input)
-                discussion_lines = run_turn_discussion(world, scenario, [user_input], rng, root, transcript)
+                discussion_lines = run_turn_discussion(world, scenario, [user_input], rng, root, transcript, narrative_state=narrative_state)
             
                 typer.echo("")  # Space before response
 
@@ -1703,7 +1705,7 @@ def play(
                     break
 
                 # Interpret and get pushback
-                interpretation, pushback, critical_concerns, decision_lines = run_turn_decision(world, scenario, action, rng, root, transcript)
+                interpretation, pushback, critical_concerns, decision_lines = run_turn_decision(world, scenario, action, rng, root, transcript, narrative_state=narrative_state)
                 transcript.extend(decision_lines)
 
                 # Display decision with improved UX
@@ -1767,7 +1769,7 @@ def play(
                         console.print("Re-interpreting enhanced decision...")
                         console.print("")
                     
-                        interpretation, pushback, critical_concerns_2, decision_lines_2 = run_turn_decision(world, scenario, action, rng, root, transcript)
+                        interpretation, pushback, critical_concerns_2, decision_lines_2 = run_turn_decision(world, scenario, action, rng, root, transcript, narrative_state=narrative_state)
                         transcript.extend(decision_lines_2)
                     
                         # Display new interpretation

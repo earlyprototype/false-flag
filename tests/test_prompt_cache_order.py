@@ -96,6 +96,33 @@ def test_transcript_comes_before_the_metrics_that_change_every_turn():
     assert block.index("assessment 1.0") < block.index("Escalation Risk:")
 
 
+def test_the_event_ledger_sits_after_the_transcript_block():
+    """The ledger grows every turn, so it lives in the fast-moving tail (ER-003).
+
+    Placing it above the transcript would cut the cacheable prefix off at the
+    first new entry; below it, the append-only prefix property is untouched.
+    """
+    ledger = [
+        {"turn": 1, "title": "Submarine surfaces", "disposition": "resolved",
+         "note": "Escorted out of UK waters"},
+        {"turn": 2, "title": "Power station explosion", "disposition": "open",
+         "note": ""},
+    ]
+    with_ledger = build_shared_context_prefix(_transcript(), _world(), ledger)
+    without = build_shared_context_prefix(_transcript(), _world())
+
+    assert "EVENTS ALREADY PLAYED" in with_ledger
+    assert "Escorted out of UK waters" in with_ledger
+    # After the transcript block and the CURRENT SITUATION header...
+    assert with_ledger.index("GAME HISTORY") < with_ledger.index("EVENTS ALREADY PLAYED")
+    assert with_ledger.index("assessment 1.0") < with_ledger.index("EVENTS ALREADY PLAYED")
+    assert with_ledger.index("CURRENT SITUATION") < with_ledger.index("EVENTS ALREADY PLAYED")
+    # ...and before the narrative world-state summary that closes the dossier.
+    assert with_ledger.index("EVENTS ALREADY PLAYED") < with_ledger.index("THREAT ASSESSMENT")
+    # Everything above the transcript is untouched by the ledger.
+    assert _shared_prefix(with_ledger, without) > with_ledger.index("CURRENT SITUATION")
+
+
 def test_every_transcript_carrying_prompt_opens_with_the_same_dossier():
     """The four call types in a turn must be byte-identical up to their role text.
 
