@@ -18,6 +18,13 @@ Each log line carries: seq, thread, t_start, t_end, prompt_chars, prompt_sha,
 kind, and prefix_1k/prefix_4k (hashes of the first 1,000 / 4,000 characters).
 Prompts themselves go to ``<log>.prompts``, one JSON string per line, so the
 prefix analysis can be done offline instead of in the request path.
+
+``--fixtures overrides.json`` swaps in adversarial replies for chosen calls: a
+JSON object mapping a prompt substring to the reply body to return whenever a
+prompt contains it, checked in the file's own order with first match winning.
+Prompts matching no fixture get the standard canned answer for their kind, so
+one call family can be fed a hostile reply while the rest of the campaign runs
+clean. Each served fixture is named in the log record's ``fixture`` field.
 """
 
 import argparse
@@ -47,6 +54,12 @@ _TAIL_MARKERS = [
     ("daily brief", "situation_summary"),
     ("in a COBRA briefing", "character_response"),
     ("The Prime Minister asks:", "advisor_qa"),
+    # The diplomatic outcome assessment and the counterpart's conversation
+    # turns both used to fall through to the "diplomat"-in-tail heuristic,
+    # which only held while transcript text happened to sit inside the tail
+    # window. These two anchors are the prompts' own closing lines.
+    ("Your assessment:", "diplomacy_outcome"),
+    ("Your response (as ", "diplomacy"),
 ]
 
 # How much of the prompt tail counts as "the instruction block". Every call
@@ -107,8 +120,35 @@ FEASIBILITY: feasible""",
     "character_response": "Understood, Prime Minister. We will have an assessment within the hour.",
     "advisor_qa": "Prime Minister, the picture is incomplete. I would not commit to a posture change on this intelligence alone.",
     "diplomacy": "We are listening, Prime Minister, but our patience is not unlimited.",
+    "diplomacy_outcome": """OUTCOME: NEUTRAL
+ALLIANCE_COHESION_DELTA: +2
+SUMMARY: The call closed without firm commitments on either side, but the channel stays open and the tone held.""",
     "unknown": "Acknowledged.",
 }
+
+
+def load_fixtures(path: str) -> list:
+    """Read a fixtures file: {"prompt substring": "reply body", ...}.
+
+    Returned as an ordered list of (substring, reply) pairs; JSON objects
+    preserve their file order through ``json.load``, and the first matching
+    substring wins.
+    """
+    with open(path, encoding="utf-8") as handle:
+        table = json.load(handle)
+    if not isinstance(table, dict) or not all(
+        isinstance(k, str) and isinstance(v, str) for k, v in table.items()
+    ):
+        raise ValueError(f"{path} must be a JSON object of string: string")
+    return list(table.items())
+
+
+def match_fixture(fixtures: list, prompt: str):
+    """Return (substring, reply) of the first fixture found in prompt, or None."""
+    for pattern, reply in fixtures:
+        if pattern in prompt:
+            return pattern, reply
+    return None
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -134,7 +174,11 @@ class _Handler(BaseHTTPRequestHandler):
             time.sleep(latency)
 
         kind = classify(prompt)
-        text = _RESPONSES.get(kind, _RESPONSES["unknown"])
+        fixture = match_fixture(self.server.fixtures, prompt)
+        if fixture is not None:
+            text = fixture[1]
+        else:
+            text = _RESPONSES.get(kind, _RESPONSES["unknown"])
         finished = time.time()
 
         with self.server.lock:
@@ -170,6 +214,8 @@ class _Handler(BaseHTTPRequestHandler):
                 "prefix_4k": _sha(prompt[:4000]),
                 "authorization": bool(self.headers.get("Authorization")),
             }
+            if fixture is not None:
+                record["fixture"] = fixture[0]
             self.server.logfile.write(json.dumps(record) + "\n")
             self.server.logfile.flush()
 
@@ -188,16 +234,17 @@ class _Handler(BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
 
-def serve(port: int, log_path: str, latency: float):
+def serve(port: int, log_path: str, latency: float, fixtures: list | None = None):
     server = ThreadingHTTPServer(("127.0.0.1", port), _Handler)
     server.latency = latency
+    server.fixtures = fixtures or []
     server.lock = threading.Lock()
     server.seq = 0
     server.t0 = time.time()
     server.logfile = open(log_path, "w", encoding="utf-8")
     server.promptfile = open(log_path + ".prompts", "w", encoding="utf-8")
     print(f"fake openrouter on http://127.0.0.1:{port}/v1 -> {log_path} "
-          f"(latency {latency}s)", flush=True)
+          f"(latency {latency}s, {len(server.fixtures)} fixtures)", flush=True)
     try:
         server.serve_forever()
     finally:
@@ -211,5 +258,8 @@ if __name__ == "__main__":
     parser.add_argument("--log", default="calls.jsonl")
     parser.add_argument("--latency", type=float, default=0.0,
                         help="seconds to hold each request, to model network time")
+    parser.add_argument("--fixtures", default=None,
+                        help="JSON file of {prompt substring: reply body} overrides")
     args = parser.parse_args()
-    serve(args.port, args.log, args.latency)
+    serve(args.port, args.log, args.latency,
+          load_fixtures(args.fixtures) if args.fixtures else None)
