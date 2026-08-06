@@ -1218,7 +1218,10 @@ def play(
                             root_path=root,
                             full_transcript=transcript,
                             get_player_input=lambda prompt: _prompt(prompt).strip(),
-                            print_fn=typer.echo  # Print in real-time
+                            print_fn=typer.echo,  # Print in real-time
+                            # Immersive/emergent hide metrics everywhere else;
+                            # the call's closing line follows the same rule
+                            show_metrics=play_mode == "classic"
                         )
 
                         # Transcript already printed, just save it

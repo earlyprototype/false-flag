@@ -423,28 +423,42 @@ def run_turn_briefing(
                 transcript.append("\n*** MANDATORY DIPLOMATIC ENCOUNTER ***\n")
                 if get_player_input:
                     get_player_input("Press ENTER to answer the call...")
-                
-                # Run diplomatic encounter (with real-time printing if available)
-                encounter_transcript, cohesion_delta = run_diplomatic_encounter(
-                    world,
-                    country,
-                    required=True,
-                    context=context,
-                    llm_generate=generate_text,
-                    rng=rng,
-                    root_path=root_path,
-                    full_transcript=full_transcript,
-                    get_player_input=get_player_input,
-                    print_fn=print if get_player_input else None  # Print in real-time if interactive
-                )
-                
-                transcript.extend(encounter_transcript)
 
-                # DiplomaticEncounter.end() already applied cohesion_delta to
-                # world.metrics — applying it again here doubled every
-                # diplomatic outcome. Just re-clamp and refresh flags.
-                clamp_metrics(world.metrics)
-                update_world_flags(world)
+                    # Run diplomatic encounter (with real-time printing).
+                    # Non-classic modes hide raw metric numbers, so the
+                    # call's closing line follows the same rule (ER-041).
+                    encounter_transcript, cohesion_delta = run_diplomatic_encounter(
+                        world,
+                        country,
+                        required=True,
+                        context=context,
+                        llm_generate=generate_text,
+                        rng=rng,
+                        root_path=root_path,
+                        full_transcript=full_transcript,
+                        get_player_input=get_player_input,
+                        print_fn=print,  # Print in real-time
+                        show_metrics=(narrative_state is None
+                                      or narrative_state.play_mode == "classic")
+                    )
+
+                    transcript.extend(encounter_transcript)
+
+                    # DiplomaticEncounter.end() already applied cohesion_delta to
+                    # world.metrics — applying it again here doubled every
+                    # diplomatic outcome. Just re-clamp and refresh flags.
+                    clamp_metrics(world.metrics)
+                    update_world_flags(world)
+                else:
+                    # Headless caller (GameManager, HTTP server, browser):
+                    # there is no keyboard to play the call from, and playing
+                    # it FOR the player answered the campaign's one set-piece
+                    # scene with "Thank you." (ER-033). Hand the spec back so
+                    # the front end can put the player on the line.
+                    inject["_pending_encounter"] = {
+                        "country": country,
+                        "context": context,
+                    }
     else:
         # Scripted content exhausted with stochastic generation disabled:
         # stay in-fiction rather than reporting a missing file

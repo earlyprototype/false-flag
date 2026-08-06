@@ -797,10 +797,24 @@ class WebGame:
 
         self.out(pen)
 
-        # Some injects carry a mandatory diplomatic encounter, which the
-        # briefing plays out for us. It only exists in the transcript, so
-        # render it or the player never sees a call they were made to take.
-        self._render_mandatory_encounter(new_lines)
+        # Some injects carry a mandatory diplomatic encounter. The engine no
+        # longer plays it out for us (it used to answer "Thank you." in the
+        # player's name — ER-033): the briefing leaves the call live on
+        # GameManager, so put the player on the line and hand them the turn
+        # only when they have taken it.
+        if self._required_call_live():
+            encounter = self.gm.active_encounter
+            self._call_seen = 0
+            pen = AnsiPen(self.width)
+            pen.blank()
+            pen.section("INCOMING CALL — YOU MUST TAKE THIS", ACCENT)
+            pen.wrap("The line is already open. Whatever you type next is "
+                     "what you say on the call.", colour=DIM)
+            self.out(pen)
+            self._render_call(encounter.transcript)
+            self.push_state()
+            self.set_awaiting(AWAIT_QUESTION)
+            return
 
         pen = AnsiPen(self.width)
         pen.section("YOUR MOVE", AMBER)
@@ -813,34 +827,18 @@ class WebGame:
         self.push_state()
         self.set_awaiting(AWAIT_DECISION)
 
-    def _render_mandatory_encounter(self, lines: List[str]) -> None:
-        marker = "*** MANDATORY DIPLOMATIC ENCOUNTER ***"
-        start = next((i for i, ln in enumerate(lines) if marker in ln), None)
-        if start is None:
-            return
-        pen = AnsiPen(self.width)
-        pen.blank()
-        pen.section("INCOMING CALL", ACCENT)
-        for entry in lines[start + 1:]:
-            for line in str(entry).split("\n"):
-                stripped = line.strip()
-                if not stripped or marker in stripped:
-                    continue
-                if stripped.startswith("==="):
-                    pen.blank()
-                    pen.section(stripped.strip("= "), ACCENT)
-                elif ":" in stripped and len(stripped.split(":", 1)[0]) < 48:
-                    role, said = stripped.split(":", 1)
-                    pen.speaker(role.strip(), said.strip(),
-                                colour=AMBER if role.strip() == "Prime Minister" else SIG)
-                else:
-                    pen.wrap(stripped, colour=INK)
-        pen.blank()
-        self.out(pen)
+    def _required_call_live(self) -> bool:
+        """A scripted mandatory call is live: the player must answer it."""
+        encounter = self.gm.active_encounter if self.gm else None
+        return bool(encounter and encounter.active
+                    and getattr(encounter, "required", False))
 
     def ask(self, advisor: Optional[str], text: str,
             was_awaiting: str = AWAIT_DECISION) -> None:
         gm = self.gm
+        if self._required_call_live():
+            self.reject("The President is waiting on the line.", AWAIT_QUESTION)
+            return
         question = (text or "").strip()
         if not question:
             self.reject("Empty question.", was_awaiting)
@@ -953,6 +951,9 @@ class WebGame:
 
     def decide(self, text: str, was_awaiting: str = AWAIT_DECISION) -> None:
         gm = self.gm
+        if self._required_call_live():
+            self.reject("The President is waiting on the line.", AWAIT_QUESTION)
+            return
         action = (text or "").strip()
         if not action:
             self.reject("Empty decision.", was_awaiting)
