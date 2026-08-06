@@ -24,8 +24,10 @@ def clean_router_state(monkeypatch):
     monkeypatch.setenv("WARGAME_LLM", "mock")
     monkeypatch.setattr(router.time, "sleep", lambda seconds: None)
     router._driver_cache.clear()
+    router._rate_limiters.clear()
     yield
     router._driver_cache.clear()
+    router._rate_limiters.clear()
 
 
 class AlwaysFailingDriver:

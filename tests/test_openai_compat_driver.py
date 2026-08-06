@@ -34,6 +34,8 @@ def clean_state(monkeypatch):
         "OPENAI_COMPAT_BASE_URL",
         "OPENAI_COMPAT_API_KEY",
         "OPENAI_COMPAT_MODEL",
+        "OPENAI_COMPAT_MODEL_FLASH",
+        "OPENAI_COMPAT_MODEL_PRO",
         "OPENAI_COMPAT_RPM",
         "OPENAI_COMPAT_TEMPERATURE",
         "OPENAI_COMPAT_MAX_TOKENS",
@@ -41,10 +43,10 @@ def clean_state(monkeypatch):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setattr(router.time, "sleep", lambda seconds: None)
     router._driver_cache.clear()
-    router._rate_limiter = None
+    router._rate_limiters.clear()
     yield
     router._driver_cache.clear()
-    router._rate_limiter = None
+    router._rate_limiters.clear()
 
 
 class FakeResponse:

@@ -20,7 +20,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | id | status | sev | area | summary |
 |---|---|---|---|---|
 | ER-012 | fixed | high | data | Authored per-country content reaches no prompt |
-| ER-032 | open | high | dispatch | The rate limiter is discarded on every model-tier switch |
+| ER-032 | fixed | high | dispatch | The rate limiter is discarded on every model-tier switch |
 | ER-033 | fixed | high | dispatch | The scripted diplomatic call answers itself on two front ends |
 | ER-034 | fixed | high | parsing | An annotated number is dropped and its siblings are applied |
 | ER-035 | fixed | high | parsing | A bulleted cabinet objection is read as no objection |
@@ -31,7 +31,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-030 | fixed | high | parsing | A worded refusal is read as conditional support |
 | ER-017 | fixed | high | context | The calls that change the game never learn what happened in it |
 | ER-018 | fixed | high | context | The diplomatic transcript filter is erratic in both directions |
-| ER-019 | open | high | routing | The per-call model table is inert on the shipped provider |
+| ER-019 | fixed | high | routing | The per-call model table is inert on the shipped provider |
 | ER-020 | fixed | high | context | The story generator is given a digest instead of a synopsis |
 | ER-022 | open | high | dispatch | The HTTP path serves no briefing after turn one |
 | ER-002 | fixed | high | context | Decision interpretation never reaches the omissions prompt |
@@ -45,7 +45,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-021 | fixed | med | context | Mystery Mode tells the player's own advisors to deceive them |
 | ER-023 | open | med | dispatch | The decision phase runs seven waits where three would do |
 | ER-025 | open | med | state | Mystery Mode draws its secret from an unseeded generator |
-| ER-005 | open | med | routing | Five of twelve call families bypass the model configuration |
+| ER-005 | in-progress | med | routing | Five of twelve call families bypass the model configuration |
 | ER-006 | fixed | med | parsing | The effects parser accepts any colon line naming a metric |
 | ER-007 | fixed | med | state | Advisor trust updates on one adjudication path only |
 | ER-008 | open | med | context | Two context builders apply no character bound |
@@ -60,7 +60,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-026 | open | low | dispatch | `--no-stochastic-injects` inverts into a banner switch |
 | ER-001 | open | low | context | An empty event ledger removes the do-not-restage rule |
 | ER-009 | open | low | context | The metrics are rendered twice and a third block adds nothing |
-| ER-011 | open | low | dispatch | Output caps are dropped on three of four drivers |
+| ER-011 | fixed | low | dispatch | Output caps are dropped on three of four drivers |
 | ER-013 | fixed | low | state | Advisor pushback mutates nothing |
 | ER-031 | fixed | low | parsing | An explicit multiplier of 1.0 is indistinguishable from silence |
 | ER-027 | open | low | context | An advisor instruction contradicts the outcome assessor's task |
@@ -181,7 +181,13 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-005 — Five of twelve call families bypass the model configuration
 
-- **Status:** open
+- **Status:** in-progress
+- **Progress:** the routing layer is ready: `LLMContext` gained `QUALITY_ASSESSMENT` (PRO),
+  `ACTOR_SIMULATION` (PRO), `SITUATION_SUMMARY` (FLASH) and `NARRATOR` (FLASH), each with a
+  default tier, a cost-table entry and a row in the model settings menu, and all four resolve
+  through the provider-aware table (see ER-019). The call-site wiring — passing `context=` at the
+  five bypassing dispatch sites — is deliberately deferred to the pipeline PR to avoid conflicts
+  with concurrent engine work.
 - **Severity:** medium
 - **Area:** routing
 - **Observed:** The narrator bridge, the action quality assessment, the advisor reactions, the
@@ -290,7 +296,14 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-011 — Output caps are dropped on three of four drivers
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** `GeminiDriver.generate_text` accepts `system_instruction`/`temperature`/`max_tokens`
+  and maps them into the SDK's generation config (system instructions via a per-call model
+  variant), and its `batch_generate_text` accepts and forwards `max_tokens`. The mock and offline
+  drivers accept-and-ignore the same options via `**kwargs`, the router's signature sniffing
+  admits a `**kwargs` catch-all, and the batch sequential fallback forwards `max_tokens` instead
+  of calling bare (llm/gemini_driver.py, llm/mock_driver.py, llm/offline_driver.py,
+  llm/router.py).
 - **Severity:** low
 - **Area:** dispatch
 - **Observed:** Several call sites pass a system instruction, a temperature or an output cap. The
@@ -503,7 +516,17 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-019 — The per-call model table is inert on the shipped provider
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** `llm/model_config.py` gained `resolve_model_name(provider, tier)` — Gemini keeps the
+  `MODEL_NAMES` tier names, openai_compat resolves `OPENAI_COMPAT_MODEL_FLASH` /
+  `OPENAI_COMPAT_MODEL_PRO` (environment first, then config.py) with `OPENAI_COMPAT_MODEL` as the
+  fallback and `None` when nothing is configured, and mock/offline resolve to `None`. Both router
+  entry points resolve context → tier → provider name before dispatch, so the tier table (and the
+  `--flash-only` flag's `use_flash_for_all` mechanism) now selects real models on openai_compat.
+  `OpenAICompatDriver` keeps its gemini-name discard as a safety net. With per-tier names the
+  driver cache holds at most two live drivers instead of three identical ones, and the model
+  settings menu displays resolved per-provider names, saying plainly when both tiers resolve to
+  the same name and the table is a no-op (cli/model_settings_menu.py).
 - **Severity:** high
 - **Area:** routing
 - **Observed:** `MODEL_NAMES` maps the two tiers to `gemini-2.5-flash` and `gemini-2.5-pro`, so
@@ -765,7 +788,14 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-032 — The rate limiter is discarded on every model-tier switch
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** the single module-level limiter slot is replaced by a dict keyed `(provider, rpm)`,
+  so Flash/Pro alternation reuses two persistent limiters and each keeps its `request_times`
+  history across tier switches. The conservative Pro-rate default for a `None` model name is
+  kept. `RateLimiter.wait_if_needed` is now thread-safe: check-and-record runs under a
+  `threading.Lock` with the sleep outside the lock in a re-check loop, and the clock is
+  injectable (`router._now` / `router._sleep`) so tests drive it with a fake clock
+  (llm/router.py).
 - **Severity:** high
 - **Area:** dispatch
 - **Observed:** `get_rate_limiter` keeps one module-level limiter and replaces it whenever the
