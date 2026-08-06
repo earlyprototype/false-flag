@@ -102,13 +102,14 @@ def test_resolve_decision_clears_discussion_transcript():
 
 
 def test_resolve_decision_surfaces_adjudication_error(monkeypatch):
-    import engine.narrative_adjudication as adjudication
+    import engine.decision_phase as decision_phase
 
     def boom(*args, **kwargs):
         raise RuntimeError("adjudication exploded")
 
-    monkeypatch.setattr(adjudication, "adjudicate_with_actor_simulation", boom)
-    monkeypatch.setattr(adjudication, "adjudicate_with_narrative", boom)
+    # The per-task fallbacks make the pipeline itself hard to kill, so the
+    # error surface is tested at the entry point resolve_decision calls.
+    monkeypatch.setattr(decision_phase, "run_decision_pipeline", boom)
 
     gm = make_manager()
     gm.get_turn_briefing()

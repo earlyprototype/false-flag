@@ -43,7 +43,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-041 | fixed | med | context | The scripted call drops its premise and shows hidden numbers |
 | ER-042 | fixed | med | parsing | A generated event's effect is dropped when its delta is not an integer |
 | ER-021 | fixed | med | context | Mystery Mode tells the player's own advisors to deceive them |
-| ER-023 | open | med | dispatch | The decision phase runs seven waits where three would do |
+| ER-023 | fixed | med | dispatch | The decision phase runs seven waits where three would do |
 | ER-025 | fixed | med | state | Mystery Mode draws its secret from an unseeded generator |
 | ER-005 | fixed | med | routing | Five of twelve call families bypass the model configuration |
 | ER-006 | fixed | med | parsing | The effects parser accepts any colon line naming a metric |
@@ -623,7 +623,18 @@ not vary. Raw logs are not committed; they regenerate from the commands above in
 
 ## ER-023 — The decision phase runs seven waits where three would do
 
-- **Status:** open
+- **Status:** fixed
+- **Fixed:** `engine/decision_phase.py::run_decision_pipeline` runs the three dependency-ordered
+  rounds (interpretation ∥ actor simulation; pushback ∥ omissions ∥ quality; reactions ∥
+  situation-summary fold) on a `ThreadPoolExecutor(max_workers=3)`, with one child seed per task
+  pre-drawn from the master rng in a fixed documented order so results are independent of thread
+  scheduling, and per-task failure degrading to that family's existing fallback plus a
+  `decision_phase` parse-health fallback. `GameManager.resolve_decision` (headless/browser/HTTP)
+  takes the full pipeline; the terminal CLIs keep their interpret → preview → confirm gate and get
+  the intra-phase wins — `run_preview_round` (pushback ∥ omissions, inside `run_turn_decision`)
+  and the reactions ∥ summary round inside both adjudication functions. Measured with every call
+  held at 0.2 s: 3.4 waits of wall clock against the serial shape's 7
+  (tests/test_decision_phase.py).
 - **Severity:** medium
 - **Area:** dispatch
 - **Observed:** Committing a decision issues seven dispatch rounds one after another: interpretation,

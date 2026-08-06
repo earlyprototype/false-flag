@@ -91,6 +91,7 @@ def test_actor_prompt_carries_the_actors_own_stance():
 def test_adjudication_passes_the_narrative_per_actor(monkeypatch):
     """The actor path hands the narrative to each actor's prompt rather than
     concatenating one global block into the shared world context."""
+    import engine.decision_phase as decision_phase
     import engine.narrative_adjudication as adjudication
 
     captured = {}
@@ -101,6 +102,9 @@ def test_adjudication_passes_the_narrative_per_actor(monkeypatch):
         captured["world_narrative"] = world_narrative
         return []
 
+    # resolve_decision routes through the decision pipeline (ER-023); the
+    # CLIs' adjudication path is patched too so either route is covered.
+    monkeypatch.setattr(decision_phase, "simulate_actor_responses", fake_simulate)
     monkeypatch.setattr(adjudication, "simulate_actor_responses", fake_simulate)
 
     gm = GameManager(seed=11, mystery_mode=True)
