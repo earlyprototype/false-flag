@@ -120,7 +120,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-072 | fixed | med | context | The advisory transcript window grows to 150k+ chars of paid input |
 | ER-073 | fixed | med | state | Pushback objector names miss the character roster, so the trust cost never lands |
 | ER-074 | open | med | dispatch | Preview-then-commit runs the whole advisory pipeline twice |
-| ER-075 | open | low | context | The event ledger grows without bound over very long campaigns |
+| ER-075 | invalid | low | context | Withdrawn: the ledger's completeness is by design |
 
 ## How the measurements below were taken
 
@@ -1522,11 +1522,9 @@ Evidence with file:line for every claim is in `2026-08-07-uniformity-audit/`
   state the commit changes. Filed open: it touches the decision pipeline's determinism
   guarantees and deserves its own tested change, not a same-day patch.
 
-## ER-075 — The event ledger grows without bound over very long campaigns
-- **Status:** open · **Severity:** low · **Area:** context
-- **Observed:** History travels compressed by design - the synopsis rewrites itself to six
-  sentences every turn - but the event ledger adds one line per played event forever. Cheap at
-  7-18 turns; linear growth into every deciding prompt on a 100-turn open-ended campaign.
-- **Fix shape:** the ledger compresses its own tail the way the synopsis does (older entries
-  collapse to a clause, recent entries stay whole), or a bounded render window with the count
-  of elided entries stated inline. Low urgency; filed so the growth is a decision, not a drift.
+## ER-075 — Withdrawn: the event ledger's completeness is by design
+- **Status:** invalid · **Severity:** low · **Area:** context
+- Filed as "unbounded growth", withdrawn on owner review: the ledger is the campaign's
+  permanent structured record and its completeness is the point. The open questions around it
+  run the other way - whether each entry carries ENOUGH (resolution: disposition and a one-line
+  note, but no consequences, objectors, or outcome), tracked as design work, not a defect.
