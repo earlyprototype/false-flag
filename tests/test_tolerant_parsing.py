@@ -543,3 +543,39 @@ def test_er044_decorated_interpretation_parses():
     assert parsed["summary"] == "Deploy a destroyer to shadow the vessel."
     assert parsed["forces"] == ["HMS Daring", "P-8 Poseidon patrols"]
     assert parsed["timeline"] == "Immediate"
+
+
+# ---------------------------------------------------------------------------
+# ER-049: actor text fields accumulate continuation lines
+# ---------------------------------------------------------------------------
+
+def test_actor_reply_with_labels_on_their_own_lines_keeps_the_text():
+    from engine.actor_simulation import _parse_actor_response
+
+    r = _parse_actor_response("USA", (
+        "PUBLIC_RESPONSE:\n"
+        "The United States stands shoulder to shoulder with the United Kingdom.\n"
+        "We will review the evidence with our NATO allies.\n"
+        "PRIVATE_ASSESSMENT:\n"
+        "London is handling this well but Congress needs the evidence.\n"
+        "TRUST_CHANGE: +5\n"
+        "WILL_SUPPORT: yes\n"
+        "CONDITIONS: none"
+    ))
+    assert "shoulder to shoulder" in r.public_response
+    assert "NATO allies" in r.public_response
+    assert "acknowledges the action" not in r.public_response
+    assert "Congress needs the evidence" in r.private_assessment
+    assert r.trust_change == 5
+    assert r.will_support == "yes"
+
+
+def test_actor_reply_with_no_public_response_records_a_miss():
+    from engine.actor_simulation import _parse_actor_response
+    from llm import parse_health
+
+    parse_health.reset()
+    r = _parse_actor_response("USA", "TRUST_CHANGE: -2\nWILL_SUPPORT: conditional")
+    assert "acknowledges the action" in r.public_response
+    assert parse_health.snapshot()["misses"].get(
+        "actor_simulation.public_response") == 1

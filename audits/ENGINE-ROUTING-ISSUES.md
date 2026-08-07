@@ -80,6 +80,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-046 | open | low | data | The stance list and the state-actor roster barely overlap |
 | ER-047 | fixed | med | state | A mid-call save drops the live diplomatic encounter |
 | ER-048 | fixed | med | context | The rolling synopsis confabulates from an ungrounded seed |
+| ER-049 | fixed | med | parsing | Actor text on the line after its label is silently replaced |
 
 ## How the measurements below were taken
 
@@ -1207,3 +1208,27 @@ two minutes.
   that outrank brevity: never merge events or transfer a culprit/location, unattributed stays
   unattributed, accusations named as who-accuses-whom-of-what. And SITUATION_SUMMARY moves to the
   PRO tier - the campaign's memory is one call per turn and anchors everything downstream.
+
+## ER-049 — Actor text on the line after its label is silently replaced
+
+- **Status:** fixed
+- **Severity:** medium
+- **Area:** parsing
+- **Observed:** Live models routinely answer the actor prompt with the field's content on the line
+  AFTER its label ("PUBLIC_RESPONSE:" then the statement). `_parse_actor_response` read the label's
+  own line only: the empty value was falsy, so the fallback "{actor} acknowledges the action."
+  replaced the real diplomatic reply, and no miss was recorded because the label itself had
+  matched. Numeric single-line fields (TRUST_CHANGE, WILL_SUPPORT) survived, which made the loss
+  easy to overlook: support glyphs varied while every public statement read as the same bland
+  acknowledgement. Observed on both `anthropic/claude-haiku-4.5` and
+  `google/gemini-2.5-flash-lite` in the first live campaign, every actor, every turn.
+- **Evidence:** demonstrated: a reply with PUBLIC_RESPONSE/PRIVATE_ASSESSMENT content on
+  continuation lines parsed to the fallback text with zero misses recorded; the quality parser
+  gained continuation accumulation in the ER-015 fix and this parser did not.
+- **Effect:** Every foreign government's public statement shown to the player was the placeholder;
+  the referee's sixty-forty blend still used the parsed numbers, so the loss was presentational
+  and diagnostic - but it erased the game's international voice and hid itself.
+- **Fixed:** Unlabeled lines now continue the last text field (public response / private
+  assessment), the same pattern the quality parser uses for REASONING; non-text labels clear the
+  continuation target; and a public response that ends empty records a
+  `actor_simulation.public_response` miss.

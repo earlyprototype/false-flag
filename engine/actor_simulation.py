@@ -169,6 +169,11 @@ def _parse_actor_response(actor_id: str, response_text: str) -> ActorResponse:
     intel_shared = None
     any_label = False
     will_support_seen = False
+    # Models frequently place a field's content on the line AFTER its label
+    # ("PUBLIC_RESPONSE:\n<the actual statement>"); without continuation
+    # accumulation the label parses to an empty string and the fallback
+    # text silently replaces the actor's real reply (ER-049).
+    last_text_field = None
 
     for line in lines:
         line = line.strip()
@@ -177,17 +182,20 @@ def _parse_actor_response(actor_id: str, response_text: str) -> ActorResponse:
         if value is not None:
             public_response = value
             any_label = True
+            last_text_field = "public"
             continue
 
         value = extract_label(line, "PRIVATE_ASSESSMENT")
         if value is not None:
             private_assessment = value
             any_label = True
+            last_text_field = "private"
             continue
 
         value = extract_label(line, "TRUST_CHANGE")
         if value is not None:
             any_label = True
+            last_text_field = None
             parsed = find_signed_int(value)
             if parsed is not None:
                 trust_change = max(-20, min(20, parsed))
@@ -198,6 +206,7 @@ def _parse_actor_response(actor_id: str, response_text: str) -> ActorResponse:
         value = extract_label(line, "WILL_SUPPORT")
         if value is not None:
             any_label = True
+            last_text_field = None
             will_support_seen = True
             # Exact enum first; then a worded refusal ("absolutely not",
             # "no, we will not assist") with no unnegated yes reads as no;
@@ -213,6 +222,7 @@ def _parse_actor_response(actor_id: str, response_text: str) -> ActorResponse:
         value = extract_label(line, "CONDITIONS")
         if value is not None:
             any_label = True
+            last_text_field = None
             if value and value.lower() != "none":
                 # Split by semicolons or commas if they look like list items
                 conditions = [c.strip() for c in re.split(r'[;,]', value) if c.strip()]
@@ -221,14 +231,26 @@ def _parse_actor_response(actor_id: str, response_text: str) -> ActorResponse:
         value = extract_label(line, "INTEL_SHARED")
         if value is not None:
             any_label = True
+            last_text_field = None
             if value and value.lower() != "none":
                 intel_shared = value
+            continue
+
+        # An unlabeled line continues the last text field, the way the
+        # quality parser accumulates REASONING continuations (ER-049).
+        if line and last_text_field == "public":
+            public_response = (public_response + " " + line).strip()
+            continue
+        if line and last_text_field == "private":
+            private_assessment = (private_assessment + " " + line).strip()
             continue
 
     if not any_label:
         record_miss("actor_simulation", "all_fields", actor_id)
     elif not will_support_seen and will_support is None:
         record_miss("actor_simulation", "will_support", actor_id)
+    if any_label and not public_response:
+        record_miss("actor_simulation", "public_response", actor_id)
     if will_support is None:
         will_support = "conditional"
 
