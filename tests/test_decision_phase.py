@@ -233,6 +233,125 @@ def test_exploding_quality_assessment_degrades_not_kills(monkeypatch):
     parse_health.reset()
 
 
+# --- preview reuse (ER-074) --------------------------------------------------
+
+
+def _classify_prompt(prompt):
+    """Which family a seeded_llm prompt belongs to, for call counting."""
+    p = prompt.lower()
+    if "assess this action" in p:
+        return "quality"
+    if "public_response:" in p:
+        return "actor"
+    if "summarise the current situation" in p:
+        return "summary"
+    if "pushback" in p:
+        return "pushback"
+    if "critical omissions check" in p:
+        return "omissions"
+    if "respond to the pm's action" in p:
+        return "reactions"
+    return "interpretation"
+
+
+def _counting_llm(counts):
+    def gen(prompt, rng, **kwargs):
+        counts[_classify_prompt(prompt)] = counts.get(_classify_prompt(prompt), 0) + 1
+        return seeded_llm(prompt, rng, **kwargs)
+
+    def batch(prompts, rng, **kwargs):
+        return [gen(p, rng, **kwargs) for p in prompts]
+
+    return gen, batch
+
+
+def test_preview_reuse_skips_the_advisory_families():
+    """With a preview, the pipeline asks the model NOTHING for
+    interpretation, pushback or omissions - only the post-commit families
+    run - and the reused results land verbatim in the DecisionResult."""
+    bare, _, _ = _run_pipeline(seed=42)
+    preview = {
+        "interpretation": bare.interpretation,
+        "pushback": [list(p) for p in bare.pushback],
+        "critical_concerns": [list(c) for c in bare.critical_concerns],
+    }
+
+    counts = {}
+    gen, batch = _counting_llm(counts)
+    world = _world()
+    state = _state()
+    reused = run_decision_pipeline(
+        world, "war_game_2025", ACTION, Random(42),
+        root_path=root, full_transcript=[], narrative_state=state,
+        llm_generate_fn=gen, llm_batch_fn=batch, preview=preview,
+    )
+
+    assert counts.get("interpretation", 0) == 0
+    assert counts.get("pushback", 0) == 0
+    assert counts.get("omissions", 0) == 0
+    assert counts.get("quality", 0) >= 1, "quality must still run"
+    assert counts.get("actor", 0) >= 1, "actor simulation must still run"
+    assert counts.get("reactions", 0) >= 1
+    assert counts.get("summary", 0) >= 1
+
+    assert reused.interpretation == bare.interpretation
+    assert reused.pushback == bare.pushback
+    assert reused.critical_concerns == bare.critical_concerns
+
+
+def test_preview_reuse_keeps_child_seeds_stable_for_the_calls_that_run():
+    """ER-074's determinism guarantee: the reused tasks keep their slots in
+    the round task lists, so run_round still pre-draws their child seeds and
+    the seeds handed to the tasks that DO run (actor simulation, quality
+    assessment, reactions, summary) are identical with and without a
+    preview. seeded_llm embeds rng draws in every answer, so a shifted seed
+    would change the record."""
+    bare, state_a, _ = _run_pipeline(seed=42)
+    preview = {
+        "interpretation": bare.interpretation,
+        "pushback": [list(p) for p in bare.pushback],
+        "critical_concerns": [list(c) for c in bare.critical_concerns],
+    }
+
+    world = _world()
+    state_b = _state()
+    reused = run_decision_pipeline(
+        world, "war_game_2025", ACTION, Random(42),
+        root_path=root, full_transcript=[], narrative_state=state_b,
+        llm_generate_fn=seeded_llm, llm_batch_fn=seeded_batch,
+        preview=preview,
+    )
+
+    # Every rng-derived surface of the executed calls matches the bare run.
+    assert [r.dict() for r in reused.actor_responses] == \
+        [r.dict() for r in bare.actor_responses]
+    assert reused.quality_assessment == bare.quality_assessment
+    assert reused.character_responses == bare.character_responses
+    assert reused.final_effects == bare.final_effects
+    assert reused.reasoning == bare.reasoning
+    assert reused.transcript == bare.transcript
+    assert state_b.situation_summary == state_a.situation_summary
+    assert state_b.hidden_metrics.dict() == state_a.hidden_metrics.dict()
+
+
+def test_a_preview_without_an_interpretation_runs_the_full_pipeline():
+    """All-or-nothing: a degenerate preview (no interpretation) must not
+    half-reuse - the whole pipeline runs as if no preview existed."""
+    counts = {}
+    gen, batch = _counting_llm(counts)
+    world = _world()
+    state = _state()
+    run_decision_pipeline(
+        world, "war_game_2025", ACTION, Random(42),
+        root_path=root, full_transcript=[], narrative_state=state,
+        llm_generate_fn=gen, llm_batch_fn=batch,
+        preview={"interpretation": "", "pushback": []},
+    )
+    assert counts.get("interpretation", 0) >= 1
+    assert counts.get("pushback", 0) >= 1
+    assert counts.get("omissions", 0) >= 1
+
+
 # --- the preview round -------------------------------------------------------
 
 def test_preview_round_matches_the_old_serial_order():

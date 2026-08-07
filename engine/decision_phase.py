@@ -30,6 +30,11 @@ commitment points:
    pair runs inside the adjudication functions themselves
    (engine/narrative_adjudication.py imports ``run_round`` lazily).
 
+A front end that previews and then commits the SAME text hands the
+preview's results back to ``run_decision_pipeline`` via its ``preview``
+parameter, so the advisory families are paid once per decision instead of
+twice (ER-074); an amended commit passes no preview and pays in full.
+
 **Determinism.** Before each round, one child seed per task is pre-drawn
 from the master rng in the FIXED order the round lists its tasks; each task
 then runs on its own ``Random(child_seed)``. Results are therefore
@@ -286,6 +291,7 @@ def run_decision_pipeline(
     narrative_state=None,
     llm_generate_fn=None,
     llm_batch_fn=None,
+    preview: Optional[Dict[str, Any]] = None,
 ) -> DecisionResult:
     """The full three-round decision pipeline (shape 1 in the module
     docstring), for callers that commit a decision in one step.
@@ -296,13 +302,30 @@ def run_decision_pipeline(
     run_turn_decision + adjudicate_with_* pair did. ``world.metrics`` is
     NOT synced here — that remains the caller's job, as before.
 
+    ``preview`` (ER-074): a caller that already previewed EXACTLY this
+    action (GameManager.interpret_decision → resolve_decision) passes the
+    preview's results as ``{"interpretation": str,
+    "pushback": [(role, concern), ...],
+    "critical_concerns": [(role, concern, recommendation), ...]}``.
+    The pipeline then reuses them instead of re-asking the model — the
+    verification run measured the advisory families answering twice per
+    decision (70 omissions calls over 7 turns, double the cost) — and runs
+    only what depends on post-commit state: the actor simulation, the
+    quality assessment, the reactions and the summary fold. Matching the
+    preview to the committed text is the CALLER's job; an amended decision
+    must arrive with ``preview=None`` and pays the full pipeline.
+
     Child-seed order per round (fixed, documented):
       round 1: interpretation, actor_simulation
       round 2: pushback, critical_omissions, quality_assessment
       round 3: character_responses, situation_summary
     A round always draws every one of its seeds, even when a task is
-    skipped (no actor system), so campaigns with and without an actor file
-    each replay identically.
+    skipped (no actor system) or answered from the preview (ER-074) — the
+    reused task stays IN the task list as a no-LLM lambda, so its seed is
+    still drawn and the seeds handed to the tasks that do run (actor
+    simulation, quality assessment, round 3) never shift. Campaigns with
+    and without a preview therefore replay identically for every call
+    that executes.
     """
     if root_path is None:
         root_path = Path(__file__).resolve().parents[1]
@@ -331,13 +354,28 @@ def run_decision_pipeline(
                   if a]
         actor_context = narrative_state.to_actor_context()
 
-    round1: List[RoundTask] = [
-        ("interpretation",
-         lambda task_rng: interpret_player_action(
-             world, action, initial_conditions, gen, task_rng,
-             full_transcript, event_ledger=event_ledger),
-         lambda: action),
-    ]
+    # Preview reuse (ER-074): all-or-nothing — a preview without an
+    # interpretation (the field every round-2 family consumed) is not a
+    # usable preview, so the whole pipeline runs. The reused tasks return
+    # the preview's answers without a model call, but keep their slots so
+    # the seed draws hold (see the docstring's determinism note).
+    use_preview = bool(preview and preview.get("interpretation"))
+
+    if use_preview:
+        previewed_interpretation = preview["interpretation"]
+        round1: List[RoundTask] = [
+            ("interpretation",
+             lambda task_rng: previewed_interpretation,
+             lambda: action),
+        ]
+    else:
+        round1 = [
+            ("interpretation",
+             lambda task_rng: interpret_player_action(
+                 world, action, initial_conditions, gen, task_rng,
+                 full_transcript, event_ledger=event_ledger),
+             lambda: action),
+        ]
     if actors:
         round1.append(
             ("actor_simulation",
@@ -355,24 +393,37 @@ def run_decision_pipeline(
         round1, rng, status="READING THE ORDER ── 2 CHANNELS")
 
     # --- Round 2: pushback ∥ omissions ∥ quality ---------------------------
-    round2: List[RoundTask] = [
-        ("pushback",
-         lambda task_rng: generate_advisor_pushback(
-             world, action, interpretation, initial_conditions,
-             gen, task_rng, full_transcript, event_ledger=event_ledger),
-         list),
-        ("critical_omissions",
-         lambda task_rng: check_critical_omissions(
-             world, action, interpretation, initial_conditions,
-             gen, task_rng, full_transcript, llm_batch_fn=batch,
-             event_ledger=event_ledger),
-         list),
+    # With a preview, the advisory pair is answered from it (their prompts
+    # depend on nothing the commit changed); the quality assessment always
+    # runs — it reads post-commit state and its verdict scales the effects.
+    if use_preview:
+        previewed_pushback = [tuple(p) for p in (preview.get("pushback") or [])]
+        previewed_concerns = [
+            tuple(c) for c in (preview.get("critical_concerns") or [])]
+        round2: List[RoundTask] = [
+            ("pushback", lambda task_rng: previewed_pushback, list),
+            ("critical_omissions", lambda task_rng: previewed_concerns, list),
+        ]
+    else:
+        round2 = [
+            ("pushback",
+             lambda task_rng: generate_advisor_pushback(
+                 world, action, interpretation, initial_conditions,
+                 gen, task_rng, full_transcript, event_ledger=event_ledger),
+             list),
+            ("critical_omissions",
+             lambda task_rng: check_critical_omissions(
+                 world, action, interpretation, initial_conditions,
+                 gen, task_rng, full_transcript, llm_batch_fn=batch,
+                 event_ledger=event_ledger),
+             list),
+        ]
+    round2.append(
         ("quality_assessment",
          lambda task_rng: assess_action_quality(
              action, narrative_state, interpretation, gen,
              world_narrative, task_rng),
-         lambda: _heuristic_quality_assessment(action, narrative_state)),
-    ]
+         lambda: _heuristic_quality_assessment(action, narrative_state)))
     pushback, critical_concerns, quality_assessment = run_round(
         round2, rng, status="CABINET REVIEW ── 3 CHANNELS")
 

@@ -76,6 +76,14 @@ class GameManager:
         # costs a point of trust with each objecting advisor (ER-013).
         self._pending_pushback: Optional[tuple] = None
 
+        # The full preview result for that same decision text (ER-074):
+        # interpretation, pushback, critical concerns and the formatted
+        # decision lines, keyed by the exact action text. Committing the
+        # identical text hands these to run_decision_pipeline so the
+        # advisory families are not paid twice; an amended commit ignores
+        # them. JSON-native throughout, set by interpret_decision.
+        self._pending_preview: Optional[Dict[str, Any]] = None
+
         # True when the next briefing is a replay of one that already ran
         # before a save/load (ER-004): show it for context, but do not
         # re-apply its effects, re-record its ledger entry, regenerate its
@@ -306,6 +314,21 @@ class GameManager:
             (action_text, [role for role, _ in pushback]) if pushback else None
         )
 
+        # And remember everything the preview produced, keyed by the exact
+        # text: committing it unamended reuses these results instead of
+        # re-running the advisory families (ER-074). Stored JSON-native so
+        # to_dict carries it verbatim.
+        self._pending_preview = {
+            "action_text": action_text,
+            "interpretation": interpretation,
+            "pushback": [[role, concern] for role, concern in (pushback or [])],
+            "critical_concerns": [
+                [role, concern, recommendation]
+                for role, concern, recommendation in (critical_concerns or [])
+            ],
+            "decision_lines": list(decision_lines),
+        }
+
         # Create placeholder data for missing fields
         return {
             "interpretation": interpretation,
@@ -412,6 +435,16 @@ class GameManager:
         if pending and pending[0] == action_text and pending[1]:
             self._apply_pushback_trust_cost(pending[1])
 
+        # The preview already answered interpretation, pushback and the
+        # omissions scan for exactly this text: hand its results to the
+        # pipeline so those families are not paid twice (ER-074). An
+        # amended text, or a commit with no preview behind it, gets the
+        # full pipeline as before. One-shot, like _pending_pushback.
+        preview = self._pending_preview
+        self._pending_preview = None
+        if not (preview and preview.get("action_text") == action_text):
+            preview = None
+
         interpretation = ""
         pushback = []
         critical_concerns = []
@@ -435,6 +468,7 @@ class GameManager:
                 narrative_state=self.narrative_state,
                 llm_generate_fn=generate_text,
                 llm_batch_fn=batch_generate_text,
+                preview=preview,
             )
             interpretation = result.interpretation
             pushback = result.pushback
@@ -728,6 +762,13 @@ class GameManager:
                     [self._pending_pushback[0], list(self._pending_pushback[1])]
                     if self._pending_pushback else None
                 ),
+                # The full preview result for that text (ER-074). Serialized
+                # rather than whitelisted as ephemeral: the browser flow
+                # saves between interpret and commit, and dropping this
+                # would re-pay the advisory families on every restore —
+                # the exact double-spend the fix removes. Already
+                # JSON-native, so it travels verbatim.
+                "pending_preview": self._pending_preview,
                 # Generator position, so a resumed session continues the
                 # draw sequence instead of replaying spent randomness (ER-037)
                 "rng_state": encode_rng_state(self.rng)
@@ -842,6 +883,12 @@ class GameManager:
         pending = state.get("pending_pushback")
         if pending:
             manager._pending_pushback = (pending[0], list(pending[1]))
+
+        # A preview taken before the save commits without re-paying the
+        # advisory families after the load (ER-074). Old payloads without
+        # the field restore to None: the commit runs the full pipeline,
+        # exactly the pre-fix behaviour.
+        manager._pending_preview = state.get("pending_preview") or None
 
         return manager
 

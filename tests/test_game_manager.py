@@ -228,6 +228,116 @@ def test_old_payload_without_rng_state_still_loads():
     assert restored.rng.getstate() == Random(gm.seed).getstate()
 
 
+def _count_advisory_calls(monkeypatch):
+    """Route every LLM call through counting fakes, split by LLMContext.
+
+    Covers both entry points: run_turn_decision (interpret_decision) takes
+    engine.sim_loop's module-level bindings, resolve_decision imports from
+    llm.router at call time. The omissions family is counted in BATCHES
+    (one generate_group fan-out = one batch), which is the unit ER-074's
+    double-run doubled.
+    """
+    from collections import Counter
+
+    from llm.mock_driver import MockDeterministicDriver
+
+    counts = Counter()
+    inner = MockDeterministicDriver()
+
+    def fake_gen(prompt, rng, context=None, **kwargs):
+        counts[str(context)] += 1
+        return inner.generate_text(prompt, rng)
+
+    def fake_batch(prompts, rng, context=None, **kwargs):
+        counts[f"batch:{context}"] += 1
+        return [inner.generate_text(p, rng) for p in prompts]
+
+    import engine.sim_loop as sim_loop
+    import llm.router as router
+    monkeypatch.setattr(sim_loop, "generate_text", fake_gen)
+    monkeypatch.setattr(sim_loop, "batch_generate_text", fake_batch)
+    monkeypatch.setattr(router, "generate_text", fake_gen)
+    monkeypatch.setattr(router, "batch_generate_text", fake_batch)
+    return counts
+
+
+# The carrier deployment is the mock driver's pushback trigger, so the
+# preview reliably raises objections and the unamended commit exercises
+# the ER-013 trust cost alongside the ER-074 reuse.
+PUSHBACK_DECISION = ("Deploy the carrier strike group to shadow the vessel "
+                     "and make a public statement.")
+
+
+def test_preview_then_commit_pays_each_advisory_family_once(monkeypatch):
+    """ER-074: interpret_decision + resolve_decision of the identical text
+    makes exactly ONE interpretation call, ONE pushback call and ONE
+    omissions batch - the commit reuses the preview instead of re-running
+    rounds 1-2. The ER-013 trust cost still fires on the unamended commit."""
+    from llm.model_config import LLMContext
+
+    counts = _count_advisory_calls(monkeypatch)
+    gm = make_manager()
+    gm.get_turn_briefing()
+
+    preview = gm.interpret_decision(PUSHBACK_DECISION)
+    assert preview["pushback"], "the carrier decision must draw pushback"
+    result = gm.resolve_decision(PUSHBACK_DECISION)
+
+    assert result["error"] is None
+    assert counts[str(LLMContext.DECISION_INTERPRETATION)] == 1
+    assert counts[str(LLMContext.ADVISOR_PUSHBACK)] == 1
+    assert counts[f"batch:{LLMContext.CRITICAL_OMISSIONS}"] == 1
+    # The reused results reach the commit's payload verbatim.
+    assert result["interpretation"] == preview["interpretation"]
+    assert result["pushback"] == preview["pushback"]
+    # ER-013 must still fire: the overridden objectors paid trust.
+    assert gm._last_pushback_costs, (
+        "committing pushback-drawing text unamended must charge the objectors")
+    # One-shot: nothing pending after the commit.
+    assert gm._pending_preview is None
+    assert gm._pending_pushback is None
+
+
+def test_an_amended_commit_reruns_the_full_pipeline(monkeypatch):
+    """Amending the text between preview and commit invalidates the preview:
+    every advisory family runs again for the new wording."""
+    from llm.model_config import LLMContext
+
+    counts = _count_advisory_calls(monkeypatch)
+    gm = make_manager()
+    gm.get_turn_briefing()
+
+    gm.interpret_decision(DECISION)
+    result = gm.resolve_decision(DECISION + " - and brief the King first.")
+
+    assert result["error"] is None
+    assert counts[str(LLMContext.DECISION_INTERPRETATION)] == 2
+    assert counts[str(LLMContext.ADVISOR_PUSHBACK)] == 2
+    assert counts[f"batch:{LLMContext.CRITICAL_OMISSIONS}"] == 2
+
+
+def test_the_preview_survives_a_save_load_between_interpret_and_commit(monkeypatch):
+    """The browser flow saves between preview and commit: the restored
+    session must still reuse the preview, not re-pay the advisory calls."""
+    from llm.model_config import LLMContext
+
+    counts = _count_advisory_calls(monkeypatch)
+    gm = make_manager()
+    gm.get_turn_briefing()
+    gm.interpret_decision(PUSHBACK_DECISION)
+    assert gm._pending_preview is not None
+
+    import json
+    restored = GameManager.from_dict(json.loads(json.dumps(gm.to_dict(),
+                                                           default=str)))
+    assert restored._pending_preview == gm._pending_preview
+
+    result = restored.resolve_decision(PUSHBACK_DECISION)
+    assert result["error"] is None
+    assert counts[str(LLMContext.DECISION_INTERPRETATION)] == 1
+    assert counts[f"batch:{LLMContext.CRITICAL_OMISSIONS}"] == 1
+
+
 def test_mid_turn_load_replays_briefing_without_reapplying(monkeypatch):
     """ER-004: a save taken mid-turn (after the briefing ran) must replay the
     briefing for context on resume — same metrics, no re-applied effects, no
