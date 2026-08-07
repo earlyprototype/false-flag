@@ -23,7 +23,8 @@ mutable field against save/load, every authored text against the scenario. Full 
 `2026-08-07-uniformity-audit/` beside this file; the standing instrument is the router call log
 (`llm/call_log.py`, `WARGAME_CALL_LOG`) plus truncation and residue counters in
 `llm/parse_health.py`; the standard of proof per entry is now `VERIFICATION-MATRIX.md`. The
-audit filed ER-050..ER-070: sixteen fixed the same day, five small content items left open.
+audit filed ER-050..ER-070: sixteen fixed the same day, five small content items left open
+(ER-066..070, since closed in the content closeout pass).
 ER-046 closed with authored stances for FRA/DEU/POL/UKR in both narratives.
 
 Open register of defects and design gaps in how the engine assembles context, routes calls and
@@ -110,11 +111,11 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-063 | fixed | med | dispatch | The scripted call is gated by outbound-call access rules |
 | ER-064 | fixed | low | data | A US official sits in the UK advisor panel; the Attorney General has no trust |
 | ER-065 | fixed | high | dispatch | The bridge fault probe's signature makes the router mis-forward arguments |
-| ER-066 | open | low | data | The cold open never mentions the two precipitating events |
-| ER-067 | open | low | data | The COBRA room is described twice back-to-back |
-| ER-068 | open | low | data | engine/intelligence.py emits terminal markup over the HTTP API |
-| ER-069 | open | low | data | events.yaml grants a metric that no longer exists |
-| ER-070 | open | low | state | The CLI endings toggle is not persisted across a resume |
+| ER-066 | fixed | low | data | The cold open never mentions the two precipitating events |
+| ER-067 | fixed | low | data | The COBRA room is described twice back-to-back |
+| ER-068 | fixed | low | data | engine/intelligence.py emits terminal markup over the HTTP API |
+| ER-069 | fixed | low | data | events.yaml grants a metric that no longer exists |
+| ER-070 | fixed | low | state | The CLI endings toggle is not persisted across a resume |
 | ER-071 | fixed | high | dispatch | A thinking model's hidden reasoning starves capped replies to empty |
 | ER-072 | fixed | med | context | The advisory transcript window grows to 150k+ chars of paid input |
 
@@ -1419,31 +1420,53 @@ Evidence with file:line for every claim is in `2026-08-07-uniformity-audit/`
   (`functools.update_wrapper` + `__signature__`); a regression test drives the router through a
   wrapped narrow-signature driver.
 
-## ER-066 — The cold open never mentions the two precipitating events (open)
-- **Status:** open · **Severity:** low · **Area:** data
+## ER-066 — The cold open never mentions the two precipitating events (fixed)
+- **Status:** fixed · **Severity:** low · **Area:** data
 - Scene I is set at Severomorsk the morning after the attack and never mentions it - the intro
   sets scenery but introduces neither the pilot murders nor the bombing the whole scenario turns
   on. Content rewrite; needs an authorial decision.
+- **Fixed:** Scene I now opens on the attack's aftermath - the smouldering waterfront, the
+  shrouded dead, and state TV already running the false frogman accusation - before the fleet
+  slips its moorings; Scene II gains the Norfolk murders as a beat in the Northwood watch floor
+  (tracked-then-killed, special-forces tradecraft, low confidence). Everything stated comes from
+  initial_conditions.yaml; scene lengths and the asset's markup conventions are unchanged.
 
-## ER-067 — The COBRA room is described twice back-to-back (open)
-- **Status:** open · **Severity:** low · **Area:** data
+## ER-067 — The COBRA room is described twice back-to-back (fixed)
+- **Status:** fixed · **Severity:** low · **Area:** data
 - Intro Scene III and the turn-1 briefing restate the same room, cast and throat-clearing beat
   nearly verbatim. Deduplication is a content decision about which copy yields.
+- **Fixed:** The intro keeps the room; the briefing yields. turn_001.yaml and turn_001_fast.yaml
+  drop the restated table, cast list and throat-clearing and open directly on the NSA's
+  developments list. Every fact - all five developments, the NSC assessment, and the fast
+  variant's breaking Orkney update with the advisors' statements - is retained verbatim.
 
-## ER-068 — engine/intelligence.py emits terminal markup over the HTTP API (open)
-- **Status:** open · **Severity:** low · **Area:** data
+## ER-068 — engine/intelligence.py emits terminal markup over the HTTP API (fixed)
+- **Status:** fixed · **Severity:** low · **Area:** data
 - Intel text embeds Rich `[bold]` tags; only one Next.js panel strips them. Right fix is plain
   text from the engine with styling applied per front end.
+- **Fixed:** The engine emits plain text; the terminal front ends re-apply emphasis through
+  `cli/formatters.py::style_intel_line` (same split as `format_advisor_response` for advisor
+  text) at all four display sites in cli/main.py and cli/main_dashboard.py. The Next.js panel's
+  stripper now simply finds nothing to strip and is left as a belt-and-braces guard.
 
-## ER-069 — events.yaml grants a metric that no longer exists (open)
-- **Status:** open · **Severity:** low · **Area:** data
+## ER-069 — events.yaml grants a metric that no longer exists (fixed)
+- **Status:** fixed · **Severity:** low · **Area:** data
 - A legacy `mission_progress` delta with no corresponding metric; the file appears unconsumed by
   the current loop. Delete or re-wire deliberately.
+- **Fixed:** Confirmed dead and deleted. The loop imports only `load_inject_for_turn` (episode
+  files); `engine/events.py::load_events` has no caller anywhere; the file's sole reader was
+  scripts/gate_runner.py's existence/asset check, which now validates initial_conditions.yaml
+  and the episode files instead.
 
-## ER-070 — The CLI endings toggle is not persisted across a resume (open)
-- **Status:** open · **Severity:** low · **Area:** state
+## ER-070 — The CLI endings toggle is not persisted across a resume (fixed)
+- **Status:** fixed · **Severity:** low · **Area:** state
 - `endings_disabled` is a loop local: a player who disabled endings and resumes gets them back
   on. Small; noted so the completeness test's whitelist stays honest.
+- **Fixed:** save_game stores an optional `endings_disabled` bool (format stays 2.4, same
+  pattern as seed/ending_id); both CLIs write it at every save site and read it back through
+  `read_save_field` on load - the dashboard round-trips it too, so saving there cannot lose the
+  choice. Old saves have no field and default to False. Regression tests in
+  tests/test_persistence.py cover the round-trip and the old-save default.
 
 
 ## ER-071 — A thinking model's hidden reasoning starves capped replies to empty

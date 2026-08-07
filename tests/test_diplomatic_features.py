@@ -363,7 +363,7 @@ def test_filter_keeps_public_material(played_session):
     context = get_diplomatic_context(gm.transcript, gm.world, "US")
 
     # Inject prose (no speaker prefix) passes.
-    assert "You are seated at the head of a long mahogany table" in context
+    assert "coordinated campaign of coercion" in context
     assert "TURN 1" in context
 
 
