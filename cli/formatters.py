@@ -207,6 +207,64 @@ def format_advisor_response(advisor_name: str, response: str) -> str:
     return '\n'.join(lines)
 
 
+# Section headings emitted by engine/intelligence.py, styled bold cyan in
+# the terminal. Kept as plain-prefix matches so the engine stays plain text.
+INTEL_SECTION_PREFIXES = (
+    "ECONOMIC INDICATORS",
+    "DIPLOMATIC SIGNAL INTELLIGENCE",
+    "MILITARY POSTURE ASSESSMENT",
+    "MEDIA & PUBLIC SENTIMENT",
+)
+
+# Alarm tokens the engine writes in caps; the terminal renders them red.
+INTEL_ALERT_TOKENS = (
+    "TOP SECRET - EYES ONLY",
+    "IMMINENT COMBAT",
+    "ATTACK FORMATION",
+    "BIKINI BLACK SPECIAL",
+    "SEVERE DIVISIONS",
+    "ADVERSARIAL",
+    "CRITICAL",
+    "SEVERE",
+    "ABNORMAL",
+    "UNUSUAL",
+)
+
+
+def style_intel_line(line: str) -> str:
+    """Apply Rich styling to one plain-text intelligence line.
+
+    engine/intelligence.py emits plain text so the same lines cross the
+    HTTP API and the browser unmarked (ER-068). The terminal front ends
+    pass each line through here instead — the same split as
+    format_advisor_response, which styles the engine's plain advisor text.
+    """
+    from rich.markup import escape
+
+    stripped = line.strip()
+    styled = escape(line)
+
+    # Report mastheads and the bottom line.
+    if stripped.startswith(("INTELLIGENCE SUMMARY", "DETAILED ASSESSMENT")):
+        return f"[bold]{styled}[/bold]"
+    if stripped.startswith("Classification:"):
+        return f"[bold red]{styled}[/bold red]"
+    if stripped.startswith(INTEL_SECTION_PREFIXES) or stripped in (
+            "Recent Indicators:", "Recent Actions:"):
+        return f"[bold cyan]{styled}[/bold cyan]"
+    if stripped.startswith("ASSESSMENT:"):
+        styled = styled.replace("ASSESSMENT:", "[bold]ASSESSMENT:[/bold]", 1)
+
+    # Alarm vocabulary, longest token first so e.g. "SEVERE DIVISIONS"
+    # doesn't get half-wrapped by "SEVERE".
+    for token in INTEL_ALERT_TOKENS:
+        if token in styled:
+            styled = styled.replace(token, f"[bold red]{token}[/bold red]")
+            break
+
+    return styled
+
+
 def format_metric_status(value: int, metric_type: str) -> str:
     """Generate status label for a metric value.
     

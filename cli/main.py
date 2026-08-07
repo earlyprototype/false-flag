@@ -41,7 +41,7 @@ from cli.cinematics import (
 from cli.interstitials import play_interstitial
 
 logger = logging.getLogger(__name__)
-from cli.formatters import format_advisor_response
+from cli.formatters import format_advisor_response, style_intel_line
 # strip_effect_boxes is re-exported here for backwards compatibility
 # (external code may still do `from cli.main import strip_effect_boxes`).
 from cli.display_utils import (
@@ -720,6 +720,7 @@ def play(
     # Load or create world state
     resume_replay = False  # True when a loaded save already ran this turn's briefing
     loaded_initial_metrics = None  # Campaign-start metrics persisted in the save
+    loaded_endings_disabled = False  # Open-ended toggle persisted in the save (ER-070)
     if load_save:
         save_path = Path(load_save)
         try:
@@ -731,6 +732,11 @@ def play(
             # the resume point's metrics below.
             from engine.persistence import read_save_field, read_rng_state
             loaded_initial_metrics = read_save_field(save_path, "initial_metrics")
+
+            # A player who continued open-ended after a graded ending keeps
+            # that choice across the resume (ER-070). Old saves default to
+            # False - the win/lose checks stay on.
+            loaded_endings_disabled = bool(read_save_field(save_path, "endings_disabled", False))
 
             # Resume the generator where the save left it (2.3+ saves), so
             # generated content continues instead of replaying draws the
@@ -814,7 +820,7 @@ def play(
     # stochastic epilogue. Deltas in the debrief measure from the campaign
     # start (persisted in saves; old saves fall back to the resume point).
     campaign_final_turn = (stochastic_from_turn - 1) + scenario_config.get("epilogue_turns", EPILOGUE_TURNS)
-    endings_disabled = False
+    endings_disabled = loaded_endings_disabled
     initial_metrics_snapshot = loaded_initial_metrics or {
         "escalation_risk": world.metrics.escalation_risk,
         "domestic_stability": world.metrics.domestic_stability,
@@ -996,7 +1002,7 @@ def play(
                     continue  # classification strips replace the plain rules
                 if "Classification:" in stripped:
                     continue  # the strip itself carries the classification
-                console.print(line)
+                console.print(style_intel_line(line))
             console.print(ae.classification_strip(seed=intel_seed, edge="bottom"))
             typer.echo("")
         
@@ -1069,7 +1075,7 @@ def play(
                     continue
             
                 if user_input.lower() in ["/save", "save"]:
-                    save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng, seed=seed)
+                    save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng, seed=seed, endings_disabled=endings_disabled)
                     typer.echo(f"Game saved to {save_path}")
                     continue
             
@@ -1502,7 +1508,7 @@ def play(
                             from engine.intelligence import generate_actor_detailed_assessment
                             intel_lines = generate_actor_detailed_assessment(country_code, world, world.turn)
                             for line in intel_lines:
-                                console.print(line)
+                                console.print(style_intel_line(line))
                         else:
                             typer.echo("Intelligence system not available.")
                 
@@ -2010,7 +2016,7 @@ def play(
         world.discussion_transcript = []
         world.phase = "briefing"
 
-        save_path = save_game(world, transcript, scenario, "autosave", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng, seed=seed, ending_id=ending.ending_id if ending else None)
+        save_path = save_game(world, transcript, scenario, "autosave", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng, seed=seed, ending_id=ending.ending_id if ending else None, endings_disabled=endings_disabled)
 
         if ending:
             debrief_lines = build_debrief_lines(world, ending, initial_metrics_snapshot, transcript)

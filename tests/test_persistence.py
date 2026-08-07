@@ -170,6 +170,48 @@ def test_old_save_without_rng_state_loads_exactly_as_today(tmp_path):
     assert transcript == ["Turn 1 briefing"]
 
 
+# --- endings toggle (ER-070) -------------------------------------------------
+
+def test_endings_disabled_round_trips_through_the_save(tmp_path):
+    """A player who continued open-ended keeps that choice on resume."""
+    save_path = save_game(
+        make_world(),
+        transcript=[],
+        scenario_id="war_game_2025",
+        save_name="open_ended",
+        root_path=tmp_path,
+        endings_disabled=True,
+    )
+    raw = json.loads(save_path.read_text(encoding="utf-8"))
+    assert raw["endings_disabled"] is True
+    assert raw["version"] == "2.4"
+    assert read_save_field(save_path, "endings_disabled", False) is True
+
+
+def test_endings_disabled_defaults_false_and_old_saves_read_false(tmp_path):
+    """Saves that never toggled it - and old saves with no field at all -
+    resume with the win/lose checks on."""
+    save_path = save_game(
+        make_world(),
+        transcript=[],
+        scenario_id="war_game_2025",
+        save_name="graded",
+        root_path=tmp_path,
+    )
+    raw = json.loads(save_path.read_text(encoding="utf-8"))
+    assert raw["endings_disabled"] is False
+    assert read_save_field(save_path, "endings_disabled", False) is False
+
+    old_save = tmp_path / "war_game_2025_pre_er070.json"
+    old_save.write_text(json.dumps({
+        "scenario_id": "war_game_2025",
+        "world": make_world().model_dump(),
+        "transcript": [],
+        "version": "2.4",
+    }), encoding="utf-8")
+    assert read_save_field(old_save, "endings_disabled", False) is False
+
+
 def test_decode_rng_state_rejects_malformed_payloads():
     assert decode_rng_state(None) is None
     assert decode_rng_state("garbage") is None

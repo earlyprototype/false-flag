@@ -32,7 +32,7 @@ from cli.rich_ui import (
 from cli.theme import theme_manager, SYMBOLS
 from cli import aesthetics as ae
 from cli.cinematics import play_title_sequence, setup_banner
-from cli.formatters import format_advisor_response
+from cli.formatters import format_advisor_response, style_intel_line
 from cli.display_utils import (
     strip_effect_boxes,
     display_adjudication_results,
@@ -745,6 +745,7 @@ def play(
     # Load or create world state
     resume_replay = False  # True when a loaded save already ran this turn's briefing
     loaded_initial_metrics = None  # Campaign-start metrics persisted in the save
+    endings_disabled = False  # Open-ended toggle persisted in the save (ER-070)
     if load_save:
         save_path = Path(load_save)
         try:
@@ -756,6 +757,12 @@ def play(
             # the resume point's metrics below.
             from engine.persistence import read_save_field, read_rng_state
             loaded_initial_metrics = read_save_field(save_path, "initial_metrics")
+
+            # The dashboard has no graded-endings flow of its own, but a
+            # save made after the classic CLI's "continue open-ended?"
+            # choice must not lose that choice by round-tripping through
+            # here (ER-070). Old saves default to False.
+            endings_disabled = bool(read_save_field(save_path, "endings_disabled", False))
 
             # Resume the generator where the save left it (2.3+ saves), so
             # generated content continues instead of replaying draws the
@@ -962,7 +969,7 @@ def play(
                     continue  # classification strips replace the plain rules
                 if "Classification:" in stripped:
                     continue  # the strip itself carries the classification
-                console.print(line)
+                console.print(style_intel_line(line))
             console.print(ae.classification_strip(seed=intel_seed, edge="bottom"))
             typer.echo("")
         
@@ -1103,7 +1110,7 @@ def play(
                     if user_input.lower() in ["/save", "save"]:
                         # Pause the live repaint so the confirmation stays visible
                         live.stop()
-                        save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng, seed=seed)
+                        save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng, seed=seed, endings_disabled=endings_disabled)
                         typer.echo(f"Game saved to {save_path}")
                         _pause_for_enter(COLORS)
                         console.clear()
@@ -1394,7 +1401,7 @@ def play(
                                 from engine.intelligence import generate_actor_detailed_assessment
                                 intel_lines = generate_actor_detailed_assessment(country_code, world, world.turn)
                                 for line in intel_lines:
-                                    console.print(line)
+                                    console.print(style_intel_line(line))
                             else:
                                 typer.echo("Intelligence system not available.")
 
@@ -1779,7 +1786,7 @@ def play(
         world.discussion_transcript = []
         world.phase = "briefing"
 
-        save_path = save_game(world, transcript, scenario, "autosave", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng, seed=seed)
+        save_path = save_game(world, transcript, scenario, "autosave", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng, seed=seed, endings_disabled=endings_disabled)
 
         typer.echo("")
         console.print(ae.sonar_divider(seed=f"turn-{world.turn - 1}-close"))
