@@ -119,7 +119,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-071 | fixed | high | dispatch | A thinking model's hidden reasoning starves capped replies to empty |
 | ER-072 | fixed | med | context | The advisory transcript window grows to 150k+ chars of paid input |
 | ER-073 | fixed | med | state | Pushback objector names miss the character roster, so the trust cost never lands |
-| ER-074 | open | med | dispatch | Preview-then-commit runs the whole advisory pipeline twice |
+| ER-074 | fixed | med | dispatch | Preview-then-commit runs the whole advisory pipeline twice |
 | ER-075 | invalid | low | context | Withdrawn: the ledger's completeness is by design |
 | ER-076 | fixed | med | context | Binding char windows retired: advisory history is whole-turn scoped, the constant a never-fire tripwire |
 | ER-077 | fixed | med | context | Ledger entries carry consequences: outcome, effects direction, objectors |
@@ -1512,7 +1512,7 @@ Evidence with file:line for every claim is in `2026-08-07-uniformity-audit/`
   titles and unknowns all resolve correctly, -1 lands on the seeded characters.
 
 ## ER-074 — Preview-then-commit runs the whole advisory pipeline twice
-- **Status:** open · **Severity:** med · **Area:** dispatch
+- **Status:** fixed · **Severity:** med · **Area:** dispatch
 - **Observed:** `interpret_decision` (the preview) runs interpretation, pushback and the
   five-advisor omissions scan; `resolve_decision` (the commit) then runs the full three-round
   pipeline again, repeating all of them. The verification run measured it directly: 7 turns of
@@ -1523,6 +1523,20 @@ Evidence with file:line for every claim is in `2026-08-07-uniformity-audit/`
   pattern) and have `run_decision_pipeline` accept them, re-running only rounds that depend on
   state the commit changes. Filed open: it touches the decision pipeline's determinism
   guarantees and deserves its own tested change, not a same-day patch.
+- **Fixed:** As shaped. `interpret_decision` stores the whole preview result on the manager
+  (`_pending_preview`: interpretation, pushback, critical concerns, decision lines, keyed by
+  the exact action text; serialized like `_pending_pushback`, so a session saved between
+  preview and commit does not re-pay after the load); committing the identical text hands it
+  to `run_decision_pipeline`'s new `preview` parameter, which answers round 1's interpretation
+  and round 2's pushback/omissions from it and runs only what depends on post-commit state
+  (actor simulation, quality, reactions, summary). An amended text, or a commit with no
+  preview, still pays the full pipeline, and the ER-013 trust cost fires unchanged. The
+  determinism guarantee holds because the reused tasks KEEP their slots in the round task
+  lists: `run_round` still pre-draws one child seed per task in list order, so the seeds
+  handed to the calls that do run never shift - pinned by test (identical actor/quality/
+  reaction/summary results with and without a preview under the seeded stub). Measured on
+  the same 5-turn mock campaign: interpretation 10 -> 5 calls, pushback 10 -> 5,
+  omissions 50 -> 25, total 108 -> 73, identical transcript.
 
 ## ER-075 — Withdrawn: the event ledger's completeness is by design
 - **Status:** invalid · **Severity:** low · **Area:** context

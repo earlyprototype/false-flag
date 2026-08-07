@@ -51,6 +51,19 @@ _ADDRESS_RE = re.compile(r"^\s*(?:the\s+)?([A-Za-z][A-Za-z '\-]{1,40}?)\s*[,:–
 # title-case test in _detect_unknown_addressee.
 _TITLE_CONNECTIVES = {"of", "the", "for", "and", "to"}
 
+# The FLASH-tier pushback model sometimes leaks game time into the fiction
+# ("we tried this in Turn 2"). The prompt now forbids it
+# (llm.prompts.ADVISOR_VOICE_INSTRUCTIONS), and this display-side belt
+# rewrites any survivor deterministically: "turn N" -> "day N", the
+# in-fiction clock the voice instructions teach ("two days ago").
+_TURN_REFERENCE_RE = re.compile(r"\bturn (\d+)\b", re.IGNORECASE)
+
+
+def _scrub_turn_references(text: str) -> str:
+    """Replace 'turn N' with 'day N' in advisor-voiced display text."""
+    return _TURN_REFERENCE_RE.sub(r"day \1", text)
+
+
 # The cabinet titles the fiction seats around the COBRA table (matches /menu)
 _COBRA_ROSTER = (
     "the National Security Advisor, the Chief of the Defence Staff, the "
@@ -332,11 +345,12 @@ def generate_advisor_pushback(
         return []
 
     # An advisor rendered saying nothing is a parse failure, not pushback:
-    # drop the empty entry and record it.
+    # drop the empty entry and record it. Surviving messages get the
+    # turn-reference scrub — game time never reaches the fiction.
     result = []
     for role, message in pushback_list:
         if message.strip():
-            result.append((role, message))
+            result.append((role, _scrub_turn_references(message)))
         else:
             record_miss("pushback", "empty_message", role)
     return result

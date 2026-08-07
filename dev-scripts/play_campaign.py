@@ -325,7 +325,12 @@ def main():
         decision = DECISIONS[turn % len(DECISIONS)]
         # Preview first, then commit the identical text: interpret_decision
         # arms _pending_pushback, so an unamended commit that drew objections
-        # exercises the ER-013 trust cost live.
+        # exercises the ER-013 trust cost live. Since ER-074 the commit also
+        # REUSES the preview's advisory results, so a preview-then-commit
+        # turn makes ONE interpretation call, ONE pushback call and ONE
+        # omissions batch - not two of each; expect the per-turn call count
+        # (and the decision-family rows in analyse_call_log.py) to reflect
+        # the single run.
         interp = gm.interpret_decision(decision)
         pushback_roles = [p["role"] for p in interp.get("pushback", [])]
         if pushback_roles:

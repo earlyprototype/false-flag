@@ -36,6 +36,9 @@ ADVISOR_VOICE_INSTRUCTIONS = "\n".join([
     "IMPORTANT: You are a real advisor in COBRA during a national crisis.",
     "Speak naturally about intelligence assessments, strategic concerns, and operational realities.",
     "Do NOT reference 'metrics', 'game mechanics', 'scores', or 'values'.",
+    "Never say 'turn N' ('in Turn 2', 'last turn') - turns are game"
+    " mechanics. Refer to time in-fiction: 'two days ago', 'earlier this"
+    " week', 'since the incident began'.",
     "Use professional crisis management language.",
     "Write in British English throughout - British spellings (organise, defence,"
     " programme) and Whitehall usage, never American.",

@@ -103,6 +103,38 @@ def test_multiline_pushback_keeps_continuation_lines():
     assert "no legal basis" in result[1][1]
 
 
+def test_turn_references_are_rewritten_to_in_fiction_days():
+    """The FLASH-tier model sometimes says 'in Turn 2' - game mechanics in
+    the fiction. The prompt forbids it and this display-side belt rewrites
+    any survivor: 'turn N' -> 'day N', case-insensitively, word-bounded."""
+    text = (
+        "Foreign Secretary: We tried a blockade in Turn 2 and it failed; "
+        "TURN 11 taught us the same lesson.\n"
+        "Attorney General: The overturn 3 ruling and Saturn 5 files are "
+        "unaffected, but turn 4's precedent stands."
+    )
+    result = generate_advisor_pushback(
+        make_world(), "blockade again", "Blockade.",
+        INITIAL_CONDITIONS, make_llm(text), Random(42)
+    )
+    fs_message = result[0][1]
+    assert "in day 2" in fs_message
+    assert "day 11" in fs_message
+    assert "Turn 2" not in fs_message and "TURN 11" not in fs_message
+    ag_message = result[1][1]
+    # Word boundary: 'overturn 3' and 'Saturn 5' are not turn references.
+    assert "overturn 3" in ag_message
+    assert "Saturn 5" in ag_message
+    assert "day 4's precedent" in ag_message
+
+
+def test_the_voice_instructions_forbid_turn_references():
+    from llm.prompts import ADVISOR_VOICE_INSTRUCTIONS
+
+    assert "'turn N'" in ADVISOR_VOICE_INSTRUCTIONS
+    assert "two days ago" in ADVISOR_VOICE_INSTRUCTIONS
+
+
 # --- check_critical_omissions ---
 
 def test_markdown_bold_concern_and_recommendation_parse():
