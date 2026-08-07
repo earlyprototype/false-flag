@@ -196,6 +196,25 @@ GOVERNMENT LEADER correctly free - that is the player). Analyzer verdict: all ch
 the open work is design (ER-074 pipeline reuse, whole-turn windowing, ledger resolution), not
 defects.
 
+## Shakedown 4 — ER-074/076/077 verification, 2026-08-07 (final)
+
+6 turns attempted; the OpenRouter account ran out of credits mid-run (HTTP 402 at ~$8.73 total),
+so most replies after the early turns fell back to the mock driver and the analyzer verdict is
+an honest FAIL on fallbacks. What the run still proved structurally (call counts and prompt
+contents are real regardless of who answered):
+
+- **ER-074 live-verified (structure):** exactly ONE interpretation, ONE pushback and ONE
+  omissions batch per preview+commit turn (6/6/30 over 6 turns; was 2x each) - the double
+  pipeline is gone on the live path.
+- **ER-077 live-verified (input side):** ledger consequence lines ("outcome: ...") present in
+  5 of 6 quality prompts (turn 1 has no prior consequences - expected).
+- **ER-076:** prompt scope checks passed (no over-ceiling advisory prompt); reply-side behaviour
+  under long campaigns still owed a funded live run.
+- Parse health: 0 misses even across 47 forced fallbacks - the degradation path held.
+
+Owed when the account is topped up: one clean 6-8 turn run for reply-side ER-076/077 and a
+fallback-free ER-074 confirmation.
+
 ## Order of work
 
 1. Pass-1 fixes: the four auditors' class findings + the F-row invariants + the call-log
