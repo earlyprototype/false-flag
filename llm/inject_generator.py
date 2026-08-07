@@ -11,6 +11,7 @@ from pathlib import Path
 import yaml
 
 from models.world import WorldState
+from llm.parse_health import record_fallback
 from llm.prompts import build_inject_generation_prompt
 from llm.router import generate_text
 from llm.model_config import LLMContext
@@ -78,40 +79,60 @@ def generate_inject(
 
     if not response or not response.strip():
         logger.warning("Inject LLM returned empty response for turn %d", turn_number)
+        record_fallback("inject_generation", f"turn {turn_number} empty reply")
         return None
-    
+
     # Parse YAML from response
     try:
-        # Extract YAML block from markdown code fence if present
+        # Extract YAML block from markdown code fence if present. A fence
+        # the model never closed takes the rest of the reply: find() == -1
+        # used to slice [start:-1] and silently drop the final character.
         if "```yaml" in response:
             yaml_start = response.find("```yaml") + 7
             yaml_end = response.find("```", yaml_start)
+            if yaml_end == -1:
+                yaml_end = len(response)
             yaml_text = response[yaml_start:yaml_end].strip()
         elif "```" in response:
             # Generic code fence
             yaml_start = response.find("```") + 3
             yaml_end = response.find("```", yaml_start)
+            if yaml_end == -1:
+                yaml_end = len(response)
             yaml_text = response[yaml_start:yaml_end].strip()
         else:
             # Assume entire response is YAML
             yaml_text = response.strip()
-        
+
         inject_data = yaml.safe_load(yaml_text)
-        
+
         if not isinstance(inject_data, dict):
             logger.warning("Inject LLM response was not a YAML mapping for turn %d", turn_number)
             logger.debug("Inject response preview: %s", response[:200])
+            record_fallback("inject_generation", f"turn {turn_number} not a mapping")
             return None
-        
+
+        # Minimal schema check: a briefing without a title AND a description
+        # renders as an empty panel downstream - that is a failed generation,
+        # not an inject.
+        if not inject_data.get("title") or not inject_data.get("description"):
+            logger.warning(
+                "Inject LLM mapping missing title/description for turn %d",
+                turn_number)
+            record_fallback("inject_generation",
+                            f"turn {turn_number} missing title/description")
+            return None
+
         # Always stamp a deterministic per-turn id so generated injects
         # (e.g. the mock driver's hardcoded id) never collide across turns
         inject_data["id"] = f"turn_{world.turn:03d}_inject"
-        
+
         return inject_data
-    
+
     except (yaml.YAMLError, ValueError, IndexError) as e:
         # Generation failed, return None
         logger.warning("Failed to parse YAML from inject LLM response for turn %d: %s", turn_number, e)
         logger.debug("Inject response preview: %s", response[:500])
+        record_fallback("inject_generation", f"turn {turn_number} unparseable YAML")
         return None
 

@@ -16,6 +16,14 @@ batch function is supplied as well, the group is fanned out instead.
 from random import Random
 from typing import Any, Callable, List, Optional
 
+from llm.parse_health import record_fallback
+
+
+def _component(context: Any) -> str:
+    """Parse-health component for a group: the LLMContext family value."""
+    value = getattr(context, "value", None)
+    return value if isinstance(value, str) else "fanout"
+
 
 def generate_group(
     prompts: List[str],
@@ -72,6 +80,8 @@ def generate_group(
         if len(results) != len(prompts):
             print(f"[WARN] batch returned {len(results)} responses for "
                   f"{len(prompts)} prompts")
+            for _ in range(max(0, len(prompts) - len(results))):
+                record_fallback(_component(context), "batch slot padded empty")
             results = (results + [""] * len(prompts))[:len(prompts)]
         return results
 
@@ -81,5 +91,7 @@ def generate_group(
             results.append(llm_generate_fn(prompt, rng, **kwargs))
         except Exception as e:
             print(f"[WARN] LLM call failed: {e}")
+            record_fallback(_component(context),
+                            f"sequential call failed: {type(e).__name__}")
             results.append("")
     return results

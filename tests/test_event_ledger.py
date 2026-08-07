@@ -117,6 +117,35 @@ def test_ledger_round_trips_and_old_saves_load_clean():
     assert NarrativeState(**payload).event_ledger == []
 
 
+def test_consequence_fields_round_trip_and_old_saves_load_clean():
+    """ER-077: outcome/effects_direction/objectors survive a save cycle, and
+    a ledger entry written before they existed loads with empty defaults."""
+    ns = _state()
+    ns.record_played_event(5, "Akula surfaced off Orkney")
+    ns.close_event(5, "resolved", "escorted out")
+    ns.record_event_consequences(
+        5, outcome="A measured escort that held the line.",
+        effects_direction={"escalation_risk": "down",
+                           "alliance_cohesion": "up"},
+        objectors=["Chief of the Defence Staff"])
+
+    payload = ns.model_dump()
+    loaded = NarrativeState(**payload).event_ledger[0]
+    assert loaded.outcome == "A measured escort that held the line."
+    assert loaded.effects_direction == {"escalation_risk": "down",
+                                        "alliance_cohesion": "up"}
+    assert loaded.objectors == ["Chief of the Defence Staff"]
+
+    # An entry from a pre-ER-077 save carries none of the fields.
+    old_entry = {"turn": 3, "title": "Cable cut", "disposition": "open",
+                 "note": ""}
+    payload["event_ledger"] = [old_entry]
+    entry = NarrativeState(**payload).event_ledger[0]
+    assert entry.outcome == ""
+    assert entry.effects_direction == {}
+    assert entry.objectors == []
+
+
 # --- disposition inference ---------------------------------------------------
 
 def test_closure_language_resolves_only_the_matching_event():
@@ -184,6 +213,32 @@ def test_dicts_work_as_well_as_played_events():
          "note": "survey vessel tasked"},
     ])
     assert "Turn 3 | Cable cut | ADVANCED - survey vessel tasked" in block
+
+
+def test_ledger_block_renders_consequences_compactly():
+    """ER-077: an adjudicated entry carries one extra indented line with the
+    outcome sentence, the effect directions and the objectors; an entry
+    without them renders exactly as before."""
+    block = render_event_ledger([
+        PlayedEvent(turn=5, title="Akula surfaced off Orkney",
+                    disposition="resolved", note="escorted to Norwegian Sea",
+                    outcome="A firm but measured escort.",
+                    effects_direction={"escalation_risk": "down",
+                                       "domestic_stability": "steady"},
+                    objectors=["Foreign Secretary", "Attorney General"]),
+        PlayedEvent(turn=6, title="Drax substation sabotage",
+                    disposition="open", note="forensics pending"),
+    ])
+    assert ("outcome: A firm but measured escort.; "
+            "effects: risk down, stability steady; "
+            "objectors: Foreign Secretary, Attorney General") in block
+    # The unadjudicated entry stays a single line with nothing under it.
+    lines = block.splitlines()
+    turn6 = next(i for i, l in enumerate(lines) if "Drax substation" in l)
+    assert turn6 == len(lines) - 1
+    # The dict duck-typing survives fields the dict does not carry.
+    assert "Cable cut" in render_event_ledger(
+        [{"turn": 3, "title": "Cable cut", "disposition": "open"}])
 
 
 # --- the prompt --------------------------------------------------------------
@@ -350,7 +405,7 @@ def test_actor_simulation_path_also_records_disposition(monkeypatch):
 
     seen = []
     monkeypatch.setattr(na, "record_event_disposition",
-                        lambda ns, action: seen.append(action))
+                        lambda ns, action, **kwargs: seen.append(action))
     # Keep the rest of the pipeline cheap and offline
     monkeypatch.setattr(na, "identify_relevant_actors", lambda *a, **k: [])
     monkeypatch.setattr(na, "calculate_effects_from_responses", lambda *a, **k: {})
@@ -375,6 +430,62 @@ def test_actor_simulation_path_also_records_disposition(monkeypatch):
 
     assert llm_calls, "quality assessment must reach the LLM path, not the fallback"
     assert seen, "actor path must record the event disposition"
+
+
+def test_adjudication_writes_consequences_and_the_next_quality_prompt_sees_them():
+    """ER-077 end to end: a mock adjudicated turn writes outcome,
+    effects_direction and objectors into the ledger entry, and the next
+    turn's quality-assessment prompt carries them."""
+    from engine.narrative_adjudication import (
+        adjudicate_with_narrative,
+        assess_action_quality,
+    )
+
+    ns = _state(turn=1)
+    ns.record_played_event(1, "Akula submarine surfaces off Orkney")
+
+    def fake_llm(prompt, rng, **kwargs):
+        return ("QUALITY: good\n\n"
+                "REASONING: Escorting the submarine out was firm without "
+                "being escalatory. It also reassured the allies watching.\n\n"
+                "EFFECTS:\n"
+                "escalation_risk: -5\n"
+                "alliance_cohesion: +3\n"
+                "domestic_stability: 0\n\n"
+                "QUALITY MULTIPLIER: 1.5\n")
+
+    adjudicate_with_narrative(
+        ns, "The Royal Navy escorts the Akula submarine out of UK waters.",
+        "interp", Random(1), llm_generate_fn=fake_llm,
+        pushback=[("Foreign Secretary", "This risks a confrontation at sea."),
+                  ("Attorney General", "Check the legal basis first.")])
+
+    entry = ns.event_ledger[0]
+    assert entry.disposition == "resolved"
+    # First sentence of the parsed reasoning, plain text.
+    assert entry.outcome == ("Escorting the submarine out was firm without "
+                             "being escalatory.")
+    # Directions of the APPLIED final effects, never numbers.
+    assert entry.effects_direction == {"escalation_risk": "down",
+                                       "alliance_cohesion": "up",
+                                       "domestic_stability": "steady"}
+    assert entry.objectors == ["Foreign Secretary", "Attorney General"]
+
+    # And the next turn's quality prompt renders them.
+    prompts = []
+
+    def capture_llm(prompt, rng, **kwargs):
+        prompts.append(prompt)
+        return ("QUALITY: adequate\n\nREASONING: Fine.\n\n"
+                "EFFECTS:\nescalation_risk: 0\n")
+
+    assess_action_quality("Hold current posture.", ns, "interp",
+                          capture_llm, None, Random(2))
+    quality_prompt = prompts[0]
+    assert "outcome: Escorting the submarine out was firm" in quality_prompt
+    assert "risk down" in quality_prompt
+    assert "cohesion up" in quality_prompt
+    assert "objectors: Foreign Secretary, Attorney General" in quality_prompt
 
 
 def test_ledger_renders_even_without_a_transcript(monkeypatch):

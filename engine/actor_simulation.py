@@ -4,8 +4,8 @@ import re
 
 from models.state_actors import StateActor, ActorResponse, StateActorSystem
 from llm.model_config import LLMContext
-from llm.parse_health import record_miss
-from llm.parsing import extract_label, find_signed_int, match_enum
+from llm.parse_health import record_miss, record_residue
+from llm.parsing import extract_label, find_signed_int, is_sentinel_line, match_enum
 
 # ISO country codes -> short display names for player-facing summaries.
 # (StateActor.full_name holds the formal name, e.g. "Republic of Poland";
@@ -94,6 +94,7 @@ INTEL_SHARED: [Any intelligence you choose to share, or "none"]
 Be realistic. If you have hidden agendas, let them guide your response.
 If you have dependencies (e.g., Russian gas), they constrain your actions.
 If you have redlines, enforce them.
+Plain text only - no markdown, no asterisks, no bullet markers.
 """
 
 
@@ -174,12 +175,66 @@ def _parse_actor_response(actor_id: str, response_text: str) -> ActorResponse:
     # accumulation the label parses to an empty string and the fallback
     # text silently replaces the actor's real reply (ER-049).
     last_text_field = None
+    # A STRUCTURED label whose value sits on the next line ("CONDITIONS:\n
+    # NATO consultation first") parks the field here; the next non-empty
+    # line resolves it through the same tolerant path the inline value uses.
+    pending_field = None
+    # Non-empty lines the parser neither consumed nor recognised.
+    residue = []
+
+    def apply_trust_change(value: str) -> None:
+        nonlocal trust_change
+        parsed = find_signed_int(value)
+        if parsed is not None:
+            trust_change = max(-20, min(20, parsed))
+        else:
+            record_miss("actor_simulation", "trust_change", actor_id)
+
+    def apply_will_support(value: str) -> None:
+        nonlocal will_support
+        # Exact enum first; then a worded refusal ("absolutely not",
+        # "no, we will not assist") with no unnegated yes reads as no;
+        # then unnegated yes; then the conditional token.
+        verdict = match_enum(value, ("yes", "no", "conditional"),
+                             refusal_value="no")
+        if verdict is not None:
+            will_support = verdict
+        else:
+            record_miss("actor_simulation", "will_support", actor_id)
+
+    def apply_conditions(value: str) -> None:
+        nonlocal conditions
+        # An empty value legitimately means "no conditions" (prompt contract);
+        # the sentinel tolerates quoting and punctuation ('"none"', "None.").
+        if value and not is_sentinel_line(value, "none"):
+            # Split by semicolons or commas if they look like list items
+            conditions = [c.strip() for c in re.split(r'[;,]', value) if c.strip()]
+
+    def apply_intel_shared(value: str) -> None:
+        nonlocal intel_shared
+        if value and not is_sentinel_line(value, "none"):
+            intel_shared = value
+
+    appliers = {
+        "trust_change": apply_trust_change,
+        "will_support": apply_will_support,
+        "conditions": apply_conditions,
+        "intel_shared": apply_intel_shared,
+    }
+
+    def settle_pending(value: str = "") -> None:
+        """Resolve a parked structured field ("" = the field stayed empty)."""
+        nonlocal pending_field
+        if pending_field is not None:
+            appliers[pending_field](value)
+            pending_field = None
 
     for line in lines:
         line = line.strip()
 
         value = extract_label(line, "PUBLIC_RESPONSE")
         if value is not None:
+            settle_pending()
             public_response = value
             any_label = True
             last_text_field = "public"
@@ -187,6 +242,7 @@ def _parse_actor_response(actor_id: str, response_text: str) -> ActorResponse:
 
         value = extract_label(line, "PRIVATE_ASSESSMENT")
         if value is not None:
+            settle_pending()
             private_assessment = value
             any_label = True
             last_text_field = "private"
@@ -194,46 +250,52 @@ def _parse_actor_response(actor_id: str, response_text: str) -> ActorResponse:
 
         value = extract_label(line, "TRUST_CHANGE")
         if value is not None:
+            settle_pending()
             any_label = True
             last_text_field = None
-            parsed = find_signed_int(value)
-            if parsed is not None:
-                trust_change = max(-20, min(20, parsed))
+            if value:
+                apply_trust_change(value)
             else:
-                record_miss("actor_simulation", "trust_change", actor_id)
+                pending_field = "trust_change"
             continue
 
         value = extract_label(line, "WILL_SUPPORT")
         if value is not None:
+            settle_pending()
             any_label = True
             last_text_field = None
             will_support_seen = True
-            # Exact enum first; then a worded refusal ("absolutely not",
-            # "no, we will not assist") with no unnegated yes reads as no;
-            # then unnegated yes; then the conditional token.
-            verdict = match_enum(value, ("yes", "no", "conditional"),
-                                 refusal_value="no")
-            if verdict is not None:
-                will_support = verdict
+            if value:
+                apply_will_support(value)
             else:
-                record_miss("actor_simulation", "will_support", actor_id)
+                pending_field = "will_support"
             continue
 
         value = extract_label(line, "CONDITIONS")
         if value is not None:
+            settle_pending()
             any_label = True
             last_text_field = None
-            if value and value.lower() != "none":
-                # Split by semicolons or commas if they look like list items
-                conditions = [c.strip() for c in re.split(r'[;,]', value) if c.strip()]
+            if value:
+                apply_conditions(value)
+            else:
+                pending_field = "conditions"
             continue
 
         value = extract_label(line, "INTEL_SHARED")
         if value is not None:
+            settle_pending()
             any_label = True
             last_text_field = None
-            if value and value.lower() != "none":
-                intel_shared = value
+            if value:
+                apply_intel_shared(value)
+            else:
+                pending_field = "intel_shared"
+            continue
+
+        # The line after a bare structured label carries that field's value
+        if line and pending_field is not None:
+            settle_pending(line)
             continue
 
         # An unlabeled line continues the last text field, the way the
@@ -244,6 +306,12 @@ def _parse_actor_response(actor_id: str, response_text: str) -> ActorResponse:
         if line and last_text_field == "private":
             private_assessment = (private_assessment + " " + line).strip()
             continue
+        if line:
+            residue.append(line)
+
+    settle_pending()
+    if residue:
+        record_residue("actor_simulation", len(residue), residue[0][:60])
 
     if not any_label:
         record_miss("actor_simulation", "all_fields", actor_id)

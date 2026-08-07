@@ -57,7 +57,10 @@ def save_game(
     narrative_state: Optional[NarrativeState] = None,
     variant: str = "standard",
     initial_metrics: Optional[dict] = None,
-    rng: Optional[Random] = None
+    rng: Optional[Random] = None,
+    seed: Optional[int] = None,
+    ending_id: Optional[str] = None,
+    endings_disabled: bool = False,
 ) -> Path:
     """Save game state and transcript to JSON file.
 
@@ -76,6 +79,15 @@ def save_game(
         rng: Optional campaign generator; when provided its position is
             stored so a resumed game continues the draw sequence instead of
             replaying spent randomness (ER-037)
+        seed: The campaign seed, so a resumed game can report it
+        ending_id: The terminal ending, when the campaign has concluded.
+            Without this the end-of-campaign autosave resumes as a live
+            game - the debrief happens after the autosave is written, so
+            the file used to have no way of knowing the campaign was over.
+        endings_disabled: True when the player chose to keep playing
+            open-ended after a graded ending. Kept as a CLI loop local
+            before ER-070, so a save/resume silently switched the win/lose
+            checks back on. Old saves have no field and default to False.
 
     Returns:
         Path to saved file
@@ -97,7 +109,14 @@ def save_game(
         "variant": variant,
         "initial_metrics": initial_metrics,
         "rng_state": encode_rng_state(rng) if rng is not None else None,
-        "version": "2.3"  # 2.1: adds scenario variant; 2.2: adds initial_metrics; 2.3: adds rng_state
+        "seed": seed,
+        "ending_id": ending_id,
+        "endings_disabled": endings_disabled,
+        # 2.1: adds scenario variant; 2.2: adds initial_metrics;
+        # 2.3: adds rng_state; 2.4: adds seed + ending_id, then
+        # endings_disabled (optional bool; absent in older 2.4 saves and
+        # read back through read_save_field with a False default)
+        "version": "2.4"
     }
 
     save_path.write_text(json.dumps(save_data, indent=2), encoding="utf-8")

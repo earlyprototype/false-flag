@@ -6,10 +6,30 @@ narratives:
     patsy: "NONE"
     stances:
       - country_code: "RUS"
-        secret_motive: "Intimidate NATO into political concessions regarding Arctic shipping lanes and test the UK's resolve, believing the alliance is weak."
-        public_posture: "Conducting legitimate naval exercises in international waters; any hostile action is a fabrication by the West."
+        secret_motive: "Execute Operation Tuman: fracture NATO cohesion and neutralise the UK as the alliance's forward advocate, extracting concessions over Arctic shipping lanes along the way. Test the alliance's resolve, believing it weak."
+        public_posture: "Conducting legitimate naval exercises in international waters; the Severomorsk attack was British state terrorism and any hostile action attributed to Russia is a fabrication by the West."
         economic_leverage: ["Gas supplies to Europe"]
         intel_sharing_level: "Sabotaged"
+      - country_code: "FRA"
+        secret_motive: "Position France as the indispensable mediator: keep the quiet Moscow backchannel open, slow-walk NATO's military options to create space for a French-brokered settlement, and avoid subordination to a US-UK axis."
+        public_posture: "European solidarity with the United Kingdom, paired with insistent calls for restraint and a diplomatic track."
+        economic_leverage: ["EU diplomatic weight"]
+        intel_sharing_level: "Partial"
+      - country_code: "DEU"
+        secret_motive: "Keep the gas flowing and the Bundestag onside: support alliance consensus in words while delaying anything kinetic, and block steps that threaten Russian energy supply."
+        public_posture: "Solidarity with allies, delivered with procedural caution and reminders that proper process must be followed."
+        economic_leverage: ["Energy market weight", "EU economic policy"]
+        intel_sharing_level: "Full"
+      - country_code: "POL"
+        secret_motive: "Prove Russia is the existential threat Warsaw has always said it is: drive NATO towards the hardest collective response and prevent any appeasement, accepting the risk of being called escalatory."
+        public_posture: "Unwavering public support for the United Kingdom and open demands for immediate collective action."
+        economic_leverage: []
+        intel_sharing_level: "Full"
+      - country_code: "UKR"
+        secret_motive: "The crisis vindicates every warning Kyiv has given: press NATO for deeper commitments and materiel while Russian attention is divided, and bind the UK closer as an advocate."
+        public_posture: "Full-throated support for the United Kingdom, with offers of hard-won intelligence on Russian methods."
+        economic_leverage: []
+        intel_sharing_level: "Full"
       - country_code: "USA"
         secret_motive: "Reinforce NATO's strength and commitment, using the crisis to justify increased defense spending and troop presence in Europe."
         public_posture: "Full solidarity with the United Kingdom and a commitment to collective defense under Article 5."
@@ -52,3 +72,23 @@ narratives:
         public_posture: "Expressing deep concern and offering to act as a neutral intermediary for diplomatic talks."
         economic_leverage: []
         intel_sharing_level: "Withheld"
+      - country_code: "FRA"
+        secret_motive: "The Moscow backchannel keeps hinting Russia is being encouraged by a third party. Broker a settlement before NATO overcommits - proving European strategic autonomy - and treat Washington's framing of the crisis with quiet suspicion."
+        public_posture: "Calls for de-escalation and a European-led mediation effort alongside solidarity with London."
+        economic_leverage: ["EU diplomatic weight"]
+        intel_sharing_level: "Partial"
+      - country_code: "DEU"
+        secret_motive: "Exposed to Russian gas AND Chinese trade, Berlin needs this crisis contained: resist any framing that widens it towards China, and keep every option short of confrontation on the table."
+        public_posture: "Procedural solidarity with allies and public warnings against 'speculation' about broader involvement."
+        economic_leverage: ["Energy market weight", "China trade relationship"]
+        intel_sharing_level: "Partial"
+      - country_code: "POL"
+        secret_motive: "See only the Russian threat: dismiss talk of hidden hands as a distraction from hard deterrence and push for immediate reinforcement of NATO's eastern flank."
+        public_posture: "Maximal support for the United Kingdom and open impatience with allied hesitation."
+        economic_leverage: []
+        intel_sharing_level: "Full"
+      - country_code: "UKR"
+        secret_motive: "Recognise the pattern of external sponsorship from Kyiv's own war: quietly pass the UK indicators that point beyond Moscow, without burning sources."
+        public_posture: "Strong support for the United Kingdom, with pointed public hints that Moscow may not be acting alone."
+        economic_leverage: []
+        intel_sharing_level: "Full"

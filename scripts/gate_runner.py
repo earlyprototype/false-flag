@@ -16,29 +16,14 @@ def run_cmd(cmd: list[str]) -> tuple[int, str, str]:
 
 def validate_yaml() -> list[str]:
     errors: list[str] = []
-    # Basic existence checks
+    # Basic existence checks. events.yaml was deleted with ER-069 — the
+    # current loop consumes episode files only (engine/events.py
+    # load_inject_for_turn), so there is nothing left to cross-check here.
     scenario_dir = ROOT / "data" / "scenarios" / "war_game_2025"
     if not (scenario_dir / "initial_conditions.yaml").exists():
         errors.append("Missing initial_conditions.yaml")
-    if not (scenario_dir / "events.yaml").exists():
-        errors.append("Missing events.yaml")
-    # Asset reference check (naive)
-    try:
-        content = (scenario_dir / "events.yaml").read_text(encoding="utf-8")
-        for raw in content.splitlines():
-            line = raw.strip()
-            if line.startswith("image:"):
-                path = line.split(":", 1)[1].strip()
-                # strip quotes if any
-                if (path.startswith('"') and path.endswith('"')) or (path.startswith("'") and path.endswith("'")):
-                    path = path[1:-1]
-                if not path.endswith(".md"):
-                    errors.append(f"Asset must be .md: {path}")
-                p = ROOT / path
-                if not p.exists():
-                    errors.append(f"Missing asset: {path}")
-    except Exception as e:
-        errors.append(f"Unable to read events.yaml: {e}")
+    if not (scenario_dir / "episodes" / "turn_001.yaml").exists():
+        errors.append("Missing episodes/turn_001.yaml")
     return errors
 
 

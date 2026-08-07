@@ -21,8 +21,14 @@ from engine.utils import clamp
 from models.state_actors import StateActorSystem, ActorResponse
 from llm.fanout import generate_group
 from llm.model_config import LLMContext
-from llm.parse_health import record_miss
-from llm.parsing import extract_label, find_float, find_signed_int, strip_decoration
+from llm.parse_health import record_fallback, record_miss, record_residue
+from llm.parsing import (
+    extract_label,
+    find_float,
+    find_signed_int,
+    match_enum,
+    strip_decoration,
+)
 from engine.actor_simulation import (
     simulate_actor_responses,
     calculate_effects_from_responses,
@@ -137,7 +143,49 @@ def _significant_words(text: str) -> set:
             if len(w) > 3 and w not in _STOPWORDS}
 
 
-def record_event_disposition(narrative_state, action: str) -> None:
+def _first_sentence(text: str) -> str:
+    """The first sentence of ``text``, plain, or '' when there is none."""
+    for sentence in _SENTENCE_SPLIT.split((text or "").strip()):
+        if sentence.strip():
+            return sentence.strip()
+    return ""
+
+
+def _effects_direction(final_effects) -> Dict[str, str]:
+    """Applied metric deltas -> {"metric": "up"|"down"|"steady"}."""
+    if not final_effects:
+        return {}
+    return {
+        str(metric): ("up" if delta > 0 else "down" if delta < 0 else "steady")
+        for metric, delta in final_effects.items()
+    }
+
+
+def _objector_roles(pushback) -> List[str]:
+    """Role names out of a pushback list, whatever shape a caller holds it in.
+
+    The engine passes (role, message) tuples; GameManager keeps dicts with a
+    "role" key; anything else is stringified. Order preserved, blanks
+    dropped.
+    """
+    roles = []
+    for item in pushback or []:
+        if isinstance(item, dict):
+            role = item.get("role", "")
+        elif isinstance(item, (tuple, list)) and item:
+            role = item[0]
+        else:
+            role = item
+        role = str(role).strip()
+        if role:
+            roles.append(role)
+    return roles
+
+
+def record_event_disposition(narrative_state, action: str,
+                             quality_assessment: Optional[Dict[str, Any]] = None,
+                             final_effects: Optional[Dict[str, int]] = None,
+                             pushback=None) -> None:
     """Set how the event under adjudication was left by ``action``.
 
     Closes the *most recently staged* entry rather than looking one up by
@@ -149,6 +197,16 @@ def record_event_disposition(narrative_state, action: str) -> None:
     Must be called from every adjudication path - actor-enabled campaigns
     route through ``adjudicate_with_actor_simulation``, so recording in the
     narrative path alone left the ledger permanently open in real play.
+
+    The optional arguments carry the turn's structured consequences into
+    the ledger entry (ER-077), whatever disposition it ends up with:
+
+    - ``quality_assessment``: the parsed assessment dict; its reasoning's
+      first sentence becomes the entry's one-line ``outcome``.
+    - ``final_effects``: the APPLIED metric deltas; recorded as direction
+      words ("up"/"down"/"steady"), never numbers.
+    - ``pushback``: this turn's advisor pushback; the objecting role names
+      are recorded.
     """
     try:
         ledger = getattr(narrative_state, "event_ledger", None)
@@ -159,6 +217,11 @@ def record_event_disposition(narrative_state, action: str) -> None:
         if disposition != "open":
             narrative_state.close_event(
                 current.turn, disposition, _truncate_decision(action, 90))
+        narrative_state.record_event_consequences(
+            current.turn,
+            outcome=_first_sentence((quality_assessment or {}).get("reasoning", "")),
+            effects_direction=_effects_direction(final_effects),
+            objectors=_objector_roles(pushback))
     except Exception:  # pragma: no cover - bookkeeping must never break a turn
         logger.debug("Could not set event disposition", exc_info=True)
 
@@ -254,6 +317,7 @@ CRITICAL - REASONING is displayed to the player word for word:
 - Never name the crisis protagonist, patsy, or true author of events
 - Never state attribution as settled fact the player has not established
 - Argue only from evidence visible in the game world
+- Write it in British English, plain text only - no markdown, no asterisks
 
 Respond in this exact format:
 
@@ -367,6 +431,64 @@ def _parse_quality_response(response: str, world_narrative=None) -> Dict[str, An
     # below only fills in when the model gave no multiplier at all.
     multiplier = None
     last_field = None
+    # A structured label whose value sits on the next line ("QUALITY:\npoor")
+    # parks the field here; the next non-empty line resolves it through the
+    # same tolerant path the inline value uses.
+    pending = None  # ("multiplier",) | ("quality",) | ("metric", name)
+    # Non-empty lines the parser neither consumed nor recognised.
+    residue = []
+
+    def apply_multiplier(value: str) -> None:
+        nonlocal multiplier
+        parsed = find_float(value)
+        if parsed is not None:
+            multiplier = max(0.5, min(2.5, parsed))
+        else:
+            record_miss("quality_assessment", "multiplier", value)
+
+    def apply_quality(value: str) -> None:
+        nonlocal quality
+        # match_enum tolerates decoration and annotation: "**Poor**" and
+        # "Poor - hasty and escalatory" both resolve to poor.
+        verdict = match_enum(
+            value, ("exceptional", "good", "adequate", "poor", "catastrophic"))
+        if verdict is not None:
+            quality = verdict
+        else:
+            record_miss("quality_assessment", "quality", value)
+
+    def apply_metric(metric: str, value: str) -> None:
+        parsed = find_signed_int(value)
+        if parsed is not None:
+            effects[metric] = parsed
+        else:
+            record_miss("quality_assessment", metric, value.strip())
+
+    def settle_pending(value: str = "") -> None:
+        """Resolve a parked field ("" = the value line never arrived)."""
+        nonlocal pending
+        if pending is None:
+            return
+        parked, pending = pending, None
+        if parked[0] == "multiplier":
+            apply_multiplier(value)
+        elif parked[0] == "quality":
+            apply_quality(value)
+        else:
+            apply_metric(parked[1], value)
+
+    def match_metric_line(text):
+        """(metric, remainder) when the pre-colon token IS one of the three
+        requested metrics (modulo decoration and space/hyphen for
+        underscore), else None - a REASONING continuation like
+        "escalation: rising" must not move a metric."""
+        if ":" not in text:
+            return None
+        prefix, remainder = text.split(":", 1)
+        metric = strip_decoration(prefix).lower().replace(" ", "_").replace("-", "_")
+        if metric in ("escalation_risk", "alliance_cohesion", "domestic_stability"):
+            return metric, remainder.strip()
+        return None
 
     for line in lines:
         line = line.strip()
@@ -377,53 +499,76 @@ def _parse_quality_response(response: str, world_narrative=None) -> Dict[str, An
         # shadow the longer one.
         value = extract_label(line, "QUALITY MULTIPLIER")
         if value is not None:
-            parsed = find_float(value)
-            if parsed is not None:
-                multiplier = max(0.5, min(2.5, parsed))
-            else:
-                record_miss("quality_assessment", "multiplier", value)
+            settle_pending()
             last_field = None
+            if value:
+                apply_multiplier(value)
+            else:
+                pending = ("multiplier",)
             continue
 
         value = extract_label(line, "QUALITY")
         if value is not None:
-            quality_str = strip_decoration(value).lower()
-            if quality_str in ["exceptional", "good", "adequate", "poor", "catastrophic"]:
-                quality = quality_str
-            else:
-                record_miss("quality_assessment", "quality", value)
+            settle_pending()
             last_field = None
+            if value:
+                apply_quality(value)
+            else:
+                pending = ("quality",)
             continue
 
         value = extract_label(line, "REASONING")
         if value is not None:
+            settle_pending()
             reasoning = value
             last_field = "reasoning"
             continue
 
-        if extract_label(line, "EFFECTS") is not None or strip_decoration(line).upper() == "EFFECTS":
+        value = extract_label(line, "EFFECTS")
+        if value is not None or strip_decoration(line).upper() == "EFFECTS":
+            settle_pending()
             last_field = None
+            # An inline delta on the header line ("EFFECTS: escalation_risk:
+            # -5") is a value, not decoration - feed it through the metric
+            # path instead of discarding it with the header.
+            if value:
+                hit = match_metric_line(value)
+                if hit is not None:
+                    metric, remainder = hit
+                    if remainder:
+                        apply_metric(metric, remainder)
+                    else:
+                        pending = ("metric", metric)
+                else:
+                    residue.append(value)
             continue
 
-        # A delta line only counts when the pre-colon token IS one of the
-        # three requested metrics (modulo decoration and space/hyphen for
-        # underscore) - a REASONING continuation like "escalation: rising"
-        # must not move a metric.
-        if ":" in line:
-            prefix, remainder = line.split(":", 1)
-            metric = strip_decoration(prefix).lower().replace(" ", "_").replace("-", "_")
-            if metric in ("escalation_risk", "alliance_cohesion", "domestic_stability"):
-                value = find_signed_int(remainder)
-                if value is not None:
-                    effects[metric] = value
-                else:
-                    record_miss("quality_assessment", metric, remainder.strip())
-                last_field = None
-                continue
+        hit = match_metric_line(line)
+        if hit is not None:
+            settle_pending()
+            last_field = None
+            metric, remainder = hit
+            if remainder:
+                apply_metric(metric, remainder)
+            else:
+                pending = ("metric", metric)
+            continue
+
+        # The line after a bare structured label carries that field's value
+        if pending is not None:
+            settle_pending(line)
+            continue
 
         # Wrapped continuation of the REASONING paragraph
         if last_field == "reasoning":
             reasoning = f"{reasoning} {line}".strip()
+            continue
+
+        residue.append(line)
+
+    settle_pending()
+    if residue:
+        record_residue("quality_assessment", len(residue), residue[0][:60])
 
     if quality is None:
         quality = "adequate"
@@ -602,7 +747,10 @@ def generate_character_responses(
         # not produce this: a failed call raised and the caller substituted
         # the fallback. actor_simulation guards the same marker.
         if cleaned.startswith("[ERROR:"):
+            record_fallback("character_response", f"{char.name} error slot")
             cleaned = ""
+        elif not cleaned:
+            record_fallback("character_response", f"{char.name} empty reply")
         # Same fallback the single-call path used when a response was refused
         responses.append((char.name, cleaned or f"[{char.name}] Understood, Prime Minister."))
     return responses
@@ -634,11 +782,13 @@ def _select_responding_characters(
     return responders[:4]
 
 
-# Character reactions are two or three sentences; the cap is what stops a
-# model that cannot be told to stop from spending its whole budget thinking
-# and returning nothing. Named here because the batch path has to pass it
-# explicitly, and a silently dropped cap is an empty advisor line.
-CHARACTER_RESPONSE_MAX_TOKENS = 150
+# Character reactions are two or three sentences - the PROMPT sets the
+# length; this cap is only a backstop, sized ~3x the honest answer so it
+# never shapes content. Any hit is recorded as a parse-health truncation,
+# so a firing backstop is a visible prompt problem, not a silent edit.
+# (Thinking models spending their budget on hidden reasoning are handled
+# at the driver - OPENAI_COMPAT_REASONING - not by inflating this.)
+CHARACTER_RESPONSE_MAX_TOKENS = 300
 
 
 def build_character_response_prompt(
@@ -674,6 +824,7 @@ Your current stance: {character.stance_summary}
 Respond to the PM's action with a tone that is {tone}.
 
 Keep your response to 2-3 sentences, in character, as if speaking directly to the Prime Minister in a COBRA briefing.
+Write in British English, plain text only - no markdown, no asterisks, no bullet markers.
 
 Response:"""
 
@@ -777,7 +928,8 @@ Summarise the current situation as a running synopsis of the campaign, in
 4-6 sentences for the Prime Minister's daily brief. Fold the previous summary
 and this turn together: cover what has happened so far, the player's major
 decisions, and the current diplomatic posture. Write in plain, serious
-prose - no headings, no numbers, no bullet points.
+prose in British English - no headings, no numbers, no bullet points, no
+markdown emphasis of any kind.
 
 Fidelity rules, which outrank brevity: keep every event distinct, with the
 place and the attribution the inputs give it - never merge two events or
@@ -786,18 +938,27 @@ inputs do not state who did something, say it is unattributed rather than
 inferring. State accusations as accusations, naming who accuses whom of
 what.
 
+Compression rules, which outrank completeness: at most SIX sentences, each
+ending in a full stop. Events from earlier turns compress to a clause; only
+the most recent turn gets a full sentence of detail. Synthesise - do not
+recite the event list. Finish the final sentence; never stop mid-thought.
+
 Summary:"""
     try:
         summary = llm_generate_fn(
-            prompt, rng, max_tokens=250,
+            prompt, rng, max_tokens=400,
             context=LLMContext.SITUATION_SUMMARY).strip().strip('"')
         if summary:
             return summary
+        # An empty reply means the caller substitutes the deterministic
+        # fallback synopsis; that substitution must show in parse health.
+        record_fallback("situation_summary", "empty reply")
     except Exception:
         logger.debug(
             "LLM situation summary failed; using deterministic fallback",
             exc_info=True,
         )
+        record_fallback("situation_summary", "exception")
     return None
 
 
@@ -915,11 +1076,12 @@ def adjudicate_with_narrative(
     rng: Random,
     llm_generate_fn = None,
     world_narrative = None,
-    llm_batch_fn = None
+    llm_batch_fn = None,
+    pushback = None
 ) -> Tuple[Dict[str, int], List[Tuple[str, str]], str]:
     """
     Complete narrative-driven adjudication pipeline.
-    
+
     Args:
         narrative_state: Current narrative state (modified in place)
         action: Player action text
@@ -930,6 +1092,9 @@ def adjudicate_with_narrative(
         llm_batch_fn: Optional batch generator, forwarded to
             generate_character_responses so the advisor reactions go out
             as one group.
+        pushback: Optional advisor pushback raised against this decision
+            ((role, message) tuples or dicts); the objecting roles are
+            written into the ledger entry's consequences (ER-077).
 
     Returns:
         (final_effects, character_responses, quality_reasoning)
@@ -958,8 +1123,12 @@ def adjudicate_with_narrative(
             updated = clamp(current + delta)
             setattr(narrative_state.hidden_metrics, metric, updated)
     
-    # 3b. Record how this turn's event was left (issue #25)
-    record_event_disposition(narrative_state, action)
+    # 3b. Record how this turn's event was left (issue #25), and what it
+    # cost: outcome sentence, effect directions, objectors (ER-077).
+    record_event_disposition(narrative_state, action,
+                             quality_assessment=quality_assessment,
+                             final_effects=final_effects,
+                             pushback=pushback)
 
     # 4+7. Character reactions ∥ situation-summary fold: round 3 of the
     # decision pipeline (ER-023). Both read the applied outcome and neither
@@ -993,7 +1162,8 @@ def adjudicate_with_actor_simulation(
     rng: Random,
     llm_generate_fn,
     world_narrative = None,
-    llm_batch_fn = None
+    llm_batch_fn = None,
+    pushback = None
 ) -> Tuple[Dict[str, int], List[ActorResponse], List[Tuple[str, str]], str]:
     """
     Enhanced adjudication with multi-agent actor simulation.
@@ -1017,6 +1187,9 @@ def adjudicate_with_actor_simulation(
         world_narrative: Optional NarrativeConfig for secret truth context
         llm_batch_fn: Optional batch generator, forwarded to both
             simulate_actor_responses and generate_character_responses.
+        pushback: Optional advisor pushback raised against this decision;
+            the objecting roles are written into the ledger entry's
+            consequences (ER-077).
 
     Returns:
         (final_effects, actor_responses, character_responses, reasoning),
@@ -1049,10 +1222,6 @@ def adjudicate_with_actor_simulation(
     # 4. Also run quality assessment for player skill
     quality_assessment = assess_action_quality(action, narrative_state, interpretation, llm_generate_fn, world_narrative, rng)
 
-    # Record how this turn's event was left. Actor-enabled campaigns route
-    # here rather than through adjudicate_with_narrative, so this path needs
-    # the same bookkeeping or the ledger never closes (issue #25).
-    record_event_disposition(narrative_state, action)
     # Here - unlike adjudicate_with_narrative - the base is the keyword
     # heuristic and the assessment's suggested_effects are a separate second
     # opinion, so apply_quality_scaling's merge of the two is the point of
@@ -1076,7 +1245,18 @@ def adjudicate_with_actor_simulation(
             current = getattr(narrative_state.hidden_metrics, metric)
             updated = clamp(current + delta)
             setattr(narrative_state.hidden_metrics, metric, updated)
-    
+
+    # 6b. Record how this turn's event was left, and its consequences.
+    # Actor-enabled campaigns route here rather than through
+    # adjudicate_with_narrative, so this path needs the same bookkeeping or
+    # the ledger never closes (issue #25). Recorded AFTER the actor/quality
+    # blend so effects_direction reflects the deltas actually applied
+    # (ER-077).
+    record_event_disposition(narrative_state, action,
+                             quality_assessment=quality_assessment,
+                             final_effects=final_effects,
+                             pushback=pushback)
+
     # 7+11. Character reactions ∥ situation-summary fold: round 3 of the
     # decision pipeline (ER-023). The fold's text is assigned only after
     # the round joins (and after the crisis check) - see

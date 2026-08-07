@@ -382,7 +382,9 @@ def test_batch_fallback_forwards_max_tokens_to_kwargs_driver(monkeypatch):
                                          show_spinner=False, max_tokens=150)
 
     assert results == ["response to a", "response to b"]
-    assert driver.calls == [{"max_tokens": 150}, {"max_tokens": 150}]
+    assert [c.get("max_tokens") for c in driver.calls] == [150, 150]
+    # A **kwargs driver is also handed the metadata out-param
+    assert all(isinstance(c.get("meta_out"), dict) for c in driver.calls)
 
 
 def test_batch_fallback_calls_bare_without_max_tokens(monkeypatch):
@@ -392,7 +394,8 @@ def test_batch_fallback_calls_bare_without_max_tokens(monkeypatch):
 
     router.batch_generate_text(["a"], Random(1), show_spinner=False)
 
-    assert driver.calls == [{}]
+    assert len(driver.calls) == 1
+    assert "max_tokens" not in driver.calls[0]
 
 
 def test_generate_text_forwards_all_options_to_kwargs_driver(monkeypatch):
@@ -404,8 +407,12 @@ def test_generate_text_forwards_all_options_to_kwargs_driver(monkeypatch):
                          system_instruction="sys", temperature=0.3,
                          max_tokens=400)
 
-    assert driver.calls == [{"system_instruction": "sys", "temperature": 0.3,
-                             "max_tokens": 400}]
+    assert len(driver.calls) == 1
+    call = driver.calls[0]
+    assert call["system_instruction"] == "sys"
+    assert call["temperature"] == 0.3
+    assert call["max_tokens"] == 400
+    assert isinstance(call.get("meta_out"), dict)
 
 
 def test_mock_and_offline_drivers_accept_and_ignore_options():

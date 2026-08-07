@@ -225,21 +225,60 @@ def test_a_history_within_budget_is_sent_whole():
         assert line in block
 
 
-def test_the_budget_is_large_enough_to_be_worth_caching():
-    """~60K tokens of history, well inside a 128K window once the role text lands."""
-    assert MAX_ADVISOR_TRANSCRIPT_CHARS >= 200_000
+def test_the_budget_holds_recent_turns_without_buying_raw_history():
+    """The window's job is recent verbatim exchanges - several turns' worth -
+    not campaign history, which travels in the synopsis and event ledger.
+    The first live shakedown measured the old 320k allowance letting the
+    advisory prompts grow past 150k chars of paid input by turn 10 (ER-072).
+    The constant is a never-fire tripwire now (ER-076), not a guillotine,
+    but its magnitude still matters: big enough that whole-turn dropping is
+    rare, small enough that the drop actually happens on a long campaign."""
+    assert 40_000 <= MAX_ADVISOR_TRANSCRIPT_CHARS <= 100_000
 
 
-def test_the_budget_is_a_bound_whatever_shape_the_transcript_is():
-    """Found by property check: the head could swallow an unbounded preamble.
+def _split_block(block, transcript):
+    """Decompose a rendered block into (head_lines, tail_lines, elided_n).
 
-    The opening was taken one whole turn at a time but the *first* turn was
-    taken unconditionally, so a transcript whose first TURN header sits a
-    long way in pulled all of that preamble into the head regardless of
-    budget - 10,410 characters past the cap on the worst case generated
-    below. Only the fixed header and elision marker may exceed it.
+    elided_n is None when no elision marker is present. Fails the test if
+    the block's content lines are anything other than a verbatim contiguous
+    head of the transcript plus a verbatim contiguous tail - i.e. if any
+    line was cut or rewritten rather than a whole span dropped.
+    """
+    import re as _re
+    lines = block.split("\n")
+    assert lines[0] == "=" * 60 and lines[2] == "=" * 60
+    content = lines[3:]
+    marker_idx = [i for i, l in enumerate(content)
+                  if _re.match(r"^\[\.\.\. \d+ lines of mid-campaign history "
+                               r"elided for length \.\.\.\]$", l)]
+    if not marker_idx:
+        assert content == transcript, "content altered without any marker"
+        return content, [], None
+    assert len(marker_idx) == 1
+    i = marker_idx[0]
+    head, tail = content[:i], content[i + 1:]
+    elided = int(_re.findall(r"\d+", content[i])[0])
+    assert head == transcript[:len(head)], "head is not a verbatim prefix"
+    assert tail == transcript[len(transcript) - len(tail):], \
+        "tail is not a verbatim suffix"
+    assert elided == len(transcript) - len(head) - len(tail)
+    return head, tail, elided
+
+
+def test_elision_lands_on_turn_boundaries_and_the_tripwire_never_cuts():
+    """The design invariant (ER-076), property-checked over random shapes.
+
+    Whatever the transcript looks like, the rendered window is a verbatim
+    contiguous head plus a verbatim contiguous tail - whole spans drop,
+    lines never get cut or trimmed. The tail always starts on a turn
+    boundary and carries at least the last 2 whole turns. When even that
+    minimum exceeds the budget the content still travels whole and the
+    tripwire records the breach - the budget is never enforced by cutting.
     """
     import random
+
+    from llm import parse_health
+    from llm.context_builder import _turn_boundaries
 
     overhead_allowance = 400
     rng = random.Random(0)
@@ -250,17 +289,69 @@ def test_the_budget_is_a_bound_whatever_shape_the_transcript_is():
                 transcript += ["=" * 60, f"TURN {len(transcript) // 10 + 1}", "=" * 60]
             transcript.append("x" * rng.randint(0, 500))
         budget = rng.choice([500, 2000, 10_000, 50_000])
+
+        parse_health.reset()
         block = render_transcript_block(transcript, max_chars=budget)
-        assert len(block) <= budget + overhead_allowance, (
-            f"{len(block)} chars rendered against a {budget} budget")
+        head, tail, elided = _split_block(block, transcript)
+        tripped = parse_health.snapshot()["misses"].get(
+            "context_window.tripwire", 0)
+
+        if len(block) > budget + overhead_allowance:
+            # Over budget is legal in exactly one case: the tripwire fired
+            # because nothing more could drop at a turn boundary.
+            assert tripped, (f"{len(block)} chars against a {budget} budget "
+                             "with no tripwire recorded")
+        if elided is not None:
+            boundaries = _turn_boundaries(transcript)
+            tail_start = len(transcript) - len(tail)
+            assert tail_start in boundaries, "tail does not start on a turn boundary"
+            if len(boundaries) >= 2:
+                assert tail_start <= boundaries[-2], \
+                    "fewer than 2 whole recent turns survived"
+    parse_health.reset()
+
+
+def test_the_minimum_window_survives_the_tripwire_intact():
+    """Two enormous recent turns blow the budget; both must arrive whole.
+
+    This is the point of ER-076: detection of a cut does not help anyone -
+    the cut must not happen. The tripwire records the breach instead.
+    """
+    from llm import parse_health
+
+    fat_turn = lambda n: ["=" * 60, f"TURN {n}", "=" * 60] + ["Y" * 3000] * 5
+    transcript = []
+    for n in range(1, 7):
+        transcript += fat_turn(n)
+
+    parse_health.reset()
+    block = render_transcript_block(transcript, max_chars=20_000)
+    lines = block.split("\n")
+    # The last two turns are each ~15k chars against a 20k budget, so the
+    # assembled minimum exceeds it - and every line of both still arrives.
+    for n in (5, 6):
+        assert f"TURN {n}" in lines
+    assert lines.count("Y" * 3000) >= 10, "a mandatory turn's content was cut"
+    assert not any(0 < len(l) < 3000 and set(l) == {"Y"} for l in lines), \
+        "a line was trimmed rather than kept whole"
+    assert parse_health.snapshot()["misses"].get("context_window.tripwire"), \
+        "an over-budget minimum window must record the tripwire"
+    parse_health.reset()
 
 
 def test_a_transcript_with_no_turn_headers_still_renders():
-    """Synthetic transcripts in tests have no TURN N lines to cut on."""
-    block = render_transcript_block(["line " + "x" * 200 for _ in range(500)],
-                                    max_chars=5000)
-    assert "elided" in block
-    assert len(block) < 12_000
+    """No TURN N lines means no boundary to drop whole turns at. The old
+    code fell back to a character tail - a mid-content cut. Now the content
+    travels whole and the tripwire records the breach instead."""
+    from llm import parse_health
+
+    transcript = ["line " + "x" * 200 for _ in range(500)]
+    parse_health.reset()
+    block = render_transcript_block(transcript, max_chars=5000)
+    for line in transcript:
+        assert line in block, "content was cut to satisfy the constant"
+    assert parse_health.snapshot()["misses"].get("context_window.tripwire") == 1
+    parse_health.reset()
 
 
 # --- the dossier says each thing once (ER-009) ------------------------------

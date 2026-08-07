@@ -22,13 +22,27 @@ from models.world import WorldState
 # on-role for every advisor-voiced prompt and on-role ONLY there: the
 # diplomatic outcome assessor must answer with a number, so it takes
 # _state_bands without these (ER-027).
+# Every front end shows model text somewhere that renders no markdown (the
+# browser build renders ANSI only; the terminal echoes briefings raw), so
+# plain text is the house style for ALL player-facing output. Stray
+# formatting is tolerated by the parsers; this rule stops it at the source.
+PLAIN_TEXT_RULE = (
+    "Write in plain text only - no markdown: no asterisks or **bold**, no "
+    "# headings, no bullet markers, no numbered lists. Prose and labelled "
+    "lines only."
+)
+
 ADVISOR_VOICE_INSTRUCTIONS = "\n".join([
     "IMPORTANT: You are a real advisor in COBRA during a national crisis.",
     "Speak naturally about intelligence assessments, strategic concerns, and operational realities.",
     "Do NOT reference 'metrics', 'game mechanics', 'scores', or 'values'.",
+    "Never say 'turn N' ('in Turn 2', 'last turn') - turns are game"
+    " mechanics. Refer to time in-fiction: 'two days ago', 'earlier this"
+    " week', 'since the incident began'.",
     "Use professional crisis management language.",
     "Write in British English throughout - British spellings (organise, defence,"
     " programme) and Whitehall usage, never American.",
+    PLAIN_TEXT_RULE,
 ])
 
 
@@ -85,7 +99,7 @@ def _intel_flags(world: WorldState) -> str:
     return ""
 
 
-def build_world_state_summary(world: WorldState) -> str:
+def build_world_state_summary(world: WorldState, advisor_voice: bool = True) -> str:
     """Build a narrative summary of current world state for LLM context.
 
     Translates game metrics into narrative descriptions to maintain immersion.
@@ -93,6 +107,9 @@ def build_world_state_summary(world: WorldState) -> str:
 
     Args:
         world: Current world state
+        advisor_voice: Append ADVISOR_VOICE_INSTRUCTIONS. Right for every
+            advisor-voiced prompt; wrong for prompts with their own identity
+            (the narrator is not "a real advisor in COBRA")
 
     Returns:
         Formatted string summarizing situation in narrative terms
@@ -104,8 +121,9 @@ def build_world_state_summary(world: WorldState) -> str:
         lines.append("")
         lines.append(flags_line)
 
-    lines.append("")
-    lines.append(ADVISOR_VOICE_INSTRUCTIONS)
+    if advisor_voice:
+        lines.append("")
+        lines.append(ADVISOR_VOICE_INSTRUCTIONS)
 
     return "\n".join(lines)
 
@@ -193,11 +211,7 @@ Respond in character as the {role}. Be concise, professional, and focus on your 
 Reference past decisions, warnings, or outcomes from the conversation history when relevant.
 If the question is outside your knowledge domain, acknowledge this and suggest who might better answer it.
 
-**FORMATTING INSTRUCTIONS:**
-- Use **bold** for key terms, critical warnings, or numbers.
-- Use *italics* for emphasis or tone.
-- Use bullet points for lists of options or factors.
-- Keep paragraphs short for readability.
+Keep paragraphs short for readability.
 
 Your response:"""
     
@@ -269,8 +283,6 @@ RESOURCES CONSUMED: [list or "None"]
 TIMELINE: [immediate/short/medium/long]
 FEASIBILITY: [feasible/requires clarification/impossible because...]
 
-Use **bold** for emphasis and bullet points where appropriate.
-
 Your interpretation:"""
     
     return prompt
@@ -331,8 +343,6 @@ Format:
 OR
 
 NO PUSHBACK
-
-Use **bold** to highlight specific risks (e.g. **Escalation Risk**, **Legal Violation**).
 
 Your response:"""
     
@@ -489,7 +499,8 @@ Generate a plausible next event that:
 3. Challenges the UK player with new information or threats
 4. Is consistent with the current world state and conversation history
 5. Responds logically to the player's recent actions (e.g., if they invoked Article 4, Russia might test NATO resolve further)
-6. Subtly advances the hidden narrative (e.g., if China is manipulating Russia, show subtle signs of Chinese involvement){continuity_rule}
+6. Subtly advances the hidden narrative (e.g., if China is manipulating Russia, show subtle signs of Chinese involvement)
+7. Is written as a UK intelligence product: British English throughout, plain prose only - no markdown headings, no **bold**, no bullet markers{continuity_rule}
 
 Format your inject as YAML:
 ```yaml
@@ -656,8 +667,10 @@ THE PLAYER'S LAST DECISION:
 {last_decision}
 """
 
-    # Use the narrative context builder if available
-    world_summary = build_world_state_summary(world)
+    # State bands without the advisor identity block: this prompt's own
+    # identity is "You are the Narrator", and telling the same model it is
+    # also "a real advisor in COBRA" was two incompatible personas at once.
+    world_summary = build_world_state_summary(world, advisor_voice=False)
 
     # Extract recent context (last ~20 lines). Element count alone does not
     # bound this — one element can be a full unwrapped paragraph — so the
@@ -688,7 +701,7 @@ Write a 2-3 sentence atmospheric bridge that transitions from the recent events/
 - Build tension before the next inject is revealed.
 - DO NOT reveal the inject content itself, just set the stage for it.
 
-Format: Just the narrative text. No "Here is the text:" or quotes.
+Format: Just the narrative text. No "Here is the text:" or quotes. Plain text only - no markdown. Write in British English.
 
 Example 1:
 "Three hours after your controversial phone call to Moscow, the Cabinet Secretary enters Downing Street with urgent intelligence. The room falls silent."

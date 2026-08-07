@@ -8,6 +8,8 @@ diplomatic encounter. POST /game/{session_id}/briefing closes that gap with
 the same payload shape /game/new returns.
 """
 
+import asyncio
+import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -55,7 +57,9 @@ def test_new_game_then_decide_then_next_turn_briefing(client):
     created = _new_game(client)
     session_id = created["session_id"]
     assert created["turn"] == 1
-    assert created["phase"] == "briefing"
+    # The briefing has been delivered in this response, so the phase has
+    # already moved on - a save taken now must resume as a replay (F2).
+    assert created["phase"] == "discussion"
 
     # Acknowledge the briefing and commit a decision; the turn advances.
     ack = client.post(f"/game/{session_id}/briefing/ack")
@@ -80,7 +84,7 @@ def test_new_game_then_decide_then_next_turn_briefing(client):
     assert set(created.keys()) == set(payload.keys())
     assert payload["session_id"] == session_id
     assert payload["turn"] == 2
-    assert payload["phase"] == "briefing"
+    assert payload["phase"] == "discussion"
     assert "escalation_risk" in payload["metrics"]
     # Turn 2 is scripted and has no mandatory call.
     assert payload["pending_encounter"] is None
@@ -120,3 +124,152 @@ def test_briefing_refused_while_mandatory_call_is_live(client):
         "action_text": "Proceed regardless.",
     })
     assert decided.status_code == 409
+
+
+# --- Scene-setting probe -------------------------------------------------
+
+def _drain_events(session):
+    """Pop everything push_event queued during the request, decoded.
+
+    push_event stores {"event": <SSE event name>, "data": <json string>};
+    the tests care about the decoded data payloads, in push order.
+    """
+    events = []
+    while True:
+        try:
+            raw = session.event_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+        events.append({"event": raw["event"], "data": json.loads(raw["data"])})
+    return events
+
+
+def test_new_game_opens_with_scene_setting_before_the_inject(client):
+    """POST /game/new plays the cold open before the first briefing.
+
+    The engine authored the opening beats (engine/opening.py) precisely so
+    no front end starts a player on a bare inject; the HTTP path was the
+    one consumer that never adopted them. The scenes must arrive on the
+    event queue before the inject, carry real intro text, and carry it as
+    plain text - GameManager.get_opening_scenes strips the Rich console
+    markup that only the terminal CLI can render.
+    """
+    from api import server
+
+    created = _new_game(client)
+    session = server.sessions[created["session_id"]]
+
+    events = _drain_events(session)
+    transcript = [e["data"] for e in events if e["event"] == "transcript"]
+    types = [d["type"] for d in transcript]
+
+    assert "scene" in types, "no scene-setting events reached the queue"
+    assert "inject" in types, "the turn-1 briefing never reached the queue"
+
+    # Every beat of the cold open plays out before the situation report.
+    last_scene = max(i for i, t in enumerate(types) if t == "scene")
+    first_inject = min(i for i, t in enumerate(types) if t == "inject")
+    assert last_scene < first_inject, (
+        "a scene event arrived after the inject - the cold open must "
+        "finish before the briefing starts"
+    )
+
+    scenes = [d for d in transcript if d["type"] == "scene"]
+    for scene in scenes:
+        assert scene["content"].strip(), "scene event with empty body"
+        for token in ("[cyan", "[/", "[bold"):
+            assert token not in scene["content"], (
+                f"Rich markup {token!r} leaked into scene content"
+            )
+            assert token not in (scene.get("title") or ""), (
+                f"Rich markup {token!r} leaked into a scene title"
+            )
+
+
+# --- Restored-session readability ---------------------------------------
+
+def test_load_returns_the_transcript_of_the_played_session(client, tmp_path):
+    """POST /game/load hands back a readable session, not just metrics.
+
+    A restored session used to arrive with turn/phase/metrics only: the
+    client had no transcript to render, so the player resumed into a blank
+    screen. Play a turn's discussion, save, load - the load response must
+    carry the full transcript including the played lines, and active_call
+    None (turn one has no scripted call).
+    """
+    from api import server
+
+    created = _new_game(client)
+    session_id = created["session_id"]
+    manager = server.sessions[session_id].manager
+
+    question = "CDS, what are our immediate military options?"
+    asked = client.post("/game/discussion", json={
+        "session_id": session_id,
+        "question": question,
+    })
+    assert asked.status_code == 200
+
+    # Keep the save file out of the repo's saves/ directory.
+    manager.root_path = tmp_path
+    saved = client.post("/game/save", json={
+        "session_id": session_id,
+        "save_name": "api-probe",
+    })
+    assert saved.status_code == 200
+    save_path = Path(saved.json()["save_path"])
+    assert save_path.is_file()
+    assert tmp_path in save_path.parents
+
+    loaded = client.post("/game/load", json={"save_path": str(save_path)})
+    assert loaded.status_code == 200
+    body = loaded.json()
+
+    assert body["session_id"] != session_id  # a fresh session was minted
+    assert isinstance(body["transcript"], list) and body["transcript"]
+    # The restored transcript is the played one, verbatim...
+    assert body["transcript"] == manager.transcript
+    # ...including the discussion exchange from the played turn.
+    assert any(question in line for line in body["transcript"])
+    assert body["active_call"] is None
+
+
+def test_restored_turn_six_session_exposes_the_live_mandatory_call(client):
+    """GET /game/{id} renders the live scripted call a client must answer.
+
+    Turn 6 opens a mandatory diplomatic call during the briefing (ER-033),
+    and that call blocks briefings and decisions until answered - so a
+    client resuming such a session is stuck unless the state endpoint shows
+    the call. Driving the manager directly (the arrangement
+    tests/test_saveload_completeness.py uses) and injecting it into the
+    session table keeps this deterministic.
+    """
+    from api import server
+    from engine.game_manager import GameManager
+
+    manager = GameManager(seed=42, play_mode="classic")
+    manager.world.turn = 6
+    manager.get_turn_briefing()
+
+    encounter = manager.active_encounter
+    assert encounter is not None and encounter.active and encounter.required, (
+        "arrangement failed: turn 6 briefing should open a mandatory call"
+    )
+
+    session_id = "probe-turn-six"
+    server.sessions[session_id] = server.GameSession(manager)
+
+    response = client.get(f"/game/{session_id}")
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["turn"] == 6
+    assert isinstance(body["transcript"], list) and body["transcript"]
+
+    call = body["active_call"]
+    assert call is not None, "live mandatory call missing from state payload"
+    assert call["country"] == encounter.country
+    assert call["title"] == encounter.title
+    assert call["required"] is True
+    assert call["transcript"] == list(encounter.transcript)
+    assert call["transcript"], "the opened call should have an opening line"

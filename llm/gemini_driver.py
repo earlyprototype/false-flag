@@ -22,6 +22,23 @@ def _truncate(text: str, limit: int = 200) -> str:
     return text[:limit] + "... [truncated]"
 
 
+def _finish_reason_name(response) -> str:
+    """The first candidate's finish reason as a plain string.
+
+    The SDK exposes an enum (STOP, MAX_TOKENS, SAFETY, ...); its .name is
+    what the router's truncation check and the call log expect. Absent or
+    malformed candidates yield a descriptive placeholder, never a raise -
+    this runs on the success path.
+    """
+    candidates = getattr(response, "candidates", None)
+    if not candidates:
+        return "NO_CANDIDATES"
+    reason = getattr(candidates[0], "finish_reason", None)
+    if reason is None:
+        return "UNKNOWN"
+    return getattr(reason, "name", str(reason))
+
+
 class GeminiDriver:
     """Driver for Google Gemini 2.5 Flash API.
     
@@ -141,7 +158,8 @@ class GeminiDriver:
     def generate_text(self, prompt: str, rng: Random,
                       system_instruction: Optional[str] = None,
                       temperature: Optional[float] = None,
-                      max_tokens: Optional[int] = None) -> str:
+                      max_tokens: Optional[int] = None,
+                      meta_out: Optional[dict] = None) -> str:
         """Generate text response from prompt using Gemini.
 
         Args:
@@ -150,6 +168,10 @@ class GeminiDriver:
             system_instruction: Optional system instruction for the model
             temperature: Optional temperature override
             max_tokens: Optional output cap override
+            meta_out: Optional dict the driver fills with call metadata -
+                currently ``finish_reason`` (the enum name, e.g.
+                "MAX_TOKENS"), so the router can tell a complete reply from
+                one cut on its output cap
 
         Returns:
             Generated text response
@@ -179,6 +201,9 @@ class GeminiDriver:
                     generation_config=generation_config,
                 )
 
+            if meta_out is not None:
+                meta_out["finish_reason"] = _finish_reason_name(response)
+
             # Extract text from response
             if response.text:
                 return response.text.strip()
@@ -193,7 +218,8 @@ class GeminiDriver:
             raise Exception(f"Gemini API Error ({type(e).__name__}): {_truncate(str(e), 300)}") from e
     
     def batch_generate_text(self, prompts: list[str], rng: Random,
-                            max_tokens: Optional[int] = None) -> list[str]:
+                            max_tokens: Optional[int] = None,
+                            meta_out: Optional[list] = None) -> list[str]:
         """Generate multiple text responses in parallel using concurrent processing.
 
         Uses ThreadPoolExecutor to make parallel API calls for faster processing.
@@ -202,6 +228,9 @@ class GeminiDriver:
             prompts: List of prompt texts to generate responses for
             rng: Random number generator (used to set seed for determinism)
             max_tokens: Optional output cap applied to every prompt
+            meta_out: Optional list of dicts (one per prompt) filled with
+                per-call metadata (finish_reason). Index-aligned with
+                prompts, so the thread pool fills them race-free.
 
         Returns:
             List of generated text responses in same order as prompts
@@ -216,8 +245,11 @@ class GeminiDriver:
 
         generation_config = self._build_generation_config(max_tokens=max_tokens)
 
-        def generate_single(prompt: str) -> str:
+        def generate_single(index: int) -> str:
             """Generate single response - used by thread pool."""
+            prompt = prompts[index]
+            meta = (meta_out[index]
+                    if meta_out is not None and index < len(meta_out) else None)
             try:
                 try:
                     response = self.model.generate_content(
@@ -232,6 +264,9 @@ class GeminiDriver:
                         generation_config=generation_config,
                     )
 
+                if meta is not None:
+                    meta["finish_reason"] = _finish_reason_name(response)
+
                 if response.text:
                     return response.text.strip()
                 else:
@@ -239,15 +274,15 @@ class GeminiDriver:
                     return f"[ERROR: {finish_reason}]"
             except Exception as e:
                 return f"[ERROR: {str(e)}]"
-        
+
         # Use ThreadPoolExecutor for parallel processing
         # Process all prompts concurrently (up to max_workers)
         max_workers = min(len(prompts), 10)  # Limit concurrent requests
-        
+
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all tasks
-            future_to_prompt = {executor.submit(generate_single, prompt): i 
-                                for i, prompt in enumerate(prompts)}
+            future_to_prompt = {executor.submit(generate_single, i): i
+                                for i in range(len(prompts))}
             
             # Collect results in order
             results = [None] * len(prompts)

@@ -144,6 +144,17 @@ class OpenAICompatDriver:
         self.temperature = float(temperature) if temperature is not None else 0.7
         self.max_tokens = int(max_tokens) if max_tokens is not None else 2048
 
+        # OPENAI_COMPAT_REASONING: "off" disables hidden reasoning entirely,
+        # "low"/"medium"/"high" request that effort (OpenRouter's unified
+        # reasoning parameter). Unset sends nothing - the provider default.
+        self.reasoning = None
+        setting = str(_config_value("OPENAI_COMPAT_REASONING",
+                                    "OPENAI_COMPAT_REASONING") or "").lower().strip()
+        if setting == "off":
+            self.reasoning = {"enabled": False}
+        elif setting in ("low", "medium", "high"):
+            self.reasoning = {"effort": setting}
+
     def _headers(self) -> dict:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
@@ -157,6 +168,7 @@ class OpenAICompatDriver:
         system_instruction: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
+        meta_out: Optional[dict] = None,
     ) -> str:
         """Generate a text response via the chat-completions endpoint.
 
@@ -167,6 +179,9 @@ class OpenAICompatDriver:
             system_instruction: Optional system message
             temperature: Optional temperature override
             max_tokens: Optional max tokens override
+            meta_out: Optional dict the driver fills with call metadata -
+                currently ``finish_reason``, so the router can tell a
+                complete reply from one cut on its output cap
 
         Returns:
             Generated text response
@@ -189,6 +204,16 @@ class OpenAICompatDriver:
             # support seeding simply ignore the field.
             "seed": rng.randint(0, 2**31 - 1),
         }
+        if self.reasoning is not None:
+            # Thinking models bill hidden reasoning against max_tokens: the
+            # first live shakedown watched a model spend its entire budget
+            # thinking and return EMPTY completions on every small-capped
+            # call (finish reason "length"), which degraded to canned mock
+            # text. Output length belongs to the prompt ("2-3 sentences");
+            # this field stops reasoning from eating the reply's budget.
+            # OpenRouter's unified shape; opt-in, so plain OpenAI-compatible
+            # servers that reject unknown fields are never sent it.
+            payload["reasoning"] = self.reasoning
 
         try:
             response = requests.post(
@@ -220,6 +245,8 @@ class OpenAICompatDriver:
                 raise RuntimeError(
                     f"No choices in response: {_truncate(repr(data))}"
                 )
+            if meta_out is not None:
+                meta_out["finish_reason"] = choices[0].get("finish_reason")
             message = choices[0].get("message") or {}
             text = message.get("content")
             if not text or not text.strip():
@@ -237,7 +264,8 @@ class OpenAICompatDriver:
             ) from e
 
     def batch_generate_text(self, prompts: list[str], rng: Random,
-                            max_tokens: Optional[int] = None) -> list[str]:
+                            max_tokens: Optional[int] = None,
+                            meta_out: Optional[list] = None) -> list[str]:
         """Generate multiple responses concurrently.
 
         Mirrors GeminiDriver.batch_generate_text: individual failures are
@@ -248,6 +276,9 @@ class OpenAICompatDriver:
             prompts: List of prompt texts
             rng: Random number generator
             max_tokens: Optional output cap applied to every prompt
+            meta_out: Optional list of dicts (one per prompt) filled with
+                per-call metadata (finish_reason). Index-aligned with
+                prompts, so the thread pool fills them race-free.
 
         Returns:
             List of responses in the same order as prompts
@@ -261,9 +292,11 @@ class OpenAICompatDriver:
         seeds = [rng.randint(0, 2**31 - 1) for _ in prompts]
 
         def generate_single(index: int) -> str:
+            meta = (meta_out[index]
+                    if meta_out is not None and index < len(meta_out) else None)
             try:
                 return self.generate_text(prompts[index], Random(seeds[index]),
-                                          max_tokens=max_tokens)
+                                          max_tokens=max_tokens, meta_out=meta)
             except Exception as e:
                 return f"[ERROR: {_truncate(str(e), 200)}]"
 

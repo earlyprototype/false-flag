@@ -19,6 +19,8 @@ Design rules
 
 from __future__ import annotations
 
+import functools
+import inspect
 import json
 import os
 import re
@@ -283,7 +285,14 @@ _BATCH_ERROR_PREFIX = "[ERROR:"
 
 
 def _watch_calls(fn: Callable) -> Callable:
-    """Record failures from one driver method, then let them propagate."""
+    """Record failures from one driver method, then let them propagate.
+
+    The wrapper takes on the wrapped method's signature: the router
+    inspects driver signatures to decide which optional arguments to
+    forward, and a bare ``*args, **kwargs`` facade would tell it the
+    driver accepts everything - forwarding arguments the real method then
+    rejects, turning every live call into a TypeError.
+    """
 
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
@@ -299,6 +308,8 @@ def _watch_calls(fn: Callable) -> Callable:
                     _LLM_FAULTS.append(item)
         return result
 
+    functools.update_wrapper(wrapper, fn)
+    wrapper.__signature__ = inspect.signature(fn)  # type: ignore[attr-defined]
     wrapper._ff_watched = True  # type: ignore[attr-defined]
     return wrapper
 
@@ -630,10 +641,11 @@ class WebGame:
         # The cold open: four beats, one space-bar press apart, then turn 1
         # flows on from YOUR ROLE. Without it the campaign opened on the
         # briefing — five simultaneous crises and no idea who anyone was.
-        from engine.opening import get_opening_scenes
-
+        # Taken through the GameManager passthrough, which strips the Rich
+        # console markup this renderer would otherwise show raw.
         beats: List[Callable[[], None]] = [
-            (lambda s=scene: self._emit_scene(s)) for scene in get_opening_scenes(200)
+            (lambda s=scene: self._emit_scene(s))
+            for scene in self.gm.get_opening_scenes()
         ]
         self.queue(*beats, self.run_briefing)
         self.play_next()
@@ -828,6 +840,21 @@ class WebGame:
             self.push_state()
             self.set_awaiting(AWAIT_QUESTION)
             return
+
+        # An optional call the player placed themselves also survives a
+        # save/load - and their next `call`, whatever country they name,
+        # is routed into it. Without this block nothing on screen said the
+        # line was still open, so that routing looked like a wrong number.
+        encounter = self.gm.active_encounter if self.gm else None
+        if encounter and encounter.active and self._call_seen == 0:
+            pen = AnsiPen(self.width)
+            pen.blank()
+            pen.section("LINE STILL OPEN", ACCENT)
+            pen.wrap("You were mid-call when the session was saved. A further "
+                     "diplomatic message continues this conversation.",
+                     colour=DIM)
+            self.out(pen)
+            self._render_call(encounter.transcript)
 
         pen = AnsiPen(self.width)
         pen.section("YOUR MOVE", AMBER)

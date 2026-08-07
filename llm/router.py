@@ -120,6 +120,22 @@ def _get_provider() -> str:
     return provider
 
 
+def _record_truncation_if_cut(meta: dict,
+                              context: Optional[LLMContext],
+                              provider: str) -> None:
+    """Count a reply the model stopped on its output cap.
+
+    Drivers fill meta['finish_reason'] ("length" on OpenAI-compatible
+    endpoints, "MAX_TOKENS" on Gemini); this is the single place that
+    turns it into a parse-health event, keyed by call family so the
+    counter says *which* output was cut.
+    """
+    reason = meta.get('finish_reason')
+    if isinstance(reason, str) and reason.lower() in ("length", "max_tokens"):
+        from llm.parse_health import record_truncation
+        record_truncation(context.value if context else provider, reason)
+
+
 def _resolve_call_model(provider: str,
                         context: Optional[LLMContext],
                         model_override: Optional[str]) -> Optional[str]:
@@ -284,6 +300,10 @@ def generate_text(
     # Show spinner if requested (and not in mock mode)
     use_spinner = show_spinner and provider not in ["mock", "offline"]
 
+    # Out-param the driver fills with call metadata (finish_reason); the
+    # resilient wrapper marks mock fallbacks in it too. Feeds the call log.
+    meta: dict = {}
+
     # Helper to call driver with optional args
     def call_driver():
         if hasattr(driver, 'generate_text'):
@@ -302,6 +322,8 @@ def generate_text(
                 kwargs['temperature'] = temperature
             if accepts('max_tokens') and max_tokens is not None:
                 kwargs['max_tokens'] = max_tokens
+            if accepts('meta_out'):
+                kwargs['meta_out'] = meta
 
             return driver.generate_text(prompt, rng, **kwargs)
         return f"[LLM response to: {prompt[:50]}...]"
@@ -320,7 +342,29 @@ def generate_text(
                       "using offline advisor response for this call")
                 from llm.parse_health import record_fallback
                 record_fallback("router", type(e).__name__)
+                meta['fallback'] = True
                 return MockDeterministicDriver().generate_text(prompt, rng)
+
+    def call_and_log():
+        from llm import call_log
+        start = _now()
+        result = call_driver_resilient()
+        _record_truncation_if_cut(meta, context, provider)
+        if call_log.enabled():
+            tier = (get_model_config().get_tier_for_context(context).value
+                    if context else None)
+            call_log.record(
+                family=context.value if context else None,
+                tier=tier,
+                provider=provider,
+                model=model_name,
+                prompt=prompt,
+                reply=result,
+                finish_reason=meta.get('finish_reason'),
+                latency_ms=int((_now() - start) * 1000),
+                fallback=bool(meta.get('fallback')),
+            )
+        return result
 
     if use_spinner:
         # Tuman sonar-sweep wait indicator (see cli/spinner.py). Only the
@@ -332,10 +376,10 @@ def generate_text(
             pass
         else:
             with Spinner("AWAITING SECURE TRAFFIC"):
-                return call_driver_resilient()
+                return call_and_log()
 
     # No spinner - direct call
-    return call_driver_resilient()
+    return call_and_log()
 
 
 def batch_generate_text(
@@ -386,22 +430,30 @@ def batch_generate_text(
     # Show spinner if requested (and not in mock mode)
     use_spinner = show_spinner and provider not in ["mock", "offline"]
 
-    # Only forward max_tokens to callables that accept it - by name, or via
-    # a **kwargs catch-all (the mock/offline drivers accept-and-ignore).
-    # Passing an argument a signature does not admit would turn a graceful
-    # fallback into a TypeError.
-    def batch_kwargs(fn):
+    # Per-prompt metadata out-params (finish_reason, fallback), filled by
+    # drivers that support them; feeds the call log.
+    metas: list = [{} for _ in prompts]
+
+    # Only forward max_tokens / meta_out to callables that accept them - by
+    # name, or via a **kwargs catch-all (the mock/offline drivers
+    # accept-and-ignore). Passing an argument a signature does not admit
+    # would turn a graceful fallback into a TypeError.
+    def batch_kwargs(fn, meta_out=None):
         import inspect
-        if max_tokens is None:
-            return {}
         try:
             sig = inspect.signature(fn)
         except (TypeError, ValueError):
             return {}
-        accepts = ('max_tokens' in sig.parameters
-                   or any(p.kind is inspect.Parameter.VAR_KEYWORD
-                          for p in sig.parameters.values()))
-        return {'max_tokens': max_tokens} if accepts else {}
+        catch_all = any(p.kind is inspect.Parameter.VAR_KEYWORD
+                        for p in sig.parameters.values())
+        def accepts(name):
+            return name in sig.parameters or catch_all
+        kwargs = {}
+        if max_tokens is not None and accepts('max_tokens'):
+            kwargs['max_tokens'] = max_tokens
+        if meta_out is not None and accepts('meta_out'):
+            kwargs['meta_out'] = meta_out
+        return kwargs
 
     # Helper for batch call
     def call_batch():
@@ -419,7 +471,7 @@ def batch_generate_text(
                         rate_limiter.wait_if_needed(verbose=False)
 
             claim_slots()
-            kwargs = batch_kwargs(driver.batch_generate_text)
+            kwargs = batch_kwargs(driver.batch_generate_text, meta_out=metas)
             # Retry once on failure, then fall back to the mock driver so a
             # runtime API error never crashes the game
             try:
@@ -438,18 +490,48 @@ def batch_generate_text(
                           "using offline advisor responses for this call")
                     from llm.parse_health import record_fallback
                     record_fallback("router", f"batch {type(e).__name__}")
+                    for m in metas:
+                        m['fallback'] = True
                     return MockDeterministicDriver().batch_generate_text(prompts, rng)
         # Fallback sequential - forwards max_tokens where the signature
         # admits it, same as the batch path (ER-011: this used to call bare)
         results = []
-        for prompt in prompts:
+        for i, prompt in enumerate(prompts):
             if rate_limiter:
                 rate_limiter.wait_if_needed(verbose=False)
             if hasattr(driver, 'generate_text'):
                 results.append(driver.generate_text(
-                    prompt, rng, **batch_kwargs(driver.generate_text)))
+                    prompt, rng,
+                    **batch_kwargs(driver.generate_text, meta_out=metas[i])))
             else:
                 results.append(f"[LLM response to: {prompt[:50]}...]")
+        return results
+
+    def batch_and_log(runner):
+        from llm import call_log
+        start = _now()
+        results = runner()
+        for m in metas:
+            _record_truncation_if_cut(m, context, provider)
+        if call_log.enabled():
+            tier = (get_model_config().get_tier_for_context(context).value
+                    if context else None)
+            elapsed_ms = int((_now() - start) * 1000)
+            for i, (p, r) in enumerate(zip(prompts, results)):
+                m = metas[i] if i < len(metas) else {}
+                call_log.record(
+                    family=context.value if context else None,
+                    tier=tier,
+                    provider=provider,
+                    model=model_name,
+                    prompt=p,
+                    reply=r,
+                    finish_reason=m.get('finish_reason'),
+                    latency_ms=elapsed_ms,
+                    fallback=bool(m.get('fallback')),
+                    batch_index=i,
+                    batch_size=len(prompts),
+                )
         return results
     
     if use_spinner:
@@ -462,6 +544,6 @@ def batch_generate_text(
             pass
         else:
             with Spinner(f"SIGNALS INBOUND ── {len(prompts)} STATIONS"):
-                return call_batch()
+                return batch_and_log(call_batch)
 
-    return call_batch()
+    return batch_and_log(call_batch)
