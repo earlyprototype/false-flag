@@ -79,6 +79,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-027 | fixed | low | context | An advisor instruction contradicts the outcome assessor's task |
 | ER-046 | open | low | data | The stance list and the state-actor roster barely overlap |
 | ER-047 | fixed | med | state | A mid-call save drops the live diplomatic encounter |
+| ER-048 | fixed | med | context | The rolling synopsis confabulates from an ungrounded seed |
 
 ## How the measurements below were taken
 
@@ -1177,3 +1178,32 @@ two minutes.
   and `from_dict` rebuilds the encounter against the restored world and narrative state and resumes
   it verbatim. Regression tests cover the round-trip mid-call and confirm an ended call is not
   resurrected.
+
+## ER-048 — The rolling synopsis confabulates from an ungrounded seed
+
+- **Status:** fixed
+- **Severity:** medium
+- **Area:** context
+- **Observed:** The initial `situation_summary` was four hardcoded fragments ("F-35 pilots
+  murdered. False flag accusations from Moscow.") with no locations and no attributions. The fold
+  built by ER-010/ER-017 anchors each turn's synopsis on the previous one, its other inputs being a
+  bare ledger title and the player's decision text. On the first live campaign the FLASH-tier
+  summariser, given the fragment "F-35 pilots murdered" beside a decision that mentioned the
+  Dagestani cell behind Severomorsk, merged them: the synopsis reported the pilots killed "in a
+  coordinated attack by a Dagestani cell with links to Severomorsk" — wrong culprit, wrong place —
+  and kept the seed's ambiguous false-flag phrasing. Because the synopsis now feeds every deciding
+  call, the confabulation would have propagated to the referee, the actors and the inject
+  generator.
+- **Evidence:** the pre-fix seed at `models/narrative_state.py` (four fragments); the fold inputs
+  in `engine/narrative_adjudication.py::compute_situation_summary` (previous summary + ledger title
+  + decision, no scenario backstory); observed live with `anthropic/claude-haiku-4.5` answering the
+  SITUATION_SUMMARY context on the first turn of a Mystery/emergent campaign
+- **Effect:** The campaign memory — the audit campaign's central repair — faithfully distributed a
+  false account of the scenario's founding events. Found within one live turn precisely because
+  the memory now reaches prompts; before ER-017 the same seed sat frozen and unread.
+- **Fixed:** Three legs. The seed states each founding event with its own place and attribution
+  (Norfolk murders, likely Russian special forces; Severomorsk attributed by GCHQ to Dagestani
+  extremists, falsely blamed on the UK by Moscow as pretext). The fold prompt gains fidelity rules
+  that outrank brevity: never merge events or transfer a culprit/location, unattributed stays
+  unattributed, accusations named as who-accuses-whom-of-what. And SITUATION_SUMMARY moves to the
+  PRO tier - the campaign's memory is one call per turn and anchors everything downstream.

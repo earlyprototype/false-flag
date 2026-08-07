@@ -27,6 +27,8 @@ ADVISOR_VOICE_INSTRUCTIONS = "\n".join([
     "Speak naturally about intelligence assessments, strategic concerns, and operational realities.",
     "Do NOT reference 'metrics', 'game mechanics', 'scores', or 'values'.",
     "Use professional crisis management language.",
+    "Write in British English throughout - British spellings (organise, defence,"
+    " programme) and Whitehall usage, never American.",
 ])
 
 

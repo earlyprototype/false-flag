@@ -317,3 +317,50 @@ def test_amended_decision_pays_no_pushback_cost(monkeypatch):
     gm.resolve_decision("Stand the strike down and pursue NATO consultations")
     after = gm.narrative_state.characters["uk_foreign_sec"].trust
     assert after == before, "an amended decision must not pay the override cost"
+
+
+# ---------------------------------------------------------------------------
+# ER-048: the synopsis seed is grounded and the fold defends attribution
+# ---------------------------------------------------------------------------
+
+def test_summary_seed_grounds_each_founding_event():
+    from models.narrative_state import create_initial_narrative_state
+    from models.world import Metrics
+
+    ns = create_initial_narrative_state(
+        Metrics(escalation_risk=60, domestic_stability=50, alliance_cohesion=40),
+        play_mode="emergent")
+    seed = ns.situation_summary
+    assert "Norfolk" in seed
+    assert "Dagestani" in seed
+    assert "falsely blames the United Kingdom" in seed
+    # The murders and the naval-base attack are separate sentences: the
+    # culprit of one must not be readable as the culprit of the other.
+    murder_sentence = next(s for s in seed.split(". ") if "Norfolk" in s)
+    assert "Dagestani" not in murder_sentence
+
+
+def test_fold_prompt_carries_fidelity_rules_and_pro_tier():
+    from engine.narrative_adjudication import compute_situation_summary
+    from models.narrative_state import create_initial_narrative_state
+    from models.world import Metrics
+    from llm.model_config import LLMContext, ModelTier, get_model_config
+
+    captured = {}
+
+    def fake_generate(prompt, rng, **kwargs):
+        captured["prompt"] = prompt
+        captured["context"] = kwargs.get("context")
+        return "A grounded synopsis."
+
+    from random import Random
+
+    ns = create_initial_narrative_state(
+        Metrics(escalation_risk=60, domestic_stability=50, alliance_cohesion=40),
+        play_mode="emergent")
+    out = compute_situation_summary(ns, "Hold and consult allies.",
+                                    fake_generate, Random(0))
+    assert out == "A grounded synopsis."
+    assert "never merge two events" in captured["prompt"]
+    assert "who accuses whom" in captured["prompt"]
+    assert get_model_config().get_tier_for_context(captured["context"]) is ModelTier.PRO
