@@ -653,10 +653,28 @@ class GameManager:
                 "transcript": self.transcript,
                 "initial_metrics": self.initial_metrics_snapshot,
                 "ending_id": self.ending.ending_id if self.ending else None,
+                # A live diplomatic call survives the round-trip (ER-047).
+                # An ended call is not stored: its outcome already landed.
+                "active_encounter": self._encounter_state(),
                 # Generator position, so a resumed session continues the
                 # draw sequence instead of replaying spent randomness (ER-037)
                 "rng_state": encode_rng_state(self.rng)
             }
+        }
+
+    def _encounter_state(self) -> Optional[Dict[str, Any]]:
+        """Serialisable state of a live diplomatic call, else None."""
+        enc = self.active_encounter
+        if enc is None or not enc.active:
+            return None
+        return {
+            "country": enc.country,
+            "context": enc.context,
+            "show_metrics": enc.show_metrics,
+            "required": enc.required,
+            "transcript": list(enc.transcript),
+            "history": [list(pair) for pair in enc.history],
+            "player_exchanges": enc._player_exchanges,
         }
 
     def save_game(self, save_name: str) -> str:
@@ -727,6 +745,27 @@ class GameManager:
         # its effects or re-running its diplomatic encounter (ER-004).
         manager._resume_replay = manager.world.phase in (
             "discussion", "decision", "adjudication")
+
+        # A call that was live at save time comes back live (ER-047). The
+        # encounter is rebuilt against the restored world and narrative
+        # state, then its conversation so far is restored verbatim.
+        enc_data = state.get("active_encounter")
+        if enc_data:
+            from engine.diplomacy import DiplomaticEncounter
+            enc = DiplomaticEncounter(
+                manager.world,
+                enc_data["country"],
+                enc_data.get("context"),
+                manager.root_path,
+                full_transcript=manager.transcript,
+                show_metrics=enc_data.get("show_metrics", True),
+                required=enc_data.get("required", False),
+                narrative_state=manager.narrative_state,
+            )
+            enc.transcript = list(enc_data.get("transcript", []))
+            enc.history = [tuple(pair) for pair in enc_data.get("history", [])]
+            enc._player_exchanges = int(enc_data.get("player_exchanges", 0))
+            manager.active_encounter = enc
 
         return manager
 
