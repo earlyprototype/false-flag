@@ -253,6 +253,12 @@ Tone: {tone}
 Key Concerns:
 {concerns_text}
 
+=== YOUR OWN INTELLIGENCE PICTURE ===
+The material below is what YOUR government independently knows about the
+crisis - gathered by your own services. The UK did NOT send it to you.
+Never refer to it as a briefing, dossier or material the UK shared;
+speak of it as your own government's information.
+
 {secure_context}
 {premise}
 === THIS DIPLOMATIC CALL ===

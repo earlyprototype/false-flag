@@ -111,7 +111,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-063 | fixed | med | dispatch | The scripted call is gated by outbound-call access rules |
 | ER-064 | fixed | low | data | A US official sits in the UK advisor panel; the Attorney General has no trust |
 | ER-065 | fixed | high | dispatch | The bridge fault probe's signature makes the router mis-forward arguments |
-| ER-066 | fixed | low | data | The cold open never mentions the two precipitating events |
+| ER-066 | invalid | low | data | Withdrawn and reverted: the single-thread cold open is the authored design |
 | ER-067 | fixed | low | data | The COBRA room is described twice back-to-back |
 | ER-068 | fixed | low | data | engine/intelligence.py emits terminal markup over the HTTP API |
 | ER-069 | fixed | low | data | events.yaml grants a metric that no longer exists |
