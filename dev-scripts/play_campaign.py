@@ -97,18 +97,39 @@ def main():
     # well-formed answer, so a campaign can look perfect while no LLM ran.
     print(f"driver:   {type(_get_text_driver(None)).__name__}")
 
+    import json as _json
+
+    from engine.game_manager import GameManager as _GM
+    from llm import call_log
+
+    def _roundtrip(gm, label):
+        """Live save/load probe: the campaign continues on the restored copy."""
+        payload = _json.loads(_json.dumps(gm.to_dict(), default=str))
+        restored = _GM.from_dict(payload)
+        print(f"     [probe] {label}: session round-tripped through "
+              f"to_dict/from_dict; call live={bool(restored.active_encounter and restored.active_encounter.active)}")
+        return restored
+
     campaign_start = time.time()
     for turn in range(1, args.turns + 1):
+        call_log.set_field("turn", turn)
         t0 = time.time()
         inject = gm.get_turn_briefing()
         # A scripted mandatory call is left live for the player rather than
         # answered in their name (ER-033). Play it the way a front end would:
         # through process_diplomacy, until the exchange cap or a closer ends it.
+        probed_call = False
         while gm.active_encounter is not None and gm.active_encounter.active:
             gm.process_diplomacy(
                 "We are coordinating fully with NATO and will share our "
                 "deployment plan within the hour."
             )
+            if (call_log.enabled() and not probed_call
+                    and gm.active_encounter is not None
+                    and gm.active_encounter.active):
+                # ER-047/ER-056 live evidence: save mid-call, resume, finish
+                gm = _roundtrip(gm, "mid-call")
+                probed_call = True
         t_brief = time.time() - t0
 
         for i in range(args.questions):
@@ -129,6 +150,10 @@ def main():
 
         if result.get("error"):
             print(f"     ADJUDICATION ERROR: {result['error']}")
+        if call_log.enabled() and turn == 9:
+            # Start-of-turn save (the ER-056 window, now closed): resume and
+            # play the back half of the campaign on the restored session
+            gm = _roundtrip(gm, "start-of-turn-10")
         if result.get("ending"):
             print(f"\nENDING on turn {turn}: {result['ending']['title']} "
                   f"({result['ending']['verdict']})")
