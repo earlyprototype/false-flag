@@ -143,7 +143,49 @@ def _significant_words(text: str) -> set:
             if len(w) > 3 and w not in _STOPWORDS}
 
 
-def record_event_disposition(narrative_state, action: str) -> None:
+def _first_sentence(text: str) -> str:
+    """The first sentence of ``text``, plain, or '' when there is none."""
+    for sentence in _SENTENCE_SPLIT.split((text or "").strip()):
+        if sentence.strip():
+            return sentence.strip()
+    return ""
+
+
+def _effects_direction(final_effects) -> Dict[str, str]:
+    """Applied metric deltas -> {"metric": "up"|"down"|"steady"}."""
+    if not final_effects:
+        return {}
+    return {
+        str(metric): ("up" if delta > 0 else "down" if delta < 0 else "steady")
+        for metric, delta in final_effects.items()
+    }
+
+
+def _objector_roles(pushback) -> List[str]:
+    """Role names out of a pushback list, whatever shape a caller holds it in.
+
+    The engine passes (role, message) tuples; GameManager keeps dicts with a
+    "role" key; anything else is stringified. Order preserved, blanks
+    dropped.
+    """
+    roles = []
+    for item in pushback or []:
+        if isinstance(item, dict):
+            role = item.get("role", "")
+        elif isinstance(item, (tuple, list)) and item:
+            role = item[0]
+        else:
+            role = item
+        role = str(role).strip()
+        if role:
+            roles.append(role)
+    return roles
+
+
+def record_event_disposition(narrative_state, action: str,
+                             quality_assessment: Optional[Dict[str, Any]] = None,
+                             final_effects: Optional[Dict[str, int]] = None,
+                             pushback=None) -> None:
     """Set how the event under adjudication was left by ``action``.
 
     Closes the *most recently staged* entry rather than looking one up by
@@ -155,6 +197,16 @@ def record_event_disposition(narrative_state, action: str) -> None:
     Must be called from every adjudication path - actor-enabled campaigns
     route through ``adjudicate_with_actor_simulation``, so recording in the
     narrative path alone left the ledger permanently open in real play.
+
+    The optional arguments carry the turn's structured consequences into
+    the ledger entry (ER-077), whatever disposition it ends up with:
+
+    - ``quality_assessment``: the parsed assessment dict; its reasoning's
+      first sentence becomes the entry's one-line ``outcome``.
+    - ``final_effects``: the APPLIED metric deltas; recorded as direction
+      words ("up"/"down"/"steady"), never numbers.
+    - ``pushback``: this turn's advisor pushback; the objecting role names
+      are recorded.
     """
     try:
         ledger = getattr(narrative_state, "event_ledger", None)
@@ -165,6 +217,11 @@ def record_event_disposition(narrative_state, action: str) -> None:
         if disposition != "open":
             narrative_state.close_event(
                 current.turn, disposition, _truncate_decision(action, 90))
+        narrative_state.record_event_consequences(
+            current.turn,
+            outcome=_first_sentence((quality_assessment or {}).get("reasoning", "")),
+            effects_direction=_effects_direction(final_effects),
+            objectors=_objector_roles(pushback))
     except Exception:  # pragma: no cover - bookkeeping must never break a turn
         logger.debug("Could not set event disposition", exc_info=True)
 
@@ -1019,11 +1076,12 @@ def adjudicate_with_narrative(
     rng: Random,
     llm_generate_fn = None,
     world_narrative = None,
-    llm_batch_fn = None
+    llm_batch_fn = None,
+    pushback = None
 ) -> Tuple[Dict[str, int], List[Tuple[str, str]], str]:
     """
     Complete narrative-driven adjudication pipeline.
-    
+
     Args:
         narrative_state: Current narrative state (modified in place)
         action: Player action text
@@ -1034,6 +1092,9 @@ def adjudicate_with_narrative(
         llm_batch_fn: Optional batch generator, forwarded to
             generate_character_responses so the advisor reactions go out
             as one group.
+        pushback: Optional advisor pushback raised against this decision
+            ((role, message) tuples or dicts); the objecting roles are
+            written into the ledger entry's consequences (ER-077).
 
     Returns:
         (final_effects, character_responses, quality_reasoning)
@@ -1062,8 +1123,12 @@ def adjudicate_with_narrative(
             updated = clamp(current + delta)
             setattr(narrative_state.hidden_metrics, metric, updated)
     
-    # 3b. Record how this turn's event was left (issue #25)
-    record_event_disposition(narrative_state, action)
+    # 3b. Record how this turn's event was left (issue #25), and what it
+    # cost: outcome sentence, effect directions, objectors (ER-077).
+    record_event_disposition(narrative_state, action,
+                             quality_assessment=quality_assessment,
+                             final_effects=final_effects,
+                             pushback=pushback)
 
     # 4+7. Character reactions ∥ situation-summary fold: round 3 of the
     # decision pipeline (ER-023). Both read the applied outcome and neither
@@ -1097,7 +1162,8 @@ def adjudicate_with_actor_simulation(
     rng: Random,
     llm_generate_fn,
     world_narrative = None,
-    llm_batch_fn = None
+    llm_batch_fn = None,
+    pushback = None
 ) -> Tuple[Dict[str, int], List[ActorResponse], List[Tuple[str, str]], str]:
     """
     Enhanced adjudication with multi-agent actor simulation.
@@ -1121,6 +1187,9 @@ def adjudicate_with_actor_simulation(
         world_narrative: Optional NarrativeConfig for secret truth context
         llm_batch_fn: Optional batch generator, forwarded to both
             simulate_actor_responses and generate_character_responses.
+        pushback: Optional advisor pushback raised against this decision;
+            the objecting roles are written into the ledger entry's
+            consequences (ER-077).
 
     Returns:
         (final_effects, actor_responses, character_responses, reasoning),
@@ -1153,10 +1222,6 @@ def adjudicate_with_actor_simulation(
     # 4. Also run quality assessment for player skill
     quality_assessment = assess_action_quality(action, narrative_state, interpretation, llm_generate_fn, world_narrative, rng)
 
-    # Record how this turn's event was left. Actor-enabled campaigns route
-    # here rather than through adjudicate_with_narrative, so this path needs
-    # the same bookkeeping or the ledger never closes (issue #25).
-    record_event_disposition(narrative_state, action)
     # Here - unlike adjudicate_with_narrative - the base is the keyword
     # heuristic and the assessment's suggested_effects are a separate second
     # opinion, so apply_quality_scaling's merge of the two is the point of
@@ -1180,7 +1245,18 @@ def adjudicate_with_actor_simulation(
             current = getattr(narrative_state.hidden_metrics, metric)
             updated = clamp(current + delta)
             setattr(narrative_state.hidden_metrics, metric, updated)
-    
+
+    # 6b. Record how this turn's event was left, and its consequences.
+    # Actor-enabled campaigns route here rather than through
+    # adjudicate_with_narrative, so this path needs the same bookkeeping or
+    # the ledger never closes (issue #25). Recorded AFTER the actor/quality
+    # blend so effects_direction reflects the deltas actually applied
+    # (ER-077).
+    record_event_disposition(narrative_state, action,
+                             quality_assessment=quality_assessment,
+                             final_effects=final_effects,
+                             pushback=pushback)
+
     # 7+11. Character reactions ∥ situation-summary fold: round 3 of the
     # decision pipeline (ER-023). The fold's text is assigned only after
     # the round joins (and after the crisis check) - see

@@ -420,7 +420,10 @@ def run_decision_pipeline(
             setattr(narrative_state.hidden_metrics, metric,
                     clamp(current + delta))
 
-    record_event_disposition(narrative_state, action)
+    record_event_disposition(narrative_state, action,
+                             quality_assessment=quality_assessment,
+                             final_effects=final_effects,
+                             pushback=pushback)
 
     # --- Round 3: character reactions ∥ situation-summary fold -------------
     # Both read the applied outcome. The fold's text is assigned only after

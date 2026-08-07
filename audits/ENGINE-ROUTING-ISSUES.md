@@ -121,6 +121,8 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-073 | fixed | med | state | Pushback objector names miss the character roster, so the trust cost never lands |
 | ER-074 | open | med | dispatch | Preview-then-commit runs the whole advisory pipeline twice |
 | ER-075 | invalid | low | context | Withdrawn: the ledger's completeness is by design |
+| ER-076 | fixed | med | context | Binding char windows retired: advisory history is whole-turn scoped, the constant a never-fire tripwire |
+| ER-077 | fixed | med | context | Ledger entries carry consequences: outcome, effects direction, objectors |
 
 ## How the measurements below were taken
 
@@ -1528,3 +1530,41 @@ Evidence with file:line for every claim is in `2026-08-07-uniformity-audit/`
   permanent structured record and its completeness is the point. The open questions around it
   run the other way - whether each entry carries ENOUGH (resolution: disposition and a one-line
   note, but no consequences, objectors, or outcome), tracked as design work, not a defect.
+
+## ER-076 — Binding char windows retired: advisory history is whole-turn scoped, the constant a never-fire tripwire
+- **Status:** fixed · **Severity:** med · **Area:** context
+- Owner-directed design change, stating the principle outright: NO constant may bind in normal
+  play. Length discipline lives at generation time (the prompts bound what a turn can say) and
+  structure time (turn boundaries) - never as a character guillotine that shapes content.
+  Detection of a cut does not help the player; the cut must not happen. The advisory transcript
+  window enforced MAX_ADVISOR_TRANSCRIPT_CHARS with a character-tail fallback that could cut
+  mid-turn and mid-line whenever no turn boundary fit the tail budget - the ER-072 bound doing
+  its job by the wrong means.
+- **Fixed:** `render_transcript_block` now assembles the window from WHOLE TURNS only: the
+  campaign opening (the existing head-share logic, unchanged) plus the last N whole turns cut
+  at `TURN <n>` boundaries, whole oldest turns dropping first - their content already travels
+  in the synopsis and the event ledger. The last 2 recent turns are mandatory whatever they
+  cost. MAX_ADVISOR_TRANSCRIPT_CHARS survives only as a never-fire tripwire: if the minimum
+  window still exceeds it (or a transcript has no turn boundaries at all), the content travels
+  intact anyway and `record_miss("context_window", "tripwire", ...)` records the breach. Any
+  elision still states itself inline. The analyser's ceiling check is warning-grade now
+  (over-ceiling is by design when recent turns run long); past 2x the ceiling stays a hard
+  FAIL, because no pair of turns explains that - only broken tripwire logic does. Property
+  test pins the invariant: the rendered window is always a verbatim contiguous head plus a
+  verbatim contiguous tail, never a trimmed line.
+
+## ER-077 — Ledger entries carry consequences: outcome, effects direction, objectors
+- **Status:** fixed · **Severity:** med · **Area:** context
+- The design work ER-075's withdrawal pointed at: a `PlayedEvent` carried turn, title,
+  disposition and a one-line note, so the permanent record said what the player did about a
+  thread but not what it cost - the referee's verdict, the direction the metrics moved and who
+  in the room objected all evaporated with the prose window.
+- **Fixed:** `PlayedEvent` gains three optional fields written at adjudication time by
+  `record_event_disposition` on all three paths (both `adjudicate_with_*` functions and
+  `run_decision_pipeline`): `outcome` (the first sentence of the quality assessment's parsed,
+  scrubbed reasoning), `effects_direction` (each applied metric delta as "up"/"down"/"steady",
+  never numbers), and `objectors` (the roles that raised pushback, when any). Both ledger
+  renderers (`render_event_ledger` and `render_decisions_and_outcomes`) show them as one
+  compact indented clause per entry, only when present, so the next turn's generation and
+  quality prompts read the consequences instead of re-inferring them. Old saves load clean on
+  the pydantic defaults; round-trip and end-to-end mock-adjudication tests pin it.

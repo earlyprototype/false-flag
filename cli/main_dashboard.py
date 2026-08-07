@@ -1663,7 +1663,8 @@ def play(
                     rng,
                     llm_generate_fn=generate_text,
                     world_narrative=world.narrative,
-                    llm_batch_fn=batch_generate_text
+                    llm_batch_fn=batch_generate_text,
+                    pushback=pushback
                 )
             else:
                 # Use standard narrative adjudication
@@ -1674,7 +1675,8 @@ def play(
                     rng,
                     llm_generate_fn=generate_text,
                     world_narrative=world.narrative,
-                    llm_batch_fn=batch_generate_text
+                    llm_batch_fn=batch_generate_text,
+                    pushback=pushback
                 )
             
             # Display adjudication results (shared with the classic CLI)
