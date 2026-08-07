@@ -19,12 +19,15 @@ FullTranscript = List[str]
 # a poor one: on the saved 18-turn campaign a transcript line averages 393
 # characters but ranges from an empty string to a full paragraph.
 #
-# 320,000 characters is roughly 80,000 tokens, which leaves real headroom
-# inside a 128K window once the role-specific half of the prompt is added.
-# It is also enough that the recent window alone exceeds what the old
-# 500-line cap carried (233,978 characters on that campaign), so widening
-# here takes nothing away to pay for keeping the campaign's opening.
-MAX_ADVISOR_TRANSCRIPT_CHARS = 320_000
+# The window's job changed when the referee got memory: campaign history
+# now travels in the rolling synopsis and the event ledger by design, so
+# the raw transcript slice only needs to carry recent verbatim exchanges.
+# The first live shakedown measured the old 320k allowance letting these
+# prompts grow past 150,000 characters by turn 10 - linear cost growth on
+# every advisory call for history the dossier already summarises. 60k
+# (~15k tokens) holds several turns of recent exchanges; the head+tail
+# slice keeps the campaign's opening either way.
+MAX_ADVISOR_TRANSCRIPT_CHARS = 60_000
 
 # The history header, and why it carries no counts. It has to be honest in
 # both cases - complete and elided - without changing between them, because

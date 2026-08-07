@@ -225,9 +225,14 @@ def test_a_history_within_budget_is_sent_whole():
         assert line in block
 
 
-def test_the_budget_is_large_enough_to_be_worth_caching():
-    """~60K tokens of history, well inside a 128K window once the role text lands."""
-    assert MAX_ADVISOR_TRANSCRIPT_CHARS >= 200_000
+def test_the_budget_holds_recent_turns_without_buying_raw_history():
+    """The window's job is recent verbatim exchanges - several turns' worth -
+    not campaign history, which travels in the synopsis and event ledger.
+    The first live shakedown measured the old 320k allowance letting the
+    advisory prompts grow past 150k chars of paid input by turn 10 (ER-072),
+    so the bound must be big enough to hold a few full turns (~10-15k chars
+    each) and small enough that it actually binds on a long campaign."""
+    assert 40_000 <= MAX_ADVISOR_TRANSCRIPT_CHARS <= 100_000
 
 
 def test_the_budget_is_a_bound_whatever_shape_the_transcript_is():

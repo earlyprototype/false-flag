@@ -134,6 +134,37 @@ several evidence columns above and permanent engine features besides.
 | Save/load completeness by introspection, not hand-listed fields | The next ER-047 at feature-add time |
 | Health surfaced every turn on every front end | Silence stops being ambiguous |
 
+## Shakedown 1 — recorded live run, 2026-08-07
+
+Seed 42, mystery emergent, 10 turns to a real ending ("A GOVERNMENT FALLS", defeat), 171 logged
+calls, qwen3.7-flash FLASH / claude-sonnet-4.5 PRO, cost ~$3.85. Log: 150 live replies + every
+prompt; analyser: `dev-scripts/analyse_call_log.py`. Statuses below supersede the per-row cells.
+
+**live-verified** — ER-017, ER-010, ER-048 (ten grounded synopses, no merges, British), ER-020
+(3/3), ER-002 (50/50), ER-003 (10/10), ER-043 (prompt side, 8/8), ER-012 + ER-046 (22/22 actor
+prompts carry stances), ER-014, ER-018/038 (zero metric leaks), ER-041 (11/11 premised), ER-021,
+ER-019/005 (every call on its table model), ER-011, ER-033 (fired, played 11 exchanges, one
+outcome), ER-004 + ER-047 (both in-run save/load probes), ER-049 (every live actor reply yielded
+a public response), ER-015/006/034/031/039 + ER-029 (zero re-parse misses, zero residue across
+all structured replies), markdown leakage (0 of 150 live replies).
+
+**live-observed** — ER-023 (decide ≈ 3 round-trips at ~9.5s median PRO latency), ER-008
+(measured; the advisory window was found effectively unbounded and rebounded - ER-072).
+
+**not triggered this run, mock-tested** — ER-016/030 (no live refusal occurred), ER-035/036
+(no bulleted objection / stray sentinel arrived), ER-042 (injects parsed clean; delta-coercion
+shapes did not occur), ER-001 (generation starts after the ledger is populated), ER-013 (the
+headless script commits without previewing), ER-044 (no CLI in a headless run), ER-045, ER-032,
+ER-022, ER-037/025 (probes resumed cleanly; full same-seed replay comparison still owed).
+
+**still owed** — ER-007 (attitude drift needs per-turn state dumps next run), ER-026 (banner is
+CLI-side), scene-setting on the live HTTP API (code fixed, live probe owed), full-transcript
+tone read beyond the sampled synopses/injects/actor lines.
+
+**found by this run, fixed same day** — ER-071 (thinking-model reasoning starved every small-
+capped reply to empty: 35 cut replies, 11 mock fallbacks - the truncation counters caught it on
+turn 1), ER-072 (advisory prompts at 150k+ chars of paid input; window rebounded 320k -> 60k).
+
 ## Order of work
 
 1. Pass-1 fixes: the four auditors' class findings + the F-row invariants + the call-log

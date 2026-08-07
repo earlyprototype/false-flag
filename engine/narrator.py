@@ -41,7 +41,9 @@ def generate_narrator_bridge(
             context=LLMContext.NARRATOR,
             system_instruction="You are a master storyteller for a political thriller. Be concise, atmospheric, and serious.",
             temperature=0.7,
-            max_tokens=150
+            # Backstop only (~3x the 2-3 sentences the prompt asks for);
+            # hits are recorded as truncations, never silently absorbed
+            max_tokens=300
         )
         bridge_text = bridge_text.strip()
         if not bridge_text:

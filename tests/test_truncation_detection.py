@@ -92,6 +92,42 @@ class TestOpenAICompatDriverFillsMeta:
         assert [m["finish_reason"] for m in metas] == ["stop", "length"]
 
 
+class TestReasoningControl:
+    """OPENAI_COMPAT_REASONING: hidden reasoning must not eat the reply's
+    token budget. The first live shakedown watched a thinking model return
+    EMPTY completions on every small-capped call."""
+
+    def _payload_sent(self, monkeypatch, env_value):
+        monkeypatch.setenv("OPENAI_COMPAT_BASE_URL", "https://example.invalid/v1")
+        monkeypatch.setenv("OPENAI_COMPAT_MODEL", "test-model")
+        if env_value is not None:
+            monkeypatch.setenv("OPENAI_COMPAT_REASONING", env_value)
+        else:
+            monkeypatch.delenv("OPENAI_COMPAT_REASONING", raising=False)
+        driver = OpenAICompatDriver()
+        captured = {}
+
+        def fake_post(url, headers=None, json=None, timeout=None):
+            captured.update(json)
+            return FakeResponse(completion("ok", "stop"))
+
+        monkeypatch.setattr("llm.openai_compat_driver.requests.post", fake_post)
+        driver.generate_text("p", Random(1))
+        return captured
+
+    def test_off_disables_reasoning(self, monkeypatch):
+        payload = self._payload_sent(monkeypatch, "off")
+        assert payload["reasoning"] == {"enabled": False}
+
+    def test_effort_levels_pass_through(self, monkeypatch):
+        payload = self._payload_sent(monkeypatch, "low")
+        assert payload["reasoning"] == {"effort": "low"}
+
+    def test_unset_sends_nothing(self, monkeypatch):
+        payload = self._payload_sent(monkeypatch, None)
+        assert "reasoning" not in payload
+
+
 class LengthStopDriver:
     """Stand-in driver that always reports a cap-hit."""
 

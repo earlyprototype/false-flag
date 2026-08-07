@@ -144,6 +144,17 @@ class OpenAICompatDriver:
         self.temperature = float(temperature) if temperature is not None else 0.7
         self.max_tokens = int(max_tokens) if max_tokens is not None else 2048
 
+        # OPENAI_COMPAT_REASONING: "off" disables hidden reasoning entirely,
+        # "low"/"medium"/"high" request that effort (OpenRouter's unified
+        # reasoning parameter). Unset sends nothing - the provider default.
+        self.reasoning = None
+        setting = str(_config_value("OPENAI_COMPAT_REASONING",
+                                    "OPENAI_COMPAT_REASONING") or "").lower().strip()
+        if setting == "off":
+            self.reasoning = {"enabled": False}
+        elif setting in ("low", "medium", "high"):
+            self.reasoning = {"effort": setting}
+
     def _headers(self) -> dict:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
@@ -193,6 +204,16 @@ class OpenAICompatDriver:
             # support seeding simply ignore the field.
             "seed": rng.randint(0, 2**31 - 1),
         }
+        if self.reasoning is not None:
+            # Thinking models bill hidden reasoning against max_tokens: the
+            # first live shakedown watched a model spend its entire budget
+            # thinking and return EMPTY completions on every small-capped
+            # call (finish reason "length"), which degraded to canned mock
+            # text. Output length belongs to the prompt ("2-3 sentences");
+            # this field stops reasoning from eating the reply's budget.
+            # OpenRouter's unified shape; opt-in, so plain OpenAI-compatible
+            # servers that reject unknown fields are never sent it.
+            payload["reasoning"] = self.reasoning
 
         try:
             response = requests.post(

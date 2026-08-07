@@ -725,11 +725,13 @@ def _select_responding_characters(
     return responders[:4]
 
 
-# Character reactions are two or three sentences; the cap is what stops a
-# model that cannot be told to stop from spending its whole budget thinking
-# and returning nothing. Named here because the batch path has to pass it
-# explicitly, and a silently dropped cap is an empty advisor line.
-CHARACTER_RESPONSE_MAX_TOKENS = 150
+# Character reactions are two or three sentences - the PROMPT sets the
+# length; this cap is only a backstop, sized ~3x the honest answer so it
+# never shapes content. Any hit is recorded as a parse-health truncation,
+# so a firing backstop is a visible prompt problem, not a silent edit.
+# (Thinking models spending their budget on hidden reasoning are handled
+# at the driver - OPENAI_COMPAT_REASONING - not by inflating this.)
+CHARACTER_RESPONSE_MAX_TOKENS = 300
 
 
 def build_character_response_prompt(

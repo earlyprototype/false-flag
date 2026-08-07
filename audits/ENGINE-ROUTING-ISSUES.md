@@ -115,6 +115,8 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-068 | open | low | data | engine/intelligence.py emits terminal markup over the HTTP API |
 | ER-069 | open | low | data | events.yaml grants a metric that no longer exists |
 | ER-070 | open | low | state | The CLI endings toggle is not persisted across a resume |
+| ER-071 | fixed | high | dispatch | A thinking model's hidden reasoning starves capped replies to empty |
+| ER-072 | fixed | med | context | The advisory transcript window grows to 150k+ chars of paid input |
 
 ## How the measurements below were taken
 
@@ -1442,3 +1444,29 @@ Evidence with file:line for every claim is in `2026-08-07-uniformity-audit/`
 - **Status:** open · **Severity:** low · **Area:** state
 - `endings_disabled` is a loop local: a player who disabled endings and resumes gets them back
   on. Small; noted so the completeness test's whitelist stays honest.
+
+
+## ER-071 — A thinking model's hidden reasoning starves capped replies to empty
+- **Status:** fixed · **Severity:** high · **Area:** dispatch
+- **Observed:** In the first recorded live shakedown (2026-08-07, qwen3.7-flash FLASH tier),
+  every character-response and narrator call finished on "length": the model spent its whole
+  token budget on hidden reasoning and returned EMPTY completions, which degraded to canned
+  mock lines (16 character slots, 8 narrator bridges, 3 pushback calls; 35 cut replies over 10
+  turns). The new truncation counters made this visible on turn 1; the previous session played
+  the same defect silently.
+- **Fixed:** OPENAI_COMPAT_REASONING ("off" | effort level) sends OpenRouter's unified
+  reasoning parameter, keeping hidden reasoning out of the reply budget; opt-in so plain
+  OpenAI-compatible servers never see an unknown field. Small caps stay as backstops only,
+  resized ~3x the sentence count the prompts ask for, with every hit recorded. Output length
+  remains the prompt's job, not the cap's.
+
+## ER-072 — The advisory transcript window grows to 150k+ chars of paid input
+- **Status:** fixed · **Severity:** med · **Area:** context
+- **Observed:** The same run measured the advisory families (QA, pushback, omissions,
+  interpretation) at a MEAN of ~76k prompt chars, peaking above 150k by turn 10 - linear
+  growth under a 320k allowance that never bound in practice. 71 PRO-tier calls paid full
+  input price for raw history the dossier already carries in the synopsis and event ledger;
+  the run cost ~$3.85, most of it this window.
+- **Fixed:** MAX_ADVISOR_TRANSCRIPT_CHARS 320k -> 60k. Not an output cap: the referee-memory
+  design moved campaign history into the fold and the ledger, so the raw slice's only job is
+  recent verbatim exchanges. The head+tail slice keeps the campaign's opening.
