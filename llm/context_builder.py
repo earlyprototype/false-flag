@@ -8,6 +8,8 @@ efficient, and secure context for each type of LLM agent in the simulation.
 import re
 from typing import List
 
+from llm.parse_health import record_miss
+from models.narrative_state import format_event_consequences
 from models.world import WorldState
 
 # A full game transcript is a list of strings, where each string is a line of dialogue,
@@ -27,7 +29,23 @@ FullTranscript = List[str]
 # every advisory call for history the dossier already summarises. 60k
 # (~15k tokens) holds several turns of recent exchanges; the head+tail
 # slice keeps the campaign's opening either way.
+#
+# This constant is a NEVER-FIRE TRIPWIRE, not a guillotine. The window is
+# scoped by dropping whole oldest turns until it fits; content is never cut
+# mid-turn or mid-line to satisfy the number. When even the minimum window
+# (the head plus the last _MIN_RECENT_WHOLE_TURNS whole turns) exceeds it,
+# the turns are kept intact anyway and the breach is recorded through
+# parse_health.record_miss("context_window", "tripwire", ...). Length
+# discipline lives at generation time (the prompts bound what a turn can
+# say) and structure time (turn boundaries), never as a character cut that
+# shapes content.
 MAX_ADVISOR_TRANSCRIPT_CHARS = 60_000
+
+# The floor under the recent window: the advisory slice never carries fewer
+# than this many whole recent turns, whatever they cost. Two, because the
+# decision being adjudicated always needs the turn it answers *and* the turn
+# before it (the exchange the inject built on).
+_MIN_RECENT_WHOLE_TURNS = 2
 
 # The history header, and why it carries no counts. It has to be honest in
 # both cases - complete and elided - without changing between them, because
@@ -125,6 +143,15 @@ def render_event_ledger(event_ledger, always: bool = False) -> str:
         if note:
             line += f" - {note}"
         lines.append(line)
+        # Structured consequences (ER-077), one indented line when any are
+        # present - absent on entries from older saves and on turns whose
+        # adjudication has not yet run.
+        consequences = format_event_consequences(
+            str(_ledger_field(entry, "outcome", "")).strip(),
+            _ledger_field(entry, "effects_direction", None) or {},
+            _ledger_field(entry, "objectors", None) or [])
+        if consequences:
+            lines.append(f"  {consequences}")
     return "\n".join(lines)
 
 # Pattern for the turn header line the sim loop writes between '=' rulers
@@ -228,7 +255,7 @@ def render_transcript_block(transcript: FullTranscript,
                             max_chars: int = MAX_ADVISOR_TRANSCRIPT_CHARS) -> str:
     """Render the game history, saying honestly how much of it is present.
 
-    Two things are deliberate here.
+    Three things are deliberate here.
 
     The header no longer claims COMPLETE over a window. It said so while
     dropping everything but the last 500 lines, which on an 18-turn campaign
@@ -241,6 +268,15 @@ def render_transcript_block(transcript: FullTranscript,
     every turn, so the block never starts the same way twice and no provider
     can match a prefix. Anchoring the head means the start of this block is
     stable for many turns at a stretch.
+
+    And the window is made of WHOLE TURNS only: the head plus the last N
+    whole turns, oldest turns dropping first when the budget would otherwise
+    be exceeded - their content already travels in the synopsis and the event
+    ledger. ``max_chars`` is a never-fire tripwire, not a guillotine: once
+    the window is down to the head plus _MIN_RECENT_WHOLE_TURNS whole recent
+    turns, those turns are kept intact whatever they cost and the breach is
+    recorded (record_miss "context_window.tripwire"). Content is never cut
+    mid-turn under any circumstances.
     """
     total_chars = sum(len(line) + 1 for line in transcript)
     ruler = "=" * 60
@@ -248,16 +284,26 @@ def render_transcript_block(transcript: FullTranscript,
     if total_chars <= max_chars:
         return "\n".join([ruler, _HISTORY_HEADER, ruler, *transcript])
 
-    head_budget = int(max_chars * _TRANSCRIPT_HEAD_SHARE)
     boundaries = _turn_boundaries(transcript)
+
+    # No turn structure at all (synthetic transcripts, or a scenario that
+    # never wrote TURN headers): there is no boundary to drop whole turns
+    # at, and cutting anywhere else would slice content. Send it whole and
+    # record that the tripwire was crossed.
+    if not boundaries:
+        record_miss("context_window", "tripwire",
+                    f"{total_chars} chars over a {max_chars} budget with no "
+                    "turn boundaries to drop")
+        return "\n".join([ruler, _HISTORY_HEADER, ruler, *transcript])
+
+    head_budget = int(max_chars * _TRANSCRIPT_HEAD_SHARE)
 
     # Grow the head one whole turn at a time, until the next whole turn would
     # spend more than the opening's share of the budget. Nothing is taken
     # unconditionally: a transcript whose first turn header is a long way in
     # would otherwise pull all of that preamble into the head regardless of
-    # budget, and the block would run past the cap it exists to enforce. If
-    # the opening does not fit, there is simply no head and this degrades to
-    # the plain recent window.
+    # budget. If the opening does not fit, there is simply no head and this
+    # degrades to the plain recent window.
     head_end = 0
     head_used = 0
     for boundary in boundaries:
@@ -267,30 +313,44 @@ def render_transcript_block(transcript: FullTranscript,
         head_used += span
         head_end = boundary
 
-    # Spend what is left from the end, again stopping on a turn boundary.
+    # The recent window, in whole turns from the end. The last
+    # _MIN_RECENT_WHOLE_TURNS turns are mandatory whatever they cost; older
+    # turns are added whole while the budget holds, so the oldest drop first.
+    if len(boundaries) >= _MIN_RECENT_WHOLE_TURNS:
+        min_tail_start = boundaries[-_MIN_RECENT_WHOLE_TURNS]
+    else:
+        min_tail_start = boundaries[0]
     tail_budget = max(0, max_chars - head_used)
     tail_start = len(transcript)
     tail_used = 0
     for boundary in reversed(boundaries):
-        if boundary <= head_end:
-            break
         span = _span_chars(transcript, boundary, tail_start)
-        if tail_used + span > tail_budget:
-            break
+        mandatory = boundary >= min_tail_start
+        if not mandatory and (boundary <= head_end
+                              or tail_used + span > tail_budget):
+            break  # an optional older turn drops whole, never partially
         tail_used += span
         tail_start = boundary
+        if boundary <= head_end:
+            break  # the mandatory window has met the head; nothing to elide
 
-    # No turn boundary fit inside the tail budget - a transcript with no turn
-    # headers at all (the synthetic ones in tests), or one enormous turn.
-    # Fall back to a plain character tail so the block still renders.
-    if tail_start >= len(transcript):
-        tail_start = head_end
-        running = 0
-        for i in range(len(transcript) - 1, head_end - 1, -1):
-            running += len(transcript[i]) + 1
-            if running > tail_budget:
-                tail_start = i + 1
-                break
+    if tail_start <= head_end:
+        # Head and tail meet: the whole transcript is in the window. It is
+        # over budget (the fits-whole path returned above), which is exactly
+        # what the tripwire exists to record - but the content still travels.
+        record_miss("context_window", "tripwire",
+                    f"{total_chars} chars over a {max_chars} budget with "
+                    "nothing left to drop at a turn boundary")
+        return "\n".join([ruler, _HISTORY_HEADER, ruler, *transcript])
+
+    kept_turns = sum(1 for b in boundaries if b >= tail_start)
+    assembled = head_used + tail_used
+    if assembled > max_chars:
+        # The minimum window itself exceeds the budget. Keep it intact
+        # anyway - the tripwire records the breach, it never cuts.
+        record_miss("context_window", "tripwire",
+                    f"{assembled} chars over a {max_chars} budget after "
+                    f"dropping to the last {kept_turns} whole turn(s)")
 
     elided = tail_start - head_end
     return "\n".join([

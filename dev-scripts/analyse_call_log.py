@@ -11,9 +11,9 @@ on it.
 When the campaign harness also wrote a state file beside the log
 (<log>.state.jsonl - see dev-scripts/play_campaign.py), it additionally
 verifies advisor-attitude drift (ER-007) and the pushback-override trust
-cost (ER-013), checks for empty-completion fallbacks (ER-071) and the
-advisory prompt bound (ER-072), and prints a rough per-family token cost
-table.
+cost (ER-013), checks for empty-completion fallbacks (ER-071), reports the
+advisory prompt scope (ER-072/ER-076: warning-grade over the ceiling, hard
+FAIL only past 2x it), and prints a rough per-family token cost table.
 
 Usage: python3 dev-scripts/analyse_call_log.py <log.jsonl>
 """
@@ -23,10 +23,16 @@ import os
 import sys
 from collections import Counter, defaultdict
 
-# Families whose prompts carry the advisor transcript and are therefore
-# bounded by MAX_ADVISOR_TRANSCRIPT_CHARS (llm/context_builder.py, 60k).
+# Families whose prompts carry the advisor transcript, scoped to whole
+# turns against MAX_ADVISOR_TRANSCRIPT_CHARS (llm/context_builder.py, 60k).
 # The ceiling here allows 10% headroom for the fixed prompt scaffolding
-# around the bounded transcript block.
+# around the transcript block. Since ER-076 the constant is a never-fire
+# tripwire, not a guillotine: the window drops whole oldest turns to fit,
+# but the last two whole turns are kept intact whatever they cost, so a
+# prompt can legitimately run past the ceiling when recent turns are long.
+# That is a warning-grade report. A prompt past 2x the ceiling cannot be
+# explained by two long turns - it means the tripwire logic itself broke -
+# and stays a hard FAIL.
 ADVISORY_FAMILIES = ("advisor_qa", "advisor_pushback", "critical_omissions",
                      "decision_interpretation")
 ADVISORY_PROMPT_CEILING = 66_000
@@ -203,22 +209,37 @@ def main():
           f"{len(fb_records)} fallback records"
           + (f" ({dict(fb_split)})" if fb_split else ""))
 
-    # --- 6. ER-072: advisory prompts bounded --------------------------------
-    print("\n== ER-072 ADVISORY PROMPT BOUND ==")
-    oversize = []
+    # --- 6. ER-072/ER-076: advisory prompt scope ----------------------------
+    # Over-ceiling is a WARNING, not a failure: the whole-turn window keeps
+    # the last two turns intact whatever they cost (ER-076), so long recent
+    # turns can carry a prompt past the ceiling by design. Past 2x the
+    # ceiling no pair of turns is a plausible explanation - the tripwire
+    # logic itself broke - so that stays a hard FAIL.
+    print("\n== ER-072/076 ADVISORY PROMPT SCOPE ==")
+    broken = []
+    warned = []
     for family in ADVISORY_FAMILIES:
         rs = by_family.get(family, [])
         if not rs:
             print(f"  {family:28s} (no calls)")
             continue
         biggest = max(len(r["prompt"]) for r in rs)
+        marker = ""
+        if biggest > 2 * ADVISORY_PROMPT_CEILING:
+            marker = "  BROKEN: past 2x ceiling - tripwire logic failed"
+            broken.append((family, biggest))
+        elif biggest > ADVISORY_PROMPT_CEILING:
+            marker = "  WARN: over ceiling (whole-turn window kept by design)"
+            warned.append((family, biggest))
         print(f"  {family:28s} max={biggest:7d} chars "
-              f"(ceiling {ADVISORY_PROMPT_CEILING})")
-        if biggest > ADVISORY_PROMPT_CEILING:
-            oversize.append((family, biggest))
-    check(f"ER-072 advisory prompts within {ADVISORY_PROMPT_CEILING} chars",
-          not oversize,
-          ", ".join(f"{f}={n}" for f, n in oversize))
+              f"(ceiling {ADVISORY_PROMPT_CEILING}){marker}")
+    if warned:
+        print(f"  note: {len(warned)} family(ies) over the ceiling - "
+              "report-only; whole turns are never cut to fit (ER-076)")
+    check(f"ER-076 no advisory prompt past 2x the {ADVISORY_PROMPT_CEILING} "
+          "char ceiling",
+          not broken,
+          ", ".join(f"{f}={n}" for f, n in broken))
 
     # --- 7. State-file checks: ER-007 drift, ER-013 trust cost --------------
     state_path = path + ".state.jsonl"

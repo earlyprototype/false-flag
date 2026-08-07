@@ -59,6 +59,52 @@ class PlayedEvent(BaseModel):
     disposition: Literal["open", "advanced", "resolved"] = "open"
     note: str = ""  # one line: what the player did about it
 
+    # Structured consequences, written at adjudication time (ER-077). All
+    # optional with empty defaults so saves written before they existed load
+    # clean. The disposition says how the thread was left; these say what it
+    # cost - the referee's one-sentence verdict, which way each metric moved,
+    # and who in the room objected.
+    outcome: str = ""  # one sentence from the quality assessment's reasoning
+    effects_direction: Dict[str, str] = Field(
+        default_factory=dict,
+        description='metric name -> "up" | "down" | "steady"')
+    objectors: List[str] = Field(
+        default_factory=list,
+        description="advisor roles that raised pushback against the decision")
+
+
+# Compact metric names for one-line ledger rendering - the full attribute
+# names ("escalation_risk") are engine identifiers, not prose.
+_METRIC_SHORT_NAMES = {
+    "escalation_risk": "risk",
+    "alliance_cohesion": "cohesion",
+    "domestic_stability": "stability",
+}
+
+
+def format_event_consequences(outcome: str,
+                              effects_direction: Optional[Dict[str, str]],
+                              objectors: Optional[List[str]]) -> str:
+    """One compact clause per consequence field, '' when none are present.
+
+    e.g. "outcome: Escorting the boat out held the line.; effects: risk up,
+    cohesion steady; objectors: Foreign Secretary". Shared by both ledger
+    renderers (the EVENTS ALREADY PLAYED block and DECISIONS AND OUTCOMES)
+    so the two never drift apart in format.
+    """
+    clauses = []
+    if outcome:
+        clauses.append(f"outcome: {outcome}")
+    if effects_direction:
+        moves = ", ".join(
+            f"{_METRIC_SHORT_NAMES.get(metric, str(metric).replace('_', ' '))} "
+            f"{direction}"
+            for metric, direction in effects_direction.items())
+        clauses.append(f"effects: {moves}")
+    if objectors:
+        clauses.append("objectors: " + ", ".join(objectors))
+    return "; ".join(clauses)
+
 
 class NarrativeState(BaseModel):
     """
@@ -242,8 +288,11 @@ class NarrativeState(BaseModel):
 
         One line per staged event: turn, title, how the thread was left, and
         the note record_event_disposition attached — which carries the
-        (truncated) decision the player took about it. This is the memory the
-        adjudication prompts fold in: what happened and what the player did.
+        (truncated) decision the player took about it. Entries adjudicated
+        since ER-077 carry a second, indented line with the structured
+        consequences: the referee's one-sentence outcome, which way each
+        metric moved, and who objected. This is the memory the adjudication
+        prompts fold in: what happened, what the player did, what it cost.
         """
         if not self.event_ledger:
             return ""
@@ -253,6 +302,10 @@ class NarrativeState(BaseModel):
             if entry.note:
                 line += f" | {entry.note}"
             lines.append(line)
+            consequences = format_event_consequences(
+                entry.outcome, entry.effects_direction, entry.objectors)
+            if consequences:
+                lines.append(f"  {consequences}")
         return "\n".join(lines)
 
     def _llm_context(self, include_characters: bool) -> str:
@@ -365,6 +418,31 @@ class NarrativeState(BaseModel):
                 entry.disposition = disposition
                 if note:
                     entry.note = note.strip()
+                return
+
+    def record_event_consequences(self, turn: int, outcome: str = "",
+                                  effects_direction: Optional[Dict[str, str]] = None,
+                                  objectors: Optional[List[str]] = None) -> None:
+        """Attach this turn's adjudicated consequences to its ledger entry.
+
+        Written whatever the disposition ends up as - an event can stay OPEN
+        and still have cost the player something. Only truthy values are
+        written, so a retried adjudication cannot blank fields an earlier
+        pass filled in.
+        """
+        for entry in self.event_ledger:
+            if entry.turn == turn:
+                if outcome:
+                    entry.outcome = outcome.strip()
+                if effects_direction:
+                    entry.effects_direction = {
+                        str(metric): direction
+                        for metric, direction in effects_direction.items()
+                        if direction in ("up", "down", "steady")
+                    }
+                if objectors:
+                    entry.objectors = [str(role).strip() for role in objectors
+                                       if str(role).strip()]
                 return
 
     def recent_played_events(self, n: Optional[int] = None) -> List["PlayedEvent"]:
