@@ -215,6 +215,18 @@ contents are real regardless of who answered):
 Owed when the account is topped up: one clean 6-8 turn run for reply-side ER-076/077 and a
 fallback-free ER-074 confirmation.
 
+## Shakedown 5 — final verification, 2026-08-07 (funded re-run)
+
+6 clean turns after the credit top-up: no mock fallbacks, zero parse misses, analyzer verdict
+ALL CHECKS PASSED. **ER-074 live-verified fallback-free** (exactly one interpretation, one
+pushback, one omissions batch per preview+commit turn: 6/6/30). **ER-077 live-verified**
+(consequence lines in 5 of 6 quality prompts; turn 1 correctly has none). **ER-076
+live-verified** (max advisory prompt 68,236 chars - 3% over the soft ceiling because the two
+mandatory whole turns travel intact, the designed warning-grade case; far below the 2x hard
+tripwire; no mid-content cut anywhere). Every register entry now stands live-verified,
+mock-designated with a reason, or withdrawn. The matrix's question - does the why have
+evidence - is answered for every row.
+
 ## Order of work
 
 1. Pass-1 fixes: the four auditors' class findings + the F-row invariants + the call-log
