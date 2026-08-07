@@ -786,10 +786,15 @@ inputs do not state who did something, say it is unattributed rather than
 inferring. State accusations as accusations, naming who accuses whom of
 what.
 
+Compression rules, which outrank completeness: at most SIX sentences, each
+ending in a full stop. Events from earlier turns compress to a clause; only
+the most recent turn gets a full sentence of detail. Synthesise - do not
+recite the event list. Finish the final sentence; never stop mid-thought.
+
 Summary:"""
     try:
         summary = llm_generate_fn(
-            prompt, rng, max_tokens=250,
+            prompt, rng, max_tokens=400,
             context=LLMContext.SITUATION_SUMMARY).strip().strip('"')
         if summary:
             return summary
