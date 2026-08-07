@@ -187,6 +187,15 @@ commit; filed and measured as ER-074).
   "in Turn 2" - game mechanics leaking into fiction against the voice instructions (polish;
   model-adherence, prompt already forbids it).
 
+## Shakedown 3 — ER-073/ER-013 verification, 2026-08-07 (later still)
+
+4 live turns, ~$0.84. Every chargeable objector was charged on all four pushback turns, with
+persona names correctly bridged to cabinet characters (e.g. DIPLOMATIC LEAD -> uk_foreign_sec;
+GOVERNMENT LEADER correctly free - that is the player). Analyzer verdict: all checks passed.
+**ER-013 and ER-073 are live-verified.** Nothing on the matrix now rests on an unverified fix;
+the open work is design (ER-074 pipeline reuse, whole-turn windowing, ledger resolution), not
+defects.
+
 ## Order of work
 
 1. Pass-1 fixes: the four auditors' class findings + the F-row invariants + the call-log
