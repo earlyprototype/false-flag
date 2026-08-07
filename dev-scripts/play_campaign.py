@@ -97,6 +97,10 @@ def _snapshot_state(gm, turn, pushback_roles=None):
     }
     if pushback_roles is not None:
         entry["pushback_roles"] = pushback_roles
+        # Who actually paid the ER-013 cost this commit: read directly off
+        # the manager, because the same turn's attitude drift can mask a -1
+        # in the net trust numbers (seen in the first verification run).
+        entry["pushback_costs"] = list(getattr(gm, "_last_pushback_costs", []))
     return entry
 
 

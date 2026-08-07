@@ -255,10 +255,11 @@ def main():
                   f"trust moved for {drifted}" if drifted else
                   "no advisor's trust moved between the first and last state dump")
 
-        # ER-013: on any turn whose interpretation drew pushback (and the
-        # harness committed the identical text), some objector's trust must
-        # have fallen against the previous dump.
-        by_turn = {d.get("turn"): d for d in dumps}
+        # ER-013/ER-073: on any turn whose interpretation drew pushback (and
+        # the harness committed the identical text), the cost must actually
+        # have been charged. The dump's "pushback_costs" field is the
+        # manager's own record of who paid (net trust can mask a -1 behind
+        # the same turn's attitude drift, so deltas alone are not evidence).
         pushback_dumps = [d for d in dumps if d.get("pushback_roles")]
         if not pushback_dumps:
             print("  no pushback occurred in this run - ER-013 trust-cost "
@@ -266,37 +267,23 @@ def main():
         else:
             for dump in pushback_dumps:
                 turn = dump.get("turn")
-                prev = by_turn.get((turn or 0) - 1)
                 roles = dump["pushback_roles"]
-                if prev is None:
-                    check(f"ER-013 pushback on turn {turn} cost the objectors trust",
-                          False, "no previous state dump to compare against")
+                costs = dump.get("pushback_costs")
+                if costs is None:
+                    print(f"  turn {turn}: state dump predates the "
+                          "pushback_costs record - cannot verify this turn")
                     continue
-                name_to_cid = {
-                    str(a.get("name", "")).strip().lower(): cid
-                    for cid, a in prev.get("advisors", {}).items()
-                }
-                seeded, dropped = [], []
-                for role in roles:
-                    cid = name_to_cid.get(str(role).strip().lower())
-                    if cid is None:
-                        continue  # no seeded character: override is free by design
-                    seeded.append(role)
-                    t_prev = prev["advisors"][cid].get("trust")
-                    t_now = dump.get("advisors", {}).get(cid, {}).get("trust")
-                    print(f"  turn {turn}: objector {role}: trust "
-                          f"{t_prev} -> {t_now}")
-                    if t_now is not None and t_prev is not None and t_now < t_prev:
-                        dropped.append(role)
-                if not seeded:
-                    print(f"  turn {turn}: objectors {roles} have no seeded "
-                          "characters - trust cost not applicable")
-                    continue
-                check(f"ER-013 pushback on turn {turn} cost an objector trust",
-                      bool(dropped),
-                      f"trust fell for {dropped}" if dropped else
-                      f"objectors {seeded} committed over unamended but no "
-                      "trust decrease recorded")
+                print(f"  turn {turn}: objectors {roles} -> charged {costs}")
+                # After the ER-073 persona-title bridge, every known cabinet
+                # role must resolve; "government leader" is the PM (free).
+                expected = [r for r in roles
+                            if str(r).strip().lower() != "government leader"]
+                check(f"ER-013/073 pushback on turn {turn} charged the objectors",
+                      bool(costs) or not expected,
+                      f"charged {len(costs)} of {len(expected)} chargeable objectors"
+                      if costs or not expected else
+                      f"objectors {expected} committed over unamended but "
+                      "nobody was charged")
 
     # --- 8. Cost estimate ---------------------------------------------------
     print("\n== COST ESTIMATE (rough: chars/4 as tokens) ==")

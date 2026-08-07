@@ -346,12 +346,17 @@ class GameManager:
         for char_id, char in self.narrative_state.characters.items():
             name = char.get("name", "") if isinstance(char, dict) else getattr(char, "name", "")
             by_name.setdefault(str(name).strip().lower(), char_id)
+        # Diagnostic record of who actually paid: the same turn's attitude
+        # drift can mask a -1 in the net trust numbers, so verification
+        # reads this instead of inferring the cost from deltas.
+        self._last_pushback_costs = []
         for role in objecting_roles:
             key = str(role).strip().lower()
             key = self._PERSONA_ROLE_TITLES.get(key, key)
             char_id = by_name.get(key)
             if char_id:
                 self.narrative_state.update_character_attitude(char_id, trust_delta=-1)
+                self._last_pushback_costs.append(char_id)
 
     # CAMPAIGN TERMINATION ----------------------------------------------
 

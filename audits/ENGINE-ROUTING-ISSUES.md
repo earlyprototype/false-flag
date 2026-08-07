@@ -120,6 +120,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-072 | fixed | med | context | The advisory transcript window grows to 150k+ chars of paid input |
 | ER-073 | fixed | med | state | Pushback objector names miss the character roster, so the trust cost never lands |
 | ER-074 | open | med | dispatch | Preview-then-commit runs the whole advisory pipeline twice |
+| ER-075 | open | low | context | The event ledger grows without bound over very long campaigns |
 
 ## How the measurements below were taken
 
@@ -1520,3 +1521,12 @@ Evidence with file:line for every claim is in `2026-08-07-uniformity-audit/`
   pattern) and have `run_decision_pipeline` accept them, re-running only rounds that depend on
   state the commit changes. Filed open: it touches the decision pipeline's determinism
   guarantees and deserves its own tested change, not a same-day patch.
+
+## ER-075 — The event ledger grows without bound over very long campaigns
+- **Status:** open · **Severity:** low · **Area:** context
+- **Observed:** History travels compressed by design - the synopsis rewrites itself to six
+  sentences every turn - but the event ledger adds one line per played event forever. Cheap at
+  7-18 turns; linear growth into every deciding prompt on a 100-turn open-ended campaign.
+- **Fix shape:** the ledger compresses its own tail the way the synopsis does (older entries
+  collapse to a clause, recent entries stay whole), or a bounded render window with the count
+  of elided entries stated inline. Low urgency; filed so the growth is a decision, not a drift.

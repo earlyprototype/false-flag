@@ -27,7 +27,8 @@ EPHEMERAL_MANAGER_FIELDS = {
     "root_path",           # machine-local; recomputed in __init__
     "initial_conditions",  # static scenario data, reloaded from disk
     "scenario_config",     # static scenario data, reloaded from disk
-    "_resume_replay",      # derived by from_dict from world.phase
+    "_resume_replay",        # derived by from_dict from world.phase
+    "_last_pushback_costs",  # per-commit diagnostic; consumed same turn
 }
 
 # DiplomaticEncounter attributes that are re-wired or re-derived on load.
