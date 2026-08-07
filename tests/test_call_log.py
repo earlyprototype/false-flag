@@ -109,13 +109,14 @@ class TestRouterIntegration:
 
 
 class TestParseHealthExtensions:
-    def test_truncations_and_residues_are_counted_and_reset(self):
+    def test_truncations_and_residue_are_counted_and_reset(self):
         parse_health.record_truncation("situation_summary", "length")
         parse_health.record_residue("actor_simulation", 3, "stray line")
+        parse_health.record_residue("actor_simulation", 0)  # no-op
         snap = parse_health.snapshot()
         assert snap["truncations"] == {"situation_summary": 1}
-        assert snap["residues"] == {"actor_simulation": 1}
-        assert parse_health.total() == 2
+        assert snap["residue"] == {"actor_simulation": 3}
+        assert parse_health.total() == 4  # 1 truncation + 3 residue lines
         parse_health.reset()
         assert parse_health.total() == 0
         assert parse_health.snapshot()["truncations"] == {}

@@ -14,7 +14,7 @@ from rich.markup import escape as rich_escape
 from cli import aesthetics as ae
 from cli.rich_ui import console, format_markdown, RICH_ENABLED
 from cli.theme import theme_manager, SYMBOLS
-from llm.parse_health import record_miss
+from llm.parse_health import record_miss, record_residue
 from llm.parsing import extract_label
 
 
@@ -174,17 +174,27 @@ def parse_interpretation_simple(interpretation: str) -> dict:
 
     lines = interpretation.split('\n')
     current_section = None
+    # FEASIBILITY accumulates like a text field: the concern keywords may sit
+    # on a wrapped continuation line rather than the label line itself.
+    feasibility_text = ""
+    # Non-empty lines the parser neither consumed nor recognised.
+    residue = []
 
     for line in lines:
         line = line.strip()
+        if not line:
+            continue
 
-        interpretation = extract_label(line, "INTERPRETATION")
+        interp = extract_label(line, "INTERPRETATION")
         forces = extract_label(line, "FORCES INVOLVED")
         timeline = extract_label(line, "TIMELINE")
         feasibility = extract_label(line, "FEASIBILITY")
 
-        if interpretation is not None:
-            sections["summary"] = interpretation
+        if interp is not None:
+            # Inline value or the summary paragraph on the following lines
+            # (label-on-own-line) - support both, accumulating continuations.
+            sections["summary"] = interp
+            current_section = "summary"
         elif forces is not None:
             # Inline value ("FORCES INVOLVED: a, b") or bullet list on
             # following lines - support both.
@@ -196,17 +206,29 @@ def parse_interpretation_simple(interpretation: str) -> dict:
                 sections["timeline"] = timeline
             current_section = "timeline"
         elif feasibility is not None:
-            if "impossible" in line.lower() or "requires clarification" in line.lower():
-                sections["concerns"] = feasibility
-            current_section = None
-        elif current_section == "forces" and line and line.startswith(("*", "-", "•")):
+            feasibility_text = feasibility
+            current_section = "feasibility"
+        elif current_section == "summary":
+            sections["summary"] = f"{sections['summary']} {line}".strip()
+        elif current_section == "feasibility":
+            feasibility_text = f"{feasibility_text} {line}".strip()
+        elif current_section == "forces" and line.startswith(("*", "-", "•")):
             # Extract force name from bullet point
             stripped = line.lstrip("*-• ")
             force = stripped.split(":")[0] if ":" in stripped else stripped
             if force and len(sections["forces"]) < 5:  # Max 5 forces shown
                 sections["forces"].append(force)
-        elif current_section == "timeline" and line and not sections["timeline"]:
+        elif current_section == "timeline" and not sections["timeline"]:
             sections["timeline"] = line
+        else:
+            residue.append(line)
+
+    if "impossible" in feasibility_text.lower() \
+            or "requires clarification" in feasibility_text.lower():
+        sections["concerns"] = feasibility_text
+
+    if residue:
+        record_residue("decision_interpretation", len(residue), residue[0][:60])
 
     return sections
 

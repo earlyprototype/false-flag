@@ -718,6 +718,42 @@ async def acknowledge_briefing(session_id: str):
     return {"status": "success", "phase": "discussion"}
 
 
+# Speaker prefixes that mark a discussion transcript line as an advisor's.
+# handle_player_question emits the initial_conditions persona names
+# ("Military Commander", not "CDS" - see agents/conversation.py and
+# data/scenarios/war_game_2025/initial_conditions.yaml); the cabinet titles
+# the fiction uses elsewhere (cli/display_utils._ROLE_DISPLAY_TITLES) and the
+# legacy short forms are kept so older transcripts still classify.
+_ADVISOR_STREAM_ROLES = {
+    # initial_conditions persona names (what handle_player_question emits)
+    "government leader", "military commander", "intelligence coordinator",
+    "domestic security", "diplomatic lead", "legal advisor",
+    # cabinet titles used by the fiction / display layer
+    "prime minister", "chief of the defence staff", "national security advisor",
+    "foreign secretary", "home secretary", "attorney general",
+    "cabinet secretary",
+    # legacy short forms
+    "nsa", "cds",
+}
+
+
+def classify_discussion_line(line: str):
+    """Split an engine transcript line into (msg_type, role, content).
+
+    The candidate prefix is read decoration-tolerantly (strip_decoration), so
+    a markdown-emphasised "**Military Commander:**" still classifies as an
+    advisor line rather than streaming as narrator text.
+    """
+    from llm.parsing import strip_decoration
+
+    if ":" in line:
+        parts = line.split(":", 1)
+        potential_role = strip_decoration(parts[0])
+        if potential_role.lower() in _ADVISOR_STREAM_ROLES:
+            return "advisor", potential_role, parts[1].strip()
+    return "narrator", None, line
+
+
 @app.post("/game/discussion")
 async def post_discussion(request: DiscussionRequest):
     """Ask advisors a question."""
@@ -736,26 +772,13 @@ async def post_discussion(request: DiscussionRequest):
     
     # Push responses to stream
     for line in responses:
-        # Parse role if present
-        msg_type = "narrator"
-        role = None
-        content = line
-        
-        if ":" in line:
-            parts = line.split(":", 1)
-            potential_role = parts[0].strip()
-            # Simple heuristic for advisor names
-            if potential_role in ["NSA", "CDS", "Foreign Secretary", "Home Secretary", "Attorney General", "Prime Minister"]:
-                msg_type = "advisor"
-                role = potential_role
-                content = parts[1].strip()
-        
+        msg_type, role, content = classify_discussion_line(line)
         await session.push_event("transcript", {
             "type": msg_type,
             "role": role,
             "content": content
         })
-    
+
     return {"status": "processed"}
 
 

@@ -21,8 +21,14 @@ from engine.utils import clamp
 from models.state_actors import StateActorSystem, ActorResponse
 from llm.fanout import generate_group
 from llm.model_config import LLMContext
-from llm.parse_health import record_miss
-from llm.parsing import extract_label, find_float, find_signed_int, strip_decoration
+from llm.parse_health import record_fallback, record_miss, record_residue
+from llm.parsing import (
+    extract_label,
+    find_float,
+    find_signed_int,
+    match_enum,
+    strip_decoration,
+)
 from engine.actor_simulation import (
     simulate_actor_responses,
     calculate_effects_from_responses,
@@ -368,6 +374,64 @@ def _parse_quality_response(response: str, world_narrative=None) -> Dict[str, An
     # below only fills in when the model gave no multiplier at all.
     multiplier = None
     last_field = None
+    # A structured label whose value sits on the next line ("QUALITY:\npoor")
+    # parks the field here; the next non-empty line resolves it through the
+    # same tolerant path the inline value uses.
+    pending = None  # ("multiplier",) | ("quality",) | ("metric", name)
+    # Non-empty lines the parser neither consumed nor recognised.
+    residue = []
+
+    def apply_multiplier(value: str) -> None:
+        nonlocal multiplier
+        parsed = find_float(value)
+        if parsed is not None:
+            multiplier = max(0.5, min(2.5, parsed))
+        else:
+            record_miss("quality_assessment", "multiplier", value)
+
+    def apply_quality(value: str) -> None:
+        nonlocal quality
+        # match_enum tolerates decoration and annotation: "**Poor**" and
+        # "Poor - hasty and escalatory" both resolve to poor.
+        verdict = match_enum(
+            value, ("exceptional", "good", "adequate", "poor", "catastrophic"))
+        if verdict is not None:
+            quality = verdict
+        else:
+            record_miss("quality_assessment", "quality", value)
+
+    def apply_metric(metric: str, value: str) -> None:
+        parsed = find_signed_int(value)
+        if parsed is not None:
+            effects[metric] = parsed
+        else:
+            record_miss("quality_assessment", metric, value.strip())
+
+    def settle_pending(value: str = "") -> None:
+        """Resolve a parked field ("" = the value line never arrived)."""
+        nonlocal pending
+        if pending is None:
+            return
+        parked, pending = pending, None
+        if parked[0] == "multiplier":
+            apply_multiplier(value)
+        elif parked[0] == "quality":
+            apply_quality(value)
+        else:
+            apply_metric(parked[1], value)
+
+    def match_metric_line(text):
+        """(metric, remainder) when the pre-colon token IS one of the three
+        requested metrics (modulo decoration and space/hyphen for
+        underscore), else None - a REASONING continuation like
+        "escalation: rising" must not move a metric."""
+        if ":" not in text:
+            return None
+        prefix, remainder = text.split(":", 1)
+        metric = strip_decoration(prefix).lower().replace(" ", "_").replace("-", "_")
+        if metric in ("escalation_risk", "alliance_cohesion", "domestic_stability"):
+            return metric, remainder.strip()
+        return None
 
     for line in lines:
         line = line.strip()
@@ -378,53 +442,76 @@ def _parse_quality_response(response: str, world_narrative=None) -> Dict[str, An
         # shadow the longer one.
         value = extract_label(line, "QUALITY MULTIPLIER")
         if value is not None:
-            parsed = find_float(value)
-            if parsed is not None:
-                multiplier = max(0.5, min(2.5, parsed))
-            else:
-                record_miss("quality_assessment", "multiplier", value)
+            settle_pending()
             last_field = None
+            if value:
+                apply_multiplier(value)
+            else:
+                pending = ("multiplier",)
             continue
 
         value = extract_label(line, "QUALITY")
         if value is not None:
-            quality_str = strip_decoration(value).lower()
-            if quality_str in ["exceptional", "good", "adequate", "poor", "catastrophic"]:
-                quality = quality_str
-            else:
-                record_miss("quality_assessment", "quality", value)
+            settle_pending()
             last_field = None
+            if value:
+                apply_quality(value)
+            else:
+                pending = ("quality",)
             continue
 
         value = extract_label(line, "REASONING")
         if value is not None:
+            settle_pending()
             reasoning = value
             last_field = "reasoning"
             continue
 
-        if extract_label(line, "EFFECTS") is not None or strip_decoration(line).upper() == "EFFECTS":
+        value = extract_label(line, "EFFECTS")
+        if value is not None or strip_decoration(line).upper() == "EFFECTS":
+            settle_pending()
             last_field = None
+            # An inline delta on the header line ("EFFECTS: escalation_risk:
+            # -5") is a value, not decoration - feed it through the metric
+            # path instead of discarding it with the header.
+            if value:
+                hit = match_metric_line(value)
+                if hit is not None:
+                    metric, remainder = hit
+                    if remainder:
+                        apply_metric(metric, remainder)
+                    else:
+                        pending = ("metric", metric)
+                else:
+                    residue.append(value)
             continue
 
-        # A delta line only counts when the pre-colon token IS one of the
-        # three requested metrics (modulo decoration and space/hyphen for
-        # underscore) - a REASONING continuation like "escalation: rising"
-        # must not move a metric.
-        if ":" in line:
-            prefix, remainder = line.split(":", 1)
-            metric = strip_decoration(prefix).lower().replace(" ", "_").replace("-", "_")
-            if metric in ("escalation_risk", "alliance_cohesion", "domestic_stability"):
-                value = find_signed_int(remainder)
-                if value is not None:
-                    effects[metric] = value
-                else:
-                    record_miss("quality_assessment", metric, remainder.strip())
-                last_field = None
-                continue
+        hit = match_metric_line(line)
+        if hit is not None:
+            settle_pending()
+            last_field = None
+            metric, remainder = hit
+            if remainder:
+                apply_metric(metric, remainder)
+            else:
+                pending = ("metric", metric)
+            continue
+
+        # The line after a bare structured label carries that field's value
+        if pending is not None:
+            settle_pending(line)
+            continue
 
         # Wrapped continuation of the REASONING paragraph
         if last_field == "reasoning":
             reasoning = f"{reasoning} {line}".strip()
+            continue
+
+        residue.append(line)
+
+    settle_pending()
+    if residue:
+        record_residue("quality_assessment", len(residue), residue[0][:60])
 
     if quality is None:
         quality = "adequate"
@@ -603,7 +690,10 @@ def generate_character_responses(
         # not produce this: a failed call raised and the caller substituted
         # the fallback. actor_simulation guards the same marker.
         if cleaned.startswith("[ERROR:"):
+            record_fallback("character_response", f"{char.name} error slot")
             cleaned = ""
+        elif not cleaned:
+            record_fallback("character_response", f"{char.name} empty reply")
         # Same fallback the single-call path used when a response was refused
         responses.append((char.name, cleaned or f"[{char.name}] Understood, Prime Minister."))
     return responses
@@ -801,11 +891,15 @@ Summary:"""
             context=LLMContext.SITUATION_SUMMARY).strip().strip('"')
         if summary:
             return summary
+        # An empty reply means the caller substitutes the deterministic
+        # fallback synopsis; that substitution must show in parse health.
+        record_fallback("situation_summary", "empty reply")
     except Exception:
         logger.debug(
             "LLM situation summary failed; using deterministic fallback",
             exc_info=True,
         )
+        record_fallback("situation_summary", "exception")
     return None
 
 

@@ -18,7 +18,7 @@ _lock = threading.Lock()
 _misses: Dict[str, int] = {}       # "component.field" -> count
 _fallbacks: Dict[str, int] = {}    # component -> count
 _truncations: Dict[str, int] = {}  # component -> count
-_residues: Dict[str, int] = {}     # component -> replies with unparsed lines
+_residue: Dict[str, int] = {}      # component -> unconsumed line count
 
 
 def record_miss(component: str, field: str, detail: str = "") -> None:
@@ -43,9 +43,9 @@ def record_truncation(component: str, detail: str = "") -> None:
 
     A truncated reply is a defect wherever it lands: a parsed family loses
     trailing fields, a prose family ends mid-sentence in front of the player.
-    Drivers call this the moment the provider's finish reason says "length",
-    so every call site is covered by one hook instead of each cap being
-    audited by hand.
+    The drivers surface the provider's finish reason and the router calls
+    this when it says "length", so every call site is covered by one hook
+    instead of each cap being audited by hand.
     """
     suffix = f" ({detail})" if detail else ""
     logger.warning("[PARSE-TRUNCATION] %s%s", component, suffix)
@@ -53,18 +53,20 @@ def record_truncation(component: str, detail: str = "") -> None:
         _truncations[component] = _truncations.get(component, 0) + 1
 
 
-def record_residue(component: str, lines: int, sample: str = "") -> None:
-    """Record one reply that carried non-empty lines no parser consumed.
+def record_residue(component: str, count: int, sample: str = "") -> None:
+    """Record lines a parser neither consumed nor recognised.
 
-    Residue is the early-warning signal for failure shapes nobody has
-    imagined yet: a model phrasing the parser silently drops shows up here
-    as a count instead of on screen as a missing voice.
+    Residue is the text the tolerant parser walked past: not a label, not a
+    continuation, not a sentinel. A little is normal (models editorialise);
+    a lot means the reply held content the parser never saw - the
+    early-warning signal for failure shapes nobody has imagined yet.
     """
-    suffix = f" [{sample[:80]}]" if sample else ""
-    logger.warning("[PARSE-RESIDUE] %s: %d unparsed line(s)%s",
-                   component, lines, suffix)
+    if count <= 0:
+        return
+    suffix = f" (first: {sample})" if sample else ""
+    logger.warning("[PARSE-RESIDUE] %s x%d%s", component, count, suffix)
     with _lock:
-        _residues[component] = _residues.get(component, 0) + 1
+        _residue[component] = _residue.get(component, 0) + count
 
 
 def snapshot() -> Dict[str, Dict[str, int]]:
@@ -74,15 +76,15 @@ def snapshot() -> Dict[str, Dict[str, int]]:
             "misses": {k: _misses[k] for k in sorted(_misses)},
             "fallbacks": {k: _fallbacks[k] for k in sorted(_fallbacks)},
             "truncations": {k: _truncations[k] for k in sorted(_truncations)},
-            "residues": {k: _residues[k] for k in sorted(_residues)},
+            "residue": {k: _residue[k] for k in sorted(_residue)},
         }
 
 
 def total() -> int:
-    """Total recorded events (misses, fallbacks, truncations, residues)."""
+    """Total recorded events (misses, fallbacks, truncations, residue lines)."""
     with _lock:
         return (sum(_misses.values()) + sum(_fallbacks.values())
-                + sum(_truncations.values()) + sum(_residues.values()))
+                + sum(_truncations.values()) + sum(_residue.values()))
 
 
 def reset() -> None:
@@ -90,4 +92,4 @@ def reset() -> None:
         _misses.clear()
         _fallbacks.clear()
         _truncations.clear()
-        _residues.clear()
+        _residue.clear()

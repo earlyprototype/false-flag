@@ -16,7 +16,7 @@ from llm.prompts import (
 )
 from llm.model_config import LLMContext
 from llm.fanout import generate_group
-from llm.parse_health import record_fallback, record_miss
+from llm.parse_health import record_fallback, record_miss, record_residue
 from llm.parsing import extract_label, is_sentinel_line, strip_decoration
 from engine.initial_conditions import get_all_uk_advisors
 
@@ -192,20 +192,29 @@ def handle_player_question(
     if not responding_advisors:
         responding_advisors = list(uk_advisors.keys())[:1]  # Just return first one
     
-    # Generate responses
+    # Generate responses. A failed, empty or error-slot reply is recorded
+    # and answered with an in-fiction line - never an out-of-fiction
+    # "System: Error ..." message.
+    _DEFERRAL_LINE = ("Prime Minister, I want to verify that before I answer "
+                      "- give me a moment.")
     responses = []
     for char_id in responding_advisors:
+        role = uk_advisors[char_id].get("role", "Advisor")
         try:
             prompt = build_advisor_context(world, initial_conditions, char_id,
                                            question, transcript, event_ledger)
             response = llm_generate_fn(prompt, rng, context=LLMContext.ADVISOR_QA)
-            
-            char_info = uk_advisors[char_id]
-            role = char_info.get("role", "Advisor")
-            responses.append((role, response))
+            cleaned = (response or "").strip()
+            if cleaned.startswith("[ERROR:"):
+                record_fallback("advisor_qa", f"{char_id} error slot")
+                cleaned = ""
+            elif not cleaned:
+                record_fallback("advisor_qa", f"{char_id} empty reply")
+            responses.append((role, cleaned or _DEFERRAL_LINE))
         except Exception as e:
-            responses.append(("System", f"Error generating response: {e}"))
-    
+            record_fallback("advisor_qa", f"{char_id} {type(e).__name__}")
+            responses.append((role, _DEFERRAL_LINE))
+
     return responses
 
 
@@ -235,6 +244,10 @@ def interpret_player_action(
     prompt = build_decision_interpretation_prompt(world, action, initial_conditions,
                                                   transcript, event_ledger)
     interpretation = llm_generate_fn(prompt, rng, context=LLMContext.DECISION_INTERPRETATION)
+    # An empty interpretation flows into every downstream prompt and the
+    # decision display; the substitution there must show in parse health.
+    if not interpretation or not interpretation.strip():
+        record_fallback("decision_interpretation", "empty reply")
     return interpretation
 
 
@@ -270,18 +283,25 @@ def generate_advisor_pushback(
     # Parse pushback response.
     # "NO PUSHBACK" only counts when it appears as a standalone line, so an
     # advisor mentioning the phrase mid-sentence doesn't drop real pushback.
+    # The messages are parsed FIRST and the sentinel applied only when none
+    # were found: a reply carrying real objections plus a trailing standalone
+    # "NO PUSHBACK" keeps the objections.
     lines = pushback_text.strip().split("\n")
-    if any(is_sentinel_line(line, "NO PUSHBACK") for line in lines):
-        return []
+    saw_sentinel = False
 
     # A line starts a new pushback only when the prefix before ":" is a known
     # advisor role; other lines (markdown emphasis, wrapped text) are treated
     # as continuations of the previous advisor's message.
     known_roles = _known_pushback_roles(initial_conditions)
     pushback_list = []
+    residue = []
     for line in lines:
         stripped = line.strip()
         if not stripped:
+            continue
+
+        if is_sentinel_line(stripped, "NO PUSHBACK"):
+            saw_sentinel = True
             continue
 
         role = None
@@ -303,8 +323,23 @@ def generate_advisor_pushback(
             # usually preamble), but no longer silently: if it was a real
             # objection under an unrecognised prefix, the record shows it.
             record_miss("pushback", "orphan_line", stripped[:60])
+            residue.append(stripped)
 
-    return pushback_list
+    if residue:
+        record_residue("advisor_pushback", len(residue), residue[0][:60])
+
+    if saw_sentinel and not pushback_list:
+        return []
+
+    # An advisor rendered saying nothing is a parse failure, not pushback:
+    # drop the empty entry and record it.
+    result = []
+    for role, message in pushback_list:
+        if message.strip():
+            result.append((role, message))
+        else:
+            record_miss("pushback", "empty_message", role)
+    return result
 
 
 def check_critical_omissions(
@@ -403,9 +438,16 @@ def check_critical_omissions(
                       f"{response[:80]}")
                 continue
 
+            # An EMPTY reply is a failed call, not an advisor finding
+            # nothing wrong - it must not be conflated with the genuine
+            # NO_CONCERN sentinel below.
+            if not response or not response.strip():
+                record_miss("critical_omissions", "empty_reply", char_id)
+                continue
+
             # The all-clear sentinel only counts as a standalone line, so an
             # answer that merely mentions NO_CONCERN mid-sentence still parses
-            if not response or any(
+            if any(
                 is_sentinel_line(line, "NO_CONCERN")
                 for line in response.splitlines()
             ):
@@ -416,6 +458,7 @@ def check_critical_omissions(
             concern = ""
             recommendation = ""
             last_field = None
+            residue = []
 
             lines = response.strip().split("\n")
             for line in lines:
@@ -436,6 +479,13 @@ def check_critical_omissions(
                 elif last_field == "recommendation":
                     # Multi-line recommendation
                     recommendation = f"{recommendation} {line}".strip()
+                else:
+                    # Before any label: neither consumed nor recognised
+                    residue.append(line)
+
+            if residue:
+                record_residue("critical_omissions", len(residue),
+                               residue[0][:60])
 
             if concern and not recommendation:
                 # A concern with no recommendation is still a concern - it

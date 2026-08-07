@@ -27,7 +27,7 @@ from agents.conversation import (
 from engine.decision_phase import format_decision_transcript, run_preview_round
 from llm.router import generate_text, batch_generate_text
 from llm.inject_generator import generate_inject
-from llm.parse_health import record_miss
+from llm.parse_health import record_fallback, record_miss
 from llm.parsing import find_float, find_signed_int
 from engine.diplomacy import run_diplomatic_encounter
 
@@ -271,6 +271,7 @@ def apply_inject_effects(world: WorldState, inject: Dict[str, Any], silent: bool
                     lines.append("└" + "─" * (len(effect_text) + 2) + "┘")
             else:
                 lines.append(f"Skipped: unknown metric '{metric_name}'")
+                record_miss("inject_effects", str(metric_name), "unknown metric")
     
     # Clamp and update flags after all effects applied
     clamp_metrics(world.metrics)
@@ -378,6 +379,8 @@ def run_turn_briefing(
             # Generation failed: details are logged by the generator; keep the
             # fiction intact with a quiet turn instead of surfacing errors
             logger.warning("Inject generation failed for turn %d; using quiet-turn fallback", world.turn)
+            record_fallback("inject_generation",
+                            f"turn {world.turn} quiet-turn fallback")
             inject = _quiet_turn_inject(world.turn)
     
     if inject:
