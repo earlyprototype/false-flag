@@ -120,6 +120,22 @@ def _get_provider() -> str:
     return provider
 
 
+def _record_truncation_if_cut(meta: dict,
+                              context: Optional[LLMContext],
+                              provider: str) -> None:
+    """Count a reply the model stopped on its output cap.
+
+    Drivers fill meta['finish_reason'] ("length" on OpenAI-compatible
+    endpoints, "MAX_TOKENS" on Gemini); this is the single place that
+    turns it into a parse-health event, keyed by call family so the
+    counter says *which* output was cut.
+    """
+    reason = meta.get('finish_reason')
+    if isinstance(reason, str) and reason.lower() in ("length", "max_tokens"):
+        from llm.parse_health import record_truncation
+        record_truncation(context.value if context else provider, reason)
+
+
 def _resolve_call_model(provider: str,
                         context: Optional[LLMContext],
                         model_override: Optional[str]) -> Optional[str]:
@@ -333,6 +349,7 @@ def generate_text(
         from llm import call_log
         start = _now()
         result = call_driver_resilient()
+        _record_truncation_if_cut(meta, context, provider)
         if call_log.enabled():
             tier = (get_model_config().get_tier_for_context(context).value
                     if context else None)
@@ -494,6 +511,8 @@ def batch_generate_text(
         from llm import call_log
         start = _now()
         results = runner()
+        for m in metas:
+            _record_truncation_if_cut(m, context, provider)
         if call_log.enabled():
             tier = (get_model_config().get_tier_for_context(context).value
                     if context else None)

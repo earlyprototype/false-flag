@@ -19,6 +19,8 @@ Design rules
 
 from __future__ import annotations
 
+import functools
+import inspect
 import json
 import os
 import re
@@ -283,7 +285,14 @@ _BATCH_ERROR_PREFIX = "[ERROR:"
 
 
 def _watch_calls(fn: Callable) -> Callable:
-    """Record failures from one driver method, then let them propagate."""
+    """Record failures from one driver method, then let them propagate.
+
+    The wrapper takes on the wrapped method's signature: the router
+    inspects driver signatures to decide which optional arguments to
+    forward, and a bare ``*args, **kwargs`` facade would tell it the
+    driver accepts everything - forwarding arguments the real method then
+    rejects, turning every live call into a TypeError.
+    """
 
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
@@ -299,6 +308,8 @@ def _watch_calls(fn: Callable) -> Callable:
                     _LLM_FAULTS.append(item)
         return result
 
+    functools.update_wrapper(wrapper, fn)
+    wrapper.__signature__ = inspect.signature(fn)  # type: ignore[attr-defined]
     wrapper._ff_watched = True  # type: ignore[attr-defined]
     return wrapper
 
