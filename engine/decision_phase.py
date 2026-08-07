@@ -192,8 +192,12 @@ def format_decision_transcript(
     save-file record of a decision cannot drift between front ends.
     """
     lines = [f"Prime Minister's Decision: {action}", ""]
-    lines.append("Interpretation:")
-    lines.append(interpretation)
+    # The interpretation is the UK's internal reading of the decision. It
+    # rides in ONE entry behind a speaker-style prefix so the diplomatic
+    # fail-closed filter (llm/context_builder.get_diplomatic_context, ER-018)
+    # excludes it; appended bare, its usually prefix-less first line passed
+    # the no-prefix test and reached every foreign leader's context.
+    lines.append(f"Interpretation: {interpretation}")
     lines.append("")
 
     if pushback:

@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 _lock = threading.Lock()
 _misses: Dict[str, int] = {}      # "component.field" -> count
 _fallbacks: Dict[str, int] = {}   # component -> count
+_residue: Dict[str, int] = {}     # component -> unconsumed line count
 
 
 def record_miss(component: str, field: str, detail: str = "") -> None:
@@ -36,22 +37,39 @@ def record_fallback(component: str, detail: str = "") -> None:
         _fallbacks[component] = _fallbacks.get(component, 0) + 1
 
 
+def record_residue(component: str, count: int, sample: str = "") -> None:
+    """Record lines a parser neither consumed nor recognised.
+
+    Residue is the text the tolerant parser walked past: not a label, not a
+    continuation, not a sentinel. A little is normal (models editorialise);
+    a lot means the reply held content the parser never saw.
+    """
+    if count <= 0:
+        return
+    suffix = f" (first: {sample})" if sample else ""
+    logger.warning("[PARSE-RESIDUE] %s x%d%s", component, count, suffix)
+    with _lock:
+        _residue[component] = _residue.get(component, 0) + count
+
+
 def snapshot() -> Dict[str, Dict[str, int]]:
     """Current counts, with keys sorted so the report is deterministic."""
     with _lock:
         return {
             "misses": {k: _misses[k] for k in sorted(_misses)},
             "fallbacks": {k: _fallbacks[k] for k in sorted(_fallbacks)},
+            "residue": {k: _residue[k] for k in sorted(_residue)},
         }
 
 
 def total() -> int:
-    """Total recorded events (misses plus fallbacks)."""
+    """Total recorded events (misses plus fallbacks plus residue lines)."""
     with _lock:
-        return sum(_misses.values()) + sum(_fallbacks.values())
+        return sum(_misses.values()) + sum(_fallbacks.values()) + sum(_residue.values())
 
 
 def reset() -> None:
     with _lock:
         _misses.clear()
         _fallbacks.clear()
+        _residue.clear()

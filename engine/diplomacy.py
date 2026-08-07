@@ -16,7 +16,7 @@ import yaml
 
 from models.world import WorldState
 from llm.model_config import LLMContext
-from llm.parse_health import record_miss
+from llm.parse_health import record_fallback, record_miss, record_residue
 from llm.parsing import extract_label, find_signed_int, match_enum
 
 
@@ -360,6 +360,41 @@ Your assessment:"""
     delta = None
     summary = ""
     last_field = None
+    # A structured label whose value sits on the next line ("OUTCOME:\n
+    # SUCCESS") parks the field here; the next non-empty line resolves it
+    # through the same tolerant path the inline value uses.
+    pending = None
+    # Non-empty lines the parser neither consumed nor recognised.
+    residue = []
+
+    def apply_outcome(value: str) -> None:
+        nonlocal outcome
+        verdict = match_enum(value, ("SUCCESS", "NEUTRAL", "FAILURE"))
+        if verdict is not None:
+            outcome = verdict
+        else:
+            record_miss("diplomacy_outcome", "outcome", value)
+            outcome = "NEUTRAL"
+
+    def apply_delta(value: str) -> None:
+        nonlocal delta
+        parsed = find_signed_int(value)
+        if parsed is not None:
+            delta = max(-15, min(15, parsed))  # Clamp to range
+        else:
+            record_miss("diplomacy_outcome", "delta", value)
+            delta = 0
+
+    def settle_pending(value: str = "") -> None:
+        """Resolve a parked field ("" = the value line never arrived)."""
+        nonlocal pending
+        if pending is None:
+            return
+        parked, pending = pending, None
+        if parked == "outcome":
+            apply_outcome(value)
+        else:
+            apply_delta(value)
 
     for line in response.split("\n"):
         line = line.strip()
@@ -368,35 +403,46 @@ Your assessment:"""
 
         value = extract_label(line, "OUTCOME")
         if value is not None:
-            verdict = match_enum(value, ("SUCCESS", "NEUTRAL", "FAILURE"))
-            if verdict is not None:
-                outcome = verdict
-            else:
-                record_miss("diplomacy_outcome", "outcome", value)
-                outcome = "NEUTRAL"
+            settle_pending()
             last_field = None
+            if value:
+                apply_outcome(value)
+            else:
+                pending = "outcome"
             continue
 
         value = extract_label(line, "ALLIANCE_COHESION_DELTA")
         if value is not None:
-            parsed = find_signed_int(value)
-            if parsed is not None:
-                delta = max(-15, min(15, parsed))  # Clamp to range
-            else:
-                record_miss("diplomacy_outcome", "delta", value)
-                delta = 0
+            settle_pending()
             last_field = None
+            if value:
+                apply_delta(value)
+            else:
+                pending = "delta"
             continue
 
         value = extract_label(line, "SUMMARY")
         if value is not None:
+            settle_pending()
             summary = value
             last_field = "summary"
+            continue
+
+        # The line after a bare structured label carries that field's value
+        if pending is not None:
+            settle_pending(line)
             continue
 
         # Wrapped continuation of the SUMMARY paragraph
         if last_field == "summary":
             summary = f"{summary} {line}".strip()
+            continue
+
+        residue.append(line)
+
+    settle_pending()
+    if residue:
+        record_residue("diplomacy_outcome", len(residue), residue[0][:60])
 
     if outcome is None:
         outcome = "NEUTRAL"
@@ -522,7 +568,18 @@ class DiplomaticEncounter:
         )
         self.history.append(("Prime Minister", player_message))
         response = llm_generate(prompt, rng, context=LLMContext.DIPLOMACY_CONVERSATION)
-        response = response.strip()
+        response = (response or "").strip()
+        # A batch error slot or an empty reply is a failed call, not the
+        # counterpart falling silent; mirror the guard in
+        # narrative_adjudication.generate_character_responses.
+        if response.startswith("[ERROR:"):
+            record_fallback("diplomacy_conversation", f"{self.country} error slot")
+            response = ""
+        elif not response:
+            record_fallback("diplomacy_conversation", f"{self.country} empty reply")
+        if not response:
+            response = ("Forgive me, Prime Minister - the line broke up for "
+                        "a moment. Say that once more?")
 
         self.transcript.append(f"{self.title}: {response}")
         self.history.append((self.title, response))

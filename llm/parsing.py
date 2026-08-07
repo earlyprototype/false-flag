@@ -13,8 +13,8 @@ import re
 from typing import Optional, Sequence
 
 # Decoration characters found around labels and values: markdown emphasis,
-# backticks, brackets, blockquote/heading markers, and list bullets.
-_DECORATION_CHARS = "*_`[]()>#•–—- \t"
+# backticks, quotes, brackets, blockquote/heading markers, and list bullets.
+_DECORATION_CHARS = "*_`\"'[]()>#•–—- \t"
 
 # Leading decoration before a label: any mix of the characters above,
 # optionally with a numbered bullet ("1." / "2)") in the middle.
@@ -57,7 +57,13 @@ def extract_label(line: str, label: str) -> Optional[str]:
         return None
     value = match.group(1).strip()
     # Trailing emphasis belongs to the decoration, not the value
-    return value.strip("*_`").strip()
+    value = value.strip("*_`").strip()
+    # A value the model chose to quote ('INTEL_SHARED: "none"') means the
+    # value itself; only a symmetric surrounding pair is treated as
+    # decoration, so a quote inside the text survives.
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        value = value[1:-1].strip()
+    return value
 
 
 def find_signed_int(text: str) -> Optional[int]:
@@ -76,11 +82,23 @@ def find_float(text: str) -> Optional[float]:
     return float(match.group(0)) if match else None
 
 
+# How many words before a token are checked for a negator. One word missed
+# "Not a failure" (the article hid the negation); a short window catches the
+# common phrasings without letting a negator half a sentence away flip an
+# unrelated verdict.
+_NEGATION_LOOKBACK = 3
+
+
 def _has_unnegated_token(text: str, token: str) -> bool:
-    """True when `token` appears on a word boundary not preceded by a negator."""
+    """True when `token` appears on a word boundary not preceded by a negator.
+
+    The lookback spans the last few words ("not a failure", "not quite a
+    success"), not just the immediately preceding one.
+    """
     for match in re.finditer(r"\b" + re.escape(token) + r"\b", text, re.IGNORECASE):
         preceding = text[:match.start()].rstrip().split()
-        if preceding and preceding[-1].strip(",;:.").lower() in _NEGATORS:
+        window = preceding[-_NEGATION_LOOKBACK:]
+        if any(word.strip(",;:.\"'()").lower() in _NEGATORS for word in window):
             continue
         return True
     return False
@@ -121,5 +139,5 @@ def is_sentinel_line(text: str, sentinel: str) -> bool:
     "NO CONCERN" both match a sentinel written either way. A sentinel
     mentioned mid-sentence does not match.
     """
-    normalized = text.strip().strip("*_`[]().:;!-• \t").upper().replace("_", " ")
+    normalized = text.strip().strip("*_`\"'[]().:;!-• \t").upper().replace("_", " ")
     return normalized == sentinel.strip().upper().replace("_", " ")

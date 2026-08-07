@@ -5,6 +5,7 @@ from random import Random
 
 from models.world import WorldState
 from llm.model_config import LLMContext
+from llm.parse_health import record_fallback
 from llm.prompts import build_narrator_intro_prompt
 from llm.router import generate_text
 
@@ -42,8 +43,13 @@ def generate_narrator_bridge(
             temperature=0.7,
             max_tokens=150
         )
-        return bridge_text.strip()
+        bridge_text = bridge_text.strip()
+        if not bridge_text:
+            # The caller drops an empty bridge silently; record the drop
+            record_fallback("narrator", "empty reply")
+        return bridge_text
     except Exception:
         # Graceful fallback if LLM fails
+        record_fallback("narrator", "exception")
         return "Time passes. The situation develops..."
 
