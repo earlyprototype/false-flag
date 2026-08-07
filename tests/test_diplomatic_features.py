@@ -53,8 +53,8 @@ def test_stance_lookup_accepts_engine_and_iso_codes():
 
 
 @pytest.mark.parametrize("code,expected_fragment", [
-    ("Russia", "Intimidate NATO"),
-    ("RUS", "Intimidate NATO"),
+    ("Russia", "Operation Tuman"),
+    ("RUS", "Operation Tuman"),
     ("China", "Taiwan"),
     ("Ireland", "neutrality"),
 ])

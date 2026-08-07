@@ -681,18 +681,24 @@ def play(
         for i, scene in enumerate(sections):
             typer.clear()
             
-            # Build scene content
+            # Build scene content. Markdown headings inform the title but
+            # must not reach the panel body, where they print as raw "## ..."
             scene_lines = []
+            headings = []
             for line in scene:
-                if "===" not in line and line.strip():  # Skip separator lines
-                    scene_lines.append(line)
-            
+                if "===" in line or not line.strip():  # Skip separator lines
+                    continue
+                if line.lstrip().startswith("##"):
+                    headings.append(line.lstrip("# ").strip())
+                    continue
+                scene_lines.append(line)
+
             scene_content = "\n".join(scene_lines)
-            
+
             # Determine scene title
             if i == 0:
                 scene_title = "SCENARIO BRIEFING"
-            elif "YOUR ROLE" in scene_content:
+            elif any("YOUR ROLE" in h for h in headings) or "YOUR ROLE" in scene_content:
                 scene_title = "MISSION PARAMETERS"
             else:
                 scene_title = f"INTELLIGENCE BRIEF {i}"

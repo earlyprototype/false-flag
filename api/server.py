@@ -277,12 +277,22 @@ async def new_game(request: NewGameRequest):
     # Generate initial briefing
     pending_encounter = None
     try:
+        # The cold open. The engine authored these beats precisely so no
+        # front end opens on a bare inject (engine/opening.py); this front
+        # end was the one that never adopted them - its players started on
+        # five simultaneous crises with no idea who anyone was.
+        for scene in manager.get_opening_scenes():
+            await session.push_event("transcript", {
+                "type": "scene",
+                "title": scene.title or "YOUR ROLE",
+                "location": scene.location,
+                "timestamp": scene.timestamp,
+                "content": "\n".join(scene.body),
+            })
+
         inject = manager.get_turn_briefing()
         pending_encounter = inject.get("pending_encounter")
 
-        # Push Narrator Intro if available (from sim_loop integration)
-        # Note: sim_loop might have added lines to transcript directly
-        
         # Push Briefing as event
         await session.push_event("transcript", {
             "type": "inject",

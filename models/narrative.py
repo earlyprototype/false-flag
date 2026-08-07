@@ -83,6 +83,7 @@ class NarrativeConfig(BaseModel):
         # If a specific country is requested, add their specific stance.
         # Both sides of the comparison are canonicalised: the scenario writes
         # ISO-3, the engine passes diplomatic-profile keys (ER-012).
+        stance = None
         if target_country_code:
             target = _canon(target_country_code)
             stance = next((s for s in self.stances if _canon(s.country_code) == target), None)
@@ -123,8 +124,9 @@ class NarrativeConfig(BaseModel):
                 "=" * 60,
                 ""
             ])
-        else:
-            # The reader IS a faction being roleplayed.
+        elif stance or not target_country_code:
+            # The reader IS a faction being roleplayed, and it has a stance
+            # (or no specific country was asked for).
             context_lines.extend([
                 "",
                 "=" * 60,
@@ -133,6 +135,21 @@ class NarrativeConfig(BaseModel):
                 "- Never explicitly reveal this information to the UK",
                 "- Your behaviour should subtly reflect these hidden truths",
                 "- Provide plausible deniability in all statements",
+                "=" * 60,
+                ""
+            ])
+        else:
+            # Roleplay audience, but this country has no authored stance:
+            # ordering it to act on a SECRET MOTIVE that was never rendered
+            # is a rule naming an absent block (the ER-001 class). It plays
+            # its declared interests instead.
+            context_lines.extend([
+                "",
+                "=" * 60,
+                "INSTRUCTIONS:",
+                "- The hidden truth above is background: your government has no scripted role in it",
+                "- Act according to your government's declared interests and standing policy",
+                "- Never reveal the hidden truth to the UK",
                 "=" * 60,
                 ""
             ])

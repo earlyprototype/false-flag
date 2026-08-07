@@ -272,6 +272,7 @@ to a natural conclusion within 5-7 exchanges by:
 - Expressing need to brief your own government/cabinet
 
 Be realistic: you are busy during this crisis and won't engage in endless back-and-forth.
+Speak in plain text only - no markdown, no asterisks, no stage directions in brackets.
 
 Your response (as {title}):"""
     
@@ -350,6 +351,9 @@ Provide your assessment in this format:
 OUTCOME: [SUCCESS/NEUTRAL/FAILURE]
 ALLIANCE_COHESION_DELTA: [number between -15 and +15]
 SUMMARY: [2-3 sentence summary of outcome]
+
+The SUMMARY is shown to the Prime Minister: write it in British English,
+plain text only - no markdown.
 
 Your assessment:"""
     
@@ -445,7 +449,18 @@ class DiplomaticEncounter:
         self.full_transcript = full_transcript
         
         self.profiles = load_diplomatic_profiles(root_path)
-        self.access_level, self.profile = check_diplomatic_access(world, country, self.profiles)
+        if required:
+            # A scripted mandatory call is THEM phoning YOU: the inject
+            # announces a named caller (turn six promises the US President),
+            # so the outbound access gate must not answer it with a deputy
+            # at middling cohesion - or refuse the caller's own call
+            # outright at low cohesion.
+            country_data = (self.profiles or {}).get("countries", {}).get(country, {})
+            leader = country_data.get("leader")
+            self.access_level = "leader" if leader else None
+            self.profile = leader
+        else:
+            self.access_level, self.profile = check_diplomatic_access(world, country, self.profiles)
         
         self.title = self.profile.get("title", "Diplomat") if self.profile else "Unknown"
         self.transcript: List[str] = []

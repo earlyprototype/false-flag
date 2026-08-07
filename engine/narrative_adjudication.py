@@ -254,6 +254,7 @@ CRITICAL - REASONING is displayed to the player word for word:
 - Never name the crisis protagonist, patsy, or true author of events
 - Never state attribution as settled fact the player has not established
 - Argue only from evidence visible in the game world
+- Write it in British English, plain text only - no markdown, no asterisks
 
 Respond in this exact format:
 
@@ -674,6 +675,7 @@ Your current stance: {character.stance_summary}
 Respond to the PM's action with a tone that is {tone}.
 
 Keep your response to 2-3 sentences, in character, as if speaking directly to the Prime Minister in a COBRA briefing.
+Write in British English, plain text only - no markdown, no asterisks, no bullet markers.
 
 Response:"""
 
@@ -777,7 +779,8 @@ Summarise the current situation as a running synopsis of the campaign, in
 4-6 sentences for the Prime Minister's daily brief. Fold the previous summary
 and this turn together: cover what has happened so far, the player's major
 decisions, and the current diplomatic posture. Write in plain, serious
-prose - no headings, no numbers, no bullet points.
+prose in British English - no headings, no numbers, no bullet points, no
+markdown emphasis of any kind.
 
 Fidelity rules, which outrank brevity: keep every event distinct, with the
 place and the attribution the inputs give it - never merge two events or

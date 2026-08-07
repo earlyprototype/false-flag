@@ -476,6 +476,16 @@ def create_initial_narrative_state(
             relationship="allied",
             stance_summary="Your closest advisor, coordinates intelligence"
         ),
+        # Seeded so the Attorney General participates in the trust economy:
+        # without a character here, AG pushback could be overridden at no
+        # cost and no panel ever tracked the relationship.
+        "uk_attorney_general": CharacterAttitude(
+            character_id="uk_attorney_general",
+            name="Attorney General",
+            trust=70,
+            relationship="neutral",
+            stance_summary="Guardian of legality - international law first"
+        ),
     }
     
     # Initial situation summary. This text is the anchor for every fold that
@@ -484,8 +494,9 @@ def create_initial_narrative_state(
     # and a fragment like "F-35 pilots murdered" invites the summariser to
     # invent a culprit from whatever else is in its context.
     situation_summary = (
-        "Two RAF F-35 pilots were murdered in Norfolk, in what intelligence "
-        "assesses as a likely Russian special-forces operation. Separately, a "
+        "Two RAF F-35 pilots were murdered in Norfolk; intelligence assesses "
+        "a Russian special-forces operation as likely, though confidence is "
+        "low at this stage. Separately, a "
         "terrorist attack on the Severomorsk naval base killed over a hundred "
         "Russian sailors; GCHQ attributes it to Dagestani extremists, but "
         "Moscow falsely blames the United Kingdom and is using it as a pretext. "

@@ -146,6 +146,31 @@ class GameManager:
         # Load Scenario Config
         self.scenario_config = get_scenario_config(self.scenario_id, self.variant, self.root_path)
 
+    def get_opening_scenes(self):
+        """The cold open's paced beats, cleaned for plain-text rendering.
+
+        Scene-setting was authored once (engine/opening.py) and adopted
+        front end by front end; every consumer that didn't know about it
+        opened cold on the turn-1 inject. This passthrough makes the intro
+        part of the engine's own surface - and strips the Rich console
+        markup from the asset, which only the terminal CLI can render.
+        """
+        import re
+
+        from engine.opening import Scene, get_opening_scenes
+
+        markup = re.compile(r"\[/?[a-z][a-z0-9 _]*\]")
+        cleaned = []
+        for scene in get_opening_scenes():
+            cleaned.append(Scene(
+                body=[markup.sub("", line) for line in scene.body],
+                numeral=scene.numeral,
+                title=scene.title,
+                location=scene.location,
+                timestamp=scene.timestamp,
+            ))
+        return cleaned
+
     def get_turn_briefing(self) -> Dict[str, Any]:
         """Run the briefing phase and return the inject."""
         stochastic_from = self.scenario_config.get("stochastic_from", 7)
@@ -464,9 +489,16 @@ class GameManager:
         return {"vibes": vibes_list, "dominant": dominant, "intensity": intensity}
 
     def get_advisors_state(self) -> List[Dict[str, Any]]:
-        """Get advisor trust and relationship status."""
+        """Get advisor trust and relationship status.
+
+        UK cabinet only: the attitude dict also tracks foreign figures
+        (the US NSA), and listing them here put a US official in the UK
+        advisor panels of every front end that renders this.
+        """
         advisors = []
         for role, char in self.narrative_state.characters.items():
+            if not role.startswith("uk_"):
+                continue
             # Helper to handle both Pydantic models and dicts
             if isinstance(char, dict):
                 name = char.get("name", role)

@@ -435,6 +435,24 @@ diplomatic_contacts:
       - "Strictly neutral, will not support any military action."
       - "Concerned about economic and refugee spillover from a European conflict."
 
+  - country_code: "POL"
+    leader_name: "President (unspecified)"
+    leader_title: "President of the Republic of Poland"
+    disposition: "Staunchly supportive, demanding collective action"
+    access_level: 3
+    notes:
+      - "Views Russian aggression as an existential threat to Eastern Europe."
+      - "Pressing NATO for immediate reinforcement of the eastern flank."
+
+  - country_code: "UKR"
+    leader_name: "President (unspecified)"
+    leader_title: "President of Ukraine"
+    disposition: "Supportive, urging the West to heed its warnings"
+    access_level: 2
+    notes:
+      - "Offers hard-won intelligence on Russian doctrine and deception methods."
+      - "Seeks deeper NATO commitments while Russian attention is divided."
+
 # === CHARACTERS (For LLM Context & Pushback) ===
 # These define advisor personalities, knowledge domains, and when they'll push back on player actions
 # NOT pre-scripted actions - advisors respond to free-form player input

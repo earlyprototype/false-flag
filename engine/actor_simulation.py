@@ -94,6 +94,7 @@ INTEL_SHARED: [Any intelligence you choose to share, or "none"]
 Be realistic. If you have hidden agendas, let them guide your response.
 If you have dependencies (e.g., Russian gas), they constrain your actions.
 If you have redlines, enforce them.
+Plain text only - no markdown, no asterisks, no bullet markers.
 """
 
 

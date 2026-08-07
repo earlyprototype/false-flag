@@ -641,10 +641,11 @@ class WebGame:
         # The cold open: four beats, one space-bar press apart, then turn 1
         # flows on from YOUR ROLE. Without it the campaign opened on the
         # briefing — five simultaneous crises and no idea who anyone was.
-        from engine.opening import get_opening_scenes
-
+        # Taken through the GameManager passthrough, which strips the Rich
+        # console markup this renderer would otherwise show raw.
         beats: List[Callable[[], None]] = [
-            (lambda s=scene: self._emit_scene(s)) for scene in get_opening_scenes(200)
+            (lambda s=scene: self._emit_scene(s))
+            for scene in self.gm.get_opening_scenes()
         ]
         self.queue(*beats, self.run_briefing)
         self.play_next()
