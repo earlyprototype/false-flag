@@ -316,21 +316,40 @@ class GameManager:
             "timeline": "Immediate" # Placeholder
         }
 
+    # The pushback parser returns whichever name the model used: the
+    # scenario's internal persona roles ("Military Commander") or the
+    # cabinet titles the fiction uses ("Chief of the Defence Staff"). The
+    # seeded characters carry cabinet titles, so without this bridge most
+    # objections matched nothing and overriding the cabinet stayed free -
+    # the first instrumented live run showed five of six objector names
+    # missing the roster (ER-073). Mirrors
+    # cli/display_utils._ROLE_DISPLAY_TITLES (engine cannot import from cli).
+    _PERSONA_ROLE_TITLES = {
+        "military commander": "chief of the defence staff",
+        "intelligence coordinator": "national security advisor",
+        "diplomatic lead": "foreign secretary",
+        "domestic security": "home secretary",
+        "legal advisor": "attorney general",
+        # "government leader" is the Prime Minister - the player - no cost.
+    }
+
     def _apply_pushback_trust_cost(self, objecting_roles: List[str]) -> None:
         """Overriding a raised objection verbatim costs one point of trust.
 
-        Deterministic and deliberately small: the roles the pushback parser
-        returns ("Foreign Secretary") are matched by name against the
+        Deterministic and deliberately small: each objecting role resolves
+        through the persona-title bridge above, then by name against the
         narrative state's characters, and each match takes a -1 through the
-        existing attitude machinery. Roles with no seeded character (e.g. the
-        Attorney General) are simply skipped (ER-013).
+        existing attitude machinery. Roles that still match nothing are
+        skipped (ER-013, ER-073).
         """
         by_name = {}
         for char_id, char in self.narrative_state.characters.items():
             name = char.get("name", "") if isinstance(char, dict) else getattr(char, "name", "")
             by_name.setdefault(str(name).strip().lower(), char_id)
         for role in objecting_roles:
-            char_id = by_name.get(str(role).strip().lower())
+            key = str(role).strip().lower()
+            key = self._PERSONA_ROLE_TITLES.get(key, key)
+            char_id = by_name.get(key)
             if char_id:
                 self.narrative_state.update_character_attitude(char_id, trust_delta=-1)
 

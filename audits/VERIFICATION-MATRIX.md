@@ -165,6 +165,28 @@ tone read beyond the sampled synopses/injects/actor lines.
 capped reply to empty: 35 cut replies, 11 mock fallbacks - the truncation counters caught it on
 turn 1), ER-072 (advisory prompts at 150k+ chars of paid input; window rebounded 320k -> 60k).
 
+## Shakedown 2 — verification run, 2026-08-07 (later)
+
+Seed 42, mystery emergent, OPENAI_COMPAT_REASONING=off, state dumps on, preview-then-commit
+each turn. 7 turns to a real ending ("THE GUNS OF OCTOBER", defeat at escalation 100), 162
+calls, cost ~$2.8 (double the estimate - the preview flow re-runs the advisory pipeline on
+commit; filed and measured as ER-074).
+
+- **ER-071 live-verified:** zero empty-completion fallbacks, zero narrator/character
+  truncations - the reasoning control works ("no calls fell back to the mock driver").
+- **ER-072 live-verified:** every advisory prompt under the 66k ceiling (max 59.5k, was 153k).
+- **ER-007 live-verified:** five of six advisors' trust drifted over the campaign (state dumps).
+- **ER-013:** the mechanism was exercised live and exposed ER-073 - five of six objector names
+  missed the character roster entirely (persona names vs cabinet titles), so the cost mostly
+  could not land. Bridge fixed and unit-verified same day; live re-verification owed but the
+  key is exhausted ($7.66 of $8 used).
+- **All shakedown-1 passes held** (input side 8/8, routing exact, zero re-parse misses/residue,
+  zero markdown, mid-call probe passed, scripted call played, ending fired).
+- **Tone read:** synopses compress seven turns with attributions intact; pushback argues from
+  campaign continuity; narrator sets scene plainly. One blemish: a FLASH-tier advisor said
+  "in Turn 2" - game mechanics leaking into fiction against the voice instructions (polish;
+  model-adherence, prompt already forbids it).
+
 ## Order of work
 
 1. Pass-1 fixes: the four auditors' class findings + the F-row invariants + the call-log

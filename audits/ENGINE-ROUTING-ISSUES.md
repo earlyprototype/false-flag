@@ -118,6 +118,8 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-070 | fixed | low | state | The CLI endings toggle is not persisted across a resume |
 | ER-071 | fixed | high | dispatch | A thinking model's hidden reasoning starves capped replies to empty |
 | ER-072 | fixed | med | context | The advisory transcript window grows to 150k+ chars of paid input |
+| ER-073 | fixed | med | state | Pushback objector names miss the character roster, so the trust cost never lands |
+| ER-074 | open | med | dispatch | Preview-then-commit runs the whole advisory pipeline twice |
 
 ## How the measurements below were taken
 
@@ -1493,3 +1495,28 @@ Evidence with file:line for every claim is in `2026-08-07-uniformity-audit/`
 - **Fixed:** MAX_ADVISOR_TRANSCRIPT_CHARS 320k -> 60k. Not an output cap: the referee-memory
   design moved campaign history into the fold and the ledger, so the raw slice's only job is
   recent verbatim exchanges. The head+tail slice keeps the campaign's opening.
+
+
+## ER-073 — Pushback objector names miss the character roster, so the trust cost never lands
+- **Status:** fixed · **Severity:** med · **Area:** state
+- **Observed:** In the instrumented verification run (2026-08-07), five of six objecting roles
+  the live model returned ("Military Commander", "Legal Advisor", ...) matched no seeded
+  character: the pushback parser speaks the scenario's persona names while the attitude roster
+  speaks cabinet titles, so `_apply_pushback_trust_cost` skipped them and overriding the cabinet
+  stayed free. The one name that did match was masked by the same turn's +ve attitude drift.
+- **Fixed:** A persona-title bridge in `_apply_pushback_trust_cost` (mirroring
+  `cli/display_utils._ROLE_DISPLAY_TITLES`); verified by direct exercise: persona names, cabinet
+  titles and unknowns all resolve correctly, -1 lands on the seeded characters.
+
+## ER-074 — Preview-then-commit runs the whole advisory pipeline twice
+- **Status:** open · **Severity:** med · **Area:** dispatch
+- **Observed:** `interpret_decision` (the preview) runs interpretation, pushback and the
+  five-advisor omissions scan; `resolve_decision` (the commit) then runs the full three-round
+  pipeline again, repeating all of them. The verification run measured it directly: 7 turns of
+  preview-then-commit produced 70 omissions calls and 14 interpretations - double - and the run
+  cost ~\$2.8 instead of ~\$1.4. Every front end that offers the preview flow (API interpret ->
+  commit, browser, both CLIs) pays the advisory families twice per decision.
+- **Fix shape:** carry the preview's round-1/2 results on the manager (the `_pending_pushback`
+  pattern) and have `run_decision_pipeline` accept them, re-running only rounds that depend on
+  state the commit changes. Filed open: it touches the decision pipeline's determinism
+  guarantees and deserves its own tested change, not a same-day patch.
