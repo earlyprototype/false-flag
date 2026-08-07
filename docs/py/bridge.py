@@ -557,6 +557,12 @@ class WebGame:
                 model or os.environ.get("OPENAI_COMPAT_MODEL")
                 or "openai/gpt-4o-mini"
             )
+            # Thinking models spend their reply budget on hidden reasoning
+            # and return EMPTY completions on capped calls (ER-071). The
+            # fix is env-driven and this front end never set it, so the
+            # play page still hit the defect the engine had already cured -
+            # a silent diplomatic call was the visible symptom.
+            os.environ.setdefault("OPENAI_COMPAT_REASONING", "off")
             os.environ["WARGAME_LLM"] = "openai_compat"
             provider_note = (
                 f"LIVE MODEL: {os.environ['OPENAI_COMPAT_MODEL']} via "

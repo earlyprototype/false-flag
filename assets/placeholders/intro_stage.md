@@ -4,23 +4,18 @@
 ## SCENE I: SEVEROMORSK NAVAL BASE, RUSSIA
 ## 72 Hours Earlier — Thursday, 2nd October 2025, 03:15 Local Time
 
-The Barents Sea lies black and restless beneath a thin crescent moon. Along the 
-Severomorsk waterfront, fires still smoulder where yesterday's explosions tore through 
-the home of the Northern Fleet. Floodlights sweep across buckled steel and shrouded 
-stretchers laid out in rows on the quay. Nearly one hundred Russian sailors are dead.
+The Barents Sea lies black and restless beneath a thin crescent moon. At the mouth of 
+Kola Bay, the silhouettes of seven ballistic missile submarines slip silently from their 
+moorings, one after another, like great whales departing into the deep.
 
-On state television, the accusation already runs on a loop: British divers in Russian 
-waters, a frogman outfit pulled from the harbour, an attack likened to the Nazi assault 
-of 1941. Of the Dagestani extremists who actually set the charges, not one word. 
-Moscow has chosen its culprit.
+Their conning towers cut dark shapes against the receding cliffs of the Kola Peninsula. 
+Choppy waves catch fragments of moonlight, breaking silver against the submarines' hulls 
+before they submerge. Within minutes, only roiling wakes mark their passage.
 
-Past the wreckage, at the mouth of Kola Bay, the silhouettes of seven ballistic missile 
-submarines slip silently from their moorings, one after another, like great whales 
-departing into the deep. Within minutes, only roiling wakes mark their passage.
-
-On the pier, a lone figure watches through night-vision binoculars. The largest 
-submarine force Russia has sent to sea since the Cold War drives silently towards a 
-sleeping United Kingdom — the first, unalterable act of Operation Tuman.
+On the pier, a lone figure watches through night-vision binoculars. Emerging from the 
+shadows of the coastline, the entire Northern Fleet drives silently towards a sleeping 
+United Kingdom. The largest submarine force Russia has sent to sea since the Cold War 
+carries out its orders — the first, unalterable act of Operation Tuman.
 
 Operation Tuman — "Fog" — has begun.
 
@@ -41,10 +36,6 @@ toward the GIUK gap."
 "Never, sir. Not in peacetime. Not even during the Cold War."
 
 The commander pauses, then adds quietly: "And that's just what we can track."
-
-On a side screen, a stilled news feed: police cordons on a Norfolk lane. Two RAF F-35 
-pilots, found shot dead on Saturday. The early assessment is thin, but the tradecraft 
-reads as special forces — the men were tracked before they were killed.
 
 A secure phone rings. The duty officer answers, listens, then sets it down carefully.
 
