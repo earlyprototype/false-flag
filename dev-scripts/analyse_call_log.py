@@ -8,12 +8,28 @@ context each fix was supposed to deliver actually reached its prompts
 (output side). Exit code 1 when any check fails, so a shakedown can gate
 on it.
 
+When the campaign harness also wrote a state file beside the log
+(<log>.state.jsonl - see dev-scripts/play_campaign.py), it additionally
+verifies advisor-attitude drift (ER-007) and the pushback-override trust
+cost (ER-013), checks for empty-completion fallbacks (ER-071) and the
+advisory prompt bound (ER-072), and prints a rough per-family token cost
+table.
+
 Usage: python3 dev-scripts/analyse_call_log.py <log.jsonl>
 """
 
 import json
+import os
 import sys
 from collections import Counter, defaultdict
+
+# Families whose prompts carry the advisor transcript and are therefore
+# bounded by MAX_ADVISOR_TRANSCRIPT_CHARS (llm/context_builder.py, 60k).
+# The ceiling here allows 10% headroom for the fixed prompt scaffolding
+# around the bounded transcript block.
+ADVISORY_FAMILIES = ("advisor_qa", "advisor_pushback", "critical_omissions",
+                     "decision_interpretation")
+ADVISORY_PROMPT_CEILING = 66_000
 
 
 def load(path):
@@ -53,8 +69,12 @@ def main():
         failures.append(f"{len(cut)} replies cut on their output cap "
                         f"(turns {sorted({r.get('turn') for r in cut})})")
 
+    # The mock/offline drivers have no finish_reason to report - the check
+    # is about a LIVE driver failing to say how its reply ended, so a mock
+    # shakedown (WARGAME_LLM=mock) does not fail on it.
     missing_reason = [r for r in records
-                      if not r.get("fallback") and r.get("finish_reason") is None]
+                      if not r.get("fallback") and r.get("finish_reason") is None
+                      and r.get("provider") not in ("mock", "offline")]
     if missing_reason:
         failures.append(
             f"{len(missing_reason)} live replies carried no finish_reason - "
@@ -168,6 +188,130 @@ def main():
         print(f"    miss {k} x{v}")
     for k, v in snap["residue"].items():
         print(f"    residue {k} x{v}")
+
+    # --- 5. ER-071: empty-completion fallbacks ------------------------------
+    # The reasoning-control fix means no call should ever come back empty and
+    # be answered by the mock driver in the model's name. Any fallback=true
+    # record is a regression.
+    print("\n== ER-071 EMPTY-COMPLETION FALLBACKS ==")
+    fb_records = [r for r in records if r.get("fallback")]
+    fb_split = Counter(r.get("family") or "(none)" for r in fb_records)
+    if fb_split:
+        for family, n in sorted(fb_split.items()):
+            print(f"  {family:28s} x{n}")
+    check("ER-071 zero empty-completion fallbacks", not fb_records,
+          f"{len(fb_records)} fallback records"
+          + (f" ({dict(fb_split)})" if fb_split else ""))
+
+    # --- 6. ER-072: advisory prompts bounded --------------------------------
+    print("\n== ER-072 ADVISORY PROMPT BOUND ==")
+    oversize = []
+    for family in ADVISORY_FAMILIES:
+        rs = by_family.get(family, [])
+        if not rs:
+            print(f"  {family:28s} (no calls)")
+            continue
+        biggest = max(len(r["prompt"]) for r in rs)
+        print(f"  {family:28s} max={biggest:7d} chars "
+              f"(ceiling {ADVISORY_PROMPT_CEILING})")
+        if biggest > ADVISORY_PROMPT_CEILING:
+            oversize.append((family, biggest))
+    check(f"ER-072 advisory prompts within {ADVISORY_PROMPT_CEILING} chars",
+          not oversize,
+          ", ".join(f"{f}={n}" for f, n in oversize))
+
+    # --- 7. State-file checks: ER-007 drift, ER-013 trust cost --------------
+    state_path = path + ".state.jsonl"
+    print("\n== STATE-FILE CHECKS (advisor attitudes, ER-007/ER-013) ==")
+    if not os.path.exists(state_path):
+        print(f"  no state file beside the log ({state_path}) - "
+              "run the campaign harness with WARGAME_CALL_LOG set to get "
+              "attitude-drift evidence; checks skipped")
+    else:
+        dumps = sorted(load(state_path), key=lambda d: d.get("turn", 0))
+
+        def trust_of(dump):
+            return {cid: a.get("trust") for cid, a in dump.get("advisors", {}).items()}
+
+        if len(dumps) < 2:
+            check("ER-007 advisor attitudes drift over the campaign", False,
+                  f"only {len(dumps)} state dump(s) - nothing to compare")
+        else:
+            first, last = dumps[0], dumps[-1]
+            print(f"  drift, turn {first.get('turn')} -> turn {last.get('turn')}:")
+            drifted = []
+            for cid, a0 in first.get("advisors", {}).items():
+                a1 = last.get("advisors", {}).get(cid, {})
+                t0, t1 = a0.get("trust"), a1.get("trust")
+                mark = ""
+                if t0 != t1:
+                    drifted.append(cid)
+                    mark = "  <- drifted"
+                print(f"    {a0.get('name', cid):32s} trust {str(t0):>3} -> {str(t1):>3}  "
+                      f"{a0.get('relationship', '?'):8s} -> {a1.get('relationship', '?'):8s}"
+                      f"{mark}")
+            check("ER-007 advisor attitudes drift over the campaign",
+                  bool(drifted),
+                  f"trust moved for {drifted}" if drifted else
+                  "no advisor's trust moved between the first and last state dump")
+
+        # ER-013: on any turn whose interpretation drew pushback (and the
+        # harness committed the identical text), some objector's trust must
+        # have fallen against the previous dump.
+        by_turn = {d.get("turn"): d for d in dumps}
+        pushback_dumps = [d for d in dumps if d.get("pushback_roles")]
+        if not pushback_dumps:
+            print("  no pushback occurred in this run - ER-013 trust-cost "
+                  "check skipped (nothing to verify)")
+        else:
+            for dump in pushback_dumps:
+                turn = dump.get("turn")
+                prev = by_turn.get((turn or 0) - 1)
+                roles = dump["pushback_roles"]
+                if prev is None:
+                    check(f"ER-013 pushback on turn {turn} cost the objectors trust",
+                          False, "no previous state dump to compare against")
+                    continue
+                name_to_cid = {
+                    str(a.get("name", "")).strip().lower(): cid
+                    for cid, a in prev.get("advisors", {}).items()
+                }
+                seeded, dropped = [], []
+                for role in roles:
+                    cid = name_to_cid.get(str(role).strip().lower())
+                    if cid is None:
+                        continue  # no seeded character: override is free by design
+                    seeded.append(role)
+                    t_prev = prev["advisors"][cid].get("trust")
+                    t_now = dump.get("advisors", {}).get(cid, {}).get("trust")
+                    print(f"  turn {turn}: objector {role}: trust "
+                          f"{t_prev} -> {t_now}")
+                    if t_now is not None and t_prev is not None and t_now < t_prev:
+                        dropped.append(role)
+                if not seeded:
+                    print(f"  turn {turn}: objectors {roles} have no seeded "
+                          "characters - trust cost not applicable")
+                    continue
+                check(f"ER-013 pushback on turn {turn} cost an objector trust",
+                      bool(dropped),
+                      f"trust fell for {dropped}" if dropped else
+                      f"objectors {seeded} committed over unamended but no "
+                      "trust decrease recorded")
+
+    # --- 8. Cost estimate ---------------------------------------------------
+    print("\n== COST ESTIMATE (rough: chars/4 as tokens) ==")
+    print(f"  {'family':28s} {'calls':>6s} {'prompt~tok':>11s} {'reply~tok':>10s}")
+    tot_p = tot_r = 0
+    for family in sorted(by_family):
+        rs = by_family[family]
+        p = sum(len(r["prompt"]) for r in rs) // 4
+        rep = sum(len(r.get("reply") or "") for r in rs) // 4
+        tot_p += p
+        tot_r += rep
+        print(f"  {family:28s} {len(rs):6d} {p:11,d} {rep:10,d}")
+    print(f"  {'TOTAL':28s} {len(records):6d} {tot_p:11,d} {tot_r:10,d}")
+    print("  note: this is an estimate (4 chars per token heuristic); "
+          "actual billed tokens depend on the provider's tokenizer")
 
     # --- verdict ------------------------------------------------------------
     print("\n== VERDICT ==")
