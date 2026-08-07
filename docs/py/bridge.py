@@ -840,6 +840,21 @@ class WebGame:
             self.set_awaiting(AWAIT_QUESTION)
             return
 
+        # An optional call the player placed themselves also survives a
+        # save/load - and their next `call`, whatever country they name,
+        # is routed into it. Without this block nothing on screen said the
+        # line was still open, so that routing looked like a wrong number.
+        encounter = self.gm.active_encounter if self.gm else None
+        if encounter and encounter.active and self._call_seen == 0:
+            pen = AnsiPen(self.width)
+            pen.blank()
+            pen.section("LINE STILL OPEN", ACCENT)
+            pen.wrap("You were mid-call when the session was saved. A further "
+                     "diplomatic message continues this conversation.",
+                     colour=DIM)
+            self.out(pen)
+            self._render_call(encounter.transcript)
+
         pen = AnsiPen(self.width)
         pen.section("YOUR MOVE", AMBER)
         pen.wrap("Question your advisers, place a diplomatic call, or give the "

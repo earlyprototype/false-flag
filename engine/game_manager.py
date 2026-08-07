@@ -213,6 +213,15 @@ class GameManager:
                 "casualties_civ": self.world.metrics.casualties_civ,
             })
 
+        # The briefing has now been played, so any save taken from here on
+        # must resume as a replay. from_dict derives that from the phase,
+        # and "briefing" means NOT-a-replay - so a save between this return
+        # and the first question would re-apply the inject's effects and
+        # re-open the mandatory call on load. The terminal CLIs force the
+        # phase forward for exactly this reason (cli/main.py); the headless
+        # front ends (browser, API) go through here.
+        self.world.phase = "discussion"
+
         return inject or {}
 
     def process_question(self, question_text: str) -> List[str]:
@@ -656,6 +665,13 @@ class GameManager:
                 # A live diplomatic call survives the round-trip (ER-047).
                 # An ended call is not stored: its outcome already landed.
                 "active_encounter": self._encounter_state(),
+                # Who objected to which exact decision text: the ER-013
+                # trust cost must survive an interpret -> save -> load ->
+                # commit sequence, or overriding the cabinet becomes free.
+                "pending_pushback": (
+                    [self._pending_pushback[0], list(self._pending_pushback[1])]
+                    if self._pending_pushback else None
+                ),
                 # Generator position, so a resumed session continues the
                 # draw sequence instead of replaying spent randomness (ER-037)
                 "rng_state": encode_rng_state(self.rng)
@@ -766,6 +782,10 @@ class GameManager:
             enc.history = [tuple(pair) for pair in enc_data.get("history", [])]
             enc._player_exchanges = int(enc_data.get("player_exchanges", 0))
             manager.active_encounter = enc
+
+        pending = state.get("pending_pushback")
+        if pending:
+            manager._pending_pushback = (pending[0], list(pending[1]))
 
         return manager
 

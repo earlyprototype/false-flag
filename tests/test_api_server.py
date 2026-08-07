@@ -55,7 +55,9 @@ def test_new_game_then_decide_then_next_turn_briefing(client):
     created = _new_game(client)
     session_id = created["session_id"]
     assert created["turn"] == 1
-    assert created["phase"] == "briefing"
+    # The briefing has been delivered in this response, so the phase has
+    # already moved on - a save taken now must resume as a replay (F2).
+    assert created["phase"] == "discussion"
 
     # Acknowledge the briefing and commit a decision; the turn advances.
     ack = client.post(f"/game/{session_id}/briefing/ack")
@@ -80,7 +82,7 @@ def test_new_game_then_decide_then_next_turn_briefing(client):
     assert set(created.keys()) == set(payload.keys())
     assert payload["session_id"] == session_id
     assert payload["turn"] == 2
-    assert payload["phase"] == "briefing"
+    assert payload["phase"] == "discussion"
     assert "escalation_risk" in payload["metrics"]
     # Turn 2 is scripted and has no mandatory call.
     assert payload["pending_encounter"] is None

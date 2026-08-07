@@ -1097,7 +1097,7 @@ def play(
                     if user_input.lower() in ["/save", "save"]:
                         # Pause the live repaint so the confirmation stays visible
                         live.stop()
-                        save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng)
+                        save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng, seed=seed)
                         typer.echo(f"Game saved to {save_path}")
                         _pause_for_enter(COLORS)
                         console.clear()
@@ -1773,7 +1773,7 @@ def play(
         world.discussion_transcript = []
         world.phase = "briefing"
 
-        save_path = save_game(world, transcript, scenario, "autosave", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng)
+        save_path = save_game(world, transcript, scenario, "autosave", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng, seed=seed)
 
         typer.echo("")
         console.print(ae.sonar_divider(seed=f"turn-{world.turn - 1}-close"))

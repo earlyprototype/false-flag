@@ -597,9 +597,14 @@ def play(
     if load_save is None and not intro_only and sys.stdin.isatty():
         from engine.persistence import _default_root
         autosave_path = _default_root() / "saves" / f"{scenario}_autosave.json"
-        if autosave_path.exists():
+        # A graded campaign's autosave is a record, not a live game: the
+        # ending fires after the autosave is written, so without this check
+        # a finished classic campaign resumed as a playable turn N+1.
+        from engine.persistence import read_save_field
+        if autosave_path.exists() and read_save_field(autosave_path, "ending_id"):
+            pass  # concluded campaign - fall through to the new-game menus
+        elif autosave_path.exists():
             from datetime import datetime
-            from engine.persistence import read_save_field
             saved_world = read_save_field(autosave_path, "world", {}) or {}
             saved_turn = saved_world.get("turn", "?")
             saved_at = datetime.fromtimestamp(
@@ -1064,7 +1069,7 @@ def play(
                     continue
             
                 if user_input.lower() in ["/save", "save"]:
-                    save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng)
+                    save_path = save_game(world, transcript, scenario, f"turn_{world.turn:03d}", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng, seed=seed)
                     typer.echo(f"Game saved to {save_path}")
                     continue
             
@@ -2005,7 +2010,7 @@ def play(
         world.discussion_transcript = []
         world.phase = "briefing"
 
-        save_path = save_game(world, transcript, scenario, "autosave", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng)
+        save_path = save_game(world, transcript, scenario, "autosave", None, play_mode, narrative_state, variant=variant, initial_metrics=initial_metrics_snapshot, rng=rng, seed=seed, ending_id=ending.ending_id if ending else None)
 
         if ending:
             debrief_lines = build_debrief_lines(world, ending, initial_metrics_snapshot, transcript)

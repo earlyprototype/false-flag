@@ -264,7 +264,7 @@ def test_saves_carry_the_rng_position(game_runs):
     for name, payload in [("cancel-save", game_runs.cancel_save),
                           ("autosave", game_runs.autosave),
                           ("mid-turn save", game_runs.turn2_first)]:
-        assert payload.get("version") == "2.3", f"{name} not written as 2.3"
+        assert payload.get("version") == "2.4", f"{name} not written as 2.4"
         state = payload.get("rng_state")
         assert state, f"{name} carries no rng_state"
         version, internal, _gauss = state

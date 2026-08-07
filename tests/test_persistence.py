@@ -57,7 +57,7 @@ def test_save_round_trips_initial_metrics_and_variant(tmp_path):
     # The raw payload carries the snapshot and the bumped version
     raw = json.loads(save_path.read_text(encoding="utf-8"))
     assert raw["initial_metrics"] == snapshot
-    assert raw["version"] == "2.3"
+    assert raw["version"] == "2.4"
 
     # load_game still round-trips the world unchanged
     scenario_id, world, transcript, play_mode, narrative_state = load_game(save_path)

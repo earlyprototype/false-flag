@@ -340,7 +340,25 @@ async def get_game_state(session_id: str):
         "turn": manager.world.turn,
         "phase": manager.world.phase,
         "metrics": manager.world.metrics.dict(),
-        "advisors": manager.get_advisors_state()
+        "advisors": manager.get_advisors_state(),
+        # A restored session is unreadable without these: the transcript is
+        # the game so far, and a live mandatory call blocks briefing and
+        # decisions - the client needs to see the call it must answer.
+        "transcript": manager.transcript,
+        "active_call": _active_call_state(manager),
+    }
+
+
+def _active_call_state(manager) -> Optional[dict]:
+    """The live diplomatic call a client must be able to render, else None."""
+    enc = manager.active_encounter
+    if enc is None or not enc.active:
+        return None
+    return {
+        "country": enc.country,
+        "title": enc.title,
+        "required": enc.required,
+        "transcript": list(enc.transcript),
     }
 
 
@@ -499,7 +517,9 @@ async def load_game_endpoint(request: LoadGameRequest):
             "session_id": new_session_id,
             "turn": manager.world.turn,
             "phase": manager.world.phase,
-            "metrics": manager.world.metrics.dict()
+            "metrics": manager.world.metrics.dict(),
+            "transcript": manager.transcript,
+            "active_call": _active_call_state(manager),
         }
     except Exception as e:
         print(f"ERROR LOAD: {e}")
