@@ -42,7 +42,11 @@ DEFAULT_MODEL_CONFIG: Dict[LLMContext, ModelTier] = {
     LLMContext.CHARACTER_RESPONSE: ModelTier.FLASH,    # Simple flavor text
     LLMContext.QUALITY_ASSESSMENT: ModelTier.PRO,      # Decides what happens
     LLMContext.ACTOR_SIMULATION: ModelTier.PRO,        # In-character statecraft
-    LLMContext.SITUATION_SUMMARY: ModelTier.FLASH,     # Routine summarisation
+    # The rolling synopsis is the campaign's memory: it anchors every
+    # deciding call's context (ER-017), so a confabulated sentence here
+    # propagates everywhere. That is PRO-tier work, one call per turn
+    # (ER-048).
+    LLMContext.SITUATION_SUMMARY: ModelTier.PRO,
     LLMContext.NARRATOR: ModelTier.FLASH,              # Short atmosphere text
 }
 

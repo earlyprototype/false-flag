@@ -478,11 +478,21 @@ def create_initial_narrative_state(
         ),
     }
     
-    # Initial situation summary
+    # Initial situation summary. This text is the anchor for every fold that
+    # follows (ER-048): it must state each event with its own place and
+    # attribution, because the fold is instructed to preserve them verbatim
+    # and a fragment like "F-35 pilots murdered" invites the summariser to
+    # invent a culprit from whatever else is in its context.
     situation_summary = (
-        "Russian naval forces deployed near UK waters. "
-        "F-35 pilots murdered. False flag accusations from Moscow. "
-        "NATO commitment uncertain."
+        "Two RAF F-35 pilots were murdered in Norfolk, in what intelligence "
+        "assesses as a likely Russian special-forces operation. Separately, a "
+        "terrorist attack on the Severomorsk naval base killed over a hundred "
+        "Russian sailors; GCHQ attributes it to Dagestani extremists, but "
+        "Moscow falsely blames the United Kingdom and is using it as a pretext. "
+        "A Russian submarine surge is under way in the North Atlantic, cyber "
+        "attacks on UK infrastructure are climbing, and Russian diplomats are "
+        "leaving London. NATO's commitment to a collective response is not yet "
+        "certain."
     )
     
     # Initial crises

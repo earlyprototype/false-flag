@@ -779,6 +779,13 @@ and this turn together: cover what has happened so far, the player's major
 decisions, and the current diplomatic posture. Write in plain, serious
 prose - no headings, no numbers, no bullet points.
 
+Fidelity rules, which outrank brevity: keep every event distinct, with the
+place and the attribution the inputs give it - never merge two events or
+transfer a culprit, location or casualty count from one to another. If the
+inputs do not state who did something, say it is unattributed rather than
+inferring. State accusations as accusations, naming who accuses whom of
+what.
+
 Summary:"""
     try:
         summary = llm_generate_fn(
