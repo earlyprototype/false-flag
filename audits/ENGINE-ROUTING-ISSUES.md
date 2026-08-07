@@ -13,6 +13,19 @@ rather than an engine defect, and it is visible in the logs as `narrative_stance
 The fixed engine was re-measured with the original protocol on the close-out date; the numbers
 are in `2026-08-06-campaign-measurements.md` beside this file.
 
+## Re-opened, 2026-08-07
+
+Six turns of live play the next day surfaced four defects (ER-047..049 and the synopsis
+truncation) in code the campaign had "verified" - proof that a green suite was being read as
+proof the game works. A uniformity audit re-derived today's work from yesterday's: every parser
+against every observed failure shape, every call site against cap-hit detectability, every
+mutable field against save/load, every authored text against the scenario. Full evidence in
+`2026-08-07-uniformity-audit/` beside this file; the standing instrument is the router call log
+(`llm/call_log.py`, `WARGAME_CALL_LOG`) plus truncation and residue counters in
+`llm/parse_health.py`; the standard of proof per entry is now `VERIFICATION-MATRIX.md`. The
+audit filed ER-050..ER-070: sixteen fixed the same day, five small content items left open.
+ER-046 closed with authored stances for FRA/DEU/POL/UKR in both narratives.
+
 Open register of defects and design gaps in how the engine assembles context, routes calls and
 consumes results.
 
@@ -77,10 +90,31 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-013 | fixed | low | state | Advisor pushback mutates nothing |
 | ER-031 | fixed | low | parsing | An explicit multiplier of 1.0 is indistinguishable from silence |
 | ER-027 | fixed | low | context | An advisor instruction contradicts the outcome assessor's task |
-| ER-046 | open | low | data | The stance list and the state-actor roster barely overlap |
+| ER-046 | fixed | low | data | The stance list and the state-actor roster barely overlap |
 | ER-047 | fixed | med | state | A mid-call save drops the live diplomatic encounter |
 | ER-048 | fixed | med | context | The rolling synopsis confabulates from an ungrounded seed |
 | ER-049 | fixed | med | parsing | Actor text on the line after its label is silently replaced |
+| ER-050 | fixed | high | dispatch | No call site can detect an output-cap truncation |
+| ER-051 | fixed | high | parsing | Label-on-own-line drops values in four more parsers |
+| ER-052 | fixed | med | parsing | Quoted and punctuated sentinels leak through exact compares |
+| ER-053 | fixed | med | parsing | A trailing NO PUSHBACK erases real objections; empty replies read as all-clear |
+| ER-054 | fixed | med | parsing | Ten fallback paths record nothing to parse health |
+| ER-055 | fixed | med | state | The pending-pushback memory is dropped by save |
+| ER-056 | fixed | high | state | A post-briefing save resumes as a fresh turn, double-applying effects |
+| ER-057 | fixed | med | state | The CLI save format has no ending; finished campaigns resume playable |
+| ER-058 | fixed | low | dispatch | The API surfaces no transcript or live call on load |
+| ER-059 | fixed | low | state | A restored optional call is never re-surfaced in the browser |
+| ER-060 | fixed | high | data | The HTTP front end never adopted the cold open |
+| ER-061 | fixed | high | data | No prompt forbids markdown, three demand it, the episodes embed it |
+| ER-062 | fixed | med | data | The British-English instruction misses half the UK-voiced families |
+| ER-063 | fixed | med | dispatch | The scripted call is gated by outbound-call access rules |
+| ER-064 | fixed | low | data | A US official sits in the UK advisor panel; the Attorney General has no trust |
+| ER-065 | fixed | high | dispatch | The bridge fault probe's signature makes the router mis-forward arguments |
+| ER-066 | open | low | data | The cold open never mentions the two precipitating events |
+| ER-067 | open | low | data | The COBRA room is described twice back-to-back |
+| ER-068 | open | low | data | engine/intelligence.py emits terminal markup over the HTTP API |
+| ER-069 | open | low | data | events.yaml grants a metric that no longer exists |
+| ER-070 | open | low | state | The CLI endings toggle is not persisted across a resume |
 
 ## How the measurements below were taken
 
@@ -1232,3 +1266,179 @@ two minutes.
   assessment), the same pattern the quality parser uses for REASONING; non-text labels clear the
   continuation target; and a public response that ends empty records a
   `actor_simulation.public_response` miss.
+
+
+---
+
+# Entries from the 2026-08-07 uniformity audit
+
+Filed and (where marked fixed) closed the same day, on the corrective branch behind PR #51.
+Evidence with file:line for every claim is in `2026-08-07-uniformity-audit/`
+(`parsers.md`, `truncation.md`, `saveload.md`, `content.md`); entries below are summaries.
+
+## ER-050 — No call site can detect an output-cap truncation
+- **Status:** fixed · **Severity:** high · **Area:** dispatch
+- **Observed:** Neither live driver read the provider's finish reason on the success path, so a
+  reply cut on max_tokens was indistinguishable from a complete one at all 13 call sites. The
+  live incident (a synopsis ending mid-sentence) was patched by raising one cap; the class stayed.
+- **Fixed:** Both drivers fill `meta_out['finish_reason']` (single and batch); the router records
+  `length`/`MAX_TOKENS` as a parse-health truncation keyed by call family; the call log carries
+  the reason per call. Evidence: `2026-08-07-uniformity-audit/truncation.md`.
+
+## ER-051 — Label-on-own-line drops values in four more parsers
+- **Status:** fixed · **Severity:** high · **Area:** parsing
+- **Observed:** ER-049's fix covered the actor parser's text fields only. The same reply shape
+  (label on one line, value on the next) still lost CONDITIONS/INTEL_SHARED (actor), QUALITY,
+  the multiplier and metric deltas (quality), OUTCOME and the cohesion delta (diplomacy), and
+  INTERPRETATION/FEASIBILITY (CLI panel) - e.g. `OUTCOME:` + next-line `SUCCESS` scored NEUTRAL.
+- **Fixed:** A pending-field mechanism on every structured field at all four sites, each value
+  going through its normal tolerant path; covered by repro-input tests
+  (`tests/test_parser_uniformity.py`).
+
+## ER-052 — Quoted and punctuated sentinels leak through exact compares
+- **Status:** fixed · **Severity:** med · **Area:** parsing
+- **Observed:** The actor parser compared sentinel values with `== "none"`, so `"none"` (quoted -
+  the form the prompt itself displays) reported intel as shared, and `None.` became a stated
+  condition.
+- **Fixed:** `is_sentinel_line` with quote tolerance in `extract_label`; the quality parser's
+  hand-rolled enum match replaced with `match_enum` at the same time, and the negation lookback
+  widened so "Not a failure" no longer inverts to FAILURE.
+
+## ER-053 — A trailing NO PUSHBACK erases real objections; empty replies read as all-clear
+- **Status:** fixed · **Severity:** med · **Area:** parsing
+- **Observed:** The pushback parser scanned all lines for the sentinel, so a reply carrying a real
+  objection plus a trailing `NO PUSHBACK` returned nothing. The omissions scanner conflated an
+  empty reply (a failed call) with a genuine NO_CONCERN.
+- **Fixed:** Parse first, sentinel only when nothing was found; an empty omissions reply records a
+  miss and is not counted as all-clear.
+
+## ER-054 — Ten fallback paths record nothing to parse health
+- **Status:** fixed · **Severity:** med · **Area:** parsing
+- **Observed:** Situation-summary emptiness, canned character lines, empty diplomatic replies,
+  advisor QA errors, empty interpretations, every inject-YAML failure path, unknown inject
+  metrics, narrator drops and fanout error slots all degraded silently - a campaign of quiet
+  failures reported perfect parse health.
+- **Fixed:** Every path records a miss or fallback; residue accounting (unconsumed reply lines)
+  added at all six structured parsers; the inject generator's unclosed-fence slice bug and
+  missing title/description schema check closed in the same pass.
+
+## ER-055 — The pending-pushback memory is dropped by save
+- **Status:** fixed · **Severity:** med · **Area:** state
+- **Observed:** `_pending_pushback` (who objected to which exact text - the ER-013 trust cost)
+  lived on the manager but was never serialized: interpret -> save -> load -> commit made
+  overriding the cabinet free. Same class as ER-047.
+- **Fixed:** Serialized and restored; `tests/test_saveload_completeness.py` now introspects the
+  live object's `vars()` against a restored copy, so the next unserialized field fails CI at
+  feature-add time.
+
+## ER-056 — A post-briefing save resumes as a fresh turn, double-applying effects
+- **Status:** fixed · **Severity:** high · **Area:** state
+- **Observed:** `from_dict` derived replay from `world.phase`, but the phase stayed "briefing"
+  until the first question - so a save taken at the start of a turn (the browser's most natural
+  save moment) re-applied the inject's metric effects and re-opened the mandatory call on load.
+  The shipped browser round-trip test exercised the double-apply without asserting on it.
+- **Fixed:** `get_turn_briefing` advances the phase when the briefing ends, exactly as the
+  terminal CLIs already did; regression tests pin metrics equality and encounter identity across
+  the round trip.
+
+## ER-057 — The CLI save format has no ending; finished campaigns resume playable
+- **Status:** fixed · **Severity:** med · **Area:** state
+- **Observed:** The ending is computed after the autosave is written and the CLI format (2.3) had
+  no field for it, so a graded classic campaign's autosave resumed as a live turn-N+1 game. The
+  format also never stored the seed.
+- **Fixed:** Format 2.4 stores `ending_id` and `seed`; the resume offer treats a concluded
+  campaign as a record, not a live game.
+
+## ER-058 — The API surfaces no transcript or live call on load
+- **Status:** fixed · **Severity:** low · **Area:** dispatch
+- **Observed:** After `/game/load` the client got turn/phase/metrics only; a restored mandatory
+  call blocked decisions while remaining invisible.
+- **Fixed:** `GET /game/{id}` and the load response carry the transcript and the live call's
+  state.
+
+## ER-059 — A restored optional call is never re-surfaced in the browser
+- **Status:** fixed · **Severity:** low · **Area:** state
+- **Observed:** Only required calls were re-rendered after a load; a restored player-initiated
+  call stayed invisible, and the player's next `call` - whatever country they named - was routed
+  into it.
+- **Fixed:** The bridge announces the still-open line and re-renders its transcript after a load.
+
+## ER-060 — The HTTP front end never adopted the cold open
+- **Status:** fixed · **Severity:** high · **Area:** data
+- **Observed:** The intro beats were authored once (`engine/opening.py`) and adopted per front
+  end; `api/server.py` never did, so its players - the live complaint - started on a bare inject
+  with no scene-setting at all.
+- **Fixed:** `GameManager.get_opening_scenes()` makes the intro part of the engine surface
+  (stripping terminal-only markup); the API emits the beats before the first briefing; the
+  browser takes the cleaned scenes through the same passthrough.
+
+## ER-061 — No prompt forbids markdown, three demand it, the episodes embed it
+- **Status:** fixed · **Severity:** high · **Area:** data
+- **Observed:** No player-facing prompt carried an anti-markdown instruction; the advisor,
+  interpretation and pushback prompts REQUIRED `**bold**`; the scripted episodes carried ~100
+  markdown markers - while the browser renders no markdown and the CLI echoes briefings raw.
+  Raw asterisks throughout play were guaranteed, not incidental.
+- **Fixed:** `PLAIN_TEXT_RULE` on every player-facing family; the bold-demanding blocks removed;
+  the episodes cleaned; the dashboard intro no longer prints raw `##` headings.
+
+## ER-062 — The British-English instruction misses half the UK-voiced families
+- **Status:** fixed · **Severity:** med · **Area:** data
+- **Observed:** Advisor reactions, the situation summary, the main inject path, the adjudication
+  REASONING and the diplomatic outcome SUMMARY carried no spelling/voice guidance; the narrator
+  carried the full advisor identity block by accident ("You are a real advisor in COBRA" inside
+  "You are the Narrator").
+- **Fixed:** British-English and plain-text lines on every UK-voiced family; the narrator sheds
+  the advisor identity via `build_world_state_summary(advisor_voice=False)`. Foreign actors
+  remain exempt by design.
+
+## ER-063 — The scripted call is gated by outbound-call access rules
+- **Status:** fixed · **Severity:** med · **Area:** dispatch
+- **Observed:** The turn-six inject announces the US President calling, but the encounter ran
+  through the outbound access gate: at mid cohesion the NSA answered a call announced as the
+  President; below 30 the White House refused its own call.
+- **Fixed:** A required encounter connects at the promised leader level regardless of cohesion;
+  optional calls still gate.
+
+## ER-064 — A US official sits in the UK advisor panel; the Attorney General has no trust
+- **Status:** fixed · **Severity:** low · **Area:** data
+- **Observed:** `usa_nsa` was seeded in the character-attitude dict and listed by
+  `get_advisors_state`; no `uk_attorney_general` existed, so AG pushback carried no trust cost.
+- **Fixed:** The panel lists `uk_`-prefixed characters only; the Attorney General is seeded into
+  the trust economy.
+
+## ER-065 — The bridge fault probe's signature makes the router mis-forward arguments
+- **Status:** fixed · **Severity:** high · **Area:** dispatch
+- **Observed:** `_watch_calls` wrapped driver methods in a bare `(*args, **kwargs)` facade. The
+  router inspects driver signatures to decide which optional arguments to forward; the facade
+  said "accepts everything", so the day the router gained `meta_out` the browser build started
+  throwing TypeError on every live call and silently falling back to the mock driver. Caught by
+  the truncation audit the same day it shipped.
+- **Fixed:** The wrapper carries the wrapped method's real signature
+  (`functools.update_wrapper` + `__signature__`); a regression test drives the router through a
+  wrapped narrow-signature driver.
+
+## ER-066 — The cold open never mentions the two precipitating events (open)
+- **Status:** open · **Severity:** low · **Area:** data
+- Scene I is set at Severomorsk the morning after the attack and never mentions it - the intro
+  sets scenery but introduces neither the pilot murders nor the bombing the whole scenario turns
+  on. Content rewrite; needs an authorial decision.
+
+## ER-067 — The COBRA room is described twice back-to-back (open)
+- **Status:** open · **Severity:** low · **Area:** data
+- Intro Scene III and the turn-1 briefing restate the same room, cast and throat-clearing beat
+  nearly verbatim. Deduplication is a content decision about which copy yields.
+
+## ER-068 — engine/intelligence.py emits terminal markup over the HTTP API (open)
+- **Status:** open · **Severity:** low · **Area:** data
+- Intel text embeds Rich `[bold]` tags; only one Next.js panel strips them. Right fix is plain
+  text from the engine with styling applied per front end.
+
+## ER-069 — events.yaml grants a metric that no longer exists (open)
+- **Status:** open · **Severity:** low · **Area:** data
+- A legacy `mission_progress` delta with no corresponding metric; the file appears unconsumed by
+  the current loop. Delete or re-wire deliberately.
+
+## ER-070 — The CLI endings toggle is not persisted across a resume (open)
+- **Status:** open · **Severity:** low · **Area:** state
+- `endings_disabled` is a loop local: a player who disabled endings and resumes gets them back
+  on. Small; noted so the completeness test's whitelist stays honest.
