@@ -407,3 +407,51 @@ def test_filter_output_is_bounded():
     context = get_diplomatic_context(transcript, gm.world, "US")
     assert len(context) <= MAX_DIPLOMATIC_CONTEXT_CHARS + 2_000
     assert "elided for length" in context
+
+
+# ---------------------------------------------------------------------------
+# ER-047: a live call survives a save/load round-trip
+# ---------------------------------------------------------------------------
+
+def test_live_encounter_survives_save_and_load():
+    gm = GameManager(seed=42, play_mode="classic")
+    gm.world.turn = 6
+    gm.get_turn_briefing()
+    gm.process_diplomacy("We are coordinating fully with NATO.")
+    exchanges_before = gm.active_encounter._player_exchanges
+    call_lines_before = list(gm.active_encounter.transcript)
+
+    restored = GameManager.from_dict(gm.to_dict())
+
+    enc = restored.active_encounter
+    assert enc is not None and enc.active
+    assert enc.required
+    assert enc.country == "US"
+    assert enc._player_exchanges == exchanges_before
+    assert enc.transcript == call_lines_before
+
+    # The restored call is drivable, and its lines still mirror into the
+    # session transcript.
+    grew_from = len(restored.transcript)
+    result = restored.process_diplomacy("Our frigates join the patrol line tomorrow.")
+    assert result.get("error") is None
+    assert len(restored.transcript) > grew_from
+
+
+def test_ended_encounter_is_not_resurrected_by_a_round_trip(monkeypatch):
+    import engine.diplomacy as diplomacy
+
+    monkeypatch.setattr(
+        diplomacy, "assess_diplomatic_outcome",
+        lambda *args, **kwargs: ("Diplomatic Outcome: SUCCESS\nWell handled.", 8),
+    )
+
+    gm = GameManager(seed=42, play_mode="classic")
+    gm.world.turn = 6
+    gm.get_turn_briefing()
+    gm.process_diplomacy("We are coordinating fully with NATO.")
+    gm.process_diplomacy("Thank you, goodbye.")
+    assert not gm.active_encounter.active
+
+    restored = GameManager.from_dict(gm.to_dict())
+    assert restored.active_encounter is None

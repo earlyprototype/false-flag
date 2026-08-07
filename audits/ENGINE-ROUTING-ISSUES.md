@@ -78,6 +78,7 @@ Areas: `context` (prompt assembly and windowing), `routing` (model and provider 
 | ER-031 | fixed | low | parsing | An explicit multiplier of 1.0 is indistinguishable from silence |
 | ER-027 | fixed | low | context | An advisor instruction contradicts the outcome assessor's task |
 | ER-046 | open | low | data | The stance list and the state-actor roster barely overlap |
+| ER-047 | fixed | med | state | A mid-call save drops the live diplomatic encounter |
 
 ## How the measurements below were taken
 
@@ -1151,3 +1152,28 @@ two minutes.
   voice them — they reach a prompt only if the player telephones Beijing or Dublin. The gap is now
   visible in the logs rather than silent, but closing it needs authored content: stances for the
   missing capitals, or actors for the missing stances.
+
+## ER-047 — A mid-call save drops the live diplomatic encounter
+
+- **Status:** fixed
+- **Severity:** medium
+- **Area:** state
+- **Observed:** `GameManager.to_dict` serialised the world, narrative state, transcript, ending and
+  generator position, and nothing of `active_encounter`. `from_dict` never reconstructed one. A
+  session saved while the scripted presidential call (or any player-initiated call) was live came
+  back with `active_encounter = None`: `process_diplomacy` answered "No active diplomatic call",
+  the call's remaining exchanges and its outcome assessment never happened, and no delta landed.
+  Found by playing: a turn-6 save/load between call exchanges silently ended the campaign's
+  set-piece scene.
+- **Evidence:** the pre-fix `to_dict` state keys (world, narrative_state, transcript,
+  initial_metrics, ending_id, rng_state — no encounter); `engine/game_manager.py::process_diplomacy`
+  (the no-active-call early return); demonstrated by save/load between exchanges of the turn-6 call
+- **Effect:** On any front end that round-trips a session mid-call (browser localStorage saves, a
+  restarted HTTP server, a turn-by-turn harness), the mandatory call vanished part-way through: no
+  outcome, no alliance delta, no record of the exchanges after the reload — a quiet regression of
+  the ER-033 fix on the save path.
+- **Fixed:** `to_dict` stores a live encounter's country, premise, flags, conversation and exchange
+  count under `state.active_encounter` (ended calls are not stored — their outcome already landed),
+  and `from_dict` rebuilds the encounter against the restored world and narrative state and resumes
+  it verbatim. Regression tests cover the round-trip mid-call and confirm an ended call is not
+  resurrected.
