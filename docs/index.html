@@ -197,6 +197,8 @@
         <b id="termTitle">COBRA</b>
         <span id="termRef">TURN —</span>
         <span class="spacer"></span>
+        <button type="button" class="widthtoggle" id="speedToggle"
+                aria-pressed="false" title="Narrative arrives a few characters at a time; any key or tap lands the current block. Tap for instant text">TEXT SPEED: TYPED</button>
         <button type="button" class="widthtoggle" id="widthToggle"
                 aria-pressed="false" title="Squeeze the 78-column layout into the pane, or keep it legible and scroll sideways">WIDTH: FIT</button>
       </div>
@@ -243,6 +245,7 @@
               <option value="home_secretary">Home Secretary</option>
               <option value="foreign_secretary">Foreign Secretary</option>
               <option value="attorney_general">Attorney General</option>
+              <option value="all">Everyone — the whole room answers</option>
             </select>
           </div>
           <div>
@@ -272,9 +275,9 @@
             </select>
           </div>
           <div>
-            <label for="callText">WHAT YOU SAY ON THE LINE</label>
+            <label for="callText">WHAT YOU SAY ON THE LINE ── OR LEAVE EMPTY TO JUST OPEN THE LINE</label>
             <textarea id="callText" rows="3"
-              placeholder="Tell me plainly whether your carrier group is coming, because I am about to tell the House one way or the other."></textarea>
+              placeholder="Tell me plainly whether your carrier group is coming, because I am about to tell the House one way or the other. (Or leave this empty: the line opens, they speak first, and your next send is what you say.)"></textarea>
           </div>
         </div>
         <div class="actions">

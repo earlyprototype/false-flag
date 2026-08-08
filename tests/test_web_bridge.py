@@ -327,6 +327,76 @@ def test_loading_mid_cold_open_does_not_leak_beats_into_the_resumed_game():
     assert "NORTHWOOD" not in rec.ansi(), "a stale beat fired into the resumed game"
 
 
+def test_ask_all_puts_the_question_to_the_whole_room():
+    game, rec = make_game()
+    rec.clear()
+    game.handle({"type": "ask", "advisor": "all",
+                 "text": "Where do we actually stand?"})
+
+    out = rec.ansi()
+    # The question renders once, as the Prime Minister speaking.
+    assert out.count("PRIME MINISTER") == 1
+    # Every seated advisor answers as their own speaker block.
+    for role in ("MILITARY COMMANDER", "INTELLIGENCE COORDINATOR",
+                 "DOMESTIC SECURITY", "DIPLOMATIC LEAD", "LEGAL ADVISOR"):
+        assert role in out, f"{role} did not answer"
+    assert rec.last("awaiting")["kind"] == "decision"
+
+
+def test_state_offers_the_whole_room_option():
+    game, rec = make_game()
+    advisors = rec.last("state")["advisors"]
+    assert advisors[-1]["id"] == "all", \
+        "the picker must offer asking the whole room"
+    assert {a["id"] for a in advisors} > {"all"}, "and the advisors themselves"
+
+
+def _instant_outputs(rec):
+    """The 'output' messages marked for the page to show whole (no typewriter)."""
+    return [m for m in rec.of("output") if m.get("instant") is True]
+
+
+def _typed_outputs(rec):
+    """The 'output' messages the page's typewriter reveal paces."""
+    return [m for m in rec.of("output") if m.get("instant") is not True]
+
+
+def test_chrome_output_carries_the_instant_marker():
+    """Masthead and prompts are chrome: the page must not typewrite them."""
+    game, rec = make_game()
+
+    instant = "\n".join(m["ansi"] for m in _instant_outputs(rec))
+    assert "FALSE FLAG" in instant, "the masthead must be marked instant"
+    assert "YOUR MOVE" in instant, "the prompt must be marked instant"
+
+
+def test_narrative_output_is_not_marked_instant():
+    """Scene beats and briefing prose are what the typewriter exists for."""
+    game, rec = make_unpaced_game()
+    for _ in range(4):
+        game.handle({"type": "continue"})
+
+    typed = "\n".join(m["ansi"] for m in _typed_outputs(rec))
+    assert "SEVEROMORSK" in typed, "the cold open must stay revealable"
+    assert "TURN 1" in typed, "the briefing must stay revealable"
+    # And the marker, when present, is only ever boolean True — the page
+    # tests `m.instant === true`, so any other truthy value would lie.
+    for m in rec.of("output"):
+        assert m.get("instant") in (None, True)
+
+
+def test_set_key_note_is_marked_instant():
+    rec = Recorder()
+    game = bridge.WebGame(rec)
+    game.handle({"type": "setKey", "key": "", "source": ""})
+
+    # Picked out by content, not position: handle()'s finally can append a
+    # fault report left behind by an earlier test in the same process.
+    notes = [m for m in rec.of("output") if "OFFLINE MODE" in m["ansi"]]
+    assert notes, "no provider note emitted"
+    assert notes[0].get("instant") is True
+
+
 def test_a_continue_with_nothing_queued_does_not_strand_the_page():
     """A double space-press must not disable every control.
 
@@ -528,6 +598,44 @@ def test_mandatory_call_puts_the_player_on_the_line():
     assert "CALL ENDED" in rec.ansi()
     assert rec.last("awaiting")["kind"] == "decision"
     assert game.gm.active_encounter.outcome is not None
+
+
+def test_call_without_a_message_opens_the_line_counterpart_first():
+    """The two-stage outbound flow: `call usa` with nothing to say opens the
+    line, the counterpart speaks first, and the page is told the line is
+    open — the same shape as the scripted required call."""
+    game, rec = make_game()
+    rec.clear()
+    game.handle({"type": "call", "country": "USA", "text": ""})
+
+    assert rec.last("awaiting")["kind"] == "question"
+    text = rec.ansi()
+    assert "DIPLOMATIC CALL" in text
+    assert "The line is open" in text
+    assert "PRIME MINISTER" not in text, "nobody has spoken for the player"
+    assert not any(line.startswith("Prime Minister:")
+                   for line in game.gm.active_encounter.transcript)
+
+    # The next input is spoken on the call.
+    rec.clear()
+    game.handle({"type": "call", "country": "USA", "text": "Are you with us?"})
+    assert rec.last("awaiting")["kind"] == "question"
+    assert "PRIME MINISTER" in rec.ansi()
+
+
+def test_open_line_then_hangup_without_speaking_costs_nothing():
+    game, rec = make_game()
+    game.handle({"type": "call", "country": "USA", "text": ""})
+    cohesion = game.gm.world.metrics.alliance_cohesion
+
+    rec.clear()
+    game.handle({"type": "call", "country": "USA", "text": "end"})
+
+    assert rec.last("awaiting")["kind"] == "decision"
+    assert "CALL ENDED" in rec.ansi()
+    assert game.gm.active_encounter.active is False
+    assert game.gm.world.metrics.alliance_cohesion == cohesion, \
+        "a zero-exchange call must not move the metrics"
 
 
 def test_call_to_an_unknown_country_fails_in_fiction():

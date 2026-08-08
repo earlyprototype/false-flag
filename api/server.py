@@ -67,6 +67,10 @@ class NewGameRequest(BaseModel):
 class DiscussionRequest(BaseModel):
     session_id: str
     question: str
+    # "all" puts the question to every seated advisor at once (one LLM call
+    # per advisor — see GameManager.process_question_all). Anything else,
+    # None included, keeps the keyword-routed single-answer behaviour.
+    advisor: Optional[str] = None
 
 
 class DecisionRequest(BaseModel):
@@ -767,8 +771,12 @@ async def post_discussion(request: DiscussionRequest):
     if manager.world.phase != "discussion":
         raise HTTPException(status_code=400, detail=f"Wrong phase: {manager.world.phase}")
     
-    # Process question (blocking for now, could be async in future)
-    responses = manager.process_question(request.question)
+    # Process question (blocking for now, could be async in future).
+    # advisor == "all" asks the whole room: every advisor answers in role.
+    if (request.advisor or "").strip().lower() == "all":
+        responses = manager.process_question_all(request.question)
+    else:
+        responses = manager.process_question(request.question)
     
     # Push responses to stream
     for line in responses:

@@ -259,6 +259,12 @@ ADVISORS = [
 _ADVISOR_CUE = {a["id"]: a["cue"] for a in ADVISORS}
 _ADVISOR_CUE.update({a["label"].lower(): a["cue"] for a in ADVISORS})
 
+# The whole-room option the page's picker offers alongside the advisors.
+# Not in ADVISORS: it has no routing cue — ask() branches on the id instead,
+# and every seated advisor answers (one LLM call each; see
+# GameManager.process_question_all).
+ASK_ALL = {"id": "all", "label": "Everyone — the whole room answers"}
+
 VARIANTS = {"standard", "fast_start"}
 
 
@@ -425,10 +431,21 @@ class WebGame:
     def emit(self, **msg: Any) -> None:
         self._emit(msg)
 
-    def out(self, pen: AnsiPen) -> None:
+    def out(self, pen: AnsiPen, instant: bool = False) -> None:
+        """Send one rendered block to the page.
+
+        ``instant`` marks chrome — the masthead, prompts, state lines,
+        fault banners — that the page must show whole rather than feed
+        through its typewriter reveal. Narrative blocks (the default) are
+        the ones the reveal paces. The key is only present when true, so
+        the message shape is unchanged for every existing consumer.
+        """
         body = pen.text()
         if body.strip():
-            self.emit(type="output", ansi=body + RESET)
+            if instant:
+                self.emit(type="output", ansi=body + RESET, instant=True)
+            else:
+                self.emit(type="output", ansi=body + RESET)
 
     def set_awaiting(self, kind: str) -> None:
         self.awaiting = kind
@@ -582,7 +599,7 @@ class WebGame:
 
         pen = AnsiPen(self.width)
         pen.raw(_c(DIM, f"[ {provider_note} ]")).blank()
-        self.out(pen)
+        self.out(pen, instant=True)
 
     def provider(self) -> str:
         import llm.router as router
@@ -682,7 +699,7 @@ class WebGame:
         pen.blank()
         pen.rule("═", DIM)
         pen.blank()
-        self.out(pen)
+        self.out(pen, instant=True)
 
     # -- state -------------------------------------------------------------
 
@@ -729,7 +746,7 @@ class WebGame:
             # from this, and there is no 10 to render.
             finalTurn=gm.campaign_final_turn if gm.endings_enabled else None,
             vibes=vibes,
-            advisors=ADVISORS,
+            advisors=ADVISORS + [ASK_ALL],
             # Only channels the current alliance standing actually opens.
             contacts=[
                 {"code": c["country"], "title": c["title"], "access": c["access"]}
@@ -868,7 +885,7 @@ class WebGame:
                  "order. Whatever you type as a decision is what the Cabinet acts on.",
                  colour=DIM)
         pen.blank()
-        self.out(pen)
+        self.out(pen, instant=True)
 
         self.push_state()
         self.set_awaiting(AWAIT_DECISION)
@@ -890,17 +907,21 @@ class WebGame:
             self.reject("Empty question.", was_awaiting)
             return
 
-        # The question router matches on keywords, so naming the adviser in
-        # the question itself is how you address one directly.
-        cue = _ADVISOR_CUE.get((advisor or "").strip().lower())
-        prompt = f"{cue}, {question}" if cue else question
-
         pen = AnsiPen(self.width)
         pen.section("DISCUSSION", DIM)
         pen.speaker("Prime Minister", question, colour=AMBER)
         self.out(pen)
 
-        lines = gm.process_question(prompt)
+        if (advisor or "").strip().lower() == ASK_ALL["id"]:
+            # The whole room: every seated advisor answers in role. One LLM
+            # call per advisor, by design.
+            lines = gm.process_question_all(question)
+        else:
+            # The question router matches on keywords, so naming the adviser
+            # in the question itself is how you address one directly.
+            cue = _ADVISOR_CUE.get((advisor or "").strip().lower())
+            prompt = f"{cue}, {question}" if cue else question
+            lines = gm.process_question(prompt)
 
         pen = AnsiPen(self.width)
         for line in lines:
@@ -937,6 +958,15 @@ class WebGame:
                 self.set_awaiting(AWAIT_DECISION)
                 return
             if not message:
+                # The two-stage flow: `call france` with nothing to say opens
+                # the line, the counterpart speaks first (rendered above),
+                # and the player's next input is spoken on the call — the
+                # same shape the scripted required call has always had.
+                pen = AnsiPen(self.width)
+                pen.wrap("The line is open. Whatever you type next is what "
+                         "you say on the call; “end” hangs up.",
+                         colour=DIM)
+                self.out(pen, instant=True)
                 self.push_state()
                 self.set_awaiting(AWAIT_QUESTION)
                 return
@@ -1186,7 +1216,7 @@ class WebGame:
         data = json.dumps(gm.to_dict("browser"), default=str)
         pen = AnsiPen(self.width)
         pen.raw(_c(DIM, f"[ SAVED — turn {gm.world.turn}, {len(data):,} bytes ]")).blank()
-        self.out(pen)
+        self.out(pen, instant=True)
         # The protocol leaves the save reply unnamed; emit both spellings so
         # either reading of it works on the page side.
         self.emit(type="save", data=data, turn=gm.world.turn)
@@ -1209,7 +1239,7 @@ class WebGame:
         pen.raw(_c(AMBER, BOLD + f"  RESUMED — TURN {self.gm.world.turn}"))
         pen.rule("═", DIM)
         pen.blank()
-        self.out(pen)
+        self.out(pen, instant=True)
 
         self.push_state()
         if self.gm.is_over():
@@ -1316,7 +1346,7 @@ class WebGame:
             pen.raw(_c(DANGER, "  " + line))
         pen.rule("─", DANGER)
         pen.blank()
-        self.out(pen)
+        self.out(pen, instant=True)
 
         self.error(message, fatal=False)
 
@@ -1336,4 +1366,4 @@ class WebGame:
         pen = AnsiPen(self.width)
         pen.raw(_c(DIM, f"[ parse health: {delta} model "
                         f"field{'s' if delta != 1 else ''} defaulted this turn ]"))
-        self.out(pen)
+        self.out(pen, instant=True)

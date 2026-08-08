@@ -170,6 +170,43 @@ def test_each_question_lands_in_the_transcript_exactly_once():
     assert gm.transcript.count(line) == 1
 
 
+def test_process_question_all_one_pm_line_then_every_advisor():
+    """Ask the whole room: one question line, one answer per seated advisor."""
+    gm = make_manager()
+    gm.get_turn_briefing()
+
+    question = "Give me your read: where do we actually stand?"
+    lines = gm.process_question_all(question)
+
+    pm_lines = [l for l in lines if l.startswith("Prime Minister:")]
+    assert pm_lines == [f"Prime Minister: {question}"], \
+        "exactly one question line — the room was addressed once"
+
+    answers = [l for l in lines if not l.startswith("Prime Minister:")]
+    roles = [l.split(":", 1)[0] for l in answers]
+    assert len(roles) == 5, "every seated advisor answers"
+    assert len(set(roles)) == 5, "each advisor answers exactly once"
+    assert "Government Leader" not in roles, "the player's own seat is silent"
+    assert all(l.split(":", 1)[1].strip() for l in answers), \
+        "no advisor is rendered saying nothing"
+
+    # Bookkeeping matches process_question: session transcript and the
+    # turn's discussion transcript both carry the lines, once.
+    assert gm.transcript.count(pm_lines[0]) == 1
+    for line in lines:
+        assert line in gm.world.discussion_transcript
+
+
+def test_process_question_all_is_deterministic_for_a_seed():
+    a = make_manager(seed=7)
+    a.get_turn_briefing()
+    b = make_manager(seed=7)
+    b.get_turn_briefing()
+
+    question = "What breaks first if this runs another week?"
+    assert a.process_question_all(question) == b.process_question_all(question)
+
+
 def _play_turn(gm, turn):
     gm.get_turn_briefing()
     gm.process_question(f"Turn {turn}: what changed overnight?")

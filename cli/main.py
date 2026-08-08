@@ -63,6 +63,7 @@ from engine.scenario_loader import list_available_scenarios, get_scenario_config
 from engine.sim_loop import (
     run_turn_briefing,
     run_turn_discussion,
+    run_turn_discussion_all,
     run_turn_decision,
     run_turn_adjudication as run_turn_adjudication_fallback,  # Renamed for fallback
     run_single_scene,
@@ -1634,6 +1635,7 @@ def play(
                         console.print(f"[{COLORS['primary']}]  /menu or /help[/{COLORS['primary']}]     - Show this menu")
                         console.print(f"[{COLORS['primary']}]  /status[/{COLORS['primary']}]            - Show current metrics and situation")
                         console.print(f"[{COLORS['primary']}]  /advise[/{COLORS['primary']}]            - Get input from all advisors at once")
+                        console.print(f"[{COLORS['primary']}]  /askall <question>[/{COLORS['primary']}] - Put one question to every advisor (also: start it \"everyone,\")")
                         console.print(f"[{COLORS['primary']}]  /resources[/{COLORS['primary']}]         - Show UK forces and ammunition stockpiles")
                         console.print(f"[{COLORS['primary']}]  /intel[/{COLORS['primary']}]             - Intelligence briefing on foreign actors")
                         console.print(f"[{COLORS['primary']}]  /call <country>[/{COLORS['primary']}]    - Contact a foreign leader or diplomat")
@@ -1645,6 +1647,54 @@ def play(
                         typer.echo("")
                         console.print(f"[{COLORS['muted']}]NOTE: You may also ask general questions without naming a specific advisor.[/{COLORS['muted']}]")
                 
+                    typer.echo("")
+                    continue
+
+                # Ask the whole room: every advisor answers the same question
+                # in role. Reached by /askall <q>, or by opening the question
+                # "everyone," / "all of you,". One LLM call per advisor, by
+                # design (see engine.sim_loop.run_turn_discussion_all).
+                askall_question = None
+                if user_input.lower().startswith("/askall"):
+                    askall_question = user_input[len("/askall"):].strip()
+                    if not askall_question:
+                        console.print(f"[{COLORS['warning']}]Usage: /askall <question> — every advisor answers in role (one model call each).[/{COLORS['warning']}]")
+                        typer.echo("")
+                        continue
+                elif user_input.lower().startswith(("everyone,", "all of you,")):
+                    askall_question = user_input
+
+                if askall_question:
+                    questions.append(askall_question)
+                    discussion_lines = run_turn_discussion_all(world, scenario, askall_question, rng, root, transcript, narrative_state=narrative_state)
+
+                    typer.echo("")  # Space before responses
+                    if RICH_ENABLED:
+                        console.print(ae.sonar_divider(seed=f"qall-{world.turn}-{len(questions)}"))
+                        typer.echo("")
+
+                    for line in discussion_lines:
+                        # Skip echoing the player's question (they just typed it)
+                        if line.startswith("Prime Minister:"):
+                            continue
+                        if ":" in line:
+                            advisor_name, rest = line.split(":", 1)
+                            # Internal persona names -> cabinet titles on screen
+                            advisor_name = display_role(advisor_name)
+                            console.print(f"  [{COLORS['secondary']} bold]{rich_escape(advisor_name)}[/{COLORS['secondary']} bold]")
+                            typer.echo("")
+                            if RICH_ENABLED:
+                                console.print(format_advisor_response("", rest))
+                            else:
+                                typer.echo(rest)
+                            typer.echo("")
+                        else:
+                            typer.echo(line)
+
+                    transcript.extend(discussion_lines)
+
+                    if RICH_ENABLED:
+                        console.print(ae.sonar_divider(seed=f"qall-{world.turn}-{len(questions)}-end"))
                     typer.echo("")
                     continue
 
