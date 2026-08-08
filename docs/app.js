@@ -497,10 +497,9 @@
     repopulate(el.country, extra.contacts, 'code', ['title', 'name']);
     el.metrics.innerHTML = '';
     if (!visible) {
-      var s = document.createElement('span');
-      s.className = 'sealed';
-      s.textContent = '── METRICS WITHHELD IN THIS MODE ──';
-      el.metrics.appendChild(s);
+      // Hidden metrics render as nothing at all. A banner announcing the
+      // withholding is the game discussing its own mechanics with a player
+      // who is supposed to be inside the fiction - the silence IS the mode.
       return;
     }
     if (!metrics || typeof metrics !== 'object') return;
@@ -1058,8 +1057,10 @@
     ui.keySource = source;
     el.gate.hidden = true;
     el.stage.hidden = false;
-    el.stageTitle.textContent = 'PLAY ── ' +
-      (el.mysteryMode.value === '1' ? 'NARRATIVE SEALED' : 'OPERATION TUMAN');
+    // One title for every mode. "NARRATIVE SEALED" told the player the
+    // game had a secret - mechanics-speak in the play chrome; in Mystery
+    // Mode especially, the surface should just be the fiction.
+    el.stageTitle.textContent = 'PLAY ── OPERATION TUMAN';
     el.termTitle.textContent = 'CABINET OFFICE BRIEFING ROOM A';
     var stored = null;
     try { stored = localStorage.getItem(WIDTH_STORE); } catch (e) { /* ignore */ }

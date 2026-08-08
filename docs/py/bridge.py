@@ -1363,7 +1363,8 @@ class WebGame:
         self._parse_health_seen = current
         if delta <= 0:
             return
-        pen = AnsiPen(self.width)
-        pen.raw(_c(DIM, f"[ parse health: {delta} model "
-                        f"field{'s' if delta != 1 else ''} defaulted this turn ]"))
-        self.out(pen, instant=True)
+        # Developer telemetry belongs in the developer console, not the
+        # player's transcript - a mechanics readout mid-fiction is an
+        # immersion break whatever its diagnostic value. print() surfaces
+        # in the worker console for anyone actually debugging.
+        print(f"[parse health] {delta} model field(s) defaulted this turn")
