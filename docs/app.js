@@ -441,7 +441,7 @@
     if (callLabel) {
       callLabel.textContent = live
         ? 'THE LINE IS OPEN ── WHAT YOU SAY NEXT (“end” HANGS UP)'
-        : 'WHAT YOU SAY ON THE LINE';
+        : 'WHAT YOU SAY ON THE LINE ── OR LEAVE EMPTY TO JUST OPEN THE LINE';
     }
 
     if (live) { selectTab('call'); el.callText.focus(); }
@@ -1154,7 +1154,10 @@
 
   el.sendCall.addEventListener('click', function () {
     var text = el.callText.value.trim();
-    if (!text) { el.callText.focus(); return; }
+    // Mid-call, an empty box has nothing to say. On a fresh call it is the
+    // two-stage flow: the line opens, the counterpart speaks first, and the
+    // next send is what you say on the call.
+    if (!text && ui.awaiting === 'question') { el.callText.focus(); return; }
     markBusy();
     send({ type: 'call', country: el.country.value, text: text });
     el.callText.value = '';

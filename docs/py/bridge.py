@@ -958,6 +958,15 @@ class WebGame:
                 self.set_awaiting(AWAIT_DECISION)
                 return
             if not message:
+                # The two-stage flow: `call france` with nothing to say opens
+                # the line, the counterpart speaks first (rendered above),
+                # and the player's next input is spoken on the call — the
+                # same shape the scripted required call has always had.
+                pen = AnsiPen(self.width)
+                pen.wrap("The line is open. Whatever you type next is what "
+                         "you say on the call; “end” hangs up.",
+                         colour=DIM)
+                self.out(pen, instant=True)
                 self.push_state()
                 self.set_awaiting(AWAIT_QUESTION)
                 return

@@ -283,6 +283,109 @@ def test_scripted_encounter_ends_on_a_closer():
     assert result["outcome"] is not None
 
 
+# ---------------------------------------------------------------------------
+# Two-stage outbound calls: open the line, counterpart speaks first
+# ---------------------------------------------------------------------------
+
+def test_outbound_call_opens_with_the_counterpart_speaking_first():
+    """start_diplomacy is the no-message entry point: the line opens and the
+    counterpart's opening line is already on the transcript before the
+    player has said anything."""
+    gm = GameManager(seed=42, play_mode="classic")
+    result = gm.start_diplomacy("US")
+
+    assert result["active"] is True
+    assert any(line.startswith(f"{result['title']}:")
+               for line in result["transcript"]), "the counterpart speaks first"
+    assert not any("Prime Minister:" in line for line in result["transcript"]), \
+        "nobody has spoken in the player's name"
+
+
+def test_zero_exchange_hangup_pays_for_no_assessment_and_moves_nothing():
+    """Open the line, say nothing, hang up: no LLM assessment, no delta."""
+    from engine.diplomacy import DiplomaticEncounter
+
+    gm = GameManager(seed=42, play_mode="classic")
+    encounter = DiplomaticEncounter(gm.world, "US", None)
+    encounter.start(gm.rng)
+
+    def must_not_be_called(*args, **kwargs):
+        raise AssertionError(
+            "a zero-exchange hang-up must not pay for an outcome assessment")
+
+    cohesion_before = gm.world.metrics.alliance_cohesion
+    transcript = encounter.process_turn("end", must_not_be_called, gm.rng)
+
+    assert encounter.active is False
+    assert encounter.outcome is not None, "front ends read outcome as call-over"
+    assert encounter.outcome["cohesion_delta"] == 0
+    assert gm.world.metrics.alliance_cohesion == cohesion_before
+    assert any("CALL ENDED" in line for line in transcript)
+    assert not any(str(line).startswith("Prime Minister:")
+                   for line in transcript), \
+        "'end' is a hang-up, not a line spoken on the call"
+
+
+def test_zero_exchange_hangup_through_the_manager_leaves_no_metric_trace():
+    gm = GameManager(seed=42, play_mode="classic")
+    world_before = gm.world.metrics.alliance_cohesion
+    hidden_before = gm.narrative_state.hidden_metrics.alliance_cohesion
+
+    opened = gm.start_diplomacy("US")
+    assert opened["active"] is True
+    result = gm.process_diplomacy("end")
+
+    assert result["active"] is False
+    assert result["outcome"]["cohesion_delta"] == 0
+    assert gm.world.metrics.alliance_cohesion == world_before
+    assert gm.narrative_state.hidden_metrics.alliance_cohesion == hidden_before
+
+
+def test_hangup_after_speaking_is_still_assessed(monkeypatch):
+    """The quiet close is only for zero-exchange calls: once anything has
+    been said, hanging up runs the normal outcome assessment."""
+    import engine.diplomacy as diplomacy
+
+    monkeypatch.setattr(
+        diplomacy, "assess_diplomatic_outcome",
+        lambda *args, **kwargs: ("Diplomatic Outcome: SUCCESS\nWell handled.", 5),
+    )
+
+    gm = GameManager(seed=42, play_mode="classic")
+    before = gm.world.metrics.alliance_cohesion
+    assert before <= 95, "headroom needed to observe the delta"
+
+    gm.start_diplomacy("US")
+    gm.process_diplomacy("We are coordinating fully with NATO.")
+    result = gm.process_diplomacy("end")
+
+    assert result["active"] is False
+    assert result["outcome"]["cohesion_delta"] == 5
+    assert gm.world.metrics.alliance_cohesion == before + 5
+
+
+def test_walking_out_on_a_required_call_is_still_assessed(monkeypatch):
+    """Hanging up on the scripted caller without a word is an act, not a
+    quiet close — the assessment must still run."""
+    import engine.diplomacy as diplomacy
+
+    called = {}
+
+    def assess(*args, **kwargs):
+        called["ran"] = True
+        return ("Diplomatic Outcome: FAILURE\nYou hung up on the President.", -5)
+
+    monkeypatch.setattr(diplomacy, "assess_diplomatic_outcome", assess)
+
+    gm = GameManager(seed=42, play_mode="classic")
+    _open_scripted_encounter(gm)
+
+    result = gm.process_diplomacy("end")
+    assert result["active"] is False
+    assert called.get("ran"), "the required call's walk-out went unassessed"
+    assert result["outcome"]["cohesion_delta"] == -5
+
+
 def test_scripted_encounter_hides_the_number_outside_classic():
     gm = GameManager(seed=42, play_mode="immersive")
     _open_scripted_encounter(gm)

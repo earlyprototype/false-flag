@@ -563,18 +563,33 @@ class DiplomaticEncounter:
         if not self.active:
             return self.transcript
 
-        # Player line
-        pm_line = f"Prime Minister: {player_message}"
-        self.transcript.append(pm_line)
-        self._player_exchanges += 1
-
         # Check for end conditions: only an explicit, standalone closer ends
         # the call. A substring test hung up on lines like "Thank you for the
         # intel, but I need firm Article 5 commitments."
         msg_lower = player_message.strip().lower()
         normalized = "".join(c for c in msg_lower if c.isalpha() or c.isspace()).strip()
         closers = {"end", "goodbye", "thank you", "thank you goodbye", "that will be all", "end call"}
-        if msg_lower == "/end" or normalized in closers:
+        is_closer = msg_lower == "/end" or normalized in closers
+
+        # Hanging up before saying anything at all: the two-stage call flow
+        # opens the line and lets the counterpart speak first, so a player
+        # can put the receiver straight back down. Nothing was exchanged, so
+        # there is nothing to assess and no outcome delta — see hang_up().
+        # Only the bare hang-up affordance ("end") closes quietly: a spoken
+        # courtesy closer ("Thank you.", "Goodbye.") is a line delivered on
+        # an open line, and keeps the assessment it has always had. Not on a
+        # required call either: walking out on a scripted caller is an act,
+        # and it gets the assessment it deserves.
+        is_hangup = msg_lower == "/end" or normalized in {"end", "end call"}
+        if is_hangup and self._player_exchanges == 0 and not self.required:
+            return self.hang_up()
+
+        # Player line
+        pm_line = f"Prime Minister: {player_message}"
+        self.transcript.append(pm_line)
+        self._player_exchanges += 1
+
+        if is_closer:
             self.history.append(("Prime Minister", player_message))
             return self.end(llm_generate, rng)
 
@@ -611,6 +626,27 @@ class DiplomaticEncounter:
         if self._player_exchanges >= self.max_exchanges:
             return self.end(llm_generate, rng)
 
+        return self.transcript
+
+    def hang_up(self) -> List[str]:
+        """Close a call on which nothing was said: no assessment, no delta.
+
+        The outcome assessment is an LLM read of the conversation; on a
+        zero-exchange call there is no conversation to read, and paying for
+        one — or letting it move alliance cohesion — would turn "open the
+        line, think better of it" into a diplomatic event. ``outcome`` is
+        still set (front ends read it to know the call is over) but its
+        delta is zero and ``world.metrics`` is untouched.
+        """
+        self.active = False
+        self.outcome = {
+            "assessment": "The call ended before anything was said.",
+            "cohesion_delta": 0,
+        }
+        self.transcript.append(
+            "\n=== CALL ENDED ===\n"
+            "The line closes without discussion. No message was passed."
+        )
         return self.transcript
 
     def end(self, llm_generate: Callable, rng: Random,

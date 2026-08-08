@@ -390,9 +390,11 @@ def test_set_key_note_is_marked_instant():
     game = bridge.WebGame(rec)
     game.handle({"type": "setKey", "key": "", "source": ""})
 
-    note = rec.last("output")
-    assert "OFFLINE MODE" in note["ansi"]
-    assert note.get("instant") is True
+    # Picked out by content, not position: handle()'s finally can append a
+    # fault report left behind by an earlier test in the same process.
+    notes = [m for m in rec.of("output") if "OFFLINE MODE" in m["ansi"]]
+    assert notes, "no provider note emitted"
+    assert notes[0].get("instant") is True
 
 
 def test_a_continue_with_nothing_queued_does_not_strand_the_page():
@@ -596,6 +598,44 @@ def test_mandatory_call_puts_the_player_on_the_line():
     assert "CALL ENDED" in rec.ansi()
     assert rec.last("awaiting")["kind"] == "decision"
     assert game.gm.active_encounter.outcome is not None
+
+
+def test_call_without_a_message_opens_the_line_counterpart_first():
+    """The two-stage outbound flow: `call usa` with nothing to say opens the
+    line, the counterpart speaks first, and the page is told the line is
+    open — the same shape as the scripted required call."""
+    game, rec = make_game()
+    rec.clear()
+    game.handle({"type": "call", "country": "USA", "text": ""})
+
+    assert rec.last("awaiting")["kind"] == "question"
+    text = rec.ansi()
+    assert "DIPLOMATIC CALL" in text
+    assert "The line is open" in text
+    assert "PRIME MINISTER" not in text, "nobody has spoken for the player"
+    assert not any(line.startswith("Prime Minister:")
+                   for line in game.gm.active_encounter.transcript)
+
+    # The next input is spoken on the call.
+    rec.clear()
+    game.handle({"type": "call", "country": "USA", "text": "Are you with us?"})
+    assert rec.last("awaiting")["kind"] == "question"
+    assert "PRIME MINISTER" in rec.ansi()
+
+
+def test_open_line_then_hangup_without_speaking_costs_nothing():
+    game, rec = make_game()
+    game.handle({"type": "call", "country": "USA", "text": ""})
+    cohesion = game.gm.world.metrics.alliance_cohesion
+
+    rec.clear()
+    game.handle({"type": "call", "country": "USA", "text": "end"})
+
+    assert rec.last("awaiting")["kind"] == "decision"
+    assert "CALL ENDED" in rec.ansi()
+    assert game.gm.active_encounter.active is False
+    assert game.gm.world.metrics.alliance_cohesion == cohesion, \
+        "a zero-exchange call must not move the metrics"
 
 
 def test_call_to_an_unknown_country_fails_in_fiction():

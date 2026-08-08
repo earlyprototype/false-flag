@@ -186,6 +186,39 @@ def test_discussion_without_advisor_keeps_the_routed_behaviour(client):
     assert answers, "the keyword router should have picked the Attorney General"
 
 
+def test_call_initiates_without_a_message_and_hangs_up_clean(client):
+    """The two-stage outbound flow over HTTP: initiation takes no message and
+    returns the counterpart's opening lines; hanging up before saying
+    anything closes the call with a zero outcome delta."""
+    from api import server
+
+    created = _new_game(client)
+    session_id = created["session_id"]
+    manager = server.sessions[session_id].manager
+    cohesion_before = manager.world.metrics.alliance_cohesion
+
+    opened = client.post("/game/action/call", json={
+        "session_id": session_id,
+        "country_name": "US",
+    })
+    assert opened.status_code == 200
+    data = opened.json()
+    assert data["active"] is True
+    assert any(line.startswith(f"{data['title']}:")
+               for line in data["transcript"]), "the counterpart speaks first"
+    assert not any("Prime Minister:" in line for line in data["transcript"])
+
+    hung_up = client.post("/game/action/diplomacy/reply", json={
+        "session_id": session_id,
+        "message": "end",
+    })
+    assert hung_up.status_code == 200
+    closed = hung_up.json()
+    assert closed["active"] is False
+    assert closed["outcome"]["cohesion_delta"] == 0
+    assert manager.world.metrics.alliance_cohesion == cohesion_before
+
+
 def test_new_game_opens_with_scene_setting_before_the_inject(client):
     """POST /game/new plays the cold open before the first briefing.
 
