@@ -327,6 +327,50 @@ def test_loading_mid_cold_open_does_not_leak_beats_into_the_resumed_game():
     assert "NORTHWOOD" not in rec.ansi(), "a stale beat fired into the resumed game"
 
 
+def _instant_outputs(rec):
+    """The 'output' messages marked for the page to show whole (no typewriter)."""
+    return [m for m in rec.of("output") if m.get("instant") is True]
+
+
+def _typed_outputs(rec):
+    """The 'output' messages the page's typewriter reveal paces."""
+    return [m for m in rec.of("output") if m.get("instant") is not True]
+
+
+def test_chrome_output_carries_the_instant_marker():
+    """Masthead and prompts are chrome: the page must not typewrite them."""
+    game, rec = make_game()
+
+    instant = "\n".join(m["ansi"] for m in _instant_outputs(rec))
+    assert "FALSE FLAG" in instant, "the masthead must be marked instant"
+    assert "YOUR MOVE" in instant, "the prompt must be marked instant"
+
+
+def test_narrative_output_is_not_marked_instant():
+    """Scene beats and briefing prose are what the typewriter exists for."""
+    game, rec = make_unpaced_game()
+    for _ in range(4):
+        game.handle({"type": "continue"})
+
+    typed = "\n".join(m["ansi"] for m in _typed_outputs(rec))
+    assert "SEVEROMORSK" in typed, "the cold open must stay revealable"
+    assert "TURN 1" in typed, "the briefing must stay revealable"
+    # And the marker, when present, is only ever boolean True — the page
+    # tests `m.instant === true`, so any other truthy value would lie.
+    for m in rec.of("output"):
+        assert m.get("instant") in (None, True)
+
+
+def test_set_key_note_is_marked_instant():
+    rec = Recorder()
+    game = bridge.WebGame(rec)
+    game.handle({"type": "setKey", "key": "", "source": ""})
+
+    note = rec.last("output")
+    assert "OFFLINE MODE" in note["ansi"]
+    assert note.get("instant") is True
+
+
 def test_a_continue_with_nothing_queued_does_not_strand_the_page():
     """A double space-press must not disable every control.
 

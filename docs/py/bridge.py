@@ -425,10 +425,21 @@ class WebGame:
     def emit(self, **msg: Any) -> None:
         self._emit(msg)
 
-    def out(self, pen: AnsiPen) -> None:
+    def out(self, pen: AnsiPen, instant: bool = False) -> None:
+        """Send one rendered block to the page.
+
+        ``instant`` marks chrome — the masthead, prompts, state lines,
+        fault banners — that the page must show whole rather than feed
+        through its typewriter reveal. Narrative blocks (the default) are
+        the ones the reveal paces. The key is only present when true, so
+        the message shape is unchanged for every existing consumer.
+        """
         body = pen.text()
         if body.strip():
-            self.emit(type="output", ansi=body + RESET)
+            if instant:
+                self.emit(type="output", ansi=body + RESET, instant=True)
+            else:
+                self.emit(type="output", ansi=body + RESET)
 
     def set_awaiting(self, kind: str) -> None:
         self.awaiting = kind
@@ -582,7 +593,7 @@ class WebGame:
 
         pen = AnsiPen(self.width)
         pen.raw(_c(DIM, f"[ {provider_note} ]")).blank()
-        self.out(pen)
+        self.out(pen, instant=True)
 
     def provider(self) -> str:
         import llm.router as router
@@ -682,7 +693,7 @@ class WebGame:
         pen.blank()
         pen.rule("═", DIM)
         pen.blank()
-        self.out(pen)
+        self.out(pen, instant=True)
 
     # -- state -------------------------------------------------------------
 
@@ -868,7 +879,7 @@ class WebGame:
                  "order. Whatever you type as a decision is what the Cabinet acts on.",
                  colour=DIM)
         pen.blank()
-        self.out(pen)
+        self.out(pen, instant=True)
 
         self.push_state()
         self.set_awaiting(AWAIT_DECISION)
@@ -1186,7 +1197,7 @@ class WebGame:
         data = json.dumps(gm.to_dict("browser"), default=str)
         pen = AnsiPen(self.width)
         pen.raw(_c(DIM, f"[ SAVED — turn {gm.world.turn}, {len(data):,} bytes ]")).blank()
-        self.out(pen)
+        self.out(pen, instant=True)
         # The protocol leaves the save reply unnamed; emit both spellings so
         # either reading of it works on the page side.
         self.emit(type="save", data=data, turn=gm.world.turn)
@@ -1209,7 +1220,7 @@ class WebGame:
         pen.raw(_c(AMBER, BOLD + f"  RESUMED — TURN {self.gm.world.turn}"))
         pen.rule("═", DIM)
         pen.blank()
-        self.out(pen)
+        self.out(pen, instant=True)
 
         self.push_state()
         if self.gm.is_over():
@@ -1316,7 +1327,7 @@ class WebGame:
             pen.raw(_c(DANGER, "  " + line))
         pen.rule("─", DANGER)
         pen.blank()
-        self.out(pen)
+        self.out(pen, instant=True)
 
         self.error(message, fatal=False)
 
@@ -1336,4 +1347,4 @@ class WebGame:
         pen = AnsiPen(self.width)
         pen.raw(_c(DIM, f"[ parse health: {delta} model "
                         f"field{'s' if delta != 1 else ''} defaulted this turn ]"))
-        self.out(pen)
+        self.out(pen, instant=True)
