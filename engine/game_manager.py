@@ -277,6 +277,34 @@ class GameManager:
         self.transcript.extend(discussion_lines)
         return discussion_lines
 
+    def process_question_all(self, question_text: str) -> List[str]:
+        """Put one question to every seated advisor at once.
+
+        One "Prime Minister: ..." line for the question, then one
+        "Role: answer" line per advisor — the same line shape
+        process_question returns, so front ends render it unchanged.
+
+        DELIBERATE COST: one LLM call per advisor (five with the full COBRA
+        roster) against process_question's one. The calls are independent
+        and go out as one batched group; determinism holds because the batch
+        drivers pre-draw a child seed per prompt from the session RNG (see
+        agents.conversation.handle_player_question_all).
+        """
+        from engine.sim_loop import run_turn_discussion_all
+
+        discussion_lines = run_turn_discussion_all(
+            self.world,
+            self.scenario_id,
+            question_text,
+            self.rng,
+            self.root_path,
+            self.transcript,
+            narrative_state=self.narrative_state  # Feeds the event ledger (ER-003)
+        )
+
+        self.transcript.extend(discussion_lines)
+        return discussion_lines
+
     # PHASE 1: DECISION LOOP -------------------------------------------
 
     def interpret_decision(self, action_text: str) -> Dict[str, Any]:

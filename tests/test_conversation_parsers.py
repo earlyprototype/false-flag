@@ -12,6 +12,7 @@ from agents.conversation import (  # noqa: E402
     check_critical_omissions,
     generate_advisor_pushback,
     handle_player_question,
+    handle_player_question_all,
 )
 from models.world import Metrics, WorldState  # noqa: E402
 
@@ -208,6 +209,83 @@ def test_flaw_does_not_route_to_attorney_general_via_law():
 def test_legal_question_routes_to_attorney_general():
     roles = responding_roles("Is this legal?")
     assert "Legal Advisor" in roles
+
+
+# --- handle_player_question_all (ask the whole room) ---
+
+ALL_ROSTER_ROLES = [
+    "Military Commander", "Intelligence Coordinator", "Domestic Security",
+    "Diplomatic Lead", "Legal Advisor",
+]
+
+
+def test_ask_all_answers_once_per_advisor_in_roster_order():
+    result = handle_player_question_all(
+        make_world(), "Where do we stand?", INITIAL_CONDITIONS,
+        make_llm("We hold, Prime Minister."), Random(42)
+    )
+    assert [role for role, _ in result] == ALL_ROSTER_ROLES
+    assert all(text == "We hold, Prime Minister." for _, text in result)
+
+
+def test_ask_all_excludes_the_player_seat():
+    """The Prime Minister is the player: the room answers, the chair asks."""
+    result = handle_player_question_all(
+        make_world(), "Thoughts?", INITIAL_CONDITIONS,
+        make_llm("Noted."), Random(42)
+    )
+    assert all(role != "Government Leader" for role, _ in result)
+
+
+def test_ask_all_fans_out_as_one_batched_group():
+    calls = []
+
+    def batch(prompts, rng, **kwargs):
+        calls.append(list(prompts))
+        return [f"answer {i}" for i in range(len(prompts))]
+
+    result = handle_player_question_all(
+        make_world(), "Options?", INITIAL_CONDITIONS,
+        make_llm("unused - the batch path answers"), Random(1),
+        llm_batch_fn=batch
+    )
+    assert len(calls) == 1, "the five prompts must go out as one group"
+    assert len(calls[0]) == len(ALL_ROSTER_ROLES)
+    assert [t for _, t in result] == [f"answer {i}"
+                                      for i in range(len(ALL_ROSTER_ROLES))]
+
+
+def test_ask_all_error_slot_and_empty_reply_become_in_fiction_deferrals():
+    """A batch '[ERROR: ...]' slot or an empty reply is a failed call, not an
+    advisor's line — it must never be quoted as one."""
+    from llm import parse_health
+
+    def batch(prompts, rng, **kwargs):
+        out = ["A considered answer."] * len(prompts)
+        out[1] = "[ERROR: HTTP 429 rate limited]"
+        out[3] = "   "
+        return out
+
+    before = parse_health.total()
+    result = handle_player_question_all(
+        make_world(), "Options?", INITIAL_CONDITIONS,
+        make_llm("unused"), Random(1), llm_batch_fn=batch
+    )
+    texts = [t for _, t in result]
+    assert texts[1].startswith("Prime Minister, I want to verify")
+    assert texts[3].startswith("Prime Minister, I want to verify")
+    assert "[ERROR" not in "\n".join(texts)
+    assert [role for role, _ in result] == ALL_ROSTER_ROLES
+    assert parse_health.total() - before == 2, \
+        "both substitutions must show in parse health"
+
+
+def test_ask_all_with_no_advisors_says_so():
+    result = handle_player_question_all(
+        make_world(), "Anyone there?", {"characters": {}},
+        make_llm("unused"), Random(1)
+    )
+    assert result[0][0] == "System"
 
 
 # --- WorldState.recent_injects ---

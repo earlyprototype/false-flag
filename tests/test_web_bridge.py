@@ -327,6 +327,30 @@ def test_loading_mid_cold_open_does_not_leak_beats_into_the_resumed_game():
     assert "NORTHWOOD" not in rec.ansi(), "a stale beat fired into the resumed game"
 
 
+def test_ask_all_puts_the_question_to_the_whole_room():
+    game, rec = make_game()
+    rec.clear()
+    game.handle({"type": "ask", "advisor": "all",
+                 "text": "Where do we actually stand?"})
+
+    out = rec.ansi()
+    # The question renders once, as the Prime Minister speaking.
+    assert out.count("PRIME MINISTER") == 1
+    # Every seated advisor answers as their own speaker block.
+    for role in ("MILITARY COMMANDER", "INTELLIGENCE COORDINATOR",
+                 "DOMESTIC SECURITY", "DIPLOMATIC LEAD", "LEGAL ADVISOR"):
+        assert role in out, f"{role} did not answer"
+    assert rec.last("awaiting")["kind"] == "decision"
+
+
+def test_state_offers_the_whole_room_option():
+    game, rec = make_game()
+    advisors = rec.last("state")["advisors"]
+    assert advisors[-1]["id"] == "all", \
+        "the picker must offer asking the whole room"
+    assert {a["id"] for a in advisors} > {"all"}, "and the advisors themselves"
+
+
 def _instant_outputs(rec):
     """The 'output' messages marked for the page to show whole (no typewriter)."""
     return [m for m in rec.of("output") if m.get("instant") is True]

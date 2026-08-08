@@ -259,6 +259,12 @@ ADVISORS = [
 _ADVISOR_CUE = {a["id"]: a["cue"] for a in ADVISORS}
 _ADVISOR_CUE.update({a["label"].lower(): a["cue"] for a in ADVISORS})
 
+# The whole-room option the page's picker offers alongside the advisors.
+# Not in ADVISORS: it has no routing cue — ask() branches on the id instead,
+# and every seated advisor answers (one LLM call each; see
+# GameManager.process_question_all).
+ASK_ALL = {"id": "all", "label": "Everyone — the whole room answers"}
+
 VARIANTS = {"standard", "fast_start"}
 
 
@@ -740,7 +746,7 @@ class WebGame:
             # from this, and there is no 10 to render.
             finalTurn=gm.campaign_final_turn if gm.endings_enabled else None,
             vibes=vibes,
-            advisors=ADVISORS,
+            advisors=ADVISORS + [ASK_ALL],
             # Only channels the current alliance standing actually opens.
             contacts=[
                 {"code": c["country"], "title": c["title"], "access": c["access"]}
@@ -901,17 +907,21 @@ class WebGame:
             self.reject("Empty question.", was_awaiting)
             return
 
-        # The question router matches on keywords, so naming the adviser in
-        # the question itself is how you address one directly.
-        cue = _ADVISOR_CUE.get((advisor or "").strip().lower())
-        prompt = f"{cue}, {question}" if cue else question
-
         pen = AnsiPen(self.width)
         pen.section("DISCUSSION", DIM)
         pen.speaker("Prime Minister", question, colour=AMBER)
         self.out(pen)
 
-        lines = gm.process_question(prompt)
+        if (advisor or "").strip().lower() == ASK_ALL["id"]:
+            # The whole room: every seated advisor answers in role. One LLM
+            # call per advisor, by design.
+            lines = gm.process_question_all(question)
+        else:
+            # The question router matches on keywords, so naming the adviser
+            # in the question itself is how you address one directly.
+            cue = _ADVISOR_CUE.get((advisor or "").strip().lower())
+            prompt = f"{cue}, {question}" if cue else question
+            lines = gm.process_question(prompt)
 
         pen = AnsiPen(self.width)
         for line in lines:

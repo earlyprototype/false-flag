@@ -22,6 +22,7 @@ from engine.intro import get_intro_lines
 from engine.narrator import generate_narrator_bridge
 from agents.conversation import (
     handle_player_question,
+    handle_player_question_all,
     interpret_player_action,
 )
 from engine.decision_phase import format_decision_transcript, run_preview_round
@@ -571,7 +572,73 @@ def run_turn_discussion(
     
     # Store discussion in world state
     world.discussion_transcript.extend(transcript)
-    
+
+    return transcript
+
+
+def run_turn_discussion_all(
+    world: WorldState,
+    scenario_id: str,
+    question: str,
+    rng: Random,
+    root_path: Optional[Path] = None,
+    full_transcript: Optional[List[str]] = None,
+    narrative_state: Optional[Any] = None
+) -> List[str]:
+    """Discussion phase, but the question goes to the whole room at once.
+
+    Same transcript shape as run_turn_discussion — one "Prime Minister: ..."
+    line for the question (not one per advisor), then one "Role: answer"
+    line per advisor — so every existing consumer of discussion lines can
+    render the result unchanged. See handle_player_question_all for the
+    deliberate one-call-per-advisor cost.
+
+    Args:
+        world: Current world state
+        scenario_id: Scenario identifier
+        question: The one question every advisor answers
+        rng: Random number generator
+        root_path: Optional root path override
+        full_transcript: Optional full game transcript for conversation history
+        narrative_state: Optional narrative state; supplies the event ledger
+            for the advisor dossier (ER-003)
+
+    Returns:
+        Transcript lines
+    """
+    if root_path is None:
+        root_path = Path(__file__).resolve().parents[1]
+
+    world.phase = "discussion"
+    transcript = []
+
+    initial_conditions = load_initial_conditions(scenario_id, root_path)
+    if not initial_conditions:
+        transcript.append(f"[DEBUG] Failed to load initial conditions from {root_path / 'data' / 'scenarios' / scenario_id}")
+        return transcript
+
+    event_ledger = (narrative_state.recent_played_events()
+                    if narrative_state is not None else None)
+
+    # One question line — the player addressed the room once, not five times.
+    transcript.append(f"Prime Minister: {question}")
+
+    responses = handle_player_question_all(
+        world,
+        question,
+        initial_conditions,
+        generate_text,
+        rng,
+        full_transcript,
+        llm_batch_fn=batch_generate_text,
+        event_ledger=event_ledger
+    )
+
+    for role, response in responses:
+        transcript.append(f"{role}: {response}")
+
+    world.discussion_transcript.extend(transcript)
+
     return transcript
 
 

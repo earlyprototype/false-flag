@@ -144,6 +144,48 @@ def _drain_events(session):
     return events
 
 
+def test_discussion_advisor_all_gets_an_answer_from_every_advisor(client):
+    """advisor="all" puts the one question to the whole room (one PM line,
+    one answer per seated advisor) instead of keyword-routing it."""
+    from api import server
+
+    created = _new_game(client)
+    session_id = created["session_id"]
+
+    response = client.post("/game/discussion", json={
+        "session_id": session_id,
+        "question": "Give me your read: where do we actually stand?",
+        "advisor": "all",
+    })
+    assert response.status_code == 200
+
+    manager = server.sessions[session_id].manager
+    tail = manager.transcript[-6:]
+    pm_lines = [l for l in tail if l.startswith("Prime Minister:")]
+    assert len(pm_lines) == 1, "the room was addressed once, not per advisor"
+    answers = [l for l in tail if not l.startswith("Prime Minister:")]
+    assert len(answers) == 5
+    assert len({l.split(":", 1)[0] for l in answers}) == 5
+
+
+def test_discussion_without_advisor_keeps_the_routed_behaviour(client):
+    from api import server
+
+    created = _new_game(client)
+    session_id = created["session_id"]
+
+    response = client.post("/game/discussion", json={
+        "session_id": session_id,
+        "question": "Is this legal?",
+    })
+    assert response.status_code == 200
+
+    manager = server.sessions[session_id].manager
+    answers = [l for l in manager.transcript
+               if l.split(":", 1)[0] == "Legal Advisor"]
+    assert answers, "the keyword router should have picked the Attorney General"
+
+
 def test_new_game_opens_with_scene_setting_before_the_inject(client):
     """POST /game/new plays the cold open before the first briefing.
 
