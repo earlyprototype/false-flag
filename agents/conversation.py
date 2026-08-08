@@ -231,6 +231,102 @@ def handle_player_question(
     return responses
 
 
+def handle_player_question_all(
+    world: WorldState,
+    question: str,
+    initial_conditions: Dict[str, Any],
+    llm_generate_fn,
+    rng: Random,
+    transcript: List[str] = None,
+    llm_batch_fn=None,
+    event_ledger=None
+) -> List[Tuple[str, str]]:
+    """Put one question to the whole room: every advisor answers in role.
+
+    Unlike handle_player_question, which routes to whichever advisor's
+    keywords match, this asks every character in initial_conditions the same
+    question through the same per-advisor context builder, so each answer
+    comes from that advisor's own dossier and voice.
+
+    DELIBERATE COST: this is one LLM call per seated advisor — five with the
+    full COBRA roster — where a routed question costs one. That is the point
+    of the feature (the player asked the room, the room answers), but a
+    front end should treat it as the expensive affordance it is rather than
+    the default. The prompts are independent, so when ``llm_batch_fn`` is
+    supplied they go out as one batched group (see llm/fanout.py); the batch
+    drivers pre-draw a child seed per prompt from ``rng``, so a seeded
+    campaign answers identically whether the group fans out or runs in
+    sequence.
+
+    Args:
+        world: Current world state
+        question: Player's question, asked of everyone
+        initial_conditions: Parsed initial conditions
+        llm_generate_fn: Single-call LLM function (prompt, rng -> str)
+        rng: Random number generator for determinism
+        transcript: Optional full game transcript for conversation history
+        llm_batch_fn: Optional batch generator; when supplied the advisor
+            prompts go out as one group rather than in sequence
+        event_ledger: Optional played-event ledger for the dossier (ER-003)
+
+    Returns:
+        List of (advisor_role, response) tuples, one per advisor, in the
+        roster's order.
+    """
+    uk_advisors = get_all_uk_advisors(initial_conditions)
+
+    # The Prime Minister is the player: the room answers, the chair asks.
+    asked = [cid for cid in uk_advisors if cid != "prime_minister"]
+
+    if not asked:
+        return [("System", "Error: No advisors available. Initial conditions "
+                           "may not have loaded correctly.")]
+
+    # A failed, empty or error-slot reply is recorded and answered with an
+    # in-fiction deferral - never an out-of-fiction "System: Error" line.
+    _DEFERRAL_LINE = ("Prime Minister, I want to verify that before I answer "
+                      "- give me a moment.")
+    prompts = []
+    prompt_ok = {}
+    for char_id in asked:
+        try:
+            prompts.append(build_advisor_context(
+                world, initial_conditions, char_id, question, transcript,
+                event_ledger))
+            prompt_ok[char_id] = True
+        except Exception as e:
+            record_fallback("advisor_qa", f"{char_id} {type(e).__name__}")
+            prompts.append("")
+            prompt_ok[char_id] = False
+
+    responses = generate_group(
+        [p for p in prompts if p],
+        llm_generate_fn, rng, llm_batch_fn,
+        context=LLMContext.ADVISOR_QA
+    )
+    answers = iter(responses)
+
+    results = []
+    for char_id, prompt in zip(asked, prompts):
+        role = uk_advisors[char_id].get("role", "Advisor")
+        if not prompt_ok[char_id]:
+            results.append((role, _DEFERRAL_LINE))
+            continue
+        response = next(answers, "")
+        cleaned = (response or "").strip()
+        if cleaned.startswith("[ERROR:"):
+            # A batch driver marks a per-prompt failure as "[ERROR: ...]" in
+            # that slot rather than raising (see llm/fanout.py). That is a
+            # failed call, not an advisor's line.
+            record_fallback("advisor_qa", f"{char_id} error slot")
+            cleaned = ""
+        elif not cleaned:
+            record_fallback("advisor_qa", f"{char_id} empty reply")
+        results.append((role, cleaned or _DEFERRAL_LINE))
+
+    return results
+
+
 def interpret_player_action(
     world: WorldState,
     action: str,

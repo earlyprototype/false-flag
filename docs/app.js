@@ -18,6 +18,8 @@
  *   worker -> page : {type:'booting', pct, note}
  *                    {type:'ready'}
  *                    {type:'output', ansi}       // raw ANSI, rendered here
+ *                      // may carry instant:true — chrome (masthead, prompts,
+ *                      // state lines) that must not go through the typewriter
  *                    {type:'state', turn, metricsVisible, metrics}
  *                    {type:'awaiting', kind}     // decision|question|confirm|none
  *                    {type:'ending', verdict, title, debrief}
@@ -42,6 +44,7 @@
   var KEY_STORE = 'falseflag.openrouter.key';
   var MODEL_STORE = 'falseflag.model';
   var WIDTH_STORE = 'falseflag.width';
+  var SPEED_STORE = 'falseflag.textspeed';
   var COLS = 78;              // the game's own layout width
   var MAX_NODES = 2400;       // transcript trim point
 
@@ -52,7 +55,7 @@
     'sharedPanel', 'sharedPass', 'unlockShared', 'sharedState', 'startShared',
     'ownPanel', 'ownCap', 'ownLede', 'startHint', 'ownBaseUrl',
     'scenario', 'playMode', 'mysteryMode', 'seed', 'modelChoice', 'startWithKey',
-    'screen', 'metrics', 'termTitle', 'termRef', 'widthToggle',
+    'screen', 'metrics', 'termTitle', 'termRef', 'widthToggle', 'speedToggle',
     'awaiting', 'awaitingTag', 'awaitingWhat', 'controls',
     'decideText', 'sendDecide', 'endTurn', 'advisor', 'askText', 'sendAsk',
     'country', 'callText', 'sendCall', 'saveGame', 'loadGame', 'loadFile',
@@ -89,16 +92,161 @@
 
   function scrollDown() { el.screen.scrollTop = el.screen.scrollHeight; }
 
-  /** Append raw ANSI to the transcript, keeping the view pinned if it was. */
-  function write(text) {
+  // ---------------------------------------------------------- typewriter
+  /* Narrative blocks reveal a few characters per frame instead of landing
+     whole. The seam is deliberately post-render: by the time a block is
+     queued its ANSI has already become HTML (ansi.render above), so an
+     escape sequence can never be split mid-reveal — the reveal only blanks
+     the rendered span's text nodes and refills them character by character.
+
+     Blocks reveal strictly in arrival order. Chrome (masthead, prompts,
+     state lines — anything written with instant:true, or arriving while
+     the toggle says INSTANT) skips the effect, but still queues behind an
+     in-flight reveal so the transcript never appears out of order. Any
+     keypress or click lands the current block whole. */
+  var CHARS_PER_FRAME = 3;
+
+  var typer = {
+    typed: true,   // TEXT SPEED toggle; persisted in SPEED_STORE
+    queue: [],     // blocks waiting their turn: {nodes, texts, i, instant}
+    job: null,     // the block currently revealing
+    raf: 0
+  };
+
+  function collectTextNodes(root) {
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    return nodes;
+  }
+
+  /** Restore every remaining character of one job in a single step. */
+  function landWhole(job) {
+    for (; job.i < job.nodes.length; job.i++) {
+      job.nodes[job.i].nodeValue = job.texts[job.i];
+    }
+  }
+
+  function startNextReveal() {
+    while (!typer.job && typer.queue.length) {
+      var job = typer.queue.shift();
+      if (job.instant) {
+        // An instant block that had to wait its turn: land it whole now.
+        var stick = atBottom();
+        landWhole(job);
+        if (stick) scrollDown();
+        continue;
+      }
+      typer.job = job;
+      typer.raf = requestAnimationFrame(revealStep);
+    }
+  }
+
+  function revealStep() {
+    var job = typer.job;
+    if (!job) return;
+    var stick = atBottom();
+    var budget = CHARS_PER_FRAME;
+    while (budget > 0 && job.i < job.nodes.length) {
+      var full = job.texts[job.i];
+      var node = job.nodes[job.i];
+      var have = node.nodeValue.length;
+      if (have >= full.length) { job.i += 1; continue; }
+      var take = Math.min(budget, full.length - have);
+      node.nodeValue = full.slice(0, have + take);
+      budget -= take;
+    }
+    if (stick) scrollDown();
+    if (job.i >= job.nodes.length) {
+      typer.job = null;
+      startNextReveal();
+    } else {
+      typer.raf = requestAnimationFrame(revealStep);
+    }
+  }
+
+  /** Land the current block whole; the next queued block then starts. */
+  function finishReveal() {
+    var job = typer.job;
+    if (!job) return false;
+    cancelAnimationFrame(typer.raf);
+    var stick = atBottom();
+    landWhole(job);
+    typer.job = null;
+    if (stick) scrollDown();
+    startNextReveal();
+    return true;
+  }
+
+  /** Land everything — current block and the whole queue (INSTANT toggle). */
+  function flushReveals() {
+    while (typer.job) finishReveal();  // finishReveal pulls the queue forward
+  }
+
+  /* Any keypress or click completes the current reveal — capture phase, so
+     it runs before the beat machinery and the send buttons, and it never
+     stops propagation: it only marks the event, and the space-to-continue
+     handlers below decline a press that was spent landing text. */
+  function skipReveal(e) {
+    if (!typer.job) return;
+    finishReveal();
+    if (!e) return;
+    e._ffTypeskip = true;
+    // SPACE would otherwise also page the transcript while landing the text.
+    if (e.type === 'keydown' &&
+        (e.key === ' ' || e.key === 'Spacebar' || e.key === 'Enter') &&
+        !typingInABox(e.target)) {
+      e.preventDefault();
+    }
+  }
+  document.addEventListener('keydown', skipReveal, true);
+  document.addEventListener('click', skipReveal, true);
+
+  function setSpeedMode(typed, remember) {
+    typer.typed = !!typed;
+    el.speedToggle.textContent = 'TEXT SPEED: ' + (typer.typed ? 'TYPED' : 'INSTANT');
+    el.speedToggle.setAttribute('aria-pressed', String(!typer.typed));
+    el.speedToggle.title = typer.typed
+      ? 'Narrative arrives a few characters at a time; any key or tap lands ' +
+        'the current block. Tap for instant text.'
+      : 'Text appears whole, at once. Tap for the typed reveal.';
+    if (!typer.typed) flushReveals();
+    if (remember) {
+      try { localStorage.setItem(SPEED_STORE, typer.typed ? 'typed' : 'instant'); }
+      catch (e) { /* private mode */ }
+    }
+  }
+
+  el.speedToggle.addEventListener('click', function () {
+    setSpeedMode(!typer.typed, true);
+  });
+
+  (function restoreSpeed() {
+    var stored = null;
+    try { stored = localStorage.getItem(SPEED_STORE); } catch (e) { /* ignore */ }
+    setSpeedMode(stored !== 'instant', false);
+  })();
+
+  /** Append raw ANSI to the transcript, keeping the view pinned if it was.
+      Narrative goes through the typewriter; `instant` (chrome, prompts,
+      state lines) does not — though it still queues behind a live reveal so
+      blocks never land out of order. */
+  function write(text, instant) {
     var stick = atBottom();
     var frag = document.createElement('span');
     frag.innerHTML = ansi.render(text);
+    if (typer.typed && (!instant || typer.job || typer.queue.length)) {
+      var nodes = collectTextNodes(frag);
+      var texts = nodes.map(function (n) { return n.nodeValue; });
+      nodes.forEach(function (n) { n.nodeValue = ''; });
+      typer.queue.push({ nodes: nodes, texts: texts, i: 0, instant: !!instant });
+    }
     el.screen.appendChild(frag);
     while (el.screen.childNodes.length > MAX_NODES) {
       el.screen.removeChild(el.screen.firstChild);
     }
     if (stick) scrollDown();
+    startNextReveal();
   }
 
   /** Replace the whole pane (used only while booting). */
@@ -217,8 +365,8 @@
     ui.booted = true;
     el.screen.innerHTML = '';
     ansi.reset();
-    if (ui.bootBuf) write(ui.bootBuf + '\n');
-    if (A.masthead) write('\n' + A.masthead + '\n');
+    if (ui.bootBuf) write(ui.bootBuf + '\n', true);
+    if (A.masthead) write('\n' + A.masthead + '\n', true);
     el.controls.hidden = false;
     // The model choice always travels; the endpoint only with your own key
     // (ER-028) — the worker pins the shared key to OpenRouter regardless,
@@ -293,7 +441,7 @@
     if (callLabel) {
       callLabel.textContent = live
         ? 'THE LINE IS OPEN ── WHAT YOU SAY NEXT (“end” HANGS UP)'
-        : 'WHAT YOU SAY ON THE LINE';
+        : 'WHAT YOU SAY ON THE LINE ── OR LEAVE EMPTY TO JUST OPEN THE LINE';
     }
 
     if (live) { selectTab('call'); el.callText.focus(); }
@@ -478,10 +626,10 @@
           if (isFallback) {
             write(C.muted + '── Running the offline demonstration: the engine ' +
                   'worker was not available,\n   so this is a recorded ' +
-                  'campaign.' + C.off + '\n');
+                  'campaign.' + C.off + '\n', true);
           }
           break;
-        case 'output': write(m.ansi); break;
+        case 'output': write(m.ansi, m.instant === true); break;
         case 'state': renderMetrics(m.turn, m.metricsVisible !== false, m.metrics, m); break;
         case 'awaiting': applyAwaiting(m.kind || 'none'); break;
         case 'ending': showEnding(m.verdict, m.title, m.debrief); break;
@@ -970,13 +1118,17 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.key !== ' ' && e.key !== 'Spacebar' && e.key !== 'Enter') return;
+    if (e._ffTypeskip) return;   // that press landed the typewriter text
     if (ui.awaiting !== 'pause' || typingInABox(e.target)) return;
     e.preventDefault();   // SPACE would otherwise page the transcript
     advanceBeat();
   });
 
   /* Touch devices have no space bar, so the status bar is the tap target. */
-  el.awaiting.addEventListener('click', advanceBeat);
+  el.awaiting.addEventListener('click', function (e) {
+    if (e && e._ffTypeskip) return;  // that tap landed the typewriter text
+    advanceBeat();
+  });
 
   /* Ctrl/Cmd+Enter sends from any of the three boxes. Plain Enter must stay a
      newline - the whole point is that you write a paragraph. */
@@ -1002,7 +1154,10 @@
 
   el.sendCall.addEventListener('click', function () {
     var text = el.callText.value.trim();
-    if (!text) { el.callText.focus(); return; }
+    // Mid-call, an empty box has nothing to say. On a fresh call it is the
+    // two-stage flow: the line opens, the counterpart speaks first, and the
+    // next send is what you say on the call.
+    if (!text && ui.awaiting === 'question') { el.callText.focus(); return; }
     markBusy();
     send({ type: 'call', country: el.country.value, text: text });
     el.callText.value = '';
