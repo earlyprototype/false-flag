@@ -40,7 +40,7 @@
   --red-t: #ff8375;
   --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "JetBrains Mono",
           Menlo, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
-  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
+  --serif: "Iowan Old Style", "Palatino Linotype", palatino, georgia,
            "Times New Roman", serif;
   --term-fs: 12.4px;
   color-scheme: dark;
