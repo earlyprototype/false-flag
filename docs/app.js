@@ -231,9 +231,13 @@
       Narrative goes through the typewriter; `instant` (chrome, prompts,
       state lines) does not — though it still queues behind a live reveal so
       blocks never land out of order. */
-  function write(text, instant) {
+  function write(text, instant, prose) {
     var stick = atBottom();
-    var frag = document.createElement('span');
+    /* Every block is its own element so it can be styled as what it is:
+       `prose` (a flow pen upstream) reads as set text; everything else is
+       terminal chrome and keeps the fixed-width look. */
+    var frag = document.createElement('div');
+    frag.className = 'blk' + (prose ? ' prose' : '');
     frag.innerHTML = ansi.render(text);
     if (typer.typed && (!instant || typer.job || typer.queue.length)) {
       var nodes = collectTextNodes(frag);
@@ -251,7 +255,7 @@
 
   /** Replace the whole pane (used only while booting). */
   function paint(text) {
-    el.screen.innerHTML = ansi.render(text);
+    el.screen.innerHTML = '<div class="blk">' + ansi.render(text) + '</div>';
     scrollDown();
   }
 
@@ -628,7 +632,7 @@
                   'campaign.' + C.off + '\n', true);
           }
           break;
-        case 'output': write(m.ansi, m.instant === true); break;
+        case 'output': write(m.ansi, m.instant === true, m.prose === true); break;
         case 'state': renderMetrics(m.turn, m.metricsVisible !== false, m.metrics, m); break;
         case 'awaiting': applyAwaiting(m.kind || 'none'); break;
         case 'ending': showEnding(m.verdict, m.title, m.debrief); break;
