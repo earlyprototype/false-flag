@@ -351,11 +351,15 @@ def install_fault_probe() -> None:
     _PROBE_INSTALLED = True
 
 
-def describe_llm_faults(faults: List[str], source: str) -> str:
+def describe_llm_faults(faults: List[str], source: str,
+                        model: str = "") -> str:
     """Turn raw driver errors into one sentence a player can act on.
 
     ``source`` is 'shared' (the owner's key, unlocked with a passphrase),
-    'own' (a key the player pasted) or '' (unknown).
+    'own' (a key the player pasted) or '' (unknown). ``model`` is the
+    OpenRouter model id the calls ran on, named in the notice so the player
+    can see at a glance whether an oversubscribed ':free' model is the
+    likely culprit.
     """
     codes = set()
     for fault in faults:
@@ -369,6 +373,9 @@ def describe_llm_faults(faults: List[str], source: str) -> str:
         whose, subject = "your key", "Your key"
     else:
         whose, subject = "the key", "The key"
+
+    named = f" on {model}" if model else ""
+    free_model = ":free" in (model or "")
 
     if codes & {401, 403}:
         code = sorted(codes & {401, 403})[0]
@@ -386,17 +393,26 @@ def describe_llm_faults(faults: List[str], source: str) -> str:
                if source == "shared" else
                "Top the key up, or reload and set a different one.")
     elif 429 in codes:
-        what = (f"OpenRouter is rate-limiting {whose} (HTTP 429) — too many "
-                f"requests, or the allowance on it is spent for now.")
-        fix = "Give it a minute and carry on; it may come back on its own."
+        what = (f"OpenRouter is rate-limiting {whose}{named} (HTTP 429) — "
+                f"too many requests, or the allowance is spent for now.")
+        fix = ("Free models share one public allowance and it runs dry for "
+               "everyone at once. Switch MODEL to a paid id and carry on, "
+               "or try again much later."
+               if free_model else
+               "Give it a minute and carry on; it may come back on its own.")
     elif codes:
         code = sorted(codes)[0]
-        what = f"OpenRouter refused the request (HTTP {code})."
+        what = f"OpenRouter refused the request{named} (HTTP {code})."
         fix = "It may be temporary. Carry on and see."
     else:
-        what = (f"The call to OpenRouter failed before it got an answer "
-                f"(using {whose}).")
-        fix = "That is usually the network. Carry on and see."
+        what = (f"The call to OpenRouter never got an answer "
+                f"(using {whose}{named}).")
+        fix = ("A ':free' model that is oversubscribed can queue until the "
+               "connection gives up, which looks exactly like this. Switch "
+               "MODEL to a paid id and carry on — or, if it really is the "
+               "network, carrying on will simply work."
+               if free_model else
+               "That is usually the network. Carry on and see.")
 
     return (f"{what} The advisors answered from the offline stand-in for that "
             f"call, so they replied without reading what you wrote. {fix}")
@@ -1337,7 +1353,9 @@ class WebGame:
             return
         faults = list(_LLM_FAULTS)
         _LLM_FAULTS.clear()
-        message = describe_llm_faults(faults, self.key_source)
+        message = describe_llm_faults(
+            faults, self.key_source,
+            model=os.environ.get("OPENAI_COMPAT_MODEL", ""))
 
         pen = AnsiPen(self.width)
         pen.blank()
