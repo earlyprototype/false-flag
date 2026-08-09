@@ -308,16 +308,29 @@ class OpenAICompatDriver:
         # once.
         max_workers = min(len(prompts), 8)
         results: list = [None] * len(prompts)
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_index = {
-                executor.submit(generate_single, i): i for i in range(len(prompts))
-            }
-            for future in as_completed(future_to_index):
-                index = future_to_index[future]
-                try:
+        future_to_index: dict = {}
+        try:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                for i in range(len(prompts)):
+                    future_to_index[executor.submit(generate_single, i)] = i
+                for future in as_completed(future_to_index):
+                    index = future_to_index[future]
+                    try:
+                        results[index] = future.result()
+                    except Exception as e:  # pragma: no cover - generate_single catches
+                        results[index] = f"[ERROR: {_truncate(str(e), 200)}]"
+        except RuntimeError:
+            # Pyodide (the browser build) cannot start threads: the pool
+            # raises "can't start new thread" at the first submit. The batch
+            # contract survives sequentially — same results, same order,
+            # just one call at a time. Harvest anything a partial pool did
+            # finish before re-running only the unanswered slots.
+            for future, index in future_to_index.items():
+                if future.done() and not future.cancelled():
                     results[index] = future.result()
-                except Exception as e:  # pragma: no cover - generate_single catches
-                    results[index] = f"[ERROR: {_truncate(str(e), 200)}]"
+            for i in range(len(prompts)):
+                if results[i] is None:
+                    results[i] = generate_single(i)
 
         return results
 
