@@ -279,20 +279,32 @@ class GeminiDriver:
         # Process all prompts concurrently (up to max_workers)
         max_workers = min(len(prompts), 10)  # Limit concurrent requests
 
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all tasks
-            future_to_prompt = {executor.submit(generate_single, i): i
-                                for i in range(len(prompts))}
-            
-            # Collect results in order
-            results = [None] * len(prompts)
-            for future in as_completed(future_to_prompt):
-                index = future_to_prompt[future]
-                try:
+        results = [None] * len(prompts)
+        future_to_prompt: dict = {}
+        try:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Submit all tasks
+                for i in range(len(prompts)):
+                    future_to_prompt[executor.submit(generate_single, i)] = i
+
+                # Collect results in order
+                for future in as_completed(future_to_prompt):
+                    index = future_to_prompt[future]
+                    try:
+                        results[index] = future.result()
+                    except Exception as e:
+                        results[index] = f"[ERROR: {str(e)}]"
+        except RuntimeError:
+            # Platforms without threads (Pyodide) refuse the first submit
+            # with "can't start new thread". The batch contract survives
+            # sequentially — same results, same order, one call at a time.
+            for future, index in future_to_prompt.items():
+                if future.done() and not future.cancelled():
                     results[index] = future.result()
-                except Exception as e:
-                    results[index] = f"[ERROR: {str(e)}]"
-        
+            for i in range(len(prompts)):
+                if results[i] is None:
+                    results[i] = generate_single(i)
+
         return results
     
     def __repr__(self) -> str:

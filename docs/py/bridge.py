@@ -148,10 +148,17 @@ def _reflow(text: str) -> List[str]:
 
 
 class AnsiPen:
-    """Accumulates ANSI text at a fixed column width."""
+    """Accumulates ANSI text at a fixed column width.
 
-    def __init__(self, width: int = DEFAULT_WIDTH):
+    ``flow`` marks a narrative pen: prose paragraphs are emitted as one
+    logical line each and the page wraps them to the pane (and styles them
+    as readable prose). Chrome pens keep the fixed 78-column discipline the
+    box drawing depends on.
+    """
+
+    def __init__(self, width: int = DEFAULT_WIDTH, flow: bool = False):
         self.width = clamp_width(width)
+        self.flow = bool(flow)
         self._parts: List[str] = []
 
     def raw(self, text: str = "") -> "AnsiPen":
@@ -175,9 +182,14 @@ class AnsiPen:
         return self.raw(_c(colour, BOLD + "═" * left + label + "═" * right))
 
     def section(self, text: str, colour: str = AMBER) -> "AnsiPen":
-        """A left-aligned minor heading with a trailing rule."""
+        """A left-aligned minor heading with a trailing rule.
+
+        A flow pen keeps the tail short: its lines are wrapped by the page
+        at whatever width the pane happens to be, so a 78-column rule would
+        fold onto a second line instead of underlining anything.
+        """
         label = f"── {text.strip().upper()} "
-        tail = max(0, self.width - len(label))
+        tail = 8 if self.flow else max(0, self.width - len(label))
         return self.raw(_c(colour, label + "─" * tail))
 
     def wrap(self, text: str, colour: str = "", indent: str = "",
@@ -198,6 +210,11 @@ class AnsiPen:
         for block in blocks:
             if not block.strip():
                 self.blank()
+                continue
+            if self.flow:
+                # One logical line per paragraph; the page soft-wraps it.
+                line = indent + block.strip()
+                self.raw(_c(colour, line) if colour else line)
                 continue
             wrapped = textwrap.wrap(
                 block.strip(), width=avail,
@@ -351,11 +368,15 @@ def install_fault_probe() -> None:
     _PROBE_INSTALLED = True
 
 
-def describe_llm_faults(faults: List[str], source: str) -> str:
+def describe_llm_faults(faults: List[str], source: str,
+                        model: str = "") -> str:
     """Turn raw driver errors into one sentence a player can act on.
 
     ``source`` is 'shared' (the owner's key, unlocked with a passphrase),
-    'own' (a key the player pasted) or '' (unknown).
+    'own' (a key the player pasted) or '' (unknown). ``model`` is the
+    OpenRouter model id the calls ran on, named in the notice so the player
+    can see at a glance whether an oversubscribed ':free' model is the
+    likely culprit.
     """
     codes = set()
     for fault in faults:
@@ -369,6 +390,9 @@ def describe_llm_faults(faults: List[str], source: str) -> str:
         whose, subject = "your key", "Your key"
     else:
         whose, subject = "the key", "The key"
+
+    named = f" on {model}" if model else ""
+    free_model = ":free" in (model or "")
 
     if codes & {401, 403}:
         code = sorted(codes & {401, 403})[0]
@@ -386,17 +410,26 @@ def describe_llm_faults(faults: List[str], source: str) -> str:
                if source == "shared" else
                "Top the key up, or reload and set a different one.")
     elif 429 in codes:
-        what = (f"OpenRouter is rate-limiting {whose} (HTTP 429) — too many "
-                f"requests, or the allowance on it is spent for now.")
-        fix = "Give it a minute and carry on; it may come back on its own."
+        what = (f"OpenRouter is rate-limiting {whose}{named} (HTTP 429) — "
+                f"too many requests, or the allowance is spent for now.")
+        fix = ("Free models share one public allowance and it runs dry for "
+               "everyone at once. Switch MODEL to a paid id and carry on, "
+               "or try again much later."
+               if free_model else
+               "Give it a minute and carry on; it may come back on its own.")
     elif codes:
         code = sorted(codes)[0]
-        what = f"OpenRouter refused the request (HTTP {code})."
+        what = f"OpenRouter refused the request{named} (HTTP {code})."
         fix = "It may be temporary. Carry on and see."
     else:
-        what = (f"The call to OpenRouter failed before it got an answer "
-                f"(using {whose}).")
-        fix = "That is usually the network. Carry on and see."
+        what = (f"The call to OpenRouter never got an answer "
+                f"(using {whose}{named}).")
+        fix = ("A ':free' model that is oversubscribed can queue until the "
+               "connection gives up, which looks exactly like this. Switch "
+               "MODEL to a paid id and carry on — or, if it really is the "
+               "network, carrying on will simply work."
+               if free_model else
+               "That is usually the network. Carry on and see.")
 
     return (f"{what} The advisors answered from the offline stand-in for that "
             f"call, so they replied without reading what you wrote. {fix}")
@@ -444,6 +477,10 @@ class WebGame:
         if body.strip():
             if instant:
                 self.emit(type="output", ansi=body + RESET, instant=True)
+            elif pen.flow:
+                # Narrative from a flow pen: the page styles it as readable
+                # prose and soft-wraps its paragraph lines.
+                self.emit(type="output", ansi=body + RESET, prose=True)
             else:
                 self.emit(type="output", ansi=body + RESET)
 
@@ -491,7 +528,7 @@ class WebGame:
         read from the same ``engine.opening`` beats, so the pacing — where
         the breaks fall — is identical even though the rendering is not.
         """
-        pen = AnsiPen(self.width)
+        pen = AnsiPen(self.width, flow=True)
         pen.blank()
         if scene.has_card:
             pen.section(f"SCENE {scene.numeral} ── {scene.title}", ACCENT)
@@ -776,6 +813,8 @@ class WebGame:
         trace(f"briefing turn {gm.world.turn} done: {inject.get('title')!r}")
         new_lines = gm.transcript[mark:]
 
+        # The turn banner is chrome (fixed-width box drawing); the narrative
+        # that follows is prose. Two pens so each can be styled as what it is.
         pen = AnsiPen(self.width)
         pen.blank()
         pen.banner(
@@ -783,6 +822,9 @@ class WebGame:
             if gm.endings_enabled else f"TURN {gm.world.turn}",
             AMBER)
         pen.blank()
+        self.out(pen)
+
+        pen = AnsiPen(self.width, flow=True)
 
         # The narrator bridge lands in the transcript as "[Narrator] ..."
         bridge = next(
@@ -826,24 +868,25 @@ class WebGame:
     def _finish_briefing(self, report: List[str], new_lines: List[str],
                          before: Dict[str, int]) -> None:
         """The second half of a briefing: the report, then hand back to the player."""
-        pen = AnsiPen(self.width)
         if report:
+            pen = AnsiPen(self.width, flow=True)
             pen.wrap("\n".join(report), colour=INK)
             pen.blank()
+            self.out(pen)
 
         # Scenario effects are declared as ranges ("10..15") and resolved at
         # apply time, so report the change that actually landed rather than
-        # the declaration.
+        # the declaration. Column-aligned, so it stays a chrome pen.
         if self.metrics_visible():
             after = self._metrics_snapshot()
             moved = {k: after[k] - before[k] for k in after if after[k] != before[k]}
             if moved:
+                pen = AnsiPen(self.width)
                 pen.section("SITUATION SHIFT", DIM)
                 for k, v in sorted(moved.items()):
                     pen.raw(f"  {_c(DIM, k.replace('_', ' ').title().ljust(22))}{_delta(k, v)}")
                 pen.blank()
-
-        self.out(pen)
+                self.out(pen)
 
         # Some injects carry a mandatory diplomatic encounter. The engine no
         # longer plays it out for us (it used to answer "Thank you." in the
@@ -853,7 +896,7 @@ class WebGame:
         if self._required_call_live():
             encounter = self.gm.active_encounter
             self._call_seen = 0
-            pen = AnsiPen(self.width)
+            pen = AnsiPen(self.width, flow=True)
             pen.blank()
             pen.section("INCOMING CALL — YOU MUST TAKE THIS", ACCENT)
             pen.wrap("The line is already open. Whatever you type next is "
@@ -870,7 +913,7 @@ class WebGame:
         # line was still open, so that routing looked like a wrong number.
         encounter = self.gm.active_encounter if self.gm else None
         if encounter and encounter.active and self._call_seen == 0:
-            pen = AnsiPen(self.width)
+            pen = AnsiPen(self.width, flow=True)
             pen.blank()
             pen.section("LINE STILL OPEN", ACCENT)
             pen.wrap("You were mid-call when the session was saved. A further "
@@ -907,7 +950,7 @@ class WebGame:
             self.reject("Empty question.", was_awaiting)
             return
 
-        pen = AnsiPen(self.width)
+        pen = AnsiPen(self.width, flow=True)
         pen.section("DISCUSSION", DIM)
         pen.speaker("Prime Minister", question, colour=AMBER)
         self.out(pen)
@@ -923,7 +966,7 @@ class WebGame:
             prompt = f"{cue}, {question}" if cue else question
             lines = gm.process_question(prompt)
 
-        pen = AnsiPen(self.width)
+        pen = AnsiPen(self.width, flow=True)
         for line in lines:
             if line.startswith("Prime Minister:"):
                 continue
@@ -994,7 +1037,7 @@ class WebGame:
         """Render only the lines of the call not already sent to the page."""
         fresh = transcript[self._call_seen:]
         self._call_seen = len(transcript)
-        pen = AnsiPen(self.width)
+        pen = AnsiPen(self.width, flow=True)
         # Entries can themselves be multi-line (the closing assessment is
         # appended as one block), so flatten before rendering.
         for entry in fresh:
@@ -1035,7 +1078,7 @@ class WebGame:
             self.reject("Empty decision.", was_awaiting)
             return
 
-        pen = AnsiPen(self.width)
+        pen = AnsiPen(self.width, flow=True)
         pen.blank()
         pen.section("PRIME MINISTER'S DECISION", AMBER)
         pen.wrap(action, colour=AMBER)
@@ -1046,7 +1089,7 @@ class WebGame:
         result = gm.resolve_decision(action)
         trace(f"resolve turn {gm.world.turn - 1} done")
 
-        pen = AnsiPen(self.width)
+        pen = AnsiPen(self.width, flow=True)
         pen.section("ACTION ASSESSMENT", DIM)
         pen.wrap(result.get("interpretation") or "", colour=INK)
         pen.blank()
@@ -1057,7 +1100,7 @@ class WebGame:
 
         concerns = list(result.get("critical_concerns") or [])
         if concerns:
-            pen = AnsiPen(self.width)
+            pen = AnsiPen(self.width, flow=True)
             pen.section("CRITICAL ADVISORY", DANGER)
             for c in concerns:
                 pen.speaker(c["role"], c["concern"], colour=DANGER)
@@ -1069,7 +1112,7 @@ class WebGame:
 
         reactions = result.get("advisor_reactions") or []
         if reactions:
-            pen = AnsiPen(self.width)
+            pen = AnsiPen(self.width, flow=True)
             pen.section("AROUND THE TABLE", DIM)
             for item in reactions:
                 if isinstance(item, (list, tuple)) and len(item) >= 2:
@@ -1081,7 +1124,7 @@ class WebGame:
 
         intl = result.get("international_reactions") or []
         if intl:
-            pen = AnsiPen(self.width)
+            pen = AnsiPen(self.width, flow=True)
             pen.section("INTERNATIONAL RESPONSE", DIM)
             for r in intl:
                 name = str(r.get("actor_id", "?"))
@@ -1337,7 +1380,9 @@ class WebGame:
             return
         faults = list(_LLM_FAULTS)
         _LLM_FAULTS.clear()
-        message = describe_llm_faults(faults, self.key_source)
+        message = describe_llm_faults(
+            faults, self.key_source,
+            model=os.environ.get("OPENAI_COMPAT_MODEL", ""))
 
         pen = AnsiPen(self.width)
         pen.blank()

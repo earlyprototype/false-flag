@@ -40,6 +40,8 @@
   --red-t: #ff8375;
   --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "JetBrains Mono",
           Menlo, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
+  --serif: "Iowan Old Style", "Palatino Linotype", palatino, georgia,
+           "Times New Roman", serif;
   --term-fs: 12.4px;
   color-scheme: dark;
 }
@@ -52,14 +54,27 @@ body {
   margin: 0;
   background: var(--ground);
   color: var(--ink);
-  font-family: var(--mono);
-  font-size: 15px;
-  line-height: 1.62;
+  /* The viewer's split, page-wide: everything you READ is set in a book
+     face; everything that is chrome — strips, caps, labels, controls, the
+     terminal pane — pins itself back to the mono below. */
+  font-family: var(--serif);
+  font-size: 16.5px;
+  line-height: 1.65;
   /* The page must never scroll sideways; wide things scroll inside
      their own pane instead. */
   overflow-x: hidden;
   max-width: 100%;
 }
+
+/* Chrome stays terminal. Buttons, inputs, code and the screen pane set
+   their own mono already; these are the pieces that would otherwise
+   inherit the reading face. */
+.strip, .bar, .rule, label, .panel .cap, .keystate, .metrics,
+.term > .label, .awaiting .tag, kbd {
+  font-family: var(--mono);
+}
+
+.lede { font-size: 18px; max-width: 62ch; }
 
 /* ---------------------------------------------------------------- chrome */
 
@@ -159,7 +174,7 @@ code {
 }
 
 .note {
-  font-size: 12.5px; color: var(--dim);
+  font-size: 14px; color: var(--dim);
   border-left: 2px solid var(--steel);
   padding: 4px 0 4px 14px; margin: 16px 0; max-width: 80ch;
 }
@@ -290,7 +305,7 @@ label { display: block; font-size: 11.5px; letter-spacing: 0.14em; color: var(--
   letter-spacing: 0.12em;
 }
 
-pre.screen {
+.screen {
   margin: 0;
   padding: 12px 14px 16px;
   overflow: auto;
@@ -310,11 +325,26 @@ pre.screen {
   max-height: 72vh;
   overscroll-behavior: contain;
 }
-pre.screen:focus-visible { outline: 1px solid var(--amber); outline-offset: -1px; }
+.screen:focus-visible { outline: 1px solid var(--amber); outline-offset: -1px; }
 /* FIT mode: the whole 78-column layout is squeezed into the pane so no box
    drawing is ever cut in half. READ mode keeps a legible size and scrolls
    the pane sideways instead. */
-pre.screen.read { font-size: 12.4px; white-space: pre; }
+.screen.read { font-size: 12.4px; white-space: pre; }
+
+/* Each engine block is its own element. Chrome blocks inherit the terminal
+   look above; narrative blocks (from a flow pen upstream) read as set prose:
+   a book face, a measure capped for reading, and a size that ignores the
+   FIT shrink — on a phone the chrome may be squeezed to fit its 78 columns,
+   but the story never is. */
+.screen .blk.prose {
+  font-family: var(--serif);
+  font-size: 15.5px;
+  line-height: 1.68;
+  max-width: 620px;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+}
+.screen.read .blk.prose { white-space: pre-wrap; }
 
 .metrics {
   display: flex;
@@ -389,7 +419,7 @@ pre.screen.read { font-size: 12.4px; white-space: pre; }
   background: var(--panel);
   padding: 14px;
 }
-.hint { font-size: 11.5px; color: var(--dim); margin: 8px 0 0; }
+.hint { font-size: 13px; color: var(--dim); margin: 8px 0 0; }
 .hint kbd {
   font-family: var(--mono); font-size: 0.95em; color: var(--ink-2);
   border: 1px solid var(--steel); border-radius: 2px; padding: 0 4px;
@@ -449,7 +479,7 @@ footer .inner {
   max-width: 1080px; margin: 0 auto; padding: 18px 16px 36px;
   font-size: 12.5px; color: var(--dim);
 }
-footer .inner p { color: var(--dim); font-size: 12.5px; max-width: 80ch; }
+footer .inner p { color: var(--dim); font-size: 13.5px; max-width: 80ch; }
 footer .inner a { color: var(--dim); }
 footer .inner a:hover { color: var(--accent); }
 
@@ -461,7 +491,7 @@ footer .inner a:hover { color: var(--accent); }
   .strip .code { display: none; }
   .strip .fill { margin-right: 0; }
   h1.rule { font-size: 16px; }
-  pre.screen { height: 52vh; min-height: 240px; padding: 10px 8px 14px; }
+  .screen { height: 52vh; min-height: 240px; padding: 10px 8px 14px; }
   .actions button { flex: 1 1 auto; }
   .term > .label { font-size: 10px; letter-spacing: 0.1em; gap: 6px; }
 }
