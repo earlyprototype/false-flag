@@ -182,7 +182,7 @@ def test_discussion_without_advisor_keeps_the_routed_behaviour(client):
 
     manager = server.sessions[session_id].manager
     answers = [l for l in manager.transcript
-               if l.split(":", 1)[0] == "Legal Advisor"]
+               if l.split(":", 1)[0] == "Attorney General"]
     assert answers, "the keyword router should have picked the Attorney General"
 
 

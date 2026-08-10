@@ -367,17 +367,18 @@ class GameManager:
             "timeline": "Immediate" # Placeholder
         }
 
-    # The pushback parser returns whichever name the model used: the
-    # scenario's internal persona roles ("Military Commander") or the
-    # cabinet titles the fiction uses ("Chief of the Defence Staff"). The
-    # seeded characters carry cabinet titles, so without this bridge most
-    # objections matched nothing and overriding the cabinet stayed free -
+    # The pushback parser returns whichever name the model used. The roster
+    # now carries the cabinet titles themselves, so a model answering in those
+    # matches directly; this maps the abstracted persona names it may still
+    # reach for ("Military Commander") onto the same seat. Without that bridge
+    # most objections matched nothing and overriding the cabinet stayed free -
     # the first instrumented live run showed five of six objector names
     # missing the roster (ER-073). Mirrors
     # cli/display_utils._ROLE_DISPLAY_TITLES (engine cannot import from cli).
     _PERSONA_ROLE_TITLES = {
         "military commander": "chief of the defence staff",
-        "intelligence coordinator": "national security advisor",
+        "intelligence coordinator": "national security adviser",
+        "national security advisor": "national security adviser",
         "diplomatic lead": "foreign secretary",
         "domestic security": "home secretary",
         "legal advisor": "attorney general",

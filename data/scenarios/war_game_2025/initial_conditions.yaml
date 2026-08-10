@@ -459,7 +459,7 @@ diplomatic_contacts:
 characters:
   # UK Team (Player's Advisors)
   prime_minister:
-    role: "Government Leader"
+    role: "Prime Minister"
     influence: 100  # Maximum authority
     knowledge_domains: ["political_strategy", "public_messaging", "nato_relations"]
     pushback_triggers:
@@ -469,7 +469,7 @@ characters:
     key_concerns: ["NATO commitment", "military readiness", "public reassurance"]
 
   chief_defence_staff:
-    role: "Military Commander"
+    role: "Chief of the Defence Staff"
     influence: 85
     knowledge_domains: ["military_operations", "force_readiness", "threat_assessment"]
     pushback_triggers:
@@ -479,7 +479,7 @@ characters:
     key_concerns: ["Russian naval exercise", "pilot security", "limited air defence"]
 
   national_security_advisor:
-    role: "Intelligence Coordinator"
+    role: "National Security Adviser"
     influence: 90
     knowledge_domains: ["intelligence_assessment", "cyber_security", "strategic_planning"]
     pushback_triggers:
@@ -489,7 +489,7 @@ characters:
     key_concerns: ["cyber_attacks", "false_flag_detection", "US_relations"]
 
   home_secretary:
-    role: "Domestic Security"
+    role: "Home Secretary"
     influence: 70
     knowledge_domains: ["civil_protection", "counter_terrorism", "public_safety"]
     pushback_triggers:
@@ -499,7 +499,7 @@ characters:
     key_concerns: ["infrastructure_attacks", "diplomat_departures", "public_messaging"]
 
   foreign_secretary:
-    role: "Diplomatic Lead"
+    role: "Foreign Secretary"
     influence: 75
     knowledge_domains: ["diplomacy", "alliance_management", "international_law"]
     pushback_triggers:
@@ -509,7 +509,7 @@ characters:
     key_concerns: ["US_engagement", "NATO_activation", "Russian_ambassador_recall"]
 
   attorney_general:
-    role: "Legal Advisor"
+    role: "Attorney General"
     influence: 60
     knowledge_domains: ["international_law", "rules_of_engagement", "legal_frameworks"]
     pushback_triggers:

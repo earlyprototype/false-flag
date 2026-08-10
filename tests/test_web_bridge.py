@@ -337,8 +337,8 @@ def test_ask_all_puts_the_question_to_the_whole_room():
     # The question renders once, as the Prime Minister speaking.
     assert out.count("PRIME MINISTER") == 1
     # Every seated advisor answers as their own speaker block.
-    for role in ("MILITARY COMMANDER", "INTELLIGENCE COORDINATOR",
-                 "DOMESTIC SECURITY", "DIPLOMATIC LEAD", "LEGAL ADVISOR"):
+    for role in ("CHIEF OF THE DEFENCE STAFF", "NATIONAL SECURITY ADVISER",
+                 "HOME SECRETARY", "FOREIGN SECRETARY", "ATTORNEY GENERAL"):
         assert role in out, f"{role} did not answer"
     assert rec.last("awaiting")["kind"] == "decision"
 
@@ -952,3 +952,129 @@ def test_an_http_status_outranks_a_local_fault_in_a_mixed_batch():
 ])
 def test_local_fault_classification(fault, expected):
     assert bridge.classify_local_fault([fault]) == expected
+
+
+# ---------------------------------------------------------------------------
+# Who is in the room, and what the player is told they are called
+# ---------------------------------------------------------------------------
+#
+# The scenario roster's `role` is not an internal key: it is printed verbatim
+# as the speaker label on every answer. It used to carry abstracted personas
+# ("Military Commander", "Legal Advisor") while the cold open seated a Chief of
+# the Defence Staff and an Attorney General and the advisor picker offered the
+# same — so the player was introduced to a cabinet and then answered by job
+# descriptions. These pin the roster to the titles the fiction uses.
+
+CABINET_TITLES = {
+    "prime_minister": "Prime Minister",
+    "chief_defence_staff": "Chief of the Defence Staff",
+    "national_security_advisor": "National Security Adviser",
+    "home_secretary": "Home Secretary",
+    "foreign_secretary": "Foreign Secretary",
+    "attorney_general": "Attorney General",
+}
+
+
+def _roster():
+    from engine.initial_conditions import load_initial_conditions
+    conditions = load_initial_conditions("war_game_2025", REPO)
+    return conditions["characters"]
+
+
+@pytest.mark.parametrize("char_id,title", sorted(CABINET_TITLES.items()))
+def test_every_seat_carries_its_cabinet_title(char_id, title):
+    assert _roster()[char_id]["role"] == title
+
+
+def test_the_advisor_picker_matches_the_roster():
+    """What the picker offers and what answers must be the same person.
+
+    These are built independently — the picker is a literal in this module,
+    the labels come from scenario YAML — so nothing but a test keeps them
+    from drifting apart again.
+    """
+    roster = _roster()
+    for advisor in bridge.ADVISORS:
+        assert roster[advisor["id"]]["role"] == advisor["label"], (
+            f"the picker offers {advisor['label']!r} but {advisor['id']} "
+            f"answers as {roster[advisor['id']]['role']!r}")
+
+
+def test_display_role_normalises_personas_a_model_may_still_use():
+    """The roster is correct now; a model answering in the old names is not.
+
+    Pushback and critical concerns are free text from the model, so they can
+    still come back as "Legal Advisor" — which must not seat a second person
+    beside the Attorney General the player was just introduced to.
+    """
+    assert bridge.display_role("Legal Advisor") == "Attorney General"
+    assert bridge.display_role("Military Commander") == "Chief of the Defence Staff"
+    assert bridge.display_role("Intelligence Coordinator") == "National Security Adviser"
+    # Already-correct and unknown labels pass through untouched.
+    assert bridge.display_role("Attorney General") == "Attorney General"
+    assert bridge.display_role("Cabinet Secretary") == "Cabinet Secretary"
+    assert bridge.display_role("") == ""
+
+
+def test_ask_all_answers_in_cabinet_titles_not_personas():
+    """End to end: the labels the page prints are the cabinet's own."""
+    game, rec = make_game()
+    game.handle({"type": "ask", "advisor": "all",
+                 "text": "Where do we actually stand?"})
+    out = rec.ansi()
+    for persona in ("MILITARY COMMANDER", "INTELLIGENCE COORDINATOR",
+                    "DOMESTIC SECURITY", "DIPLOMATIC LEAD", "LEGAL ADVISOR"):
+        assert persona not in out, f"{persona} is not a seat in this cabinet"
+
+
+# ---------------------------------------------------------------------------
+# The page must never be handed a live game it cannot act on
+# ---------------------------------------------------------------------------
+#
+# AWAIT_NONE is the busy marker `handle` sets on the way in; every branch is
+# expected to replace it, and `play_next` expects the same of every parked
+# beat. One that forgets leaves the page on STANDBY with every control
+# disabled and no way out but a reload — reported from a live game as "I have
+# been told to take a call and I cannot".
+
+
+def test_a_beat_that_sets_no_state_cannot_strand_the_page():
+    game, rec = make_game()
+    game.queue(lambda: None)          # a beat that renders nothing and sets nothing
+    game.set_awaiting(bridge.AWAIT_PAUSE)
+    game.handle({"type": "continue"})
+    assert rec.last("awaiting")["kind"] != bridge.AWAIT_NONE, \
+        "the player is stranded with every control disabled"
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_DECISION
+
+
+def test_a_stranding_beat_hands_back_the_call_when_one_is_live():
+    """Recovery has to be the right state, not merely a non-idle one."""
+    game, rec = make_game()
+
+    class _Encounter:
+        active = True
+        required = True
+        transcript = []
+
+    game.gm.active_encounter = _Encounter()
+    game.queue(lambda: None)
+    game.set_awaiting(bridge.AWAIT_PAUSE)
+    game.handle({"type": "continue"})
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_QUESTION, \
+        "a live call must be answerable"
+
+
+def test_an_unknown_message_does_not_strand_a_live_game():
+    game, rec = make_game()
+    game.handle({"type": "wat"})
+    assert rec.last("awaiting")["kind"] != bridge.AWAIT_NONE
+
+
+def test_recovery_leaves_a_finished_campaign_idle():
+    """Idle is correct when the campaign is over — do not invent a move."""
+    game, rec = make_game()
+    game.gm.ending = Ending("t", "TEST", "defeat", "n")
+    game.set_awaiting(bridge.AWAIT_NONE)
+    game.handle({"type": "continue"})
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_NONE

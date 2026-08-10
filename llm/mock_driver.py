@@ -39,7 +39,8 @@ def _stable_index(key: str, size: int) -> int:
 # advisor key -> aliases used in persona lines (role titles and display names)
 _ADVISOR_ALIASES = {
     "cds": ("military commander", "chief of the defence staff"),
-    "nsa": ("intelligence coordinator", "national security advisor", "national security adviser"),
+    "nsa": ("national security adviser", "national security advisor",
+            "intelligence coordinator"),
     "foreign": ("diplomatic lead", "foreign secretary"),
     "home": ("domestic security", "home secretary"),
     "legal": ("legal advisor", "attorney general"),

@@ -276,6 +276,29 @@ ADVISORS = [
 _ADVISOR_CUE = {a["id"]: a["cue"] for a in ADVISORS}
 _ADVISOR_CUE.update({a["label"].lower(): a["cue"] for a in ADVISORS})
 
+# The scenario roster carries the cabinet titles above, so a seated advisor is
+# already named correctly by the time a line reaches the page. A model asked
+# for pushback or a critical concern is not bound by the roster, though, and
+# will sometimes answer as the abstracted persona the prompts once used — so
+# normalise on the way out rather than seating "LEGAL ADVISOR" next to the
+# Attorney General the picker just offered. Mirrors
+# cli/display_utils._ROLE_DISPLAY_TITLES; the browser build cannot import cli.
+_PERSONA_ROLE_TITLES = {
+    "military commander": "Chief of the Defence Staff",
+    "intelligence coordinator": "National Security Adviser",
+    "national security advisor": "National Security Adviser",
+    "diplomatic lead": "Foreign Secretary",
+    "domestic security": "Home Secretary",
+    "legal advisor": "Attorney General",
+    "government leader": "Prime Minister",
+}
+
+
+def display_role(role: str) -> str:
+    """Cabinet title for a speaker label. Unknown names pass through."""
+    text = str(role or "").strip()
+    return _PERSONA_ROLE_TITLES.get(text.lower(), text)
+
 # The whole-room option the page's picker offers alongside the advisors.
 # Not in ADVISORS: it has no routing cue — ask() branches on the id instead,
 # and every seated advisor answers (one LLM call each; see
@@ -1020,7 +1043,7 @@ class WebGame:
                 continue
             if ":" in line:
                 role, said = line.split(":", 1)
-                pen.speaker(role.strip(), said.strip())
+                pen.speaker(display_role(role), said.strip())
             elif line.strip():
                 pen.wrap(line, colour=INK)
         self.out(pen)
@@ -1110,7 +1133,7 @@ class WebGame:
                         pen.raw(f"  {_c(DIM, role.strip().title().ljust(22))}"
                                 f"{_c(INK, said.strip())}")
                     else:
-                        pen.speaker(role.strip(), said.strip())
+                        pen.speaker(display_role(role), said.strip())
                 else:
                     pen.wrap(stripped, colour=INK)
         pen.blank()
@@ -1151,7 +1174,8 @@ class WebGame:
             pen = AnsiPen(self.width, flow=True)
             pen.section("CRITICAL ADVISORY", DANGER)
             for c in concerns:
-                pen.speaker(c["role"], c["concern"], colour=DANGER)
+                pen.speaker(display_role(c["role"]), c["concern"],
+                            colour=DANGER)
                 if c.get("recommendation"):
                     pen.wrap(f"→ {c['recommendation']}", colour=AMBER,
                              indent="  ", subsequent="    ")
@@ -1164,9 +1188,9 @@ class WebGame:
             pen.section("AROUND THE TABLE", DIM)
             for item in reactions:
                 if isinstance(item, (list, tuple)) and len(item) >= 2:
-                    pen.speaker(str(item[0]), str(item[1]))
+                    pen.speaker(display_role(item[0]), str(item[1]))
                 elif isinstance(item, dict):
-                    pen.speaker(str(item.get("role", "Adviser")),
+                    pen.speaker(display_role(item.get("role", "Adviser")),
                                 str(item.get("response", "")))
             self.out(pen)
 
@@ -1414,6 +1438,36 @@ class WebGame:
                 self.set_awaiting(AWAIT_NONE)
         finally:
             self._report_llm_faults()
+            self._ensure_actionable(kind)
+
+    def _ensure_actionable(self, kind: str) -> None:
+        """Never leave a live campaign with every control disabled.
+
+        ``AWAIT_NONE`` means "busy": ``handle`` sets it on the way in and each
+        branch is expected to replace it with the state it hands back to.
+        ``play_next`` makes the same assumption of every parked beat. Any path
+        that forgets strands the page on STANDBY — no decision, no question,
+        no call, and no way out but a reload. That is how a call the game says
+        you *must* take becomes one you cannot answer.
+
+        Rather than trusting every branch and every beat to remember, check on
+        the way out and hand back whatever the session can actually do. A game
+        that is over, or one that has not started, is legitimately idle.
+        """
+        if kind == "setKey" or self.gm is None:
+            return
+        if self.awaiting != AWAIT_NONE or self.gm.is_over():
+            return
+        encounter = self.gm.active_encounter
+        if self._paused:
+            recovered = AWAIT_PAUSE
+        elif encounter is not None and getattr(encounter, "active", False):
+            recovered = AWAIT_QUESTION
+        else:
+            recovered = AWAIT_DECISION
+        print(f"[WARN] {kind!r} left the session with nothing to do; "
+              f"recovering to {recovered!r}")
+        self.set_awaiting(recovered)
 
     def _report_llm_faults(self) -> None:
         """Say out loud that the live endpoint refused, if it did.

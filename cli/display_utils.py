@@ -25,9 +25,14 @@ _MD_ITALIC_RE = re.compile(r"(?<!\*)\*([^*\n]+?)\*(?!\*)")
 # Internal persona names (initial_conditions.yaml roles) -> the cabinet titles
 # the fiction uses everywhere else. Display-time only: internal IDs, LLM
 # prompts, transcripts and save formats keep the original names.
+# The scenario roster now carries the cabinet titles themselves, so this map
+# is no longer what makes the game read correctly - it is tolerance for the
+# abstracted persona names a model may still answer with, and for saves
+# written before the roster was corrected.
 _ROLE_DISPLAY_TITLES = {
     "military commander": "Chief of the Defence Staff",
-    "intelligence coordinator": "National Security Advisor",
+    "intelligence coordinator": "National Security Adviser",
+    "national security advisor": "National Security Adviser",
     "diplomatic lead": "Foreign Secretary",
     "domestic security": "Home Secretary",
     "legal advisor": "Attorney General",
