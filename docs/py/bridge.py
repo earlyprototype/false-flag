@@ -306,6 +306,33 @@ _LLM_FAULTS: List[str] = []
 _HTTP_CODE_RE = re.compile(r"HTTP (\d{3})")
 _BATCH_ERROR_PREFIX = "[ERROR:"
 
+# Faults that never got as far as an HTTP request. The call was never issued,
+# so a notice blaming OpenRouter — or the player's connection — sends them
+# hunting for a problem that is not there. That is not a hypothetical: a
+# browser running a cached pre-bb55a91 bundle failed every batched call on
+# Pyodide's missing thread support and was told, five advisors at a time, that
+# the network had gone.
+_THREAD_FAULT_RE = re.compile(r"can'?t start new thread"
+                              r"|can not start new thread"
+                              r"|thread can only be started once", re.IGNORECASE)
+_CONFIG_FAULT_RE = re.compile(r"OPENAI_COMPAT_(?:BASE_URL|MODEL|API_KEY)"
+                              r"|not found in environment or config", re.IGNORECASE)
+
+
+def classify_local_fault(faults: List[str]) -> str:
+    """Name the kind of fault that never reached the wire.
+
+    Returns ``'threads'`` (this build could not start the calls),
+    ``'config'`` (there was no endpoint to call) or ``''`` — the last
+    meaning nothing here rules out a genuine network or endpoint fault.
+    """
+    blob = " ".join(faults)
+    if _THREAD_FAULT_RE.search(blob):
+        return "threads"
+    if _CONFIG_FAULT_RE.search(blob):
+        return "config"
+    return ""
+
 
 def _watch_calls(fn: Callable) -> Callable:
     """Record failures from one driver method, then let them propagate.
@@ -384,6 +411,11 @@ def describe_llm_faults(faults: List[str], source: str,
         if match:
             codes.add(int(match.group(1)))
 
+    # Only consulted when no call came back with a status: a real HTTP code is
+    # always the more specific story, and a mixed batch should be described by
+    # the refusal that actually reached the wire.
+    local = "" if codes else classify_local_fault(faults)
+
     if source == "shared":
         whose, subject = "the shared key", "The shared key"
     elif source == "own":
@@ -421,6 +453,22 @@ def describe_llm_faults(faults: List[str], source: str,
         code = sorted(codes)[0]
         what = f"OpenRouter refused the request{named} (HTTP {code})."
         fix = "It may be temporary. Carry on and see."
+    elif local == "threads":
+        # Nothing was sent. Saying "OpenRouter never answered" here is not a
+        # vague description of a real fault, it is the wrong fault: the player
+        # goes and checks an endpoint that was never called.
+        what = ("The advisors' calls were never sent — this build could not "
+                "start them. Nothing reached OpenRouter, so neither the "
+                "endpoint nor your connection is at fault.")
+        fix = ("This is fixed in the current build, and a browser still "
+               "running a cached copy of the old one is the usual cause. "
+               "Reload the page with a hard refresh (Ctrl-Shift-R, or "
+               "Cmd-Shift-R on a Mac) to pick the new build up.")
+    elif local == "config":
+        what = ("The advisors' calls were never sent — no live endpoint is "
+                "configured, so there was nothing to call.")
+        fix = ("Reload and set a key (or a base URL and MODEL) to carry on "
+               "with live advisors.")
     else:
         what = (f"The call to OpenRouter never got an answer "
                 f"(using {whose}{named}).")

@@ -881,3 +881,74 @@ def test_full_game_plays_with_cli_and_rich_absent(tmp_path):
                     if ln.startswith("ENDING:")), None)
     assert verdict in {"victory", "partial", "defeat"}, out
     assert "ANSI: True" in out, out
+
+
+# ---------------------------------------------------------------------------
+# bridge.describe_llm_faults: what the player is told when a call did not land
+# ---------------------------------------------------------------------------
+#
+# The notice is the only account of a live failure a browser player ever gets,
+# so naming the wrong cause is worse than saying nothing: it sends them to
+# check an endpoint that was never contacted. A cached pre-bb55a91 bundle did
+# exactly that — Pyodide cannot start threads, so every batched call died
+# locally and five advisors at a time answered from the offline stand-in while
+# the page blamed the network.
+
+
+def test_threadless_batch_failure_is_not_reported_as_a_network_fault():
+    """A call that never left the browser must not be blamed on the network."""
+    message = bridge.describe_llm_faults(
+        ["[ERROR: can't start new thread]"], "shared",
+        model="deepseek/deepseek-chat-v3-0324:free")
+    assert "never sent" in message
+    assert "Nothing reached OpenRouter" in message
+    # The two claims that sent a player hunting for a fault that was not there.
+    assert "usually the network" not in message
+    assert "never got an answer" not in message
+
+
+def test_threadless_notice_names_the_fix_the_player_can_actually_apply():
+    """Being right about the cause is only half of it; say what to do."""
+    message = bridge.describe_llm_faults(
+        ["RuntimeError: can't start new thread"], "shared")
+    assert "hard refresh" in message.lower()
+    assert "cached" in message
+
+
+def test_missing_configuration_is_not_blamed_on_the_network_either():
+    message = bridge.describe_llm_faults(
+        [("ValueError: OPENAI_COMPAT_BASE_URL not found in environment or "
+          "config.py")], "own")
+    assert "no live endpoint is configured" in message
+    assert "usually the network" not in message
+
+
+def test_a_genuine_silent_failure_is_still_described_as_one():
+    """The local-fault branch must not swallow real network faults."""
+    message = bridge.describe_llm_faults(
+        ["ConnectionError: Max retries exceeded with url: /chat/completions"],
+        "shared", model="openai/gpt-4o-mini")
+    assert "never got an answer" in message
+    assert "usually the network" in message
+    assert "openai/gpt-4o-mini" in message
+
+
+def test_an_http_status_outranks_a_local_fault_in_a_mixed_batch():
+    """A refusal that reached the wire is the more specific story."""
+    message = bridge.describe_llm_faults(
+        ["[ERROR: can't start new thread]", "HTTP 402 out of credit"],
+        "shared")
+    assert "out of credit" in message
+    assert "never sent" not in message
+
+
+@pytest.mark.parametrize("fault,expected", [
+    ("can't start new thread", "threads"),
+    ("cant start new thread", "threads"),
+    ("RuntimeError: can not start new thread", "threads"),
+    ("OPENAI_COMPAT_MODEL not set", "config"),
+    ("HTTP 500 upstream exploded", ""),
+    ("ConnectionError: connection reset by peer", ""),
+])
+def test_local_fault_classification(fault, expected):
+    assert bridge.classify_local_fault([fault]) == expected

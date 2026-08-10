@@ -482,6 +482,16 @@ footer .inner {
 footer .inner p { color: var(--dim); font-size: 13.5px; max-width: 80ch; }
 footer .inner a { color: var(--dim); }
 footer .inner a:hover { color: var(--accent); }
+/* Which build is actually running. Mono, because it is an identifier to be
+   read back and compared, not prose. */
+footer .inner p.buildline {
+  margin-top: 10px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  opacity: 0.75;
+}
 
 /* --------------------------------------------------------------- mobile */
 

@@ -173,6 +173,9 @@ def test_the_bundle_matches_the_repo():
 
     with zipfile.ZipFile(BUNDLE) as z:
         packed = {n: z.read(n) for n in z.namelist()}
+    # The build stamp is generated, not copied from a source file. Its value is
+    # checked against the bundle's contents in tests/test_play_bundle.py.
+    packed.pop(build.BUILD_STAMP_ARCNAME, None)
 
     missing = sorted(set(expected) - set(packed))
     extra = sorted(set(packed) - set(expected))
