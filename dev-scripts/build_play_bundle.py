@@ -93,6 +93,12 @@ def collect_files() -> list[tuple[Path, str]]:
 
 
 def build() -> int:
+    """Write docs/game.zip and stamp docs/index.html to match it.
+
+    Returns:
+        0 on success, 1 if the deploy would be incomplete — a missing bundle
+        source, page asset, or index.html. Nothing is written in that case.
+    """
     OUT.parent.mkdir(parents=True, exist_ok=True)
     # Everything the deploy needs is checked before a byte is written. A build
     # that succeeds having quietly skipped a missing app.js — or having left

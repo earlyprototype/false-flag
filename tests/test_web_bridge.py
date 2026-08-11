@@ -916,6 +916,7 @@ def test_threadless_notice_names_the_fix_the_player_can_actually_apply():
 
 
 def test_missing_configuration_is_not_blamed_on_the_network_either():
+    """No endpoint configured is a local fault too, not a dropped connection."""
     message = bridge.describe_llm_faults(
         [("ValueError: OPENAI_COMPAT_BASE_URL not found in environment or "
           "config.py")], "own")
@@ -951,6 +952,7 @@ def test_an_http_status_outranks_a_local_fault_in_a_mixed_batch():
     ("ConnectionError: connection reset by peer", ""),
 ])
 def test_local_fault_classification(fault, expected):
+    """The classifier claims only what it can tell apart, spelling variants included."""
     assert bridge.classify_local_fault([fault]) == expected
 
 
@@ -976,6 +978,7 @@ CABINET_TITLES = {
 
 
 def _roster():
+    """The scenario's characters, read from the shipped YAML rather than a fixture."""
     from engine.initial_conditions import load_initial_conditions
     conditions = load_initial_conditions("war_game_2025", REPO)
     return conditions["characters"]
@@ -983,6 +986,7 @@ def _roster():
 
 @pytest.mark.parametrize("char_id,title", sorted(CABINET_TITLES.items()))
 def test_every_seat_carries_its_cabinet_title(char_id, title):
+    """`role` is printed verbatim as the speaker, so it has to be the real title."""
     assert _roster()[char_id]["role"] == title
 
 
@@ -1039,6 +1043,7 @@ def test_ask_all_answers_in_cabinet_titles_not_personas():
 
 
 def test_a_beat_that_sets_no_state_cannot_strand_the_page():
+    """The recovery net, on the plainest case: a beat that does nothing at all."""
     game, rec = make_game()
     game.queue(lambda: None)          # a beat that renders nothing and sets nothing
     game.set_awaiting(bridge.AWAIT_PAUSE)
@@ -1053,6 +1058,8 @@ def test_a_stranding_beat_hands_back_the_call_when_one_is_live():
     game, rec = make_game()
 
     class _Encounter:
+        """A live, mandatory call — the state the player must be able to answer."""
+
         active = True
         required = True
         transcript = []
@@ -1066,6 +1073,7 @@ def test_a_stranding_beat_hands_back_the_call_when_one_is_live():
 
 
 def test_an_unknown_message_does_not_strand_a_live_game():
+    """A message the bridge rejects must still hand the turn back."""
     game, rec = make_game()
     game.handle({"type": "wat"})
     assert rec.last("awaiting")["kind"] != bridge.AWAIT_NONE

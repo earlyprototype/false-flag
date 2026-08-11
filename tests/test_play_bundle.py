@@ -44,6 +44,7 @@ def builder():
 
 @pytest.fixture(scope="module")
 def stamp(builder):
+    """The build every committed artifact should currently be declaring."""
     return builder.compute_stamp(builder.collect_files())
 
 
@@ -63,6 +64,7 @@ def test_bundle_carries_a_stamp_matching_its_contents(builder, stamp):
 
 
 def test_page_declares_the_same_build_the_bundle_was_stamped_with(stamp):
+    """The page names the build, so a cache pairing it wrongly can be seen."""
     text = PAGE.read_text(encoding="utf-8")
     assert f'<meta name="ff-build" content="{stamp}">' in text, (
         f"docs/index.html does not declare build {stamp}, so the page cannot "
