@@ -94,13 +94,21 @@ def collect_files() -> list[tuple[Path, str]]:
 
 def build() -> int:
     OUT.parent.mkdir(parents=True, exist_ok=True)
+    # Everything the deploy needs is checked before a byte is written. A build
+    # that succeeds having quietly skipped a missing app.js — or having left
+    # index.html unstamped — publishes exactly the incoherent deploy this
+    # stamp exists to prevent, and says it went fine.
     try:
         files = collect_files()
+        stamp = compute_stamp(files)
     except FileNotFoundError as e:
         print(f"  MISSING {e} — aborting", file=sys.stderr)
         return 1
-
-    stamp = compute_stamp(files)
+    if not PAGE.is_file():
+        print(f"  MISSING {PAGE} — aborting: there is no page to stamp, so "
+              f"nothing would tell a browser which build this is",
+              file=sys.stderr)
+        return 1
 
     raw = 0
     # Fixed timestamps keep the zip byte-identical across rebuilds, so a
@@ -135,18 +143,36 @@ def compute_stamp(files: list[tuple[Path, str]]) -> str:
     any one of them changes the stamp — and therefore every asset URL — at
     once. A browser then either has the whole build or fetches the whole
     build; it cannot end up running half of each.
+
+    Raises:
+        FileNotFoundError: if a configured page asset is missing. Skipping it
+            would hash as though the deploy were complete and hand back a
+            stamp that says so.
     """
     h = hashlib.sha256()
-    for _, arc in sorted(files, key=lambda pair: pair[1]):
-        h.update(arc.encode("utf-8"))
+
+    def entry(name: str, data: bytes) -> None:
+        """Frame one entry so its bounds survive concatenation.
+
+        Names and contents used to be hashed as two flat runs, which let a
+        byte move from the end of one file to the start of the next without
+        changing the stream: ``[b"X", b"YZ"]`` and ``[b"XY", b"Z"]`` hash
+        alike. A stamp that misses a real change is worse than no stamp,
+        because every asset URL then keeps asserting a build the browser no
+        longer has. Length-delimiting each entry closes that.
+        """
+        h.update(name.encode("utf-8"))
         h.update(b"\0")
+        h.update(len(data).to_bytes(8, "big"))
+        h.update(data)
+
     for full, arc in sorted(files, key=lambda pair: pair[1]):
-        h.update(full.read_bytes())
+        entry(arc, full.read_bytes())
     for name in sorted(STAMPED_ASSETS + UNSTAMPED_IN_HASH):
         asset = ROOT / "docs" / name
-        if asset.is_file():
-            h.update(name.encode("utf-8"))
-            h.update(asset.read_bytes())
+        if not asset.is_file():
+            raise FileNotFoundError(str(asset))
+        entry(name, asset.read_bytes())
     return h.hexdigest()[:12]
 
 
@@ -154,11 +180,15 @@ def stamp_page(stamp: str) -> bool:
     """Write the stamp into index.html. Returns True if the file changed.
 
     Idempotent: an existing stamp is replaced rather than accumulated, so the
-    script is safe to run repeatedly.
+    script is safe to run repeatedly. False means the page already declared
+    this build, never that there was no page — ``build`` refuses to get this
+    far without one.
+
+    Raises:
+        FileNotFoundError: if index.html is missing.
     """
     if not PAGE.is_file():
-        print(f"  MISSING {PAGE} — page not stamped", file=sys.stderr)
-        return False
+        raise FileNotFoundError(str(PAGE))
     text = original = PAGE.read_text(encoding="utf-8")
 
     meta = f'<meta name="ff-build" content="{stamp}">'
@@ -170,9 +200,13 @@ def stamp_page(stamp: str) -> bool:
                             1)
 
     for name in STAMPED_ASSETS:
+        # `asset` binds this iteration's name into the replacement rather than
+        # closing over the loop variable. re.sub consumes it before the next
+        # iteration either way, but a late-binding closure in a rewrite that
+        # edits URLs is not a thing to leave resting on call order.
         text = re.sub(
             r'((?:href|src)=")' + re.escape(name) + r'(?:\?v=[^"]*)?(")',
-            lambda m: m.group(1) + name + "?v=" + stamp + m.group(2),
+            lambda m, asset=name: m.group(1) + asset + "?v=" + stamp + m.group(2),
             text)
 
     if text == original:
