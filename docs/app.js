@@ -5,6 +5,11 @@
  *
  *   page -> worker : {type:'boot'}
  *                    {type:'newGame', config:{scenario, playMode, mysteryMode, seed}}
+ *                    {type:'input', text}      // one line from the prompt,
+ *                      // parsed engine-side: free text is a question to the
+ *                      // room, a leading slash is a command (/menu for the
+ *                      // list). decide/ask/call remain valid and are what
+ *                      // `input` resolves to.
  *                    {type:'decide', text}
  *                    {type:'ask', advisor, text}
  *                    {type:'call', country, text}
@@ -29,9 +34,9 @@
  *   - {type:'saved', data} - the reply to a save request. The contract names
  *     the request but not where the bytes come back; if no worker ever sends
  *     it, Save simply asks and nothing else happens.
- *   - extra keys on `state` (finalTurn, advisors, contacts). When the engine
- *     sends who is in the room and which capitals are reachable, the pickers
- *     follow it; otherwise the markup's defaults stand.
+ *   - extra keys on `state` (finalTurn). Who is in the room and which
+ *     capitals will take a call now reach the player through /status advisors
+ *     and /intel, in the transcript, rather than through pickers beside it.
  */
 (function () {
   'use strict';
@@ -85,8 +90,8 @@
     'scenario', 'playMode', 'mysteryMode', 'seed', 'modelChoice', 'startWithKey',
     'screen', 'metrics', 'termTitle', 'termRef', 'widthToggle', 'speedToggle',
     'awaiting', 'awaitingTag', 'awaitingWhat', 'controls',
-    'decideText', 'sendDecide', 'endTurn', 'advisor', 'askText', 'sendAsk',
-    'country', 'callText', 'sendCall', 'saveGame', 'loadGame', 'loadFile',
+    'promptInput', 'promptSend', 'promptLabel', 'promptHint', 'endTurn',
+    'saveGame', 'loadGame', 'loadFile',
     'abandon', 'alerts', 'endingSlot', 'stageTitle'
   ].forEach(function (id) { el[id] = $(id); });
 
@@ -259,13 +264,11 @@
       Narrative goes through the typewriter; `instant` (chrome, prompts,
       state lines) does not — though it still queues behind a live reveal so
       blocks never land out of order. */
-  function write(text, instant, prose) {
+  function write(text, instant) {
     var stick = atBottom();
-    /* Every block is its own element so it can be styled as what it is:
-       `prose` (a flow pen upstream) reads as set text; everything else is
-       terminal chrome and keeps the fixed-width look. */
+    // One block per engine message, all of it 78-column terminal.
     var frag = document.createElement('div');
-    frag.className = 'blk' + (prose ? ' prose' : '');
+    frag.className = 'blk';
     frag.innerHTML = ansi.render(text);
     if (typer.typed && (!instant || typer.job || typer.queue.length)) {
       var nodes = collectTextNodes(frag);
@@ -436,6 +439,8 @@
       'The turn is resolved. Read it, then continue when you are ready.'],
     pause: ['PRESS SPACE TO CONTINUE',
       'Take it at your own pace. SPACE (or Enter) for the next beat.'],
+    order: ['AWAITING ORDER',
+      'You typed /decide. What you write next is the order the Cabinet acts on.'],
     none: ['STANDBY', 'Nothing is expected from you right now.'],
     booting: ['BOOTING', 'Loading the engine.'],
     busy: ['WORKING', 'Sent. The room is thinking.'],
@@ -458,34 +463,37 @@
     setAwaiting(kind);
 
     var live = kind === 'question';   // a call is in progress
+    var order = kind === 'order';     // /decide armed: the next line is it
     var open = kind === 'decision';
     var usable = !ui.fatal && !ui.over;
 
-    el.sendDecide.disabled = !(usable && open);
-    el.sendAsk.disabled = !(usable && open);
-    el.sendCall.disabled = !(usable && (open || live));
+    el.promptSend.disabled = !(usable && (open || live || order));
     el.endTurn.hidden = kind !== 'confirm';
     el.endTurn.disabled = ui.fatal;
 
-    el.country.disabled = live;       // you cannot redial mid-call
-    el.sendCall.textContent = live ? 'Say it' : 'Place the call';
-    var callLabel = document.querySelector('label[for="callText"]');
-    if (callLabel) {
-      callLabel.textContent = live
-        ? 'THE LINE IS OPEN ── WHAT YOU SAY NEXT (“end” HANGS UP)'
-        : 'WHAT YOU SAY ON THE LINE ── OR LEAVE EMPTY TO JUST OPEN THE LINE';
-    }
+    // The prompt is one box, so it says what it is for at each turn of the
+    // loop rather than making the player guess which mode they are in.
+    el.promptLabel.textContent = live
+      ? 'THE LINE IS OPEN ── WHAT YOU SAY NEXT (“end” HANGS UP)'
+      : order
+        ? 'YOUR ORDER ── WRITE IT AS YOU WOULD SAY IT'
+        : 'ASK THE ROOM, OR TYPE A COMMAND ── /menu FOR THE LIST';
+    el.promptSend.textContent = live ? 'Say it' : order ? 'Give the order' : 'Send';
 
-    if (live) { selectTab('call'); el.callText.focus(); }
-    if (kind === 'confirm') selectTab('decide');
+    /* Put the caret back in the prompt when the game hands the turn over —
+       but only if the player has not put it somewhere else. This runs on
+       every awaiting message, so an unconditional focus() would yank a
+       screen-reader cursor, or the caret out of Save/Load, mid-interaction. */
+    var elsewhere = document.activeElement &&
+      document.activeElement !== document.body &&
+      document.activeElement !== el.promptInput;
+    if ((live || order || open) && usable && !elsewhere) el.promptInput.focus();
   }
 
   function markBusy() {
     ui.busy = true;
     setAwaiting('busy');
-    el.sendDecide.disabled = true;
-    el.sendAsk.disabled = true;
-    el.sendCall.disabled = true;
+    el.promptSend.disabled = true;
     el.endTurn.disabled = true;
   }
 
@@ -493,40 +501,11 @@
     return key.replace(/_/g, ' ').toUpperCase();
   }
 
-  /* The engine may also send who is actually in the room and which capitals
-     the current alliance standing has open. When it does, the pickers follow
-     it rather than a hard-coded list; when it does not, the markup's defaults
-     stand. `value` is preserved across a refresh so a live call is not
-     silently redialled. */
-  function repopulate(select, rows, valueKey, labelKeys) {
-    if (!Array.isArray(rows) || !rows.length) return;
-    var want = select.value;
-    var built = rows.map(function (r) {
-      if (typeof r === 'string') return { v: r, t: r };
-      var label = null;
-      for (var i = 0; i < labelKeys.length && !label; i++) label = r[labelKeys[i]];
-      return { v: r[valueKey], t: label || r[valueKey] };
-    }).filter(function (o) { return o.v; });
-    var same = built.length === select.options.length &&
-      built.every(function (o, i) { return select.options[i].value === o.v; });
-    if (same) return;
-    select.innerHTML = '';
-    built.forEach(function (o) {
-      var opt = document.createElement('option');
-      opt.value = o.v;
-      opt.textContent = o.t;
-      select.appendChild(opt);
-    });
-    if (built.some(function (o) { return o.v === want; })) select.value = want;
-  }
-
   function renderMetrics(turn, visible, metrics, extra) {
     extra = extra || {};
     var ref = 'TURN ' + (turn || '—');
     if (extra.finalTurn) ref += ' / ' + extra.finalTurn;
     el.termRef.textContent = ref;
-    repopulate(el.advisor, extra.advisors, 'id', ['label', 'name']);
-    repopulate(el.country, extra.contacts, 'code', ['title', 'name']);
     el.metrics.innerHTML = '';
     if (!visible) {
       // Hidden metrics render as nothing at all. A banner announcing the
@@ -605,9 +584,7 @@
     box.appendChild(v); box.appendChild(h); box.appendChild(p); box.appendChild(again);
     el.endingSlot.appendChild(box);
     setAwaiting('over');
-    el.sendDecide.disabled = true;
-    el.sendAsk.disabled = true;
-    el.sendCall.disabled = true;
+    el.promptSend.disabled = true;
     el.endTurn.hidden = true;
     box.scrollIntoView({ block: 'nearest' });
   }
@@ -685,7 +662,7 @@
           }
           break;
         case 'build': onBuildStamp(m.id); break;
-        case 'output': write(m.ansi, m.instant === true, m.prose === true); break;
+        case 'output': write(m.ansi, m.instant === true); break;
         case 'state': renderMetrics(m.turn, m.metricsVisible !== false, m.metrics, m); break;
         case 'awaiting': applyAwaiting(m.kind || 'none'); break;
         case 'ending': showEnding(m.verdict, m.title, m.debrief); break;
@@ -694,9 +671,7 @@
           if (m.fatal) {
             ui.fatal = true;
             setAwaiting('over', 'HALTED', 'The engine stopped. Reload to try again.');
-            el.sendDecide.disabled = true;
-            el.sendAsk.disabled = true;
-            el.sendCall.disabled = true;
+            el.promptSend.disabled = true;
             el.endTurn.disabled = true;
           } else if (ui.busy) {
             applyAwaiting(ui.awaiting);
@@ -1132,35 +1107,73 @@
     el.startShared.addEventListener('click', function () { beginCampaign('shared'); });
   }
 
-  // ----------------------------------------------------------------- tabs
+  // --------------------------------------------------------------- prompt
 
-  var TABS = ['decide', 'ask', 'call'];
-  function selectTab(name) {
-    TABS.forEach(function (t) {
-      var tab = $('tab-' + t), panel = $('panel-' + t);
-      var on = t === name;
-      tab.setAttribute('aria-selected', String(on));
-      panel.hidden = !on;
-    });
-  }
-  TABS.forEach(function (t) {
-    $('tab-' + t).addEventListener('click', function () { selectTab(t); });
-  });
+  /* One prompt, the way the terminal build takes input. Everything typed goes
+     to the engine as a single line and is parsed there (bridge.WebGame.submit)
+     — free text is a question to the room, a leading slash is a command. The
+     page deliberately holds no command table of its own: the tabs and pickers
+     that used to live here were never a simpler interface, they were six
+     unported commands with dropdowns standing in for them. */
 
-  function submitDecision() {
-    var text = el.decideText.value.trim();
-    if (!text) { el.decideText.focus(); return; }
+  var history = [];      // what you have typed this session, newest last
+  var historyAt = -1;    // where ↑/↓ currently sits; -1 = the live line
+  var draft = '';        // the live line, parked while browsing history
+
+  function submitPrompt() {
+    if (el.promptSend.disabled) return;
+    var text = el.promptInput.value.trim();
+    if (!text) { el.promptInput.focus(); return; }
+    if (history[history.length - 1] !== text) history.push(text);
+    historyAt = -1;
+    draft = '';
     markBusy();
-    send({ type: 'decide', text: text });
-    el.decideText.value = '';
+    send({ type: 'input', text: text });
+    el.promptInput.value = '';
   }
 
-  el.sendDecide.addEventListener('click', submitDecision);
+  el.promptSend.addEventListener('click', submitPrompt);
+
+  /* Enter sends and Shift+Enter is a newline — a terminal prompt, not a form
+     field. Ctrl/Cmd+Enter also sends, so the habit from the old boxes still
+     works. ↑/↓ walk what you typed before, as any shell does. */
+  el.promptInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      submitPrompt();
+      return;
+    }
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    if (!history.length) return;
+    // Only take the arrows when the caret is at the edge of the text, so a
+    // multi-line order can still be navigated normally.
+    var box = el.promptInput;
+    var atStart = box.selectionStart === 0 && box.selectionEnd === 0;
+    var atEnd = box.selectionStart === box.value.length &&
+                box.selectionEnd === box.value.length;
+    if (e.key === 'ArrowUp' && atStart) {
+      if (historyAt === -1) { draft = box.value; historyAt = history.length; }
+      if (historyAt > 0) {
+        historyAt -= 1;
+        box.value = history[historyAt];
+        e.preventDefault();
+      }
+    } else if (e.key === 'ArrowDown' && atEnd && historyAt !== -1) {
+      historyAt += 1;
+      if (historyAt >= history.length) {
+        historyAt = -1;
+        box.value = draft;
+      } else {
+        box.value = history[historyAt];
+      }
+      e.preventDefault();
+    }
+  });
 
   /* Paced beats. The cold open and each briefing arrive one beat at a time so
      the reader sets the speed, the way the terminal build has always done it.
-     Asking for the next beat must not fire while a text box has focus, or
-     writing a paragraph would advance the game underneath you. */
+     Asking for the next beat must not fire while the prompt has focus, or
+     writing an order would advance the game underneath you. */
   function typingInABox(node) {
     if (!node) return false;
     var tag = (node.tagName || '').toLowerCase();
@@ -1186,39 +1199,6 @@
   el.awaiting.addEventListener('click', function (e) {
     if (e && e._ffTypeskip) return;  // that tap landed the typewriter text
     advanceBeat();
-  });
-
-  /* Ctrl/Cmd+Enter sends from any of the three boxes. Plain Enter must stay a
-     newline - the whole point is that you write a paragraph. */
-  function sendOnCtrlEnter(box, button) {
-    box.addEventListener('keydown', function (e) {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault();
-        if (!button.disabled) button.click();
-      }
-    });
-  }
-  sendOnCtrlEnter(el.decideText, el.sendDecide);
-  sendOnCtrlEnter(el.askText, el.sendAsk);
-  sendOnCtrlEnter(el.callText, el.sendCall);
-
-  el.sendAsk.addEventListener('click', function () {
-    var text = el.askText.value.trim();
-    if (!text) { el.askText.focus(); return; }
-    markBusy();
-    send({ type: 'ask', advisor: el.advisor.value, text: text });
-    el.askText.value = '';
-  });
-
-  el.sendCall.addEventListener('click', function () {
-    var text = el.callText.value.trim();
-    // Mid-call, an empty box has nothing to say. On a fresh call it is the
-    // two-stage flow: the line opens, the counterpart speaks first, and the
-    // next send is what you say on the call.
-    if (!text && ui.awaiting === 'question') { el.callText.focus(); return; }
-    markBusy();
-    send({ type: 'call', country: el.country.value, text: text });
-    el.callText.value = '';
   });
 
   el.endTurn.addEventListener('click', function () {
