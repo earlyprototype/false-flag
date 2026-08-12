@@ -122,6 +122,21 @@ def build() -> int:
               file=sys.stderr)
         return 1
 
+    # Page assets get no such snapshot, and cannot: docs/app.js is deployed as
+    # it sits on disk, not as a copy this script writes, so holding its bytes
+    # in memory would not change what a server later hands out. What can be
+    # done is to notice. If one moved while the hash was being taken, the
+    # stamp about to go into the page already describes bytes that are gone —
+    # so check, and stop before anything is written rather than after.
+    try:
+        if compute_stamp(files, packed=packed) != stamp:
+            print("  a page asset changed while the build was running — "
+                  "nothing written; run it again", file=sys.stderr)
+            return 1
+    except FileNotFoundError as e:
+        print(f"  MISSING {e} — aborting", file=sys.stderr)
+        return 1
+
     # Stamp the page first: if it cannot carry the stamp, there is no point
     # writing an archive whose id nothing will ever quote.
     try:

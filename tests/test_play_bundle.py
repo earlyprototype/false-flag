@@ -212,3 +212,27 @@ def test_the_stamp_describes_the_bytes_the_archive_was_given(builder, tmp_path):
     src.write_bytes(b"second, written mid-build")
     assert builder.compute_stamp(files, packed=packed) == stamp_of_packed
     assert builder.compute_stamp(files) != stamp_of_packed
+
+
+def test_a_page_asset_changing_mid_build_aborts_before_anything_is_written(
+        builder, monkeypatch, tmp_path):
+    """Notice when the ground moves, and write nothing.
+
+    Page assets cannot be staged the way bundle files can: docs/app.js is
+    served from disk, not from a copy this script writes, so a snapshot would
+    not change what a browser receives. The build can only refuse to stamp a
+    page with an id that already describes bytes which are gone.
+    """
+    out = tmp_path / "game.zip"
+    monkeypatch.setattr(builder, "OUT", out)
+
+    # Second read disagrees with the first: an asset moved under the build.
+    stamps = iter(["aaaaaaaaaaaa", "bbbbbbbbbbbb"])
+    monkeypatch.setattr(builder, "compute_stamp",
+                        lambda *a, **k: next(stamps))
+    page_before = PAGE.read_text(encoding="utf-8")
+
+    assert builder.build() == 1
+    assert not out.exists(), "an archive was written despite the abort"
+    assert PAGE.read_text(encoding="utf-8") == page_before, \
+        "index.html was stamped despite the abort"
