@@ -164,3 +164,51 @@ def test_a_missing_page_fails_the_build(builder, monkeypatch, tmp_path):
     assert builder.build() == 1
     with pytest.raises(FileNotFoundError):
         builder.stamp_page("deadbeef1234")
+
+
+def test_a_page_that_cannot_carry_the_stamp_fails_the_build(builder, tmp_path,
+                                                            monkeypatch):
+    """A rewrite that matches nothing is a no-op, and a no-op here is silent.
+
+    The build would report success having left the page with no build id, or
+    with asset URLs a browser is free to serve from an older deploy — the very
+    failure the stamp exists to stop.
+    """
+    page = tmp_path / "index.html"
+    page.write_text("<html><head></head><body></body></html>", encoding="utf-8")
+    monkeypatch.setattr(builder, "PAGE", page)
+    monkeypatch.setattr(builder, "STAMPED_ASSETS", ["app.js"])
+    with pytest.raises(ValueError, match="could not declare which build"):
+        builder.stamp_page("deadbeef1234")
+
+
+def test_a_page_missing_a_stamped_asset_fails_the_build(builder, tmp_path,
+                                                        monkeypatch):
+    page = tmp_path / "index.html"
+    page.write_text(
+        '<html><head><meta name="color-scheme" content="dark">'
+        '</head><body></body></html>', encoding="utf-8")
+    monkeypatch.setattr(builder, "PAGE", page)
+    monkeypatch.setattr(builder, "STAMPED_ASSETS", ["app.js"])
+    with pytest.raises(ValueError, match="does not reference app.js"):
+        builder.stamp_page("deadbeef1234")
+
+
+def test_the_stamp_describes_the_bytes_the_archive_was_given(builder, tmp_path):
+    """Hash and archive must not be two separate reads of the same path.
+
+    Reading twice leaves a window — however small — for an edit to land
+    between them, shipping a game.zip whose contents are not the ones its own
+    build_id.txt claims. ``packed`` closes it by passing the bytes through.
+    """
+    src = tmp_path / "a.py"
+    src.write_bytes(b"first")
+    files = [(src, "a.py")]
+
+    # What the archive was handed is what the stamp must describe, even if the
+    # file on disk has since moved on.
+    packed = [("a.py", src.read_bytes())]
+    stamp_of_packed = builder.compute_stamp(files, packed=packed)
+    src.write_bytes(b"second, written mid-build")
+    assert builder.compute_stamp(files, packed=packed) == stamp_of_packed
+    assert builder.compute_stamp(files) != stamp_of_packed

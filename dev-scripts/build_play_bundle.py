@@ -97,16 +97,22 @@ def build() -> int:
 
     Returns:
         0 on success, 1 if the deploy would be incomplete — a missing bundle
-        source, page asset, or index.html. Nothing is written in that case.
+        source, page asset, or index.html, or a page that cannot carry the
+        stamp. Nothing is written in that case.
     """
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    # Everything the deploy needs is checked before a byte is written. A build
-    # that succeeds having quietly skipped a missing app.js — or having left
-    # index.html unstamped — publishes exactly the incoherent deploy this
-    # stamp exists to prevent, and says it went fine.
+    # Everything the deploy needs is read and checked before a byte is
+    # written. A build that succeeds having quietly skipped a missing app.js —
+    # or having left index.html unstamped — publishes exactly the incoherent
+    # deploy this stamp exists to prevent, and says it went fine.
     try:
         files = collect_files()
-        stamp = compute_stamp(files)
+        # Read once. The hash and the archive must describe the same bytes:
+        # reading each file twice leaves a window, however small, in which an
+        # edit lands between them and ships a game.zip whose contents are not
+        # the ones its own build_id.txt claims.
+        packed = [(arc, full.read_bytes()) for full, arc in files]
+        stamp = compute_stamp(files, packed=packed)
     except FileNotFoundError as e:
         print(f"  MISSING {e} — aborting", file=sys.stderr)
         return 1
@@ -116,23 +122,28 @@ def build() -> int:
               file=sys.stderr)
         return 1
 
+    # Stamp the page first: if it cannot carry the stamp, there is no point
+    # writing an archive whose id nothing will ever quote.
+    try:
+        stamped_page = stamp_page(stamp)
+    except ValueError as e:
+        print(f"  {e} — aborting", file=sys.stderr)
+        return 1
+
     raw = 0
     # Fixed timestamps keep the zip byte-identical across rebuilds, so a
     # committed artifact only churns when the game actually changes.
     with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
-        for full, arc in files:
+        for arc, data in packed:
             info = zipfile.ZipInfo(arc, date_time=(1980, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o644 << 16
-            data = full.read_bytes()
             raw += len(data)
             z.writestr(info, data)
         info = zipfile.ZipInfo(BUILD_STAMP_ARCNAME, date_time=(1980, 1, 1, 0, 0, 0))
         info.compress_type = zipfile.ZIP_DEFLATED
         info.external_attr = 0o644 << 16
         z.writestr(info, stamp + "\n")
-
-    stamped_page = stamp_page(stamp)
 
     size = OUT.stat().st_size
     print(f"  {len(files)} files, {raw:,} raw -> {size:,} bytes")
@@ -142,13 +153,20 @@ def build() -> int:
     return 0
 
 
-def compute_stamp(files: list[tuple[Path, str]]) -> str:
+def compute_stamp(files: list[tuple[Path, str]],
+                  packed: "list[tuple[str, bytes]] | None" = None) -> str:
     """A short content hash over everything a browser has to agree about.
 
     Covers the bundle's own files and the page assets beside it, so changing
     any one of them changes the stamp — and therefore every asset URL — at
     once. A browser then either has the whole build or fetches the whole
     build; it cannot end up running half of each.
+
+    Args:
+        files: The bundle's sources, from ``collect_files``.
+        packed: Their bytes, if the caller has already read them. Passing
+            these keeps the hash and the archive describing the same bytes;
+            reading twice leaves a window for an edit to land between.
 
     Raises:
         FileNotFoundError: if a configured page asset is missing. Skipping it
@@ -172,8 +190,10 @@ def compute_stamp(files: list[tuple[Path, str]]) -> str:
         h.update(len(data).to_bytes(8, "big"))
         h.update(data)
 
-    for full, arc in sorted(files, key=lambda pair: pair[1]):
-        entry(arc, full.read_bytes())
+    contents = ({arc: data for arc, data in packed} if packed is not None
+                else {arc: full.read_bytes() for full, arc in files})
+    for _, arc in sorted(files, key=lambda pair: pair[1]):
+        entry(arc, contents[arc])
     for name in sorted(STAMPED_ASSETS + UNSTAMPED_IN_HASH):
         asset = ROOT / "docs" / name
         if not asset.is_file():
@@ -192,28 +212,41 @@ def stamp_page(stamp: str) -> bool:
 
     Raises:
         FileNotFoundError: if index.html is missing.
+        ValueError: if the page cannot carry the stamp — no place to put the
+            build id, or a configured asset it never references.
     """
     if not PAGE.is_file():
         raise FileNotFoundError(str(PAGE))
     text = original = PAGE.read_text(encoding="utf-8")
 
+    # Every rewrite below is checked. A regex that matches nothing is a no-op,
+    # and a no-op here is silent: the build would report success having left
+    # the page with no build id, or with asset URLs a browser is free to serve
+    # from an older deploy. That is the failure this whole change exists to
+    # stop, so it must not be reachable through the tool that prevents it.
     meta = f'<meta name="ff-build" content="{stamp}">'
-    if re.search(r'<meta name="ff-build" content="[^"]*">', text):
-        text = re.sub(r'<meta name="ff-build" content="[^"]*">', meta, text)
-    else:
-        text = text.replace('<meta name="color-scheme" content="dark">',
-                            '<meta name="color-scheme" content="dark">\n' + meta,
-                            1)
+    text, replaced = re.subn(r'<meta name="ff-build" content="[^"]*">', meta, text)
+    if not replaced:
+        anchor = '<meta name="color-scheme" content="dark">'
+        if anchor not in text:
+            raise ValueError(
+                f"{PAGE} carries no ff-build meta and no {anchor!r} to insert "
+                f"one after — the page could not declare which build it is")
+        text = text.replace(anchor, anchor + "\n" + meta, 1)
 
     for name in STAMPED_ASSETS:
         # `asset` binds this iteration's name into the replacement rather than
-        # closing over the loop variable. re.sub consumes it before the next
+        # closing over the loop variable. re.subn consumes it before the next
         # iteration either way, but a late-binding closure in a rewrite that
         # edits URLs is not a thing to leave resting on call order.
-        text = re.sub(
+        text, hits = re.subn(
             r'((?:href|src)=")' + re.escape(name) + r'(?:\?v=[^"]*)?(")',
             lambda m, asset=name: m.group(1) + asset + "?v=" + stamp + m.group(2),
             text)
+        if not hits:
+            raise ValueError(
+                f"{PAGE} does not reference {name}, so it cannot be stamped "
+                f"and a browser may serve a cached copy against a new engine")
 
     if text == original:
         return False
