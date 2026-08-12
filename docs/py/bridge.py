@@ -150,15 +150,15 @@ def _reflow(text: str) -> List[str]:
 class AnsiPen:
     """Accumulates ANSI text at a fixed column width.
 
-    ``flow`` marks a narrative pen: prose paragraphs are emitted as one
-    logical line each and the page wraps them to the pane (and styles them
-    as readable prose). Chrome pens keep the fixed 78-column discipline the
-    box drawing depends on.
+    Everything is fixed-width: this is a terminal game, and the box drawing,
+    the aligned metric tables and the rules all depend on a column being a
+    column. A previous revision gave narrative blocks a "flow" mode that the
+    page re-set as book-face prose at its own measure; that turned the game
+    into a web document and is gone.
     """
 
-    def __init__(self, width: int = DEFAULT_WIDTH, flow: bool = False):
+    def __init__(self, width: int = DEFAULT_WIDTH):
         self.width = clamp_width(width)
-        self.flow = bool(flow)
         self._parts: List[str] = []
 
     def raw(self, text: str = "") -> "AnsiPen":
@@ -182,15 +182,9 @@ class AnsiPen:
         return self.raw(_c(colour, BOLD + "═" * left + label + "═" * right))
 
     def section(self, text: str, colour: str = AMBER) -> "AnsiPen":
-        """A left-aligned minor heading with a trailing rule.
-
-        A flow pen keeps the tail short: its lines are wrapped by the page
-        at whatever width the pane happens to be, so a 78-column rule would
-        fold onto a second line instead of underlining anything.
-        """
+        """A left-aligned minor heading with a trailing rule to the margin."""
         label = f"── {text.strip().upper()} "
-        tail = 8 if self.flow else max(0, self.width - len(label))
-        return self.raw(_c(colour, label + "─" * tail))
+        return self.raw(_c(colour, label + "─" * max(0, self.width - len(label))))
 
     def wrap(self, text: str, colour: str = "", indent: str = "",
              subsequent: Optional[str] = None, reflow: bool = True) -> "AnsiPen":
@@ -210,11 +204,6 @@ class AnsiPen:
         for block in blocks:
             if not block.strip():
                 self.blank()
-                continue
-            if self.flow:
-                # One logical line per paragraph; the page soft-wraps it.
-                line = indent + block.strip()
-                self.raw(_c(colour, line) if colour else line)
                 continue
             wrapped = textwrap.wrap(
                 block.strip(), width=avail,
@@ -264,6 +253,50 @@ AWAIT_DECISION = "decision"  # the turn is open: decide / ask / call
 AWAIT_QUESTION = "question"  # a diplomatic call is live; next `call` continues it
 AWAIT_CONFIRM = "confirm"    # decision resolved; send endTurn to advance
 AWAIT_PAUSE = "pause"        # a beat has played; send `continue` for the next
+AWAIT_ORDER = "order"        # `/decide` was typed bare: the next line is the order
+
+# The command set, in the CLI's own words and order (cli/rich_ui.command_menu
+# and the /menu block in cli/main.py). The browser build parses input here
+# rather than in the page for the same reason the CLI parses it in one place:
+# a second copy in JavaScript would drift, and the terminal would start
+# disagreeing with itself about what it accepts.
+#
+# /theme and /llm are deliberately absent. The CLI changes rich's palette and
+# opens a model-settings menu; this build has one palette and picks its model
+# on the way in, so offering them would be a promise the page cannot keep.
+COMMANDS = [
+    ("/menu", "Show this list (also /help)"),
+    ("/status", "Current metrics and situation"),
+    ("/status advisors", "Advisor trust and standing"),
+    ("/advise", "Every advisor reports (/advise concise for brief)"),
+    ("/askall <question>", "Put one question to the whole room"),
+    ("/resources", "UK forces and stockpiles"),
+    ("/intel [country]", "Intelligence on foreign actors"),
+    ("/call <country>", "Contact a foreign leader or diplomat"),
+    ("/decide", "Give the order (or /decide <your order>)"),
+    ("/save", "Save the campaign"),
+    ("/quit", "Leave the crisis room"),
+]
+
+# The CLI accepts these bare as well as slashed ("status", "/status").
+_BARE_ALIASES = {"menu", "help", "status", "advise", "resources", "intel",
+                 "decide", "decision", "save", "quit"}
+
+# /advise asks each seat its own question, which is what makes it different
+# from /askall putting one question to everyone. Text mirrors cli/main.py.
+_ADVISE_ROUNDS = [
+    ("national_security_advisor",
+     "NSA, what's your assessment of the current situation and recommended "
+     "course of action?"),
+    ("chief_defence_staff",
+     "CDS, what are our military options and constraints?"),
+    ("foreign_secretary",
+     "Foreign Secretary, what's the diplomatic landscape and alliance status?"),
+    ("home_secretary",
+     "Home Secretary, what are the domestic security concerns?"),
+    ("attorney_general",
+     "Attorney General, what are the legal constraints and considerations?"),
+]
 
 # Player-facing labels for the advisors the question router understands.
 ADVISORS = [
@@ -548,10 +581,6 @@ class WebGame:
         if body.strip():
             if instant:
                 self.emit(type="output", ansi=body + RESET, instant=True)
-            elif pen.flow:
-                # Narrative from a flow pen: the page styles it as readable
-                # prose and soft-wraps its paragraph lines.
-                self.emit(type="output", ansi=body + RESET, prose=True)
             else:
                 self.emit(type="output", ansi=body + RESET)
 
@@ -599,7 +628,7 @@ class WebGame:
         read from the same ``engine.opening`` beats, so the pacing — where
         the breaks fall — is identical even though the rendering is not.
         """
-        pen = AnsiPen(self.width, flow=True)
+        pen = AnsiPen(self.width)
         pen.blank()
         if scene.has_card:
             pen.section(f"SCENE {scene.numeral} ── {scene.title}", ACCENT)
@@ -895,7 +924,7 @@ class WebGame:
         pen.blank()
         self.out(pen)
 
-        pen = AnsiPen(self.width, flow=True)
+        pen = AnsiPen(self.width)
 
         # The narrator bridge lands in the transcript as "[Narrator] ..."
         bridge = next(
@@ -940,7 +969,7 @@ class WebGame:
                          before: Dict[str, int]) -> None:
         """The second half of a briefing: the report, then hand back to the player."""
         if report:
-            pen = AnsiPen(self.width, flow=True)
+            pen = AnsiPen(self.width)
             pen.wrap("\n".join(report), colour=INK)
             pen.blank()
             self.out(pen)
@@ -967,7 +996,7 @@ class WebGame:
         if self._required_call_live():
             encounter = self.gm.active_encounter
             self._call_seen = 0
-            pen = AnsiPen(self.width, flow=True)
+            pen = AnsiPen(self.width)
             pen.blank()
             pen.section("INCOMING CALL — YOU MUST TAKE THIS", ACCENT)
             pen.wrap("The line is already open. Whatever you type next is "
@@ -984,7 +1013,7 @@ class WebGame:
         # line was still open, so that routing looked like a wrong number.
         encounter = self.gm.active_encounter if self.gm else None
         if encounter and encounter.active and self._call_seen == 0:
-            pen = AnsiPen(self.width, flow=True)
+            pen = AnsiPen(self.width)
             pen.blank()
             pen.section("LINE STILL OPEN", ACCENT)
             pen.wrap("You were mid-call when the session was saved. A further "
@@ -1021,7 +1050,7 @@ class WebGame:
             self.reject("Empty question.", was_awaiting)
             return
 
-        pen = AnsiPen(self.width, flow=True)
+        pen = AnsiPen(self.width)
         pen.section("DISCUSSION", DIM)
         pen.speaker("Prime Minister", question, colour=AMBER)
         self.out(pen)
@@ -1037,7 +1066,7 @@ class WebGame:
             prompt = f"{cue}, {question}" if cue else question
             lines = gm.process_question(prompt)
 
-        pen = AnsiPen(self.width, flow=True)
+        pen = AnsiPen(self.width)
         for line in lines:
             if line.startswith("Prime Minister:"):
                 continue
@@ -1108,7 +1137,7 @@ class WebGame:
         """Render only the lines of the call not already sent to the page."""
         fresh = transcript[self._call_seen:]
         self._call_seen = len(transcript)
-        pen = AnsiPen(self.width, flow=True)
+        pen = AnsiPen(self.width)
         # Entries can themselves be multi-line (the closing assessment is
         # appended as one block), so flatten before rendering.
         for entry in fresh:
@@ -1149,7 +1178,7 @@ class WebGame:
             self.reject("Empty decision.", was_awaiting)
             return
 
-        pen = AnsiPen(self.width, flow=True)
+        pen = AnsiPen(self.width)
         pen.blank()
         pen.section("PRIME MINISTER'S DECISION", AMBER)
         pen.wrap(action, colour=AMBER)
@@ -1160,7 +1189,7 @@ class WebGame:
         result = gm.resolve_decision(action)
         trace(f"resolve turn {gm.world.turn - 1} done")
 
-        pen = AnsiPen(self.width, flow=True)
+        pen = AnsiPen(self.width)
         pen.section("ACTION ASSESSMENT", DIM)
         pen.wrap(result.get("interpretation") or "", colour=INK)
         pen.blank()
@@ -1171,7 +1200,7 @@ class WebGame:
 
         concerns = list(result.get("critical_concerns") or [])
         if concerns:
-            pen = AnsiPen(self.width, flow=True)
+            pen = AnsiPen(self.width)
             pen.section("CRITICAL ADVISORY", DANGER)
             for c in concerns:
                 pen.speaker(display_role(c["role"]), c["concern"],
@@ -1184,7 +1213,7 @@ class WebGame:
 
         reactions = result.get("advisor_reactions") or []
         if reactions:
-            pen = AnsiPen(self.width, flow=True)
+            pen = AnsiPen(self.width)
             pen.section("AROUND THE TABLE", DIM)
             for item in reactions:
                 if isinstance(item, (list, tuple)) and len(item) >= 2:
@@ -1196,7 +1225,7 @@ class WebGame:
 
         intl = result.get("international_reactions") or []
         if intl:
-            pen = AnsiPen(self.width, flow=True)
+            pen = AnsiPen(self.width)
             pen.section("INTERNATIONAL RESPONSE", DIM)
             for r in intl:
                 name = str(r.get("actor_id", "?"))
@@ -1324,6 +1353,362 @@ class WebGame:
         )
         self.set_awaiting(AWAIT_NONE)
 
+    # -- the prompt --------------------------------------------------------
+    #
+    # One line in, exactly as the terminal build takes it. Free text is a
+    # question to the room; a leading slash is a command. The browser used to
+    # offer tabs and dropdowns instead, which was not a smaller interface —
+    # it was the command layer missing, with pickers standing in for the six
+    # commands nobody had ported.
+
+    def submit(self, text: str, was_awaiting: str = AWAIT_DECISION) -> None:
+        """Take one line from the prompt and do whatever the CLI would do."""
+        line = (text or "").strip()
+        if not line:
+            self.set_awaiting(was_awaiting)
+            return
+
+        # A live call owns the prompt: everything typed is said on the line,
+        # which is what the CLI does once an encounter is open.
+        if was_awaiting == AWAIT_QUESTION or self._required_call_live():
+            self.call(None, line, was_awaiting)
+            return
+
+        # `/decide` on its own armed the order prompt; this is that order.
+        if was_awaiting == AWAIT_ORDER and not line.startswith("/"):
+            self.decide(line, was_awaiting)
+            return
+
+        lowered = line.lower()
+        bare = lowered.split()[0] if lowered.split() else ""
+        if not line.startswith("/") and bare not in _BARE_ALIASES:
+            # Free text is a question, and "everyone," opens it to the room —
+            # both straight from cli/main.py.
+            for opener in ("everyone,", "all of you,", "everyone:", "room,"):
+                if lowered.startswith(opener):
+                    self.ask(ASK_ALL["id"], line[len(opener):].strip(),
+                             was_awaiting)
+                    return
+            self.ask(None, line, was_awaiting)
+            return
+
+        verb, _, rest = line.lstrip("/").partition(" ")
+        verb, rest = verb.lower(), rest.strip()
+
+        if verb in ("menu", "help"):
+            self._cmd_menu(was_awaiting)
+        elif verb == "status":
+            self._cmd_status(rest, was_awaiting)
+        elif verb == "advise":
+            self._cmd_advise(rest, was_awaiting)
+        elif verb == "askall":
+            if not rest:
+                self._notice("Usage: /askall <question> — every advisor "
+                             "answers in role, one model call each.",
+                             was_awaiting)
+            else:
+                self.ask(ASK_ALL["id"], rest, was_awaiting)
+        elif verb == "resources":
+            self._cmd_resources(was_awaiting)
+        elif verb == "intel":
+            self._cmd_intel(rest, was_awaiting)
+        elif verb == "call":
+            if not rest:
+                self._notice("Usage: /call <country> — e.g. /call usa. "
+                             "See /menu for who will take a call.",
+                             was_awaiting)
+            else:
+                country, _, message = rest.partition(" ")
+                self.call(country, message.strip(), was_awaiting)
+        elif verb in ("decide", "decision"):
+            if rest:
+                self.decide(rest, was_awaiting)
+            else:
+                pen = AnsiPen(self.width)
+                pen.blank()
+                pen.section("YOUR ORDER", AMBER)
+                pen.wrap("Write what you are doing, in your own words — a "
+                         "paragraph beats a sentence. Say what you are doing, "
+                         "what you are not, and who you are telling.",
+                         colour=DIM)
+                pen.blank()
+                self.out(pen, instant=True)
+                self.set_awaiting(AWAIT_ORDER)
+        elif verb == "save":
+            self.save()
+            self.set_awaiting(was_awaiting)
+        elif verb == "quit":
+            pen = AnsiPen(self.width)
+            pen.blank()
+            pen.wrap("Use ABANDON CAMPAIGN to leave, or /save first — this "
+                     "turn's work has not reached a save yet.", colour=AMBER)
+            pen.blank()
+            self.out(pen, instant=True)
+            self.set_awaiting(was_awaiting)
+        elif verb in ("theme", "llm", "settings"):
+            pen = AnsiPen(self.width)
+            pen.blank()
+            pen.wrap(f"/{verb} belongs to the terminal build. This one has a "
+                     f"single palette, and its model is chosen on the way in.",
+                     colour=DIM)
+            pen.blank()
+            self.out(pen, instant=True)
+            self.set_awaiting(was_awaiting)
+        else:
+            self._notice(f"No such command: /{verb}. Type /menu for the "
+                         f"list.", was_awaiting)
+
+    # -- commands ----------------------------------------------------------
+
+    def _notice(self, text: str, was_awaiting: str,
+                colour: str = AMBER) -> None:
+        """Answer a mistyped command in the transcript, where it was typed.
+
+        ``reject`` raises a banner above the page, which is right for a
+        protocol fault the player did not cause. A misremembered command is
+        not that: the terminal answers it in line, and so does this.
+        """
+        pen = AnsiPen(self.width)
+        pen.blank()
+        pen.wrap(text, colour=colour, indent="  ", subsequent="  ")
+        pen.blank()
+        self.out(pen, instant=True)
+        self.set_awaiting(was_awaiting)
+
+    def _cmd_menu(self, was_awaiting: str) -> None:
+        """The command reference, mirroring the CLI's own menu."""
+        pen = AnsiPen(self.width)
+        pen.blank()
+        pen.section("COMMANDS", AMBER)
+        width = max(len(cmd) for cmd, _ in COMMANDS)
+        for cmd, desc in COMMANDS:
+            pen.raw("  " + _c(SIG, cmd.ljust(width)) + "  " + _c(DIM, desc))
+        pen.blank()
+        pen.wrap("Anything else you type is a question to the room. Name an "
+                 "adviser and it goes to them; open with “everyone,” "
+                 "and they all answer.", colour=DIM)
+        pen.blank()
+        self.out(pen, instant=True)
+        self.set_awaiting(was_awaiting)
+
+    def _cmd_status(self, arg: str, was_awaiting: str) -> None:
+        """Metrics in Classic, the mood and the room everywhere else."""
+        gm = self.gm
+        if arg.strip().lower().startswith("advis"):
+            self._cmd_advisors(was_awaiting)
+            return
+
+        pen = AnsiPen(self.width)
+        pen.blank()
+        if self.metrics_visible():
+            pen.section("SITUATION", AMBER)
+            metrics = self._metrics_snapshot()
+            for key in sorted(metrics):
+                pen.raw("  " + _c(DIM, key.replace("_", " ").title().ljust(24))
+                        + _c(INK, str(metrics[key])))
+            pen.raw("  " + _c(DIM, "Turn".ljust(24)) + _c(INK, str(gm.world.turn)))
+        else:
+            # Immersive and Emergent do not show the player a number; the CLI
+            # answers /status with the mood instead, and so does this.
+            pen.section("SITUATION ASSESSMENT", AMBER)
+            # VibeLevel is a model, not a string: str() on one prints its
+            # repr — `name='Crisis Intensity' level=3 …` — straight at the
+            # player. Read the two fields, the way _emit_vibes and push_state
+            # already do.
+            vibes = list(gm.narrative_state.get_situation_vibes())
+            if vibes:
+                for vibe in vibes:
+                    pen.raw("  " + _c(DIM, str(vibe.name).ljust(22))
+                            + _c(INK, str(vibe.descriptor)))
+            else:
+                pen.wrap("Nothing has moved far enough to read yet.",
+                         colour=DIM, indent="  ")
+            pen.raw("  " + _c(DIM, "Turn ") + _c(INK, str(gm.world.turn)))
+        pen.blank()
+        self.out(pen, instant=True)
+        self.set_awaiting(was_awaiting)
+
+    def _cmd_advisors(self, was_awaiting: str) -> None:
+        """Where the room stands with you."""
+        pen = AnsiPen(self.width)
+        pen.blank()
+        pen.section("ADVISOR ATTITUDES", AMBER)
+        advisors = list(self.gm.get_advisors_state())
+        if not advisors:
+            pen.wrap("Nobody is seated yet.", colour=DIM, indent="  ")
+        for advisor in advisors:
+            name = display_role(str(advisor.get("name") or advisor.get("role")))
+            trust = advisor.get("trust", 50)
+            standing = str(advisor.get("relationship") or "professional")
+            try:
+                bar_len = max(0, min(10, round(int(trust) / 10)))
+            except (TypeError, ValueError):
+                bar_len = 0
+            bar = "█" * bar_len + "·" * (10 - bar_len)
+            colour = TEAL if bar_len >= 7 else AMBER if bar_len >= 4 else DANGER
+            pen.raw("  " + _c(SIG, name.ljust(30)) + _c(colour, bar)
+                    + " " + _c(DIM, f"{trust}  {standing}"))
+            note = advisor.get("notes")
+            if note:
+                pen.wrap(str(note), colour=DIM, indent="    ", subsequent="    ")
+        pen.blank()
+        self.out(pen, instant=True)
+        self.set_awaiting(was_awaiting)
+
+    def _cmd_resources(self, was_awaiting: str) -> None:
+        """UK forces and what is left in the magazines."""
+        data = self.gm.get_resources()
+        pen = AnsiPen(self.width)
+        pen.blank()
+        pen.section("UK FORCES", AMBER)
+        forces = list(data.get("forces") or [])
+        if not forces:
+            pen.wrap("No force data in this scenario.", colour=DIM, indent="  ")
+        for unit in forces:
+            name = str(unit.get("id") or "unknown")
+            where = str(unit.get("location") or "")
+            state = str(unit.get("status") or "")
+            pen.raw("  " + _c(SIG, name[:30].ljust(30))
+                    + _c(INK, where[:26].ljust(26)) + _c(DIM, state))
+            if unit.get("notes"):
+                pen.wrap(str(unit["notes"]), colour=DIM,
+                         indent="    ", subsequent="    ")
+        pen.blank()
+        pen.section("STOCKPILES", AMBER)
+        stockpiles = list(data.get("stockpiles") or [])
+        if not stockpiles:
+            pen.wrap("No stockpile data in this scenario.", colour=DIM,
+                     indent="  ")
+        for item in stockpiles:
+            label = str(item.get("name") or "").replace("_", " ").title()
+            pen.raw("  " + _c(SIG, label[:34].ljust(34))
+                    + _c(INK, str(item.get("count", 0)).rjust(6)) + "  "
+                    + _c(DIM, str(item.get("category") or "").replace("_", " ")))
+            if item.get("note"):
+                pen.wrap(str(item["note"]), colour=DIM,
+                         indent="    ", subsequent="    ")
+        pen.blank()
+        self.out(pen, instant=True)
+        self.set_awaiting(was_awaiting)
+
+    def _cmd_intel(self, arg: str, was_awaiting: str) -> None:
+        """Who is out there, and — with a country code — what they intend."""
+        gm = self.gm
+        actors = list(gm.get_intel_actors())
+        code = arg.strip().upper()
+        pen = AnsiPen(self.width)
+        pen.blank()
+
+        if not code:
+            pen.section("INTELLIGENCE", AMBER)
+            for actor in actors:
+                category = str(actor.get("category") or "neutral")
+                colour = {"adversary": DANGER, "ally": TEAL}.get(category, INK)
+                pen.raw("  " + _c(SIG, str(actor.get("code", "")).ljust(6))
+                        + _c(colour, str(actor.get("name", ""))[:40].ljust(40))
+                        + _c(DIM, category))
+            pen.blank()
+            pen.wrap("/intel <code> for a full assessment — e.g. /intel RUS.",
+                     colour=DIM, indent="  ")
+            pen.blank()
+            self.out(pen, instant=True)
+            self.set_awaiting(was_awaiting)
+            return
+
+        known = {str(a.get("code", "")).upper() for a in actors}
+        if code not in known:
+            self._notice(f"No intelligence file on {code}. "
+                         f"Known: {', '.join(sorted(known)) or 'none'}.",
+                         was_awaiting)
+            return
+
+        detail = gm.get_intel_detail(code)
+        pen.section(f"INTELLIGENCE — {code}", AMBER)
+        self._write_report(pen, detail)
+        pen.blank()
+        self.out(pen, instant=True)
+        self.set_awaiting(was_awaiting)
+
+    # Box drawing and rules mean the engine has already set this text for a
+    # terminal. Re-wrapping it, or bulleting its lines, only breaks what it
+    # already did correctly.
+    _PREFORMATTED = ("═", "─", "━", "│", "┌", "└", "├")
+
+    def _write_report(self, pen: AnsiPen, data: Any, indent: str = "  ") -> None:
+        """Render an assessment the engine built, without assuming its shape.
+
+        ``get_intel_detail`` composes its answer from the actor system and the
+        world, and the keys differ by actor, so this walks whatever came back
+        rather than naming fields this module would have to keep in step.
+        Text the engine already laid out for a terminal is passed through
+        untouched.
+        """
+        if isinstance(data, dict):
+            for key, value in data.items():
+                label = str(key).replace("_", " ").title()
+                if isinstance(value, (dict, list)):
+                    pen.raw(indent + _c(SIG, label))
+                    self._write_report(pen, value, indent + "  ")
+                elif value not in (None, "", []):
+                    self._write_report_text(pen, str(value), indent, label)
+        elif isinstance(data, list):
+            if data and all(isinstance(i, str) for i in data):
+                self._write_report_text(pen, "\n".join(data), indent)
+                return
+            for item in data:
+                if isinstance(item, (dict, list)):
+                    self._write_report(pen, item, indent + "  ")
+                elif item not in (None, ""):
+                    pen.wrap(f"- {item}", colour=INK,
+                             indent=indent, subsequent=indent + "  ")
+        elif data not in (None, ""):
+            self._write_report_text(pen, str(data), indent)
+
+    def _write_report_text(self, pen: AnsiPen, text: str, indent: str,
+                           label: str = "") -> None:
+        """One field: verbatim if the engine already formatted it, else wrapped."""
+        if any(g in text for g in self._PREFORMATTED) or "\n" in text:
+            if label:
+                pen.raw(indent + _c(SIG, label))
+            for line in text.replace("\r\n", "\n").split("\n"):
+                pen.raw(_c(INK, line.rstrip()) if line.strip() else "")
+            return
+        body = f"{label}: {text}" if label else text
+        pen.wrap(body, colour=INK, indent=indent, subsequent=indent + "  ")
+
+    def _cmd_advise(self, arg: str, was_awaiting: str) -> None:
+        """Every seat reports on the situation, each asked its own question."""
+        arg = arg.strip().lower()
+        if arg and arg != "concise":
+            self._notice("Usage: /advise or /advise concise", was_awaiting)
+            return
+        brevity = ("[Answer in one or two sentences maximum]" if arg == "concise"
+                   else "[Please be concise - 3-4 sentences maximum]")
+
+        pen = AnsiPen(self.width)
+        pen.blank()
+        pen.section("COBRA ADVISORY PANEL", ACCENT)
+        self.out(pen, instant=True)
+
+        for advisor_id, question in _ADVISE_ROUNDS:
+            cue = _ADVISOR_CUE.get(advisor_id)
+            prompt = f"{cue}, {question} {brevity}" if cue else \
+                f"{question} {brevity}"
+            lines = self.gm.process_question(prompt)
+            pen = AnsiPen(self.width)
+            for line in lines:
+                if line.startswith("Prime Minister:"):
+                    continue
+                if ":" in line:
+                    role, said = line.split(":", 1)
+                    pen.speaker(display_role(role), said.strip())
+                elif line.strip():
+                    pen.wrap(line, colour=INK)
+            self.out(pen)
+
+        self.push_state()
+        self.set_awaiting(was_awaiting)
+
     # -- save / load -------------------------------------------------------
 
     def save(self) -> None:
@@ -1364,7 +1749,8 @@ class WebGame:
 
     # -- dispatch ----------------------------------------------------------
 
-    NEEDS_GAME = {"decide", "ask", "call", "endTurn", "save", "continue"}
+    NEEDS_GAME = {"decide", "ask", "call", "endTurn", "save", "continue",
+                  "input"}
 
     def handle(self, msg: Dict[str, Any]) -> None:
         """Route one page->worker message. Never raises."""
@@ -1400,6 +1786,9 @@ class WebGame:
                 self.ask(msg.get("advisor"), msg.get("text"), was_awaiting)
             elif kind == "call":
                 self.call(msg.get("country"), msg.get("text"), was_awaiting)
+            elif kind == "input":
+                # The prompt. One line, parsed the way the terminal parses it.
+                self.submit(msg.get("text"), was_awaiting)
             elif kind == "endTurn":
                 self.end_turn(was_awaiting)
             elif kind == "continue":

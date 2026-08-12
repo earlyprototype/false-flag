@@ -1062,7 +1062,7 @@ def test_a_stranding_beat_hands_back_the_call_when_one_is_live():
 
         active = True
         required = True
-        transcript = []
+        transcript = ()
 
     game.gm.active_encounter = _Encounter()
     game.queue(lambda: None)
@@ -1086,3 +1086,168 @@ def test_recovery_leaves_a_finished_campaign_idle():
     game.set_awaiting(bridge.AWAIT_NONE)
     game.handle({"type": "continue"})
     assert rec.last("awaiting")["kind"] == bridge.AWAIT_NONE
+
+
+# ---------------------------------------------------------------------------
+# The prompt: one line in, parsed the way the terminal parses it
+# ---------------------------------------------------------------------------
+#
+# The browser build had replaced the CLI's prompt with three tabs and two
+# dropdowns. That was not a smaller interface — it was the command layer
+# missing, with pickers standing in for the six commands nobody had ported.
+# These hold the restored prompt to the terminal's behaviour.
+
+
+def _at_decision():
+    """A game sitting at the discussion prompt, past the cold open."""
+    game, rec = make_game()
+    while rec.last("awaiting")["kind"] == bridge.AWAIT_PAUSE:
+        game.handle({"type": "continue"})
+    return game, rec
+
+
+def _submit(game, rec, line):
+    game.handle({"type": "input", "text": line})
+    return rec.ansi()
+
+
+def test_free_text_is_a_question_to_the_room():
+    """The CLI's default: anything not a command is asked of the advisors."""
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "CDS, what can we put to sea tonight?")
+    assert "DISCUSSION" in out
+    assert "CHIEF OF THE DEFENCE STAFF" in out
+
+
+def test_everyone_opens_the_question_to_the_whole_room():
+    """"everyone," is the CLI's own shorthand for /askall."""
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "everyone, how exposed are we tonight?")
+    for seat in ("CHIEF OF THE DEFENCE STAFF", "ATTORNEY GENERAL",
+                 "HOME SECRETARY"):
+        assert seat in out, f"{seat} did not answer the room"
+
+
+def test_bare_decide_arms_the_order_prompt_and_the_next_line_is_the_order():
+    game, rec = _at_decision()
+    _submit(game, rec, "/decide")
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_ORDER
+    _submit(game, rec, "Hold the line and consult NATO before anything else.")
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_CONFIRM
+
+
+def test_decide_with_the_order_on_the_same_line_skips_the_arming_step():
+    game, rec = _at_decision()
+    _submit(game, rec, "/decide Reinforce air defence and brief the House.")
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_CONFIRM
+
+
+def test_a_live_call_owns_the_prompt():
+    """Once a line is open, everything typed is said on it — as in the CLI."""
+    game, rec = _at_decision()
+    _submit(game, rec, "/call USA Is Article 5 on the table?")
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_QUESTION
+    rec.clear()
+    out = _submit(game, rec, "Then say it publicly, tonight.")
+    assert "PRIME MINISTER" in out
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_QUESTION
+    _submit(game, rec, "end")
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_DECISION
+
+
+@pytest.mark.parametrize("command,expected", [
+    ("/menu", "COMMANDS"),
+    ("/help", "COMMANDS"),
+    ("/status", "SITUATION"),
+    ("/status advisors", "ADVISOR ATTITUDES"),
+    ("/resources", "UK FORCES"),
+    ("/intel", "INTELLIGENCE"),
+])
+def test_every_ported_command_renders(command, expected):
+    """The six commands the tabbed build never had."""
+    game, rec = _at_decision()
+    rec.clear()
+    assert expected in _submit(game, rec, command)
+
+
+def test_commands_are_accepted_bare_as_well_as_slashed():
+    """cli/main.py takes "status" as readily as "/status"."""
+    game, rec = _at_decision()
+    rec.clear()
+    assert "COMMANDS" in _submit(game, rec, "menu")
+
+
+def test_an_unknown_command_answers_in_the_transcript_not_as_a_banner():
+    """A mistyped command is answered where it was typed, as a terminal does."""
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "/nonsense")
+    assert "No such command" in out
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_DECISION
+
+
+def test_a_command_is_never_mistaken_for_a_question():
+    """A slash line must not reach the model as though it were a question."""
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "/status")
+    assert "DISCUSSION" not in out
+
+
+def test_the_prompt_survives_an_empty_line():
+    game, rec = _at_decision()
+    _submit(game, rec, "   ")
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_DECISION
+
+
+def test_intel_on_an_unknown_country_lists_the_ones_that_exist():
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "/intel ZZZ")
+    assert "No intelligence file" in out
+    assert "RUS" in out
+
+
+def test_intel_passes_through_the_engines_own_formatting():
+    """The engine already sets that assessment for a terminal; leave it be."""
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "/intel RUS")
+    assert "DETAILED ASSESSMENT" in out
+    assert "═" in out, "the engine's own rule characters were re-wrapped away"
+
+
+def test_advise_asks_every_seat_its_own_question():
+    """/advise is not /askall: each seat gets the question meant for it."""
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "/advise")
+    assert "COBRA ADVISORY PANEL" in out
+    for seat in ("CHIEF OF THE DEFENCE STAFF", "ATTORNEY GENERAL"):
+        assert seat in out
+
+
+def test_no_output_is_marked_as_prose_any_more():
+    """The transcript is 78-column terminal, not a re-set web document."""
+    game, rec = _at_decision()
+    _submit(game, rec, "/menu")
+    assert not any(m.get("prose") for m in rec.of("output"))
+
+
+def test_status_renders_the_mood_without_leaking_a_model_repr():
+    """VibeLevel is a model; str() on one prints its repr at the player.
+
+    Immersive is the default mode, so /status there was showing
+    `name='Crisis Intensity' level=3 trend='stable' …` in the transcript.
+    """
+    game, rec = make_game(playMode="immersive")
+    rec.clear()
+    out = _submit(game, rec, "/status")
+
+    assert "SITUATION ASSESSMENT" in out
+    assert "Crisis Intensity" in out
+    # The tells of a repr reaching the page.
+    for leak in ("level=", "trend=", "descriptor=", "name='"):
+        assert leak not in out, f"a model repr reached the transcript: {leak!r}"
