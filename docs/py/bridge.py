@@ -276,6 +276,29 @@ ADVISORS = [
 _ADVISOR_CUE = {a["id"]: a["cue"] for a in ADVISORS}
 _ADVISOR_CUE.update({a["label"].lower(): a["cue"] for a in ADVISORS})
 
+# The scenario roster carries the cabinet titles above, so a seated advisor is
+# already named correctly by the time a line reaches the page. A model asked
+# for pushback or a critical concern is not bound by the roster, though, and
+# will sometimes answer as the abstracted persona the prompts once used — so
+# normalise on the way out rather than seating "LEGAL ADVISOR" next to the
+# Attorney General the picker just offered. Mirrors
+# cli/display_utils._ROLE_DISPLAY_TITLES; the browser build cannot import cli.
+_PERSONA_ROLE_TITLES = {
+    "military commander": "Chief of the Defence Staff",
+    "intelligence coordinator": "National Security Adviser",
+    "national security advisor": "National Security Adviser",
+    "diplomatic lead": "Foreign Secretary",
+    "domestic security": "Home Secretary",
+    "legal advisor": "Attorney General",
+    "government leader": "Prime Minister",
+}
+
+
+def display_role(role: str) -> str:
+    """Cabinet title for a speaker label. Unknown names pass through."""
+    text = str(role or "").strip()
+    return _PERSONA_ROLE_TITLES.get(text.lower(), text)
+
 # The whole-room option the page's picker offers alongside the advisors.
 # Not in ADVISORS: it has no routing cue — ask() branches on the id instead,
 # and every seated advisor answers (one LLM call each; see
@@ -305,6 +328,33 @@ VARIANTS = {"standard", "fast_start"}
 _LLM_FAULTS: List[str] = []
 _HTTP_CODE_RE = re.compile(r"HTTP (\d{3})")
 _BATCH_ERROR_PREFIX = "[ERROR:"
+
+# Faults that never got as far as an HTTP request. The call was never issued,
+# so a notice blaming OpenRouter — or the player's connection — sends them
+# hunting for a problem that is not there. That is not a hypothetical: a
+# browser running a cached pre-bb55a91 bundle failed every batched call on
+# Pyodide's missing thread support and was told, five advisors at a time, that
+# the network had gone.
+_THREAD_FAULT_RE = re.compile(r"can'?t start new thread"
+                              r"|can not start new thread"
+                              r"|thread can only be started once", re.IGNORECASE)
+_CONFIG_FAULT_RE = re.compile(r"OPENAI_COMPAT_(?:BASE_URL|MODEL|API_KEY)"
+                              r"|not found in environment or config", re.IGNORECASE)
+
+
+def classify_local_fault(faults: List[str]) -> str:
+    """Name the kind of fault that never reached the wire.
+
+    Returns ``'threads'`` (this build could not start the calls),
+    ``'config'`` (there was no endpoint to call) or ``''`` — the last
+    meaning nothing here rules out a genuine network or endpoint fault.
+    """
+    blob = " ".join(faults)
+    if _THREAD_FAULT_RE.search(blob):
+        return "threads"
+    if _CONFIG_FAULT_RE.search(blob):
+        return "config"
+    return ""
 
 
 def _watch_calls(fn: Callable) -> Callable:
@@ -384,6 +434,11 @@ def describe_llm_faults(faults: List[str], source: str,
         if match:
             codes.add(int(match.group(1)))
 
+    # Only consulted when no call came back with a status: a real HTTP code is
+    # always the more specific story, and a mixed batch should be described by
+    # the refusal that actually reached the wire.
+    local = "" if codes else classify_local_fault(faults)
+
     if source == "shared":
         whose, subject = "the shared key", "The shared key"
     elif source == "own":
@@ -421,6 +476,22 @@ def describe_llm_faults(faults: List[str], source: str,
         code = sorted(codes)[0]
         what = f"OpenRouter refused the request{named} (HTTP {code})."
         fix = "It may be temporary. Carry on and see."
+    elif local == "threads":
+        # Nothing was sent. Saying "OpenRouter never answered" here is not a
+        # vague description of a real fault, it is the wrong fault: the player
+        # goes and checks an endpoint that was never called.
+        what = ("The advisors' calls were never sent — this build could not "
+                "start them. Nothing reached OpenRouter, so neither the "
+                "endpoint nor your connection is at fault.")
+        fix = ("This is fixed in the current build, and a browser still "
+               "running a cached copy of the old one is the usual cause. "
+               "Reload the page with a hard refresh (Ctrl-Shift-R, or "
+               "Cmd-Shift-R on a Mac) to pick the new build up.")
+    elif local == "config":
+        what = ("The advisors' calls were never sent — no live endpoint is "
+                "configured, so there was nothing to call.")
+        fix = ("Reload and set a key (or a base URL and MODEL) to carry on "
+               "with live advisors.")
     else:
         what = (f"The call to OpenRouter never got an answer "
                 f"(using {whose}{named}).")
@@ -972,7 +1043,7 @@ class WebGame:
                 continue
             if ":" in line:
                 role, said = line.split(":", 1)
-                pen.speaker(role.strip(), said.strip())
+                pen.speaker(display_role(role), said.strip())
             elif line.strip():
                 pen.wrap(line, colour=INK)
         self.out(pen)
@@ -1062,7 +1133,7 @@ class WebGame:
                         pen.raw(f"  {_c(DIM, role.strip().title().ljust(22))}"
                                 f"{_c(INK, said.strip())}")
                     else:
-                        pen.speaker(role.strip(), said.strip())
+                        pen.speaker(display_role(role), said.strip())
                 else:
                     pen.wrap(stripped, colour=INK)
         pen.blank()
@@ -1103,7 +1174,8 @@ class WebGame:
             pen = AnsiPen(self.width, flow=True)
             pen.section("CRITICAL ADVISORY", DANGER)
             for c in concerns:
-                pen.speaker(c["role"], c["concern"], colour=DANGER)
+                pen.speaker(display_role(c["role"]), c["concern"],
+                            colour=DANGER)
                 if c.get("recommendation"):
                     pen.wrap(f"→ {c['recommendation']}", colour=AMBER,
                              indent="  ", subsequent="    ")
@@ -1116,9 +1188,9 @@ class WebGame:
             pen.section("AROUND THE TABLE", DIM)
             for item in reactions:
                 if isinstance(item, (list, tuple)) and len(item) >= 2:
-                    pen.speaker(str(item[0]), str(item[1]))
+                    pen.speaker(display_role(item[0]), str(item[1]))
                 elif isinstance(item, dict):
-                    pen.speaker(str(item.get("role", "Adviser")),
+                    pen.speaker(display_role(item.get("role", "Adviser")),
                                 str(item.get("response", "")))
             self.out(pen)
 
@@ -1366,6 +1438,36 @@ class WebGame:
                 self.set_awaiting(AWAIT_NONE)
         finally:
             self._report_llm_faults()
+            self._ensure_actionable(kind)
+
+    def _ensure_actionable(self, kind: str) -> None:
+        """Never leave a live campaign with every control disabled.
+
+        ``AWAIT_NONE`` means "busy": ``handle`` sets it on the way in and each
+        branch is expected to replace it with the state it hands back to.
+        ``play_next`` makes the same assumption of every parked beat. Any path
+        that forgets strands the page on STANDBY — no decision, no question,
+        no call, and no way out but a reload. That is how a call the game says
+        you *must* take becomes one you cannot answer.
+
+        Rather than trusting every branch and every beat to remember, check on
+        the way out and hand back whatever the session can actually do. A game
+        that is over, or one that has not started, is legitimately idle.
+        """
+        if kind == "setKey" or self.gm is None:
+            return
+        if self.awaiting != AWAIT_NONE or self.gm.is_over():
+            return
+        encounter = self.gm.active_encounter
+        if self._paused:
+            recovered = AWAIT_PAUSE
+        elif encounter is not None and getattr(encounter, "active", False):
+            recovered = AWAIT_QUESTION
+        else:
+            recovered = AWAIT_DECISION
+        print(f"[WARN] {kind!r} left the session with nothing to do; "
+              f"recovering to {recovered!r}")
+        self.set_awaiting(recovered)
 
     def _report_llm_faults(self) -> None:
         """Say out loud that the live endpoint refused, if it did.

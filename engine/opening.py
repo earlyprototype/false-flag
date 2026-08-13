@@ -38,8 +38,12 @@ _SCENE_HEADER_RE = re.compile(r"SCENE\s+([IVXLC]+)\s*:\s*(.+)")
 
 # The line the Turn 1 scene-setting hands over to the intelligence report on.
 # Briefings are LLM-written from turn 2, so this matches on the handover
-# rather than on an exact string.
-_REPORT_SPEAKER = "National Security Advisor"
+# rather than on an exact string — and on either spelling of the post. The UK
+# title is "Adviser" and the roster uses it; the US spelling is what a model
+# reaches for about half the time, and matching only one of them silently
+# drops the pause that keeps several simultaneous crises from arriving as one
+# wall of text.
+_REPORT_SPEAKER_RE = re.compile(r"National Security Advis[eo]r", re.IGNORECASE)
 _REPORT_VERBS = ("clears", "begins")
 
 # The closing block of the intro. Not a numbered scene: it addresses the
@@ -182,7 +186,7 @@ def split_briefing(lines: Sequence[str],
         return lines, []
 
     for i, line in enumerate(lines):
-        if _REPORT_SPEAKER in line and any(v in line for v in _REPORT_VERBS):
+        if _REPORT_SPEAKER_RE.search(line) and any(v in line for v in _REPORT_VERBS):
             if i > 0:  # a briefing opening on the handover has nothing to split
                 return lines[:i], lines[i:]
             break

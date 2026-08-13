@@ -238,7 +238,10 @@ def test_display_role_maps_internal_personas_to_cabinet_titles():
     from cli.display_utils import display_role
 
     assert display_role("Military Commander") == "Chief of the Defence Staff"
-    assert display_role("Intelligence Coordinator") == "National Security Advisor"
+    assert display_role("Intelligence Coordinator") == "National Security Adviser"
+    # The roster spelling is the correct UK title; the US variant a model may
+    # reach for lands on the same seat rather than a second one.
+    assert display_role("National Security Advisor") == "National Security Adviser"
     assert display_role("Diplomatic Lead") == "Foreign Secretary"
     assert display_role("Domestic Security") == "Home Secretary"
     assert display_role("Legal Advisor") == "Attorney General"

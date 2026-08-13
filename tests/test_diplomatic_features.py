@@ -445,12 +445,14 @@ def test_filter_excludes_every_internal_uk_line(played_session):
     gm = played_session
     context = get_diplomatic_context(gm.transcript, gm.world, "US")
 
-    # Zero advisor answers reach the counterpart.
+    # Zero advisor answers reach the counterpart. The Prime Minister is not in
+    # this list: the player's own seat carries the cabinet title too, and what
+    # they said *on the call* belongs in the counterpart's context. The lines
+    # of theirs that must not leak are internal, and are asserted below.
     for line in gm.transcript:
         first = str(line).strip().split("\n", 1)[0]
-        for role in ("Government Leader", "Military Commander",
-                     "Intelligence Coordinator", "Domestic Security",
-                     "Diplomatic Lead", "Legal Advisor"):
+        for role in ("Chief of the Defence Staff", "National Security Adviser",
+                     "Home Secretary", "Foreign Secretary", "Attorney General"):
             if first.startswith(f"{role}:"):
                 assert first not in context
 

@@ -186,7 +186,7 @@ def test_process_question_all_one_pm_line_then_every_advisor():
     roles = [l.split(":", 1)[0] for l in answers]
     assert len(roles) == 5, "every seated advisor answers"
     assert len(set(roles)) == 5, "each advisor answers exactly once"
-    assert "Government Leader" not in roles, "the player's own seat is silent"
+    assert "Prime Minister" not in roles, "the player's own seat is silent"
     assert all(l.split(":", 1)[1].strip() for l in answers), \
         "no advisor is rendered saying nothing"
 

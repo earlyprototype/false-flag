@@ -91,7 +91,14 @@ const PYODIDE_CDN =
   new URLSearchParams(self.location.search).get('pyodide') ||
   `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
 const PYODIDE_LOCAL = './pyodide/';
-const GAME_ARCHIVE = './game.zip';
+
+// The build stamp this worker was constructed with (app.js appends it). The
+// bundle is fetched under the same stamp so a page and its engine can never be
+// served from cache as two different builds — the state in which every batched
+// call died locally, the advisors answered from the offline stand-in, and the
+// notice on the page blamed the network for it.
+const BUILD = new URLSearchParams(self.location.search).get('v') || '';
+const GAME_ARCHIVE = './game.zip' + (BUILD ? '?v=' + encodeURIComponent(BUILD) : '');
 
 // Packages loaded from wherever Pyodide itself came from.
 const PACKAGES = ['pydantic', 'pyyaml', 'requests', 'pyodide-http'];
@@ -165,7 +172,11 @@ async function boot() {
     // A missing game.zip on GitHub Pages answers 404 with an HTML body, which
     // unpackArchive then reports as an opaque "boot failed". Say what went
     // wrong instead.
-    const zipResponse = await fetch(GAME_ARCHIVE);
+    // `no-cache` revalidates rather than refetching: an unchanged bundle costs
+    // one 304 and is served from cache anyway. Belt to the stamp's braces —
+    // it is also what rescues a browser still holding an unstamped copy from
+    // before the stamp existed.
+    const zipResponse = await fetch(GAME_ARCHIVE, { cache: 'no-cache' });
     if (!zipResponse.ok) {
       throw new Error(
         `could not fetch ${GAME_ARCHIVE}: HTTP ${zipResponse.status} ` +
@@ -176,6 +187,16 @@ async function boot() {
     try { pyodide.FS.mkdir('/game'); } catch (e) { /* already there */ }
     pyodide.unpackArchive(zip, 'zip', { extractDir: '/game' });
     booting(74, 'game unpacked — starting engine');
+
+    // Report the stamp the bundle was *built* with, whatever stamp it was
+    // *fetched* under. The page compares the two and says so when a cache has
+    // paired it with a different build.
+    let bundleBuild = '';
+    try {
+      bundleBuild = pyodide.FS.readFile('/game/build_id.txt',
+                                        { encoding: 'utf8' }).trim();
+    } catch (e) { /* an older bundle carries no stamp */ }
+    send({ type: 'build', id: bundleBuild });
 
     // Bridge the Python emit() straight onto postMessage. Python runs
     // synchronously inside this worker, so output streams to the page as the

@@ -56,7 +56,7 @@ The air is thick with tension. No one speaks as you enter. They're waiting for y
 
 Around the table, your key advisors:
 
-• [cyan bold]THE NATIONAL SECURITY ADVISOR[/cyan bold] sits to your right, leaning forward with hands clasped.
+• [cyan bold]THE NATIONAL SECURITY ADVISER[/cyan bold] sits to your right, leaning forward with hands clasped.
   A former diplomat with decades of experience, sharp eyes constantly assessing.
 
     - Coordinates intelligence and policy across government
@@ -92,7 +92,7 @@ Around the table, your key advisors:
 Several junior officials line the walls, ready with briefing materials. The Cabinet 
 Secretary stands near the door, guardian of proper process even in crisis.
 
-The National Security Advisor clears their throat. The room falls silent.
+The National Security Adviser clears their throat. The room falls silent.
 
 "Prime Minister, thank you for convening this emergency session on short notice."
 

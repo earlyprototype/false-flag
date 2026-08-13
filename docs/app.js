@@ -41,12 +41,40 @@
   // this page be driven before the worker exists.
   var REAL_WORKER = ['worker.js'];
   var STUB_WORKER = 'stub-worker.js';
+
   var KEY_STORE = 'falseflag.openrouter.key';
   var MODEL_STORE = 'falseflag.model';
   var WIDTH_STORE = 'falseflag.width';
   var SPEED_STORE = 'falseflag.textspeed';
   var COLS = 78;              // the game's own layout width
   var MAX_NODES = 2400;       // transcript trim point
+
+  /* Build stamp — written into index.html by dev-scripts/build_play_bundle.py,
+     and appended to every asset this page fetches. One stamp over the page
+     assets and the engine bundle together means a browser either has the whole
+     build or fetches the whole build; it cannot serve a fresh page against a
+     cached engine. That mixture is not theoretical — it is how players ended
+     up with advisors answering from the offline stand-in while the notice on
+     the page blamed their network. Empty on an unstamped working copy, which
+     simply restores the old unversioned behaviour. */
+  var BUILD = (function () {
+    var meta = document.querySelector('meta[name="ff-build"]');
+    return (meta && meta.getAttribute('content')) || '';
+  })();
+
+  /** Append the build stamp to a same-directory asset URL. */
+  function stamped(url) {
+    if (!BUILD) return url;
+    return url + (url.indexOf('?') === -1 ? '?' : '&') + 'v=' +
+      encodeURIComponent(BUILD);
+  }
+
+  /* Which build is running, in the footer. Turns "the game is behaving
+     strangely" into a fact that can be checked against the deploy. */
+  (function showBuild() {
+    var slot = document.getElementById('buildStamp');
+    if (slot) slot.textContent = BUILD || 'unstamped working copy';
+  })();
 
   var $ = function (id) { return document.getElementById(id); };
   var el = {};
@@ -615,8 +643,32 @@
     }, 5000);
   }
 
+  /* The bundle reports the stamp it was built with. Disagreeing with the
+     page's means this browser has served two different builds from cache and
+     run them together — the exact state in which advisors answer from the
+     offline stand-in while the fault notice blames the network. Name it,
+     rather than leaving it to look like the game misbehaving. */
+  function onBuildStamp(id) {
+    ui.bundleBuild = id || '';
+    if (!BUILD || id === BUILD) return;
+    /* An empty id is not "no information": every stamped bundle reports one,
+       so silence means the cached bundle predates the stamp entirely — which
+       is precisely the copy whose batched calls all died inside Pyodide. */
+    var which = id
+      ? 'the engine bundle is ' + id
+      : 'the engine bundle is an older one, from before builds were stamped';
+    notify('This browser is running two different builds at once: the page is '
+           + BUILD + ' but ' + which + '. Reload with a hard refresh '
+           + '(Ctrl-Shift-R, or Cmd-Shift-R on a Mac) so both come from the '
+           + 'same build. Until then the advisors may answer from the offline '
+           + 'stand-in, and the fault notice may blame the network for it.',
+           false);
+  }
+
   function attach(url, isFallback) {
-    worker = new Worker(url);
+    // Stamped so the worker — and the game.zip it goes on to fetch, which
+    // inherits the stamp from its own URL — are the build this page expects.
+    worker = new Worker(stamped(url));
     workerName = url;
     watchBoot();
     worker.onmessage = function (ev) {
@@ -632,6 +684,7 @@
                   'campaign.' + C.off + '\n', true);
           }
           break;
+        case 'build': onBuildStamp(m.id); break;
         case 'output': write(m.ansi, m.instant === true, m.prose === true); break;
         case 'state': renderMetrics(m.turn, m.metricsVisible !== false, m.metrics, m); break;
         case 'awaiting': applyAwaiting(m.kind || 'none'); break;
@@ -686,7 +739,7 @@
     (function probe() {
       if (i >= REAL_WORKER.length) { attach(STUB_WORKER, true); return; }
       var name = REAL_WORKER[i++];
-      fetch(name, { method: 'GET', cache: 'no-store' })
+      fetch(stamped(name), { method: 'GET', cache: 'no-store' })
         .then(function (r) { if (r.ok) attach(name, false); else probe(); })
         .catch(probe);
     })();
