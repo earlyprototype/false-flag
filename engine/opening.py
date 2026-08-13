@@ -44,7 +44,7 @@ _SCENE_HEADER_RE = re.compile(r"SCENE\s+([IVXLC]+)\s*:\s*(.+)")
 # drops the pause that keeps several simultaneous crises from arriving as one
 # wall of text.
 _REPORT_SPEAKER_RE = re.compile(r"National Security Advis[eo]r", re.IGNORECASE)
-_REPORT_VERBS = ("clears", "begins")
+_REPORT_VERBS = ("clears", "begins", "gestures")
 
 # The closing block of the intro. Not a numbered scene: it addresses the
 # player directly rather than setting a location, so it carries no scene card.

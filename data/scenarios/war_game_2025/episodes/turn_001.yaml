@@ -1,6 +1,12 @@
 # Turn 1: COBRA Meeting - Initial Briefing
 # Sunday 5th October 2025, 17:00
-# Based on "The Wargame" podcast Episode 1
+# Based on "The Wargame" podcast Episode 1.
+# Re-paced 2026-08 (owner decision): the briefing covers the fleet detection
+# alone — the event Scene II just handed to COBRA. The other pre-game threads
+# (the Norfolk murders, Moscow's Severomorsk accusation, the cyber spike, the
+# diplomatic exodus) remain true in the world (initial_conditions.yaml) and
+# surface through play: turn 2's briefing, turn 3's briefing, and any advisor
+# the player asks.
 
 id: turn_001_cobra_briefing
 title: "COBRA Emergency Meeting Convened"
@@ -8,32 +14,30 @@ description: |
   === CABINET OFFICE BRIEFING ROOM A (COBRA) ===
   Sunday 5th October 2025, 17:00
 
-  The National Security Adviser begins:
+  The National Security Adviser gestures to the wall display.
 
-  "Prime Minister, in the past 48 hours we've experienced a series of concerning developments:
-  
-  - Two F-35 pilots were found shot dead in Norfolk on Saturday night. Police investigations are ongoing,
-    but intelligence suggests these men were likely tracked before being killed. This bears the hallmarks
-    of traditional special forces activity.
-  
-  - Russia has falsely accused the UK of involvement in the terrorist attack at Severomorsk naval base
-    on 1st October, which killed over 100 Russian naval personnel. GCHQ assesses with high confidence
-    that Dagestani extremists were responsible, but Moscow is using this as a pretext.
-  
-  - Signals intelligence reveals a snap Russian naval exercise underway in the North Atlantic, involving
-    15 submarines (7 SSBNs, 8 SSNs), 2 destroyers, and 4 frigates. This is well above normal deployment levels.
-  
-  - GCHQ reports cyber attacks on UK businesses and government websites have increased by 65%.
-  
-  - Russian diplomatic staff and their families are departing the UK at speed.
-  
-  The National Security Council assesses this as a coordinated campaign of coercion designed to test
-  NATO resolve. We must respond carefully - neither appearing weak nor provoking further escalation.
+  "Prime Minister, at 16:45 this afternoon Northwood confirmed what you are
+  looking at. Fifteen Russian submarines are at sea in the North Atlantic -
+  seven ballistic missile boats and eight attack boats, with two destroyers
+  and four frigates in escort. They slipped out of Kola Bay seventy-two hours
+  ago, and they are forming up southwest of Iceland, heading for the GIUK gap.
+
+  For context: on a normal day there are two to five submarines in the entire
+  Atlantic, from every navy in the world combined. This is the whole of the
+  Northern Fleet, bar a single boat. We have not seen numbers like this in
+  peacetime. Not even at the height of the Cold War.
+
+  And Moscow has said nothing. No exercise notification, no statement. The
+  deployment was made in silence - and it was made to be found.
+
+  The National Security Council's preliminary assessment is that this is a
+  deliberate test: of us, and of NATO's resolve. We must respond carefully -
+  neither appearing weak nor provoking further escalation. The room is yours,
+  Prime Minister."
 
 channel: briefing
 effects:
   - metric: escalation_risk
     delta: 5..8
   - metric: domestic_stability
-    delta: -3..-5
-
+    delta: -1..-3

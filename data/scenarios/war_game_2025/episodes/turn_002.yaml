@@ -1,6 +1,9 @@
 # Turn 2: Escalating Provocations
 # Sunday 5th October 2025, 19:00 (2 hours after COBRA meeting)
-# Based on typical wargame escalation patterns
+# Based on typical wargame escalation patterns.
+# Re-paced 2026-08 (owner decision): the Norfolk murders and Moscow's
+# Severomorsk accusation land here — the picture darkening around the
+# public provocation — instead of arriving in turn 1's opening list.
 
 id: turn_002_submarine_provocation
 title: "Russian Submarine Surfaces Near UK Waters"
@@ -30,15 +33,27 @@ description: |
   warfare combined.
   
   Home Secretary:
-  Prime Minister, the public is already reacting. Social media is ablaze with speculation. 
-  We're seeing panic buying reports from supermarkets in northern Scotland. Some MPs are 
+  Prime Minister, the public is already reacting. Social media is ablaze with speculation.
+  We're seeing panic buying reports from supermarkets in northern Scotland. Some MPs are
   calling for immediate military response.
-  
+
+  And there is a second matter which, as of this evening, I no longer believe is
+  separate. Two F-35 pilots were found shot dead in Norfolk on Saturday night. Norfolk
+  Constabulary and the Security Service now assess that both men were tracked for days
+  before they were killed - that is special forces tradecraft, on British soil. Until
+  this afternoon it was a murder inquiry. With that submarine on every phone in the
+  country, I have to treat it as part of the same picture.
+
   Foreign Secretary:
-  I've just received word that the Russian Ambassador has declined our request for an 
-  emergency meeting. This is unprecedented. The US National Security Advisor has called 
-  to express concern but stopped short of offering concrete support.
-  
+  I've just received word that the Russian Ambassador has declined our request for an
+  emergency meeting. This is unprecedented. And Moscow has found its voice tonight in
+  the worst way: state media is accusing us of the Severomorsk attack - the bombing at
+  their naval base last week that killed over a hundred of their sailors. GCHQ assesses
+  with high confidence that Dagestani extremists were responsible, but the Kremlin is
+  building a pretext. Their diplomats' families have been flying out of Heathrow since
+  this morning. The US National Security Advisor has called to express concern but
+  stopped short of offering concrete support.
+
   Prime Minister, how do you wish to respond?
 
 channel: intelligence
@@ -46,7 +61,7 @@ effects:
   - metric: escalation_risk
     delta: 5..10
   - metric: domestic_stability
-    delta: -5..-8
+    delta: -7..-10
   - metric: alliance_cohesion
     delta: -2..-5
 

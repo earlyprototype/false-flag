@@ -1,76 +1,88 @@
 # Turn 1 (Fast Start): COBRA Meeting - Initial Briefing + Breaking Development
 # Sunday 5th October 2025, 17:00-19:00
-# Compressed version combining original Turns 1 + 2
+# Compressed version combining original Turns 1 + 2.
+# Re-paced 2026-08 (owner decision): the opening briefing covers the fleet
+# detection alone; the Norfolk murders and Moscow's Severomorsk accusation
+# arrive with the breaking Orkney update, mirroring the standard track.
 
 id: turn_001_fast_cobra_briefing
 title: "COBRA Emergency: Northern Fleet Deployment"
 description: |
   === CABINET OFFICE BRIEFING ROOM A (COBRA) ===
   Sunday 5th October 2025, 17:00
-  
-  The National Security Adviser begins:
 
-  "Prime Minister, in the past 48 hours we've experienced a series of concerning developments:
-  
-  - Two F-35 pilots were found shot dead in Norfolk on Saturday night. Police investigations are ongoing,
-    but intelligence suggests these men were likely tracked before being killed. This bears the hallmarks
-    of traditional special forces activity.
-  
-  - Russia has falsely accused the UK of involvement in the terrorist attack at Severomorsk naval base
-    on 1st October, which killed over 100 Russian naval personnel. GCHQ assesses with high confidence
-    that Dagestani extremists were responsible, but Moscow is using this as a pretext.
-  
-  - Signals intelligence reveals a snap Russian naval exercise underway in the North Atlantic, involving
-    15 submarines (7 SSBNs, 8 SSNs), 2 destroyers, and 4 frigates. This is well above normal deployment levels.
-  
-  - GCHQ reports cyber attacks on UK businesses and government websites have increased by 65%.
-  
-  - Russian diplomatic staff and their families are departing the UK at speed."
-  
-  The NSA pauses, about to continue, when a junior intelligence officer enters quickly and 
+  The National Security Adviser gestures to the wall display.
+
+  "Prime Minister, at 16:45 this afternoon Northwood confirmed what you are
+  looking at. Fifteen Russian submarines are at sea in the North Atlantic -
+  seven ballistic missile boats and eight attack boats, with two destroyers
+  and four frigates in escort. They slipped out of Kola Bay seventy-two hours
+  ago, and they are forming up southwest of Iceland, heading for the GIUK gap.
+
+  For context: on a normal day there are two to five submarines in the entire
+  Atlantic, from every navy in the world combined. This is the whole of the
+  Northern Fleet, bar a single boat. We have not seen numbers like this in
+  peacetime. Not even at the height of the Cold War.
+
+  And Moscow has said nothing. No exercise notification, no statement. The
+  deployment was made in silence - and it was made to be found."
+
+  The NSA pauses, about to continue, when a junior intelligence officer enters quickly and
   hands them a tablet. The NSA's expression darkens.
-  
+
   "Prime Minister... we have a breaking development."
-  
+
   [PAUSE]
-  
+
   === BREAKING UPDATE - 18:45 ===
-  
+
   The National Security Adviser looks up from the tablet:
-  
-  "Approximately 15 minutes ago, a Russian Kilo-class submarine surfaced in international 
-  waters 12 nautical miles off the Orkney Islands. The submarine remained on the surface 
+
+  "Approximately 15 minutes ago, a Russian Kilo-class submarine surfaced in international
+  waters 12 nautical miles off the Orkney Islands. The submarine remained on the surface
   for approximately 15 minutes before submerging.
-  
-  This provocative act was witnessed by passengers aboard the MV Hamnavoe ferry service. 
-  Multiple civilians have already posted photos and videos to social media. The images are 
+
+  This provocative act was witnessed by passengers aboard the MV Hamnavoe ferry service.
+  Multiple civilians have already posted photos and videos to social media. The images are
   spreading rapidly."
-  
+
   GCHQ Assessment:
-  "This is a deliberate show of force designed to intimidate and test UK response. The 
-  submarine is part of the larger Northern Fleet deployment. Its surfacing in sight of 
+  "This is a deliberate show of force designed to intimidate and test UK response. The
+  submarine is part of the larger Northern Fleet deployment. Its surfacing in sight of
   civilians is highly unusual and represents a significant escalation in Russian messaging."
-  
+
   CDS:
-  "Prime Minister, the submarine's position places it within striking range of several critical 
-  infrastructure targets in Scotland, including Scapa Flow, Faslane naval base, and North Sea 
+  "Prime Minister, the submarine's position places it within striking range of several critical
+  infrastructure targets in Scotland, including Scapa Flow, Faslane naval base, and North Sea
   oil installations. We assess this as reconnaissance and psychological warfare combined."
-  
+
   Home Secretary:
-  "Prime Minister, the public is already reacting. Social media is ablaze with speculation. 
-  We're seeing panic buying reports from supermarkets in northern Scotland. Some MPs are 
-  calling for immediate military response."
-  
+  "Prime Minister, the public is already reacting. Social media is ablaze with speculation.
+  We're seeing panic buying reports from supermarkets in northern Scotland. Some MPs are
+  calling for immediate military response.
+
+  And there is a second matter which, as of this evening, I no longer believe is separate.
+  Two F-35 pilots were found shot dead in Norfolk on Saturday night. Norfolk Constabulary
+  and the Security Service now assess that both men were tracked for days before they were
+  killed - that is special forces tradecraft, on British soil. Until this afternoon it was
+  a murder inquiry. With that submarine on every phone in the country, I have to treat it
+  as part of the same picture."
+
   Foreign Secretary:
-  "I've just received word that the Russian Ambassador has declined our request for an 
-  emergency meeting. This is unprecedented. The US National Security Advisor has called 
-  to express concern but stopped short of offering concrete support."
-  
+  "I've just received word that the Russian Ambassador has declined our request for an
+  emergency meeting. This is unprecedented. And Moscow has found its voice tonight in the
+  worst way: state media is accusing us of the Severomorsk attack - the bombing at their
+  naval base last week that killed over a hundred of their sailors. GCHQ assesses with
+  high confidence that Dagestani extremists were responsible, but the Kremlin is building
+  a pretext. Their diplomats' families have been flying out of Heathrow since this morning.
+  The US National Security Advisor has called to express concern but stopped short of
+  offering concrete support."
+
   [PAUSE]
-  
+
   NSA:
-  "Prime Minister, the National Security Council assesses this as a coordinated campaign of 
-  coercion designed to test NATO resolve. We must respond carefully - neither appearing weak 
+  "Prime Minister, the National Security Council assesses this as a coordinated campaign of
+  coercion designed to test NATO resolve. We must respond carefully - neither appearing weak
   nor provoking further escalation. But we need to act soon. The next few hours are critical."
 
 channel: briefing
@@ -81,4 +93,3 @@ effects:
     delta: -8..-13
   - metric: alliance_cohesion
     delta: -2..-5
-
