@@ -482,10 +482,37 @@ def leak_scan(page, needles: dict[str, str]) -> dict:
     }
 
 
+def clear_pauses(page, timeout=420_000):
+    """Press on through the cold open, as a player does.
+
+    The scripted beats land one at a time and wait: 'pause' means the page is
+    holding for a keypress or a tap on the awaiting strip. Nothing advances on
+    its own, so a run that only waits for 'decision' waits for ever — which is
+    exactly what this script did, from the first beat of the cold open.
+    """
+    deadline = time.time() + timeout / 1000
+    while page.evaluate("window.FF_PLAY && window.FF_PLAY.awaiting") == "pause":
+        if time.time() > deadline:
+            raise TimeoutError("still paused after the whole budget")
+        page.click("#awaiting")
+        # One click lands the current block; the next beat arrives after it.
+        page.wait_for_timeout(250)
+
+
 def wait_awaiting(page, kinds, timeout=420_000):
-    page.wait_for_function(
-        "([k]) => window.FF_PLAY && k.indexOf(window.FF_PLAY.awaiting) !== -1",
-        arg=[list(kinds)], timeout=timeout)
+    """Wait for one of ``kinds``, clearing any pause that comes up first."""
+    kinds = list(kinds)
+    deadline = time.time() + timeout / 1000
+    while True:
+        remaining = max(1_000, int((deadline - time.time()) * 1000))
+        page.wait_for_function(
+            "([k]) => window.FF_PLAY && "
+            "(k.indexOf(window.FF_PLAY.awaiting) !== -1 || "
+            " window.FF_PLAY.awaiting === 'pause')",
+            arg=[kinds], timeout=remaining)
+        if page.evaluate("window.FF_PLAY.awaiting") in kinds:
+            return
+        clear_pauses(page, timeout=max(1_000, int((deadline - time.time()) * 1000)))
 
 
 def send_decision(page, text, timeout=420_000):
@@ -498,12 +525,24 @@ def send_decision(page, text, timeout=420_000):
     to have settled into 'confirm' (or ended).
     """
     before = page.evaluate("window.FF_PLAY.text().length")
-    page.fill("#decideText", text)
-    page.click("#sendDecide")
-    page.wait_for_function(
-        """([n]) => window.FF_PLAY.text().length > n &&
-             (window.FF_PLAY.awaiting === 'confirm' || window.FF_PLAY.over)""",
-        arg=[before], timeout=timeout)
+    # One prompt box drives the whole session (decisions, questions and slash
+    # commands all go through it), so these are the only two ids the play loop
+    # needs to know about — and, as in the terminal, a bare line is a question
+    # to the room. Only /decide resolves the turn.
+    page.fill("#promptInput", "/decide " + text)
+    page.click("#promptSend")
+    deadline = time.time() + timeout / 1000
+    while True:
+        remaining = max(1_000, int((deadline - time.time()) * 1000))
+        page.wait_for_function(
+            """([n]) => window.FF_PLAY.text().length > n &&
+                 (window.FF_PLAY.awaiting === 'confirm' ||
+                  window.FF_PLAY.awaiting === 'pause' ||
+                  window.FF_PLAY.over)""",
+            arg=[before], timeout=remaining)
+        if page.evaluate("window.FF_PLAY.awaiting") != "pause":
+            return
+        clear_pauses(page, timeout=max(1_000, int((deadline - time.time()) * 1000)))
 
 
 def main() -> int:
