@@ -90,7 +90,7 @@
     'scenario', 'playMode', 'mysteryMode', 'seed', 'modelChoice', 'startWithKey',
     'screen', 'metrics', 'termTitle', 'termRef', 'widthToggle', 'speedToggle',
     'awaiting', 'awaitingTag', 'awaitingWhat', 'controls',
-    'promptInput', 'promptSend', 'promptLabel', 'promptHint', 'endTurn',
+    'promptInput', 'promptSend', 'promptLabel', 'endTurn',
     'saveGame', 'loadGame', 'loadFile',
     'abandon', 'alerts', 'endingSlot', 'stageTitle'
   ].forEach(function (id) { el[id] = $(id); });
@@ -1134,11 +1134,23 @@
 
   el.promptSend.addEventListener('click', submitPrompt);
 
+  /* Editing a recalled line stops it being a recalled line: the arrows hand
+     control back to the caret, and the parked draft is forgotten. */
+  el.promptInput.addEventListener('input', function () {
+    if (historyAt !== -1 && el.promptInput.value !== history[historyAt]) {
+      historyAt = -1;
+      draft = '';
+    }
+  });
+
   /* Enter sends and Shift+Enter is a newline — a terminal prompt, not a form
      field. Ctrl/Cmd+Enter also sends, so the habit from the old boxes still
      works. ↑/↓ walk what you typed before, as any shell does. */
   el.promptInput.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // isComposing: an IME's Enter accepts the candidate for a half-typed
+    // word. Swallowing it would transmit the partial buffer as the player's
+    // order. The old Ctrl+Enter binding was immune; a bare Enter is not.
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
       submitPrompt();
       return;
@@ -1148,17 +1160,24 @@
     // Only take the arrows when the caret is at the edge of the text, so a
     // multi-line order can still be navigated normally.
     var box = el.promptInput;
+    /* Once we are walking history the arrows own themselves, because setting
+       `value` drops the caret at the end — testing "is the caret at the top?"
+       would then pass only on the first press and history became one-way.
+       Before that, the caret decides, so a multi-line order can still be
+       navigated normally. */
+    var browsing = historyAt !== -1;
     var atStart = box.selectionStart === 0 && box.selectionEnd === 0;
     var atEnd = box.selectionStart === box.value.length &&
                 box.selectionEnd === box.value.length;
-    if (e.key === 'ArrowUp' && atStart) {
-      if (historyAt === -1) { draft = box.value; historyAt = history.length; }
+
+    if (e.key === 'ArrowUp' && (browsing || atStart)) {
+      if (!browsing) { draft = box.value; historyAt = history.length; }
       if (historyAt > 0) {
         historyAt -= 1;
         box.value = history[historyAt];
-        e.preventDefault();
       }
-    } else if (e.key === 'ArrowDown' && atEnd && historyAt !== -1) {
+      e.preventDefault();
+    } else if (e.key === 'ArrowDown' && browsing && (browsing || atEnd)) {
       historyAt += 1;
       if (historyAt >= history.length) {
         historyAt = -1;

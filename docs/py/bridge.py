@@ -280,7 +280,12 @@ COMMANDS = [
 
 # The CLI accepts these bare as well as slashed ("status", "/status").
 _BARE_ALIASES = {"menu", "help", "status", "advise", "resources", "intel",
-                 "decide", "decision", "save", "quit"}
+                 "decide", "decision", "save", "quit",
+                 # Handled below with an explanation rather than silently sent
+                 # to the model as a question; the CLI takes these bare too.
+                 "theme", "llm", "settings",
+                 # The one two-word bare form the CLI accepts.
+                 "status advisors"}
 
 # /advise asks each seat its own question, which is what makes it different
 # from /askall putting one question to everyone. Text mirrors cli/main.py.
@@ -332,9 +337,9 @@ def display_role(role: str) -> str:
     text = str(role or "").strip()
     return _PERSONA_ROLE_TITLES.get(text.lower(), text)
 
-# The whole-room option the page's picker offers alongside the advisors.
-# Not in ADVISORS: it has no routing cue — ask() branches on the id instead,
-# and every seated advisor answers (one LLM call each; see
+# The whole-room target, reached by opening a line with "everyone," or by
+# /askall. Not in ADVISORS: it has no routing cue — ask() branches on the id
+# instead, and every seated advisor answers (one LLM call each; see
 # GameManager.process_question_all).
 ASK_ALL = {"id": "all", "label": "Everyone — the whole room answers"}
 
@@ -449,6 +454,50 @@ def install_fault_probe() -> None:
 
     router._construct_text_driver = watched
     _PROBE_INSTALLED = True
+
+
+@functools.lru_cache(maxsize=1)
+def _call_aliases() -> tuple:
+    """Every name the switchboard answers to, longest first.
+
+    Read from the engine's own alias table so this cannot drift from what
+    ``start_diplomacy`` will actually resolve.
+    """
+    try:
+        from engine.diplomacy import COUNTRY_ALIASES
+    except Exception:
+        return ()
+    return tuple(sorted((a.upper() for a in COUNTRY_ALIASES),
+                        key=lambda a: -len(a.split())))
+
+
+def _split_call_target(rest: str) -> tuple:
+    """Separate the country from anything to be said as the line opens.
+
+    Country names have spaces in them — "united states" is a real alias — so
+    the argument cannot simply be split on the first space: that dialled
+    "united" and said "states" on the line. Match the longest known name at
+    the front instead, and treat whatever follows as the opening remark.
+
+    A quoted name is taken whole, for a country the alias table has not heard
+    of. Failing both, the first word is the country and the rest is the
+    remark, which is what ``/call <code> <message>`` has always meant.
+    """
+    rest = rest.strip()
+    if rest[:1] in ('"', "'"):
+        quote = rest[0]
+        closing = rest.find(quote, 1)
+        if closing != -1:
+            return rest[1:closing].strip(), rest[closing + 1:].strip()
+
+    words = rest.split()
+    for alias in _call_aliases():
+        span = alias.split()
+        if [w.upper() for w in words[:len(span)]] == span:
+            return " ".join(words[:len(span)]), " ".join(words[len(span):])
+
+    head, _, tail = rest.partition(" ")
+    return head.strip(), tail.strip()
 
 
 def describe_llm_faults(faults: List[str], source: str,
@@ -883,12 +932,11 @@ class WebGame:
             # from this, and there is no 10 to render.
             finalTurn=gm.campaign_final_turn if gm.endings_enabled else None,
             vibes=vibes,
-            advisors=ADVISORS + [ASK_ALL],
-            # Only channels the current alliance standing actually opens.
-            contacts=[
-                {"code": c["country"], "title": c["title"], "access": c["access"]}
-                for c in gm.list_diplomatic_channels()
-            ],
+            # No advisor or contact rosters here: the picker that consumed them
+            # is gone, and the terminal answers both questions in the
+            # transcript instead (/menu, /status advisors). Sending lists
+            # nothing reads meant calling list_diplomatic_channels() on every
+            # state push for output that went straight in the bin.
             over=gm.is_over(),
         )
 
@@ -1380,8 +1428,12 @@ class WebGame:
             return
 
         lowered = line.lower()
-        bare = lowered.split()[0] if lowered.split() else ""
-        if not line.startswith("/") and bare not in _BARE_ALIASES:
+        # The whole line, not its first word. cli/main.py tests the entire
+        # input against its bare forms, and it has to: "Decide whether we
+        # escalate — what does the room think?" is a question, and matching on
+        # the first word alone sent it to resolve_decision and burned the turn
+        # on a line the player was still thinking out loud with.
+        if not line.startswith("/") and lowered not in _BARE_ALIASES:
             # Free text is a question, and "everyone," opens it to the room —
             # both straight from cli/main.py.
             for opener in ("everyone,", "all of you,", "everyone:", "room,"):
@@ -1418,8 +1470,12 @@ class WebGame:
                              "See /menu for who will take a call.",
                              was_awaiting)
             else:
-                country, _, message = rest.partition(" ")
-                self.call(country, message.strip(), was_awaiting)
+                # The whole argument is the country: "united states" and
+                # "russian federation" are both real aliases, and splitting on
+                # the first space dialled "united" and said "states" on the
+                # line. To speak as you dial, use quotes.
+                country, message = _split_call_target(rest)
+                self.call(country, message, was_awaiting)
         elif verb in ("decide", "decision"):
             if rest:
                 self.decide(rest, was_awaiting)
@@ -1476,17 +1532,53 @@ class WebGame:
         self.set_awaiting(was_awaiting)
 
     def _cmd_menu(self, was_awaiting: str) -> None:
-        """The command reference, mirroring the CLI's own menu."""
+        """The room, the switchboard and the commands — the CLI's own menu.
+
+        The terminal's /menu prints three things: who is sitting at the table,
+        who will take a call at the current alliance standing, and the command
+        list. The picker this build replaced showed the first two on screen at
+        all times, so dropping them here would lose them altogether.
+        """
         pen = AnsiPen(self.width)
         pen.blank()
+
+        pen.section("THE ROOM", AMBER)
+        cue_width = max(len(a["cue"]) for a in ADVISORS)
+        for advisor in ADVISORS:
+            pen.raw("  " + _c(SIG, advisor["cue"].ljust(cue_width))
+                    + "  " + _c(INK, advisor["label"]))
+        pen.blank()
+        pen.wrap("Open with a cue — “CDS, what are our options?” — and the "
+                 "question goes to that seat alone. Open with “everyone,” and "
+                 "the whole room answers.", colour=DIM, indent="  ",
+                 subsequent="  ")
+        pen.blank()
+
+        pen.section("WHO WILL TAKE A CALL", AMBER)
+        try:
+            channels = list(self.gm.list_diplomatic_channels())
+        except Exception:
+            channels = []
+        if channels:
+            for channel in channels:
+                code = str(channel.get("country", ""))
+                mark = ("LEADER" if channel.get("access") == "leader"
+                        else "Diplomat")
+                pen.raw("  " + _c(SIG, f"/call {code.lower()}") + "  "
+                        + _c(INK, str(channel.get("title", "")))
+                        + _c(DIM, f"  ({mark})"))
+        else:
+            pen.wrap("Nobody. Alliance cohesion is too low for anyone abroad "
+                     "to pick up.", colour=DIM, indent="  ", subsequent="  ")
+        pen.blank()
+
         pen.section("COMMANDS", AMBER)
         width = max(len(cmd) for cmd, _ in COMMANDS)
         for cmd, desc in COMMANDS:
             pen.raw("  " + _c(SIG, cmd.ljust(width)) + "  " + _c(DIM, desc))
         pen.blank()
-        pen.wrap("Anything else you type is a question to the room. Name an "
-                 "adviser and it goes to them; open with “everyone,” "
-                 "and they all answer.", colour=DIM)
+        pen.wrap("Anything else you type is a question to the room.",
+                 colour=DIM, indent="  ", subsequent="  ")
         pen.blank()
         self.out(pen, instant=True)
         self.set_awaiting(was_awaiting)
@@ -1624,57 +1716,51 @@ class WebGame:
 
         detail = gm.get_intel_detail(code)
         pen.section(f"INTELLIGENCE — {code}", AMBER)
-        self._write_report(pen, detail)
+        self._write_assessment(pen, detail)
         pen.blank()
         self.out(pen, instant=True)
         self.set_awaiting(was_awaiting)
 
-    # Box drawing and rules mean the engine has already set this text for a
-    # terminal. Re-wrapping it, or bulleting its lines, only breaks what it
-    # already did correctly.
-    _PREFORMATTED = ("═", "─", "━", "│", "┌", "└", "├")
+    @staticmethod
+    def _assessment_lines(detail: Any) -> List[str]:
+        """The report body out of ``get_intel_detail``'s wrapper.
 
-    def _write_report(self, pen: AnsiPen, data: Any, indent: str = "  ") -> None:
-        """Render an assessment the engine built, without assuming its shape.
+        ``generate_actor_detailed_assessment`` returns a finished report —
+        rules, a header carrying the actor's name and the turn, then the
+        assessment. ``get_intel_detail`` files that under
+        ``assessment.raw`` and repeats the name and turn beside it as
+        ``actor``/``code``/``confidence``/``last_updated``.
 
-        ``get_intel_detail`` composes its answer from the actor system and the
-        world, and the keys differ by actor, so this walks whatever came back
-        rather than naming fields this module would have to keep in step.
-        Text the engine already laid out for a terminal is passed through
-        untouched.
+        The terminal prints the report and nothing else, so this digs the
+        report back out. Walking the wrapper instead put its field names on
+        screen — a bare "Raw" above the rules, and "Last Updated: 3" under
+        them, both of which are schema, not intelligence.
         """
-        if isinstance(data, dict):
-            for key, value in data.items():
-                label = str(key).replace("_", " ").title()
-                if isinstance(value, (dict, list)):
-                    pen.raw(indent + _c(SIG, label))
-                    self._write_report(pen, value, indent + "  ")
-                elif value not in (None, "", []):
-                    self._write_report_text(pen, str(value), indent, label)
-        elif isinstance(data, list):
-            if data and all(isinstance(i, str) for i in data):
-                self._write_report_text(pen, "\n".join(data), indent)
-                return
-            for item in data:
-                if isinstance(item, (dict, list)):
-                    self._write_report(pen, item, indent + "  ")
-                elif item not in (None, ""):
-                    pen.wrap(f"- {item}", colour=INK,
-                             indent=indent, subsequent=indent + "  ")
-        elif data not in (None, ""):
-            self._write_report_text(pen, str(data), indent)
+        raw: Any = detail
+        if isinstance(raw, dict):
+            raw = raw.get("assessment", raw)
+        if isinstance(raw, dict):
+            raw = raw.get("raw", raw)
+        if isinstance(raw, str):
+            return raw.replace("\r\n", "\n").split("\n")
+        if isinstance(raw, list):
+            return [str(line) for line in raw]
+        return [] if raw in (None, "") else [str(raw)]
 
-    def _write_report_text(self, pen: AnsiPen, text: str, indent: str,
-                           label: str = "") -> None:
-        """One field: verbatim if the engine already formatted it, else wrapped."""
-        if any(g in text for g in self._PREFORMATTED) or "\n" in text:
-            if label:
-                pen.raw(indent + _c(SIG, label))
-            for line in text.replace("\r\n", "\n").split("\n"):
-                pen.raw(_c(INK, line.rstrip()) if line.strip() else "")
+    def _write_assessment(self, pen: AnsiPen, detail: Any) -> None:
+        """Print the assessment as the engine laid it out.
+
+        Box drawing and rules mean this text was already set for a terminal.
+        Re-wrapping it, or bulleting its lines, only breaks what it already
+        did correctly.
+        """
+        lines = self._assessment_lines(detail)
+        if not lines:
+            pen.wrap("No assessment on file.", colour=DIM, indent="  ",
+                     subsequent="  ")
             return
-        body = f"{label}: {text}" if label else text
-        pen.wrap(body, colour=INK, indent=indent, subsequent=indent + "  ")
+        for line in lines:
+            pen.raw(_c(INK, line.rstrip()) if line.strip() else "")
 
     def _cmd_advise(self, arg: str, was_awaiting: str) -> None:
         """Every seat reports on the situation, each asked its own question."""
@@ -1690,19 +1776,25 @@ class WebGame:
         pen.section("COBRA ADVISORY PANEL", ACCENT)
         self.out(pen, instant=True)
 
-        for advisor_id, question in _ADVISE_ROUNDS:
-            cue = _ADVISOR_CUE.get(advisor_id)
-            prompt = f"{cue}, {question} {brevity}" if cue else \
-                f"{question} {brevity}"
+        for _advisor_id, question in _ADVISE_ROUNDS:
+            # The questions already open with the seat's own cue ("NSA, what's
+            # your assessment…"), which is what routes them. Prefixing the cue
+            # again sent "NSA, NSA, what's your assessment…" to the model.
+            prompt = f"{question} {brevity}"
             lines = self.gm.process_question(prompt)
             pen = AnsiPen(self.width)
             for line in lines:
-                if line.startswith("Prime Minister:"):
+                # The instruction is scaffolding, not dialogue. The CLI strips
+                # it for the same reason: the prompt is echoed back, and a
+                # model that quotes it would put "[Please be concise …]" in
+                # front of the player.
+                line = line.replace(brevity, "").strip()
+                if not line or line.startswith("Prime Minister:"):
                     continue
                 if ":" in line:
                     role, said = line.split(":", 1)
                     pen.speaker(display_role(role), said.strip())
-                elif line.strip():
+                else:
                     pen.wrap(line, colour=INK)
             self.out(pen)
 

@@ -343,12 +343,18 @@ def test_ask_all_puts_the_question_to_the_whole_room():
     assert rec.last("awaiting")["kind"] == "decision"
 
 
-def test_state_offers_the_whole_room_option():
+def test_state_carries_no_roster_the_page_never_reads():
+    """The picker is gone; the lists it needed must not be pushed regardless.
+
+    ``push_state`` runs on every turn boundary and the contacts list is a
+    file read behind a metric check, so sending rosters nothing consumes is
+    work done for the bin — and a second copy of the room that can drift
+    from the one /menu prints.
+    """
     game, rec = make_game()
-    advisors = rec.last("state")["advisors"]
-    assert advisors[-1]["id"] == "all", \
-        "the picker must offer asking the whole room"
-    assert {a["id"] for a in advisors} > {"all"}, "and the advisors themselves"
+    state = rec.last("state")
+    assert "advisors" not in state
+    assert "contacts" not in state
 
 
 def _instant_outputs(rec):
@@ -1217,6 +1223,62 @@ def test_intel_passes_through_the_engines_own_formatting():
     out = _submit(game, rec, "/intel RUS")
     assert "DETAILED ASSESSMENT" in out
     assert "═" in out, "the engine's own rule characters were re-wrapped away"
+
+
+def test_intel_shows_the_report_and_not_the_dict_it_arrived_in():
+    """``get_intel_detail`` wraps the report; the wrapper is not intelligence.
+
+    Walking that dict printed a bare "Raw" above the engine's own rules and
+    "Last Updated: 3" beneath them — field names, shown to the player as
+    though they were findings.
+    """
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "/intel RUS")
+    for leak in ("Raw", "Last Updated", "Confidence:", "Assessment\n"):
+        assert leak not in out, f"a schema key reached the transcript: {leak!r}"
+    # The report itself is still all there.
+    assert "Relationship Trend" in out
+    assert "Recent Indicators" in out
+
+
+def test_menu_lists_the_room_and_who_will_take_a_call():
+    """The picker showed both at all times; /menu is where they live now."""
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "/menu")
+
+    assert "THE ROOM" in out
+    for seat in ("Chief of the Defence Staff", "National Security Adviser",
+                 "Foreign Secretary", "Home Secretary", "Attorney General"):
+        assert seat in out, f"{seat} is not in the menu"
+    assert "everyone," in out, "the whole-room option must still be offered"
+
+    assert "WHO WILL TAKE A CALL" in out
+    channels = game.gm.list_diplomatic_channels()
+    assert channels, "fixture expected at least one open channel"
+    for channel in channels:
+        assert f"/call {channel['country'].lower()}" in out
+        assert channel["title"] in out
+    assert "COMMANDS" in out
+
+
+@pytest.mark.parametrize("argument,country,message", [
+    # The bug: splitting on the first space dialled "united" and said
+    # "states" down the line.
+    ("united states", "united states", ""),
+    ("united states Is Article 5 on the table?",
+     "united states", "Is Article 5 on the table?"),
+    # A code still takes a message after it, as /call always has.
+    ("USA Is Article 5 on the table?", "USA", "Is Article 5 on the table?"),
+    ("russia", "russia", ""),
+    # Quotes carry a name the alias table has never heard of.
+    ('"Kingdom of Elbonia" We need your ports.',
+     "Kingdom of Elbonia", "We need your ports."),
+])
+def test_call_target_splits_on_the_country_not_the_first_space(
+        argument, country, message):
+    assert bridge._split_call_target(argument) == (country, message)
 
 
 def test_advise_asks_every_seat_its_own_question():
