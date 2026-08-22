@@ -291,10 +291,19 @@ def run_decision_phase(world, scenario: str, rng: Random, root: Path,
         pending_decision = ""
 
         if action.lower() == "cancel":
-            # Return to discussion phase
+            # Return to discussion phase. A declined enhanced decision may
+            # still occupy the transcript tail; it was never committed, so
+            # drop its block rather than leave a phantom
+            # "Prime Minister's Decision:" line in the record.
+            if pending_block_len:
+                del transcript[-pending_block_len:]
             return None
 
         if not action:
+            if pending_block_len:
+                # As on 'cancel': the pending declined block was never
+                # committed - remove it before leaving the phase.
+                del transcript[-pending_block_len:]
             typer.echo("No action entered. Returning to discussion.")
             typer.echo("")
             wait_for_space("Press SPACE (or Enter) to return to discussion...")

@@ -1,6 +1,6 @@
 """Unit tests for the interactive decision loop (cli.main.run_decision_phase).
 
-These pin the two decision-flow bugs fixed on this branch, in-process (the
+These pin the decision-flow bugs fixed on this branch, in-process (the
 subprocess-driven turn-loop integration tests are skipped on Windows, so
 this seam is driven directly with scripted prompt/confirm stand-ins):
 
@@ -189,6 +189,27 @@ def test_decline_then_replacement_decision_lands_exactly_one_block(monkeypatch):
     assert result is not None and result[0] == REPLACEMENT
     assert decision_blocks(transcript) == [
         f"Prime Minister's Decision: {REPLACEMENT}"]
+
+
+def test_decline_then_cancel_leaves_no_decision_block(monkeypatch):
+    """Declining the residual-concerns confirm and then typing 'cancel' at
+    the re-offered Decision> prompt abandons the decision entirely - the
+    declined enhanced block must not linger in the transcript as a
+    never-committed "Prime Minister's Decision:" line."""
+    prior = "Defence Secretary: earlier discussion line."
+    io = ScriptedIO(prompts=[DECISION, "", "cancel"],
+                    confirms=[ENTER, ENTER])
+    result, transcript, fake = drive(
+        monkeypatch, io,
+        script=[(CONCERNS, []),   # original: concerns raised
+                (CONCERNS, [])],  # enhanced: concerns REMAIN -> second gate
+        transcript=[prior],
+    )
+
+    assert result is None
+    assert fake.calls == [DECISION, enhanced_text()]
+    assert decision_blocks(transcript) == []
+    assert transcript == [prior], "cancel must leave the record as it was"
 
 
 # --- issue #22: one committed decision, one transcript block ----------------
