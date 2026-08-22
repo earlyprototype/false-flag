@@ -343,12 +343,18 @@ def test_ask_all_puts_the_question_to_the_whole_room():
     assert rec.last("awaiting")["kind"] == "decision"
 
 
-def test_state_offers_the_whole_room_option():
+def test_state_carries_no_roster_the_page_never_reads():
+    """The picker is gone; the lists it needed must not be pushed regardless.
+
+    ``push_state`` runs on every turn boundary and the contacts list is a
+    file read behind a metric check, so sending rosters nothing consumes is
+    work done for the bin — and a second copy of the room that can drift
+    from the one /menu prints.
+    """
     game, rec = make_game()
-    advisors = rec.last("state")["advisors"]
-    assert advisors[-1]["id"] == "all", \
-        "the picker must offer asking the whole room"
-    assert {a["id"] for a in advisors} > {"all"}, "and the advisors themselves"
+    state = rec.last("state")
+    assert "advisors" not in state
+    assert "contacts" not in state
 
 
 def _instant_outputs(rec):
@@ -1062,7 +1068,7 @@ def test_a_stranding_beat_hands_back_the_call_when_one_is_live():
 
         active = True
         required = True
-        transcript = []
+        transcript = ()
 
     game.gm.active_encounter = _Encounter()
     game.queue(lambda: None)
@@ -1086,3 +1092,265 @@ def test_recovery_leaves_a_finished_campaign_idle():
     game.set_awaiting(bridge.AWAIT_NONE)
     game.handle({"type": "continue"})
     assert rec.last("awaiting")["kind"] == bridge.AWAIT_NONE
+
+
+# ---------------------------------------------------------------------------
+# The prompt: one line in, parsed the way the terminal parses it
+# ---------------------------------------------------------------------------
+#
+# The browser build had replaced the CLI's prompt with three tabs and two
+# dropdowns. That was not a smaller interface — it was the command layer
+# missing, with pickers standing in for the six commands nobody had ported.
+# These hold the restored prompt to the terminal's behaviour.
+
+
+def _at_decision():
+    """A game sitting at the discussion prompt, past the cold open."""
+    game, rec = make_game()
+    while rec.last("awaiting")["kind"] == bridge.AWAIT_PAUSE:
+        game.handle({"type": "continue"})
+    return game, rec
+
+
+def _submit(game, rec, line):
+    game.handle({"type": "input", "text": line})
+    return rec.ansi()
+
+
+def test_free_text_is_a_question_to_the_room():
+    """The CLI's default: anything not a command is asked of the advisors."""
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "CDS, what can we put to sea tonight?")
+    assert "DISCUSSION" in out
+    assert "CHIEF OF THE DEFENCE STAFF" in out
+
+
+@pytest.mark.parametrize("opener", ["everyone,", "all of you,"])
+def test_everyone_opens_the_question_to_the_whole_room(opener):
+    """"everyone," and "all of you," are the CLI's shorthands for /askall."""
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, f"{opener} how exposed are we tonight?")
+    for seat in ("CHIEF OF THE DEFENCE STAFF", "ATTORNEY GENERAL",
+                 "HOME SECRETARY"):
+        assert seat in out, f"{seat} did not answer the room"
+
+
+@pytest.mark.parametrize("line", [
+    "room, how exposed are we tonight?",
+    "everyone: how exposed are we tonight?",
+])
+def test_openers_the_cli_does_not_take_stay_ordinary_questions(line):
+    """Only "everyone," and "all of you," open the room in cli/main.py.
+
+    "room," and "everyone:" were invented here — an opener the terminal
+    reads as one question must not cost five model calls in the browser.
+    """
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, line)
+    assert "DISCUSSION" in out, "the line must still reach the room as a question"
+    seats = ("CHIEF OF THE DEFENCE STAFF", "ATTORNEY GENERAL",
+             "HOME SECRETARY")
+    assert not all(seat in out for seat in seats), \
+        "the whole room answered a line the CLI treats as one question"
+
+
+def test_bare_decide_arms_the_order_prompt_and_the_next_line_is_the_order():
+    game, rec = _at_decision()
+    _submit(game, rec, "/decide")
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_ORDER
+    _submit(game, rec, "Hold the line and consult NATO before anything else.")
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_CONFIRM
+
+
+def test_decide_with_trailing_text_is_refused_like_the_cli():
+    """cli/main.py matches the whole line against its exact decide forms,
+    so "/decide <order>" is no decision there — it is an unknown command.
+    Taking the text as the order resolved a browser turn on a line the
+    terminal refuses.
+    """
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "/decide Reinforce air defence and brief the House.")
+    assert "No such command: /decide" in out
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_DECISION
+
+
+def test_a_live_call_owns_the_prompt():
+    """Once a line is open, everything typed is said on it — as in the CLI."""
+    game, rec = _at_decision()
+    _submit(game, rec, "/call USA Is Article 5 on the table?")
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_QUESTION
+    rec.clear()
+    out = _submit(game, rec, "Then say it publicly, tonight.")
+    assert "PRIME MINISTER" in out
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_QUESTION
+    _submit(game, rec, "end")
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_DECISION
+
+
+@pytest.mark.parametrize("command,expected", [
+    ("/menu", "COMMANDS"),
+    ("/help", "COMMANDS"),
+    ("/status", "SITUATION"),
+    ("/status advisors", "ADVISOR ATTITUDES"),
+    ("/resources", "UK FORCES"),
+    ("/intel", "INTELLIGENCE"),
+])
+def test_every_ported_command_renders(command, expected):
+    """The six commands the tabbed build never had."""
+    game, rec = _at_decision()
+    rec.clear()
+    assert expected in _submit(game, rec, command)
+
+
+def test_commands_are_accepted_bare_as_well_as_slashed():
+    """cli/main.py takes "status" as readily as "/status"."""
+    game, rec = _at_decision()
+    rec.clear()
+    assert "COMMANDS" in _submit(game, rec, "menu")
+
+
+def test_bare_intel_is_a_question_not_a_command():
+    """cli/main.py matches only "/intel" — bare "intel" goes to the room.
+
+    The bridge listed it among the bare forms, inventing a command the
+    terminal does not have.
+    """
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "intel")
+    assert "DISCUSSION" in out, "bare intel must reach the room as a question"
+    assert "INTELLIGENCE" not in out, "bare intel rendered the /intel listing"
+
+
+def test_an_unknown_command_answers_in_the_transcript_not_as_a_banner():
+    """A mistyped command is answered where it was typed, as a terminal does."""
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "/nonsense")
+    assert "No such command" in out
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_DECISION
+
+
+def test_a_command_is_never_mistaken_for_a_question():
+    """A slash line must not reach the model as though it were a question."""
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "/status")
+    assert "DISCUSSION" not in out
+
+
+def test_the_prompt_survives_an_empty_line():
+    game, rec = _at_decision()
+    _submit(game, rec, "   ")
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_DECISION
+
+
+def test_intel_on_an_unknown_country_lists_the_ones_that_exist():
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "/intel ZZZ")
+    assert "No intelligence file" in out
+    assert "RUS" in out
+
+
+def test_intel_passes_through_the_engines_own_formatting():
+    """The engine already sets that assessment for a terminal; leave it be."""
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "/intel RUS")
+    assert "DETAILED ASSESSMENT" in out
+    assert "═" in out, "the engine's own rule characters were re-wrapped away"
+
+
+def test_intel_shows_the_report_and_not_the_dict_it_arrived_in():
+    """``get_intel_detail`` wraps the report; the wrapper is not intelligence.
+
+    Walking that dict printed a bare "Raw" above the engine's own rules and
+    "Last Updated: 3" beneath them — field names, shown to the player as
+    though they were findings.
+    """
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "/intel RUS")
+    for leak in ("Raw", "Last Updated", "Confidence:", "Assessment\n"):
+        assert leak not in out, f"a schema key reached the transcript: {leak!r}"
+    # The report itself is still all there.
+    assert "Relationship Trend" in out
+    assert "Recent Indicators" in out
+
+
+def test_menu_lists_the_room_and_who_will_take_a_call():
+    """The picker showed both at all times; /menu is where they live now."""
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "/menu")
+
+    assert "THE ROOM" in out
+    for seat in ("Chief of the Defence Staff", "National Security Adviser",
+                 "Foreign Secretary", "Home Secretary", "Attorney General"):
+        assert seat in out, f"{seat} is not in the menu"
+    assert "everyone," in out, "the whole-room option must still be offered"
+
+    assert "WHO WILL TAKE A CALL" in out
+    channels = game.gm.list_diplomatic_channels()
+    assert channels, "fixture expected at least one open channel"
+    for channel in channels:
+        assert f"/call {channel['country'].lower()}" in out
+        assert channel["title"] in out
+    assert "COMMANDS" in out
+
+
+@pytest.mark.parametrize("argument,country,message", [
+    # The bug: splitting on the first space dialled "united" and said
+    # "states" down the line.
+    ("united states", "united states", ""),
+    ("united states Is Article 5 on the table?",
+     "united states", "Is Article 5 on the table?"),
+    # A code still takes a message after it, as /call always has.
+    ("USA Is Article 5 on the table?", "USA", "Is Article 5 on the table?"),
+    ("russia", "russia", ""),
+    # Quotes carry a name the alias table has never heard of.
+    ('"Kingdom of Elbonia" We need your ports.',
+     "Kingdom of Elbonia", "We need your ports."),
+])
+def test_call_target_splits_on_the_country_not_the_first_space(
+        argument, country, message):
+    assert bridge._split_call_target(argument) == (country, message)
+
+
+def test_advise_asks_every_seat_its_own_question():
+    """/advise is not /askall: each seat gets the question meant for it."""
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "/advise")
+    assert "COBRA ADVISORY PANEL" in out
+    for seat in ("CHIEF OF THE DEFENCE STAFF", "ATTORNEY GENERAL"):
+        assert seat in out
+
+
+def test_no_output_is_marked_as_prose_any_more():
+    """The transcript is 78-column terminal, not a re-set web document."""
+    game, rec = _at_decision()
+    _submit(game, rec, "/menu")
+    assert not any(m.get("prose") for m in rec.of("output"))
+
+
+def test_status_renders_the_mood_without_leaking_a_model_repr():
+    """VibeLevel is a model; str() on one prints its repr at the player.
+
+    Immersive is the default mode, so /status there was showing
+    `name='Crisis Intensity' level=3 trend='stable' …` in the transcript.
+    """
+    game, rec = make_game(playMode="immersive")
+    rec.clear()
+    out = _submit(game, rec, "/status")
+
+    assert "SITUATION ASSESSMENT" in out
+    assert "Crisis Intensity" in out
+    # The tells of a repr reaching the page.
+    for leak in ("level=", "trend=", "descriptor=", "name='"):
+        assert leak not in out, f"a model repr reached the transcript: {leak!r}"

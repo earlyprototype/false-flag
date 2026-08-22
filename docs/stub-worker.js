@@ -94,6 +94,7 @@ var state = {
   keySet: false,
   phase: 'idle',   // idle | decision | confirm | over
   onCall: null,    // country on the open line, if any
+  armed: false,    // `/decide` was typed bare: the next line is the order
   timer: null
 };
 
@@ -258,6 +259,118 @@ function call(country, text) {
   ]);
 }
 
+/* The prompt. The page sends every typed line as one `input` message and the
+   real engine parses it (docs/py/bridge.py: WebGame.submit); this stand-in
+   has to understand enough of the same grammar to stay playable, because it
+   is what a player is handed when the engine cannot boot at all.
+
+   Deliberately shallow: the recorded campaign has one decision, one advisor
+   answer and one call in it, so the commands that read live state have
+   nothing to report and say so rather than pretending. */
+function input(text) {
+  var line = String(text || '').trim();
+  if (!line) { awaiting(state.phase === 'over' ? 'none' : 'decision'); return; }
+
+  // A live call owns the prompt, exactly as it does in the real bridge.
+  if (state.onCall) { call(state.onCall, line); return; }
+
+  var bare = line.toLowerCase();
+  if (bare.charAt(0) !== '/' && BARE_COMMANDS.indexOf(bare) === -1) {
+    if (state.armed) { state.armed = false; decide(line); }
+    else { ask(null, line); }
+    return;
+  }
+  var space = line.indexOf(' ');
+  var verb = (space === -1 ? line : line.slice(0, space)).replace(/^\//, '')
+    .toLowerCase();
+  var rest = space === -1 ? '' : line.slice(space + 1).trim();
+
+  switch (verb) {
+    case 'menu': case 'help': menu(); break;
+    case 'decide': case 'decision':
+      // Bare only, as in cli/main.py and docs/py/bridge.py: the terminal
+      // matches the whole line against its exact decide forms, so
+      // "/decide <order>" is an unknown command rather than an order.
+      if (rest) { usage(null, verb); break; }
+      out('\n' + C.amber + rule('YOUR ORDER') + C.off + '\n' +
+          C.muted + '  Write what you are doing, in your own words.' +
+          C.off + '\n\n');
+      state.armed = true;
+      awaiting('decision');
+      break;
+    case 'askall': rest ? ask('all', rest) : usage('/askall <question>'); break;
+    case 'call':
+      if (!rest) { usage('/call <country>'); break; }
+      var target = splitCallTarget(rest);
+      call(target[0], target[1]);
+      break;
+    case 'save': self.onmessage({ data: { type: 'save' } }); break;
+    case 'status': case 'advise': case 'resources': case 'intel':
+    case 'quit': case 'theme': case 'llm': case 'settings':
+      out('\n' + C.muted + '  /' + verb + ' needs the real engine. This is the ' +
+          'offline demonstration — a recorded campaign, with no live state to ' +
+          'report.' + C.off + '\n\n');
+      awaiting(state.phase === 'over' ? 'none' : 'decision');
+      break;
+    default:
+      usage(null, verb);
+  }
+}
+
+// Bare forms the terminal accepts. Not 'intel': cli/main.py matches only the
+// slashed form, so a bare "intel" is a question to the room there — and so
+// docs/py/bridge.py treats it as one too.
+var BARE_COMMANDS = ['menu', 'help', 'status', 'advise', 'resources',
+                     'decide', 'decision', 'save', 'quit'];
+
+// Country names have spaces in them, so /call cannot split on the first one:
+// that dialled "united" and said "states" down the line. Longest name wins,
+// as in _split_call_target; the list mirrors the multi-word entries of
+// engine/diplomacy.COUNTRY_ALIASES.
+var CALL_ALIASES = ['united states'];
+
+function splitCallTarget(rest) {
+  var text = rest.trim();
+  var quote = text.charAt(0);
+  if (quote === '"' || quote === "'") {
+    var closing = text.indexOf(quote, 1);
+    if (closing !== -1) {
+      return [text.slice(1, closing).trim(), text.slice(closing + 1).trim()];
+    }
+  }
+  var lowered = text.toLowerCase();
+  for (var i = 0; i < CALL_ALIASES.length; i++) {
+    var alias = CALL_ALIASES[i];
+    if (lowered === alias || lowered.indexOf(alias + ' ') === 0) {
+      return [text.slice(0, alias.length), text.slice(alias.length).trim()];
+    }
+  }
+  var space = text.indexOf(' ');
+  return space === -1 ? [text, ''] : [text.slice(0, space), text.slice(space + 1).trim()];
+}
+
+function usage(form, verb) {
+  out('\n' + C.amber + '  ' + (form
+        ? 'Usage: ' + form
+        : 'No such command: /' + verb + '. Type /menu for the list.') +
+      C.off + '\n\n');
+  awaiting(state.phase === 'over' ? 'none' : 'decision');
+}
+
+function menu() {
+  out('\n' + C.amber + rule('COMMANDS') + C.off + '\n' +
+      C.accent + '  /menu             ' + C.off + C.muted + 'Show this list\n' + C.off +
+      C.accent + '  /askall <q>       ' + C.off + C.muted + 'Put a question to the room\n' + C.off +
+      C.accent + '  /call <country>   ' + C.off + C.muted + 'Contact a foreign leader\n' + C.off +
+      C.accent + '  /decide           ' + C.off + C.muted + 'Give the order\n' + C.off +
+      C.accent + '  /save             ' + C.off + C.muted + 'Save the campaign\n' + C.off +
+      '\n' + C.muted +
+      '  Anything else is a question to the room. This is the offline\n' +
+      '  demonstration, so the live-state commands are not available.' +
+      C.off + '\n\n');
+  awaiting(state.phase === 'over' ? 'none' : 'decision');
+}
+
 function endTurn() {
   if (state.phase === 'over') return;
   schedule([
@@ -272,6 +385,7 @@ self.onmessage = function (ev) {
     switch (m.type) {
       case 'boot': boot(); break;
       case 'newGame': newGame(m.config); break;
+      case 'input': input(m.text); break;
       case 'decide': decide(m.text); break;
       case 'ask': ask(m.advisor, m.text); break;
       case 'call': call(m.country, m.text); break;
