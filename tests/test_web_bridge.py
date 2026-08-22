@@ -1126,14 +1126,35 @@ def test_free_text_is_a_question_to_the_room():
     assert "CHIEF OF THE DEFENCE STAFF" in out
 
 
-def test_everyone_opens_the_question_to_the_whole_room():
-    """"everyone," is the CLI's own shorthand for /askall."""
+@pytest.mark.parametrize("opener", ["everyone,", "all of you,"])
+def test_everyone_opens_the_question_to_the_whole_room(opener):
+    """"everyone," and "all of you," are the CLI's shorthands for /askall."""
     game, rec = _at_decision()
     rec.clear()
-    out = _submit(game, rec, "everyone, how exposed are we tonight?")
+    out = _submit(game, rec, f"{opener} how exposed are we tonight?")
     for seat in ("CHIEF OF THE DEFENCE STAFF", "ATTORNEY GENERAL",
                  "HOME SECRETARY"):
         assert seat in out, f"{seat} did not answer the room"
+
+
+@pytest.mark.parametrize("line", [
+    "room, how exposed are we tonight?",
+    "everyone: how exposed are we tonight?",
+])
+def test_openers_the_cli_does_not_take_stay_ordinary_questions(line):
+    """Only "everyone," and "all of you," open the room in cli/main.py.
+
+    "room," and "everyone:" were invented here — an opener the terminal
+    reads as one question must not cost five model calls in the browser.
+    """
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, line)
+    assert "DISCUSSION" in out, "the line must still reach the room as a question"
+    seats = ("CHIEF OF THE DEFENCE STAFF", "ATTORNEY GENERAL",
+             "HOME SECRETARY")
+    assert not all(seat in out for seat in seats), \
+        "the whole room answered a line the CLI treats as one question"
 
 
 def test_bare_decide_arms_the_order_prompt_and_the_next_line_is_the_order():
@@ -1144,10 +1165,17 @@ def test_bare_decide_arms_the_order_prompt_and_the_next_line_is_the_order():
     assert rec.last("awaiting")["kind"] == bridge.AWAIT_CONFIRM
 
 
-def test_decide_with_the_order_on_the_same_line_skips_the_arming_step():
+def test_decide_with_trailing_text_is_refused_like_the_cli():
+    """cli/main.py matches the whole line against its exact decide forms,
+    so "/decide <order>" is no decision there — it is an unknown command.
+    Taking the text as the order resolved a browser turn on a line the
+    terminal refuses.
+    """
     game, rec = _at_decision()
-    _submit(game, rec, "/decide Reinforce air defence and brief the House.")
-    assert rec.last("awaiting")["kind"] == bridge.AWAIT_CONFIRM
+    rec.clear()
+    out = _submit(game, rec, "/decide Reinforce air defence and brief the House.")
+    assert "No such command: /decide" in out
+    assert rec.last("awaiting")["kind"] == bridge.AWAIT_DECISION
 
 
 def test_a_live_call_owns_the_prompt():
@@ -1183,6 +1211,19 @@ def test_commands_are_accepted_bare_as_well_as_slashed():
     game, rec = _at_decision()
     rec.clear()
     assert "COMMANDS" in _submit(game, rec, "menu")
+
+
+def test_bare_intel_is_a_question_not_a_command():
+    """cli/main.py matches only "/intel" — bare "intel" goes to the room.
+
+    The bridge listed it among the bare forms, inventing a command the
+    terminal does not have.
+    """
+    game, rec = _at_decision()
+    rec.clear()
+    out = _submit(game, rec, "intel")
+    assert "DISCUSSION" in out, "bare intel must reach the room as a question"
+    assert "INTELLIGENCE" not in out, "bare intel rendered the /intel listing"
 
 
 def test_an_unknown_command_answers_in_the_transcript_not_as_a_banner():
