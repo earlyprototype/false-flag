@@ -186,7 +186,9 @@ def test_the_bundle_matches_the_repo():
                 if name.endswith(build.SKIP_SUFFIXES):
                     continue
                 full = Path(dirpath) / name
-                expected[str(full.relative_to(ROOT))] = full.read_bytes()
+                # as_posix() to match zip names on Windows too; on Linux it
+                # spells the same as str().
+                expected[full.relative_to(ROOT).as_posix()] = full.read_bytes()
     for src, arc in build.EXTRA_FILES.items():
         expected[arc] = Path(src).read_bytes()
 
