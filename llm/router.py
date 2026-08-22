@@ -139,31 +139,51 @@ def _record_truncation_if_cut(meta: dict,
 def _resolve_call_model(provider: str,
                         context: Optional[LLMContext],
                         model_override: Optional[str]) -> Optional[str]:
-    """Model name for one dispatch: explicit override, else context tier
-    resolved through the provider-aware table (ER-019).
+    """Model name for one dispatch: explicit override, else the runtime
+    routing override for the context (model verbatim, or tier), else the
+    context tier resolved through the provider-aware table (ER-019).
 
-    Returns None when neither is given, or when the provider has no notion
+    Returns None when nothing applies, or when the provider has no notion
     of a model name (mock/offline) - the driver's own default then applies.
     """
     if model_override:
         return model_override
     if context:
-        tier = get_model_config().get_tier_for_context(context)
-        return resolve_model_name(provider, tier)
+        from llm import routing_overrides
+        runtime = routing_overrides.get_override(context)
+        if runtime and runtime.model:
+            return runtime.model
+        return resolve_model_name(provider, routing_overrides.effective_tier(context))
     return None
 
 
-def get_rate_limiter(model_name: Optional[str] = None) -> Optional[RateLimiter]:
+def _resolve_call_provider(context: Optional[LLMContext]) -> str:
+    """Provider for one dispatch: the context's runtime routing override
+    when one names a provider, else the process-wide configured provider."""
+    if context:
+        from llm import routing_overrides
+        runtime = routing_overrides.get_override(context)
+        if runtime and runtime.provider:
+            return runtime.provider
+    return _get_provider()
+
+
+def get_rate_limiter(model_name: Optional[str] = None,
+                     provider: Optional[str] = None) -> Optional[RateLimiter]:
     """Get or create the global rate limiter.
 
     Args:
         model_name: Model being used (determines RPM limit)
+        provider: Provider this call dispatches to; None means the
+            process-wide configured provider (a per-context routing
+            override can direct a single call elsewhere)
 
     Returns:
         RateLimiter instance if using a rate-limited provider, None otherwise
     """
     # Check provider
-    provider = _get_provider()
+    if provider is None:
+        provider = _get_provider()
 
     # Only rate limit for real API providers
     if provider not in ["gemini", "openai_compat"]:
@@ -258,6 +278,32 @@ def _get_text_driver(model_name: Optional[str] = None):
     return driver
 
 
+def _driver_for_call(provider: str, model_name: Optional[str]):
+    """Driver for one dispatch.
+
+    The common case - the process-wide configured provider - goes through
+    _get_text_driver, which is the seam tests monkeypatch; only an active
+    per-context provider override (llm/routing_overrides) constructs its
+    own driver, cached under the same (provider, model) table.
+    """
+    if provider == _get_provider():
+        return _get_text_driver(model_name)
+    cache_key = (provider, model_name)
+    driver = _driver_cache.get(cache_key)
+    if driver is None:
+        driver = _construct_text_driver(provider, model_name)
+        _driver_cache[cache_key] = driver
+    return driver
+
+
+def _rate_limiter_for_call(provider: str, model_name: Optional[str]):
+    """Rate limiter for one dispatch; same seam-preserving split as
+    _driver_for_call."""
+    if provider == _get_provider():
+        return get_rate_limiter(model_name)
+    return get_rate_limiter(model_name, provider)
+
+
 def generate_text(
     prompt: str, 
     rng: Random, 
@@ -283,17 +329,18 @@ def generate_text(
     Returns:
         Generated text response
     """
-    # Determine model to use: override, else context tier resolved per provider
-    provider = _get_provider()
+    # Determine provider and model: explicit override, else the context's
+    # runtime routing override, else the configured defaults
+    provider = _resolve_call_provider(context)
     model_name = _resolve_call_model(provider, context, model_override)
 
-    driver = _get_text_driver(model_name)
+    driver = _driver_for_call(provider, model_name)
 
     # Apply rate limiting before making request (model-specific limits).
     # Mock/offline drivers never hit the network (including when they are
     # fallbacks for a failed Gemini init), so skip throttling entirely.
     if not isinstance(driver, (MockDeterministicDriver, OfflineDriver)):
-        rate_limiter = get_rate_limiter(model_name)
+        rate_limiter = _rate_limiter_for_call(provider, model_name)
         if rate_limiter:
             rate_limiter.wait_if_needed(verbose=True)
 
@@ -347,11 +394,12 @@ def generate_text(
 
     def call_and_log():
         from llm import call_log
+        from llm import routing_overrides
         start = _now()
         result = call_driver_resilient()
         _record_truncation_if_cut(meta, context, provider)
-        if call_log.enabled():
-            tier = (get_model_config().get_tier_for_context(context).value
+        if call_log.active():
+            tier = (routing_overrides.effective_tier(context).value
                     if context else None)
             call_log.record(
                 family=context.value if context else None,
@@ -414,18 +462,19 @@ def batch_generate_text(
     if not prompts:
         return []
     
-    # Determine model to use: override, else context tier resolved per provider
-    provider = _get_provider()
+    # Determine provider and model: explicit override, else the context's
+    # runtime routing override, else the configured defaults
+    provider = _resolve_call_provider(context)
     model_name = _resolve_call_model(provider, context, model_override)
 
-    driver = _get_text_driver(model_name)
+    driver = _driver_for_call(provider, model_name)
 
     # Get rate limiter (will apply per request in sequential mode, model-specific).
     # Mock/offline drivers never hit the network, so skip throttling entirely.
     if isinstance(driver, (MockDeterministicDriver, OfflineDriver)):
         rate_limiter = None
     else:
-        rate_limiter = get_rate_limiter(model_name)
+        rate_limiter = _rate_limiter_for_call(provider, model_name)
 
     # Show spinner if requested (and not in mock mode)
     use_spinner = show_spinner and provider not in ["mock", "offline"]
@@ -509,12 +558,13 @@ def batch_generate_text(
 
     def batch_and_log(runner):
         from llm import call_log
+        from llm import routing_overrides
         start = _now()
         results = runner()
         for m in metas:
             _record_truncation_if_cut(m, context, provider)
-        if call_log.enabled():
-            tier = (get_model_config().get_tier_for_context(context).value
+        if call_log.active():
+            tier = (routing_overrides.effective_tier(context).value
                     if context else None)
             elapsed_ms = int((_now() - start) * 1000)
             for i, (p, r) in enumerate(zip(prompts, results)):
