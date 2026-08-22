@@ -28,7 +28,8 @@ journey — explain clearly, avoid jargon walls, and don't run code unless asked
   `escalation_risk`, `domestic_stability`, `alliance_cohesion`, casualties.
   ("Influence" shown in `/status` is derived for display only, never stored.)
 - `data/scenarios/war_game_2025/` — initial conditions + `episodes/turn_NNN.yaml` injects.
-- `docs/` — the GitHub Pages browser build (engine compiled to WebAssembly).
+- `docs/` — the GitHub Pages browser build. Nothing is compiled: a Web Worker
+  runs the unmodified Python engine under Pyodide (a WASM-compiled CPython).
 - `audits/` — engineering-review (ER) register, measurement runs, handover notes.
   Check here first for known issues and prior investigation.
 
