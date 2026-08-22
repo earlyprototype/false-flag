@@ -68,6 +68,22 @@ def _drain_queue(session):
     return items
 
 
+def _drain_llm_calls(session, minimum=1, deadline_s=5.0):
+    """The queue's llm_call items, polling until ``minimum`` arrive.
+
+    Relay pushes ride loop.call_soon_threadsafe, so a record can land on
+    the queue a beat after the HTTP response returns; draining immediately
+    races the scheduled callbacks and flakes."""
+    items = []
+    deadline = time.time() + deadline_s
+    while True:
+        items += [item for item in _drain_queue(session)
+                  if item["event"] == "llm_call"]
+        if len(items) >= minimum or time.time() >= deadline:
+            return items
+        time.sleep(0.05)
+
+
 # --- layer tagging at the bus ---------------------------------------------
 
 def test_events_carry_layer_turn_and_tplus_stamps(client):
@@ -227,8 +243,7 @@ def test_llm_calls_land_on_session_queue_as_referee_events(client):
         "question": "Where does NATO stand on this?",
     })
 
-    llm_items = [item for item in _drain_queue(session)
-                 if item["event"] == "llm_call"]
+    llm_items = _drain_llm_calls(session)
     assert llm_items, "no llm_call events relayed"
     for item in llm_items:
         assert item["_layer"] is Layer.REFEREE
@@ -237,6 +252,35 @@ def test_llm_calls_land_on_session_queue_as_referee_events(client):
         assert "family" in data and "latency_ms" in data
         assert "prompt" not in data and "reply" not in data
         assert data["prompt_chars"] > 0
+
+
+def test_decision_relays_llm_calls_from_round_workers(client):
+    """The decision pipeline fans most of its LLM calls out across
+    thread-pool rounds (engine/decision_phase.run_round). Raw executor
+    threads do not inherit contextvars, so without explicit context
+    propagation at submit the round workers lose the llm_relay session
+    binding and their call records silently vanish - only the few calls
+    made on the endpoint's own thread relayed. One committed decision
+    dispatches up to seven calls; at least five must reach the queue."""
+    from api import server
+
+    created = _new_game(client, facilitator=True)
+    session_id = created["session_id"]
+    client.post(f"/game/{session_id}/briefing/ack")
+    session = server.sessions[session_id]
+    _drain_queue(session)
+
+    response = client.post("/game/decision", json={
+        "session_id": session_id,
+        "action_text": "Raise readiness across home commands and brief "
+                       "the Cabinet in full.",
+    })
+    assert response.status_code == 200
+
+    llm_items = _drain_llm_calls(session, minimum=5)
+    assert len(llm_items) >= 5, (
+        f"decision pipeline relayed only {len(llm_items)} llm_call events; "
+        "round-worker calls are being dropped")
 
 
 def test_concurrent_sessions_do_not_cross_attribute_llm_calls(client):
@@ -255,8 +299,10 @@ def test_concurrent_sessions_do_not_cross_attribute_llm_calls(client):
         "question": "What do the forces need from me?",
     })
 
-    a_calls = [i for i in _drain_queue(server.sessions[a["session_id"]])
-               if i["event"] == "llm_call"]
+    # Wait for A's records first: relay pushes are scheduled callbacks, and
+    # they land in order - once A's are in, a mis-attributed B record
+    # scheduled alongside them would be in too.
+    a_calls = _drain_llm_calls(server.sessions[a["session_id"]])
     b_calls = [i for i in _drain_queue(server.sessions[b["session_id"]])
                if i["event"] == "llm_call"]
     assert a_calls and not b_calls

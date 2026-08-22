@@ -48,6 +48,7 @@ reactions, ...) and records ``parse_health.record_fallback("decision_phase",
 ...)``; it never kills the round.
 """
 
+import contextvars
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -177,8 +178,16 @@ def run_round(tasks: List[RoundTask], rng: Random,
     results: List[Any] = [None] * len(tasks)
     with _round_status(status or f"SIGNALS INBOUND ── {len(tasks)} CHANNELS"):
         with ThreadPoolExecutor(max_workers=MAX_ROUND_WORKERS) as executor:
+            # copy_context() at submit: raw executor threads start with an
+            # EMPTY contextvars context, so anything bound on the calling
+            # thread (the API's llm_relay session binding, which attributes
+            # call-log records to a session's event stream) would be lost
+            # inside the round. Running each task in a copy of the caller's
+            # context propagates those bindings; the task itself runs
+            # byte-identically.
             future_to_index = {
-                executor.submit(run_one, i): i for i in range(len(tasks))
+                executor.submit(contextvars.copy_context().run, run_one, i): i
+                for i in range(len(tasks))
             }
             for future in as_completed(future_to_index):
                 results[future_to_index[future]] = future.result()
