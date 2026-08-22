@@ -257,6 +257,63 @@ class GameManager:
 
         return inject or {}
 
+    def deliver_inject(self, inject: Dict[str, Any]) -> Dict[str, Any]:
+        """Deliver a facilitator-authored inject into the running session.
+
+        The EXCON seam: scripted injects enter turns through
+        run_turn_briefing; this is the same delivery - display lines,
+        applied effects, recent-injects memory, hidden-metrics sync - for
+        an inject fired mid-turn from the control surface. It reuses the
+        briefing's own primitives and touches nothing in adjudication.
+
+        Deliberately NOT recorded in the played-event ledger: the ledger is
+        append-only with one entry per turn and adjudication closes the
+        most recently staged entry (engine/narrative_adjudication.py
+        record_event_disposition), so a second same-turn entry would make
+        the verdict land on the facilitator's inject instead of the turn's
+        event. The inject still reaches advisors through
+        ``world.recent_injects`` and the transcript.
+
+        Args:
+            inject: Inject dict in the episode-file shape: ``title``,
+                ``description``, optional ``channel`` and ``effects``.
+
+        Returns:
+            {"title", "channel", "lines"} - the transcript lines added
+            (description plus any effect boxes), for the caller to stream.
+        """
+        from engine.sim_loop import apply_inject_effects, display_inject
+
+        lines = display_inject(inject, self.root_path, display_panel=False)
+        effect_lines = apply_inject_effects(self.world, inject)
+        lines.extend(effect_lines)
+
+        title = inject.get("title")
+        if title:
+            self.world.recent_injects.append(str(title))
+            del self.world.recent_injects[:-5]
+
+        # Same sync get_turn_briefing performs after applying inject
+        # effects: adjudication copies hidden_metrics back over
+        # world.metrics at end of turn, so an effect left only on
+        # world.metrics would be silently reverted.
+        if effect_lines:
+            self.narrative_state.update_hidden_metrics({
+                "escalation_risk": self.world.metrics.escalation_risk,
+                "domestic_stability": self.world.metrics.domestic_stability,
+                "alliance_cohesion": self.world.metrics.alliance_cohesion,
+                "casualties_mil": self.world.metrics.casualties_mil,
+                "casualties_civ": self.world.metrics.casualties_civ,
+            })
+
+        self.transcript.extend(lines)
+
+        return {
+            "title": title or "SITUATION UPDATE",
+            "channel": inject.get("channel", "briefing"),
+            "lines": lines,
+        }
+
     def process_question(self, question_text: str) -> List[str]:
         """Process a player question during Discussion phase.
 
