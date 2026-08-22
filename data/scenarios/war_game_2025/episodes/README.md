@@ -5,23 +5,25 @@ This directory contains turn-by-turn injects (events) for the wargame scenario.
 ## Current Episodes
 
 ### ✅ Turn 1: COBRA Emergency Meeting (17:00)
-**Source:** Podcast Episode 1 transcript  
+**Source:** Podcast Episode 1 transcript (re-paced 2026-08: the briefing covers the fleet detection alone)  
 **Key Events:**
-- Initial briefing on Russian false flag accusations
-- Two F-35 pilots murdered in Norfolk
-- Russian naval exercise (15 submarines) in North Atlantic
-- Cyber attacks increased 65%
-- Russian diplomatic staff departing UK
-- Infrastructure attacks (railways, ferries)
+- NSA briefs the Northern Fleet deployment: 15 Russian submarines (7 ballistic missile, 8 attack) with escorts, out of Kola Bay and heading for the GIUK gap
+- Moscow silent — no exercise notification; the deployment "was made to be found"
+- NSC preliminary assessment: a deliberate test of UK and NATO resolve
+- The other pre-game threads (Norfolk murders, Severomorsk accusation, cyber spike, diplomatic exodus) stay knowable via advisors but are no longer pushed here
+
+*Fast start:* same fleet briefing, then the Orkney surfacing arrives as a breaking update carrying the turn-2 beats.
 
 ### ✅ Turn 2: Submarine Provocation (19:00)
 **Source:** Extrapolated from wargame patterns  
 **Key Events:**
-- Russian submarine surfaces near Orkney Islands
-- Witnessed by civilian ferry passengers
-- Photos spreading on social media
-- Public panic buying begins
-- Russian Ambassador refuses meeting
+- Russian Kilo-class submarine surfaces 12 nautical miles off the Orkney Islands
+- Witnessed by MV Hamnavoe ferry passengers; photos and videos spread on social media
+- Panic buying begins in northern Scotland
+- Home Secretary connects the two F-35 pilots murdered in Norfolk to the crisis — special-forces tradecraft on British soil
+- Foreign Secretary: Russian Ambassador refuses meeting; Moscow state media accuses the UK of the Severomorsk attack; diplomat families flying out of Heathrow
+
+*Fast start:* these beats are folded into turn 1's breaking update.
 
 ### ✅ Turn 3: Infrastructure Attack (21:00)
 **Source:** Extrapolated from wargame patterns  
@@ -29,8 +31,10 @@ This directory contains turn-by-turn injects (events) for the wargame scenario.
 - Drax Power Station explosion (sabotage suspected)
 - 2 million homes without power
 - 5-8 civilian casualties
-- GCHQ intercepts suspicious communications
-- Debate over invoking NATO Article 5
+- GCHQ reframes the week-long 65% cyber-attack spike as the run-up, with operative communications intercepted 30 minutes before the blast
+- Debate over BIKINI BLACK SPECIAL readiness and grounds for invoking NATO Article 5
+
+*Fast start:* lands in turn 2 (fast), combined with the NATO consultation and the US National Security Advisor call.
 
 ### ✅ Turn 4: NATO Consultation (00:00 - Midnight)
 **Source:** Extrapolated from wargame patterns  
@@ -68,7 +72,7 @@ description: |
   - Situation update
   - Advisor assessments
   - Decision prompts
-channel: intelligence|emergency|diplomatic|military
+channel: briefing|intelligence|emergency|diplomatic|flash_alert
 effects:
   - metric: metric_name
     delta: min..max  # Range of effect on game metrics

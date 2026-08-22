@@ -82,7 +82,13 @@ def collect_files() -> list[tuple[Path, str]]:
                 if name.endswith(SKIP_SUFFIXES):
                     continue
                 full = Path(dirpath) / name
-                files.append((full, str(full.relative_to(ROOT))))
+                # as_posix(), not str(): the arc name is hashed into the
+                # build stamp, and str() would put backslashes in it on
+                # Windows — a rebuild there then stamps a value no Linux
+                # checkout (including CI) can reproduce. On Linux the two
+                # spell identically, so this changes nothing where the
+                # committed artifacts are normally built.
+                files.append((full, full.relative_to(ROOT).as_posix()))
 
     for src, arc in EXTRA_FILES.items():
         if not src.is_file():

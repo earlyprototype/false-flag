@@ -467,8 +467,9 @@ def test_filter_keeps_public_material(played_session):
     gm = played_session
     context = get_diplomatic_context(gm.transcript, gm.world, "US")
 
-    # Inject prose (no speaker prefix) passes.
-    assert "coordinated campaign of coercion" in context
+    # Inject prose (no speaker prefix) passes. The sentinel must sit inside
+    # one physical line of the inject text: the transcript stores lines.
+    assert "made to be found" in context
     assert "TURN 1" in context
 
 

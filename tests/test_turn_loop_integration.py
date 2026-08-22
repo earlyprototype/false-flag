@@ -203,14 +203,14 @@ def game_runs():
 def test_cancel_does_not_reapply_briefing(game_runs):
     """Entering the decision phase and cancelling back to discussion must
     leave metrics at their post-briefing values — the turn-1 scripted
-    inject (+3 escalation, -2 stability at 0.5x standard difficulty on the
+    inject (+3 escalation, -1 stability at 0.5x standard difficulty on the
     60/50/40 baseline) must be applied exactly once, not compounded."""
     world = game_runs.cancel_save["world"]
     metrics = world["metrics"]
 
     assert world["turn"] == 1
     assert metrics["escalation_risk"] == 63
-    assert metrics["domestic_stability"] == 48
+    assert metrics["domestic_stability"] == 49
     assert metrics["alliance_cohesion"] == 40
 
 
@@ -229,17 +229,17 @@ def test_full_turn_and_autosave_resume(game_runs):
     # Metrics reflect briefing (63/48/40) plus exactly one adjudication pass.
     # The mock pipeline is fully deterministic: the diplomatic decision draws
     # actor responses and an "adequate" quality assessment, netting
-    # esc 0 / stab +1 / coh +6 on top of the briefing. (The exact draws are a
+    # esc -3 / stab +2 / coh +13 on top of the briefing. (The exact draws are a
     # stable hash of the actor prompts, so they shift when the prompt gains
     # content — the referee-memory blocks changed them last.) Exact equality
     # catches both a skipped and a compounded briefing inject (run A
     # independently proves the inject applies exactly once).
-    assert autosave_metrics["escalation_risk"] == 63, (
-        f"escalation {autosave_metrics['escalation_risk']} != 63 — briefing "
+    assert autosave_metrics["escalation_risk"] == 60, (
+        f"escalation {autosave_metrics['escalation_risk']} != 60 — briefing "
         "inject skipped/compounded, or mock adjudication deltas changed"
     )
-    assert autosave_metrics["domestic_stability"] == 49
-    assert autosave_metrics["alliance_cohesion"] == 46
+    assert autosave_metrics["domestic_stability"] == 51
+    assert autosave_metrics["alliance_cohesion"] == 53
 
     # Loading the autosave ran the turn-2 briefing once and saved mid-turn.
     first_world = game_runs.turn2_first["world"]

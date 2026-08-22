@@ -1,6 +1,8 @@
 # Turn 3: Critical Infrastructure Attack
 # Sunday 5th October 2025, 21:00 (4 hours after initial COBRA meeting)
-# Escalation continues with direct infrastructure targeting
+# Escalation continues with direct infrastructure targeting.
+# Re-paced 2026-08 (owner decision): the cyber spike lands here as the
+# run-up to Drax, rather than as a bullet in turn 1's opening list.
 
 id: turn_003_infrastructure_attack
 title: "Major Power Station Explosion"
@@ -21,10 +23,11 @@ description: |
   - Hospitals switching to backup generators
   
   GCHQ Assessment:
-  We intercepted encrypted communications between suspected Russian intelligence 
-  operatives in the UK approximately 30 minutes before the explosion. The timing is 
-  highly suspicious. We assess with moderate confidence this was a coordinated sabotage 
-  operation.
+  For a week we have watched cyber attacks on UK businesses and government systems
+  climb by sixty-five percent - probing, we assessed. Then, approximately 30 minutes
+  before the explosion, we intercepted encrypted communications between suspected
+  Russian intelligence operatives in the UK. The timing is highly suspicious. We
+  assess with moderate confidence this was a coordinated sabotage operation.
   
   Home Secretary:
   Prime Minister, this is a direct attack on our critical national infrastructure. We 
