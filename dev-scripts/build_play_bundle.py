@@ -82,7 +82,10 @@ def collect_files() -> list[tuple[Path, str]]:
                 if name.endswith(SKIP_SUFFIXES):
                     continue
                 full = Path(dirpath) / name
-                files.append((full, str(full.relative_to(ROOT))))
+                # as_posix(): zip entry names and the stamp must use forward
+                # slashes on every platform — str() would hash Windows
+                # backslash paths into a different stamp.
+                files.append((full, full.relative_to(ROOT).as_posix()))
 
     for src, arc in EXTRA_FILES.items():
         if not src.is_file():

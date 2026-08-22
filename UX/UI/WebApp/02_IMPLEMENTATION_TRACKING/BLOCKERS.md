@@ -1,4 +1,9 @@
 # Development Blockers
+
+> **HISTORICAL RECORD — FROZEN 23 NOV 2025.** This blocker log is no longer
+> maintained and has been superseded. It is kept as a historical record only.
+> For actual phase status see [../00_MASTER_DEV_PLAN.md](../00_MASTER_DEV_PLAN.md).
+
 **Last Updated:** 23 Nov 2025  
 
 ---
