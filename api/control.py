@@ -151,6 +151,14 @@ async def fire_manual_inject(session_id: str, request: ManualInjectRequest):
     import time as _time
 
     session = _session_or_404(session_id)
+    # EXCON lever: only sessions created WITH the facilitator flag accept
+    # injects. A player session's id must not be enough to rewrite its
+    # world (the flag is fixed at create time - see NewGameRequest).
+    if not session.facilitator:
+        raise HTTPException(
+            status_code=403,
+            detail="Inject console targets facilitator sessions only; "
+                   "this session was created without the facilitator flag.")
 
     description = request.content
     if request.target:
@@ -165,7 +173,11 @@ async def fire_manual_inject(session_id: str, request: ManualInjectRequest):
     }
 
     try:
-        delivered = session.manager.deliver_inject(inject)
+        # deliver_inject is a read-then-write on world.metrics; the session
+        # lock keeps it atomic against the demo driver's thread and other
+        # mutating endpoints.
+        with session.lock:
+            delivered = session.manager.deliver_inject(inject)
     except Exception as e:
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Inject delivery failed: {e}")

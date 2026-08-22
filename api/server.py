@@ -11,6 +11,7 @@ import os
 import sys
 import asyncio
 import json
+import threading
 import time
 from typing import Dict, Optional, List, Any
 from pathlib import Path
@@ -60,6 +61,12 @@ class GameSession:
         self.event_queue: asyncio.Queue = asyncio.Queue()
         self.started_at = time.time()
         self._event_seq = 0
+        # Serialises GameManager mutation. The demo driver's daemon thread
+        # and the API endpoints can otherwise interleave read-then-write
+        # engine calls (deliver_inject on world.metrics, decision
+        # adjudication) on the same manager. Held only around engine
+        # mutation calls - never across pacing sleeps or streaming.
+        self.lock = threading.Lock()
         # The loop that owns event_queue, for thread-safe pushes from
         # worker threads (LLM relay, demo driver). Absent outside async
         # context (direct construction in tests).
@@ -650,7 +657,8 @@ async def make_diplomatic_call(request: DiplomaticCallRequest):
     session = _session_or_404(request.session_id)
 
     try:
-        result = session.manager.start_diplomacy(request.country_name)
+        with session.lock:
+            result = session.manager.start_diplomacy(request.country_name)
         # The red phone: mirror the call opening onto the DIPLOMATIC layer
         await session.push_event("diplomacy", {
             "type": "call_started",
@@ -673,8 +681,10 @@ async def reply_diplomatic_call(request: DiplomacyReplyRequest):
     session = _session_or_404(request.session_id)
 
     try:
-        mark = len(getattr(session.manager.active_encounter, "transcript", []) or [])
-        result = session.manager.process_diplomacy(request.message)
+        with session.lock:
+            mark = len(getattr(session.manager.active_encounter,
+                               "transcript", []) or [])
+            result = session.manager.process_diplomacy(request.message)
         # New exchange lines and (once the call ends) the outcome reading,
         # mirrored onto the DIPLOMATIC layer
         await session.push_event("diplomacy", {
@@ -871,7 +881,8 @@ async def run_turn_briefing_endpoint(session_id: str):
 
     pending_encounter = None
     try:
-        inject = manager.get_turn_briefing()
+        with session.lock:
+            inject = manager.get_turn_briefing()
         pending_encounter = inject.get("pending_encounter")
 
         # Push Briefing as event, on the layer its authored channel names
@@ -907,13 +918,15 @@ async def acknowledge_briefing(session_id: str):
     session = _session_or_404(session_id)
     manager = session.manager
 
-    if manager.world.phase != "briefing":
-        if manager.world.phase == "discussion":
-            return {"status": "success", "phase": "discussion"}
-        raise HTTPException(status_code=400, detail=f"Wrong phase: {manager.world.phase}")
+    with session.lock:
+        if manager.world.phase != "briefing":
+            if manager.world.phase == "discussion":
+                return {"status": "success", "phase": "discussion"}
+            raise HTTPException(status_code=400,
+                                detail=f"Wrong phase: {manager.world.phase}")
 
-    # Advance phase
-    manager.world.phase = "discussion"
+        # Advance phase
+        manager.world.phase = "discussion"
 
     # Push state update
     await session.push_event("state_update", {
@@ -971,10 +984,11 @@ async def post_discussion(request: DiscussionRequest):
 
     # Process question (blocking for now, could be async in future).
     # advisor == "all" asks the whole room: every advisor answers in role.
-    if (request.advisor or "").strip().lower() == "all":
-        responses = manager.process_question_all(request.question)
-    else:
-        responses = manager.process_question(request.question)
+    with session.lock:
+        if (request.advisor or "").strip().lower() == "all":
+            responses = manager.process_question_all(request.question)
+        else:
+            responses = manager.process_question(request.question)
 
     # Push responses to stream. Advisor lines belong to the CABINET layer
     # (DATA_LAYERS.md par. D); narrator/other lines stay on SITREP.
@@ -1019,11 +1033,11 @@ async def post_decision(request: DecisionRequest):
         raise HTTPException(status_code=400, detail=f"Wrong phase: {manager.world.phase}")
     _require_no_mandatory_call(manager)
 
-    manager.world.phase = "decision"
+    with session.lock:
+        manager.world.phase = "decision"
+        # Process decision (legacy one-shot)
+        result = manager.resolve_decision(request.action_text)
 
-    # Process decision (legacy one-shot)
-    result = manager.resolve_decision(request.action_text)
-    
     # ... (rest of response handling identical to commit)
     await _stream_adjudication_results(session, result)
     
@@ -1043,7 +1057,8 @@ async def interpret_decision(request: InterpretDecisionRequest):
     # Interpret without committing
     try:
         print(f"DEBUG: calling manager.interpret_decision with '{request.action_text}'")
-        result = manager.interpret_decision(request.action_text)
+        with session.lock:
+            result = manager.interpret_decision(request.action_text)
         print(f"DEBUG: result keys: {result.keys()}")
         
         return InterpretationResponse(
@@ -1076,11 +1091,11 @@ async def commit_decision(request: CommitDecisionRequest):
         raise HTTPException(status_code=400, detail=f"Wrong phase: {manager.world.phase}")
     _require_no_mandatory_call(manager)
 
-    manager.world.phase = "decision"
-    
-    # Resolve decision
-    result = manager.resolve_decision(request.action_text)
-    
+    with session.lock:
+        manager.world.phase = "decision"
+        # Resolve decision
+        result = manager.resolve_decision(request.action_text)
+
     # Stream results
     await _stream_adjudication_results(session, result)
     

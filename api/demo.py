@@ -65,7 +65,12 @@ class DemoStartRequest(BaseModel):
 
 def _drive(run: DemoRun, session) -> None:
     """The worker loop. Every push goes through the session's tagged bus;
-    LLM calls relay because this thread binds itself to the session."""
+    LLM calls relay because this thread binds itself to the session.
+
+    Engine mutation happens under ``session.lock``, the same lock the API's
+    mutating endpoints take - a dashboard inject fired mid-turn lands
+    between engine calls, never inside one. Pacing sleeps and event pushes
+    stay outside the lock."""
     from api import llm_relay
     from api.server import adjudication_events, briefing_events
 
@@ -97,7 +102,8 @@ def _drive(run: DemoRun, session) -> None:
                 break
 
             # Briefing
-            inject = manager.get_turn_briefing()
+            with session.lock:
+                inject = manager.get_turn_briefing()
             for event_type, data, layer in briefing_events(inject):
                 push(event_type, data, layer=layer)
             pace()
@@ -107,8 +113,9 @@ def _drive(run: DemoRun, session) -> None:
                    and manager.active_encounter.active):
                 if run.stop_requested:
                     return
-                mark = len(manager.active_encounter.transcript)
-                result = manager.process_diplomacy(CALL_REPLY)
+                with session.lock:
+                    mark = len(manager.active_encounter.transcript)
+                    result = manager.process_diplomacy(CALL_REPLY)
                 push("diplomacy", {
                     "type": "call_turn",
                     "lines": (result.get("transcript") or [])[mark:],
@@ -120,7 +127,9 @@ def _drive(run: DemoRun, session) -> None:
             # One cabinet question
             from api.server import classify_discussion_line
             question = QUESTIONS[turn_index % len(QUESTIONS)]
-            for line in manager.process_question(question):
+            with session.lock:
+                answer_lines = manager.process_question(question)
+            for line in answer_lines:
                 msg_type, role, content = classify_discussion_line(line)
                 push("transcript", {
                     "type": msg_type, "role": role, "content": content
@@ -132,8 +141,9 @@ def _drive(run: DemoRun, session) -> None:
 
             # Preview then commit the identical text, like the play harness
             decision = DECISIONS[turn_index % len(DECISIONS)]
-            manager.interpret_decision(decision)
-            result = manager.resolve_decision(decision)
+            with session.lock:
+                manager.interpret_decision(decision)
+                result = manager.resolve_decision(decision)
             for event_type, data, layer in adjudication_events(result, manager):
                 push(event_type, data, layer=layer)
             pace()
