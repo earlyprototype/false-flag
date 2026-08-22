@@ -273,13 +273,15 @@ COMMANDS = [
     ("/resources", "UK forces and stockpiles"),
     ("/intel [country]", "Intelligence on foreign actors"),
     ("/call <country>", "Contact a foreign leader or diplomat"),
-    ("/decide", "Give the order (or /decide <your order>)"),
+    ("/decide", "Give the order"),
     ("/save", "Save the campaign"),
     ("/quit", "Leave the crisis room"),
 ]
 
 # The CLI accepts these bare as well as slashed ("status", "/status").
-_BARE_ALIASES = {"menu", "help", "status", "advise", "resources", "intel",
+# Not "intel": cli/main.py matches only the slashed form, so bare "intel"
+# is a question to the room there — and therefore here.
+_BARE_ALIASES = {"menu", "help", "status", "advise", "resources",
                  "decide", "decision", "save", "quit",
                  # Handled below with an explanation rather than silently sent
                  # to the model as a question; the CLI takes these bare too.
@@ -1434,9 +1436,9 @@ class WebGame:
         # the first word alone sent it to resolve_decision and burned the turn
         # on a line the player was still thinking out loud with.
         if not line.startswith("/") and lowered not in _BARE_ALIASES:
-            # Free text is a question, and "everyone," opens it to the room —
-            # both straight from cli/main.py.
-            for opener in ("everyone,", "all of you,", "everyone:", "room,"):
+            # Free text is a question, and "everyone," / "all of you," opens
+            # it to the room — the only two openers cli/main.py accepts.
+            for opener in ("everyone,", "all of you,"):
                 if lowered.startswith(opener):
                     self.ask(ASK_ALL["id"], line[len(opener):].strip(),
                              was_awaiting)
@@ -1476,20 +1478,22 @@ class WebGame:
                 # line. To speak as you dial, use quotes.
                 country, message = _split_call_target(rest)
                 self.call(country, message, was_awaiting)
-        elif verb in ("decide", "decision"):
-            if rest:
-                self.decide(rest, was_awaiting)
-            else:
-                pen = AnsiPen(self.width)
-                pen.blank()
-                pen.section("YOUR ORDER", AMBER)
-                pen.wrap("Write what you are doing, in your own words — a "
-                         "paragraph beats a sentence. Say what you are doing, "
-                         "what you are not, and who you are telling.",
-                         colour=DIM)
-                pen.blank()
-                self.out(pen, instant=True)
-                self.set_awaiting(AWAIT_ORDER)
+        elif verb in ("decide", "decision") and not rest:
+            # Bare only, as in the CLI: cli/main.py matches the whole line
+            # against its exact decide forms, so "/decide <order>" is not a
+            # decision there — it is answered "Unknown command". Trailing
+            # text therefore falls through to the refusal below; taking it
+            # as the order resolved a turn on a line the terminal refuses.
+            pen = AnsiPen(self.width)
+            pen.blank()
+            pen.section("YOUR ORDER", AMBER)
+            pen.wrap("Write what you are doing, in your own words — a "
+                     "paragraph beats a sentence. Say what you are doing, "
+                     "what you are not, and who you are telling.",
+                     colour=DIM)
+            pen.blank()
+            self.out(pen, instant=True)
+            self.set_awaiting(AWAIT_ORDER)
         elif verb == "save":
             self.save()
             self.set_awaiting(was_awaiting)
