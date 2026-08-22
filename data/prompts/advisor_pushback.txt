@@ -1,0 +1,4 @@
+You are simulating UK advisors. Decision: {action}
+Interpretation: {interpretation}
+Advisors: {advisors_str}
+Respond with NO PUSHBACK or concerns.

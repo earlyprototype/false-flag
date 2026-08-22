@@ -1,0 +1,34 @@
+You are interpreting a decision made by the UK Prime Minister during a crisis.
+
+Available forces:
+{uk_forces}
+
+Ammunition stockpiles:
+{stockpiles}
+
+Constraints:
+{constraints}
+
+The Prime Minister has decided: "{action}"
+
+IMPORTANT: Interpret this as the PM's DECISION/DIRECTIVE to their cabinet, not as a question to advisors. 
+Even if phrased as questions or dialogue (e.g., "Where can we...?", "Speak to..."), treat this as the PM 
+ORDERING those actions to be taken by the appropriate departments.
+
+Interpret this action and provide:
+1. A clear, structured summary of what the PM intends to do
+2. Which UK forces/assets are being deployed or used
+3. What resources (ammunition, etc.) will be consumed
+4. Expected timeline (immediate, 1-3 turns, longer)
+5. Any obvious impossibilities or violations of constraints
+
+Consider the conversation history - if this decision builds on or contradicts previous actions, note that.
+
+Format your response as:
+INTERPRETATION: [one-sentence summary]
+FORCES INVOLVED: [list]
+RESOURCES CONSUMED: [list or "None"]
+TIMELINE: [immediate/short/medium/long]
+FEASIBILITY: [feasible/requires clarification/impossible because...]
+
+Your interpretation:

@@ -195,27 +195,19 @@ def build_advisor_context(
     # prompt, so opening with "You are the {role}" made the shared prefix
     # across a turn's calls twelve characters long. See
     # context_builder.build_shared_context_prefix.
-    prompt = f"""{full_context}
+    # The instruction block is a hot-editable template (llm/prompt_templates,
+    # data/prompts/advisor_qa.txt); values are pre-formatted here so the
+    # template stays plain named placeholders.
+    from llm.prompt_templates import render
 
-You are the {role} in a UK government COBRA meeting during a crisis.
-
-Your knowledge domains: {', '.join(knowledge_domains)}
-Your key concerns: {', '.join(key_concerns)}
-
-Relevant context specific to your role:
-{context_str}
-
-The Prime Minister asks: "{question}"
-
-Respond in character as the {role}. Be concise, professional, and focus on your areas of expertise.
-Reference past decisions, warnings, or outcomes from the conversation history when relevant.
-If the question is outside your knowledge domain, acknowledge this and suggest who might better answer it.
-
-Keep paragraphs short for readability.
-
-Your response:"""
-    
-    return prompt
+    return f"{full_context}\n\n" + render(
+        "advisor_qa",
+        role=role,
+        knowledge_domains=", ".join(knowledge_domains),
+        key_concerns=", ".join(key_concerns),
+        context_str=context_str,
+        question=question,
+    )
 
 
 def build_decision_interpretation_prompt(
@@ -248,44 +240,18 @@ def build_decision_interpretation_prompt(
     # build_conversation_history_context, a second, differently-formatted
     # window over the same transcript; two renderings of identical material
     # share no prefix, so neither could ever be cached against the other.
-    prompt = f"""{build_shared_context_prefix(transcript or [], world, event_ledger)}
+    # The instruction block is a hot-editable template (llm/prompt_templates,
+    # data/prompts/decision_interpretation.txt).
+    from llm.prompt_templates import render
 
-You are interpreting a decision made by the UK Prime Minister during a crisis.
-
-Available forces:
-{uk_forces}
-
-Ammunition stockpiles:
-{stockpiles}
-
-Constraints:
-{constraints}
-
-The Prime Minister has decided: "{action}"
-
-IMPORTANT: Interpret this as the PM's DECISION/DIRECTIVE to their cabinet, not as a question to advisors. 
-Even if phrased as questions or dialogue (e.g., "Where can we...?", "Speak to..."), treat this as the PM 
-ORDERING those actions to be taken by the appropriate departments.
-
-Interpret this action and provide:
-1. A clear, structured summary of what the PM intends to do
-2. Which UK forces/assets are being deployed or used
-3. What resources (ammunition, etc.) will be consumed
-4. Expected timeline (immediate, 1-3 turns, longer)
-5. Any obvious impossibilities or violations of constraints
-
-Consider the conversation history - if this decision builds on or contradicts previous actions, note that.
-
-Format your response as:
-INTERPRETATION: [one-sentence summary]
-FORCES INVOLVED: [list]
-RESOURCES CONSUMED: [list or "None"]
-TIMELINE: [immediate/short/medium/long]
-FEASIBILITY: [feasible/requires clarification/impossible because...]
-
-Your interpretation:"""
-    
-    return prompt
+    prefix = build_shared_context_prefix(transcript or [], world, event_ledger)
+    return f"{prefix}\n\n" + render(
+        "decision_interpretation",
+        uk_forces=uk_forces,
+        stockpiles=stockpiles,
+        constraints=constraints,
+        action=action,
+    )
 
 
 def build_pushback_prompt(
@@ -323,30 +289,17 @@ def build_pushback_prompt(
 
     from llm.context_builder import build_shared_context_prefix
 
-    prompt = f"""{build_shared_context_prefix(transcript or [], world, event_ledger)}
+    # The instruction block is a hot-editable template (llm/prompt_templates,
+    # data/prompts/advisor_pushback.txt).
+    from llm.prompt_templates import render
 
-You are simulating UK government advisors responding to a Prime Minister's decision.
-
-The PM has decided: "{action}"
-
-Interpretation of this action:
-{interpretation}
-
-Advisors and their pushback triggers:
-{advisors_str}
-
-For each advisor whose pushback triggers are activated by this decision, generate a brief (2-3 sentences) in-character warning or concern. Reference past warnings or decisions from the conversation history if relevant (e.g., "As I warned in Turn 2..."). If no triggers are activated, respond with "NO PUSHBACK".
-
-Format:
-[ADVISOR ROLE]: [their concern]
-
-OR
-
-NO PUSHBACK
-
-Your response:"""
-    
-    return prompt
+    prefix = build_shared_context_prefix(transcript or [], world, event_ledger)
+    return f"{prefix}\n\n" + render(
+        "advisor_pushback",
+        action=action,
+        interpretation=interpretation,
+        advisors_str=advisors_str,
+    )
 
 
 def _drop_used_scenarios(scenarios: List[Any], event_ledger) -> List[Any]:
