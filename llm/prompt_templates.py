@@ -18,15 +18,33 @@ by reset_template; a template file that no longer formats cleanly falls
 back to it rather than crashing a turn.
 """
 
+import os
 import threading
 from pathlib import Path
 from string import Formatter
 from typing import Dict, Iterable, Tuple
 
-_PROMPT_DIR = Path(__file__).resolve().parents[1] / "data" / "prompts"
+_DEFAULT_PROMPT_DIR = Path(__file__).resolve().parents[1] / "data" / "prompts"
+
+
+def _prompt_dir() -> Path:
+    """The template directory: WARGAME_PROMPT_DIR overrides the repo default.
+
+    The override exists so the test suite can point every write
+    (set_template, reset_template, fixture teardowns) at a throwaway
+    directory. Without it, tests rewrote the REAL committed
+    data/prompts/*.txt files - and any earlier test's teardown silently
+    healed a drifted committed file before the parity test could read it.
+    """
+    override = os.environ.get("WARGAME_PROMPT_DIR")
+    return Path(override) if override else _DEFAULT_PROMPT_DIR
+
 
 _lock = threading.Lock()
-_cache: Dict[str, Tuple[Tuple[int, int], str]] = {}  # family -> ((mtime_ns, size), text)
+# family -> ((path, mtime_ns, size), text). The path is part of the key so
+# a directory switch (tests) can never serve a stale entry whose mtime and
+# size happen to coincide.
+_cache: Dict[str, Tuple[Tuple[str, int, int], str]] = {}
 
 
 DEFAULTS: Dict[str, str] = {
@@ -124,7 +142,7 @@ FAMILIES: Tuple[str, ...] = tuple(DEFAULTS)
 
 def template_path(family: str) -> Path:
     _require_family(family)
-    return _PROMPT_DIR / f"{family}.txt"
+    return _prompt_dir() / f"{family}.txt"
 
 
 def _require_family(family: str) -> None:
@@ -173,7 +191,7 @@ def get_template(family: str) -> str:
     path = template_path(family)
     try:
         stat = path.stat()
-        key = (stat.st_mtime_ns, stat.st_size)
+        key = (str(path), stat.st_mtime_ns, stat.st_size)
     except OSError:
         return DEFAULTS[family]
 
@@ -208,8 +226,9 @@ def set_template(family: str, text: str) -> None:
     """Validate and persist an edited template (PUT /prompts/{family})."""
     text = _normalise(text)
     validate_template(family, text)
-    _PROMPT_DIR.mkdir(parents=True, exist_ok=True)
-    template_path(family).write_text(text, encoding="utf-8", newline="\n")
+    path = template_path(family)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8", newline="\n")
     with _lock:
         _cache.pop(family, None)
 
@@ -217,9 +236,9 @@ def set_template(family: str, text: str) -> None:
 def reset_template(family: str) -> None:
     """Restore the canonical default text for a family."""
     _require_family(family)
-    _PROMPT_DIR.mkdir(parents=True, exist_ok=True)
-    template_path(family).write_text(DEFAULTS[family], encoding="utf-8",
-                                     newline="\n")
+    path = template_path(family)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(DEFAULTS[family], encoding="utf-8", newline="\n")
     with _lock:
         _cache.pop(family, None)
 

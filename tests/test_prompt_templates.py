@@ -21,11 +21,22 @@ from llm import prompt_templates as pt
 
 GOLDEN_PATH = Path(__file__).parent / "data" / "prompt_parity_golden.json"
 
+# The directory of COMMITTED template files. The parity gate below reads it
+# directly instead of going through pt.template_path, which tests/conftest.py
+# redirects to a throwaway directory for every test.
+REPO_PROMPT_DIR = Path(__file__).resolve().parent.parent / "data" / "prompts"
+
 
 @pytest.fixture(autouse=True)
-def restore_templates():
-    """Tests may edit template files; leave the defaults behind."""
-    yield
+def seeded_templates():
+    """Seed the isolated template directory with the canonical defaults.
+
+    The loader tests exercise files on disk (direct edits, unlink, CRLF
+    rewrites), so the per-test directory (tests/conftest.py) starts out
+    looking like an unedited checkout. Writes land there, never on the
+    committed data/prompts/ files - which is what let a drifted committed
+    file pass the parity gate for as long as teardowns wrote it back.
+    """
     for family in pt.FAMILIES:
         pt.reset_template(family)
 
@@ -47,11 +58,17 @@ def test_assembled_prompts_match_pre_refactor_golden():
 
 
 def test_template_files_match_embedded_defaults():
-    """The shipped data/prompts/*.txt files ARE the defaults; if one drifts
-    from the embedded canonical text, reset/fallback would silently change
-    live prompts."""
+    """The COMMITTED data/prompts/*.txt files ARE the defaults; if one
+    drifts from the embedded canonical text, reset/fallback would silently
+    change live prompts.
+
+    Reads the repo directory directly - never the loader's path, which the
+    suite isolates to a tmp dir - so no other test's template writes can
+    heal a drifted commit before this gate sees it. (Exactly that masking
+    let a placeholder advisor_pushback.txt ship: every earlier teardown
+    rewrote the real file from DEFAULTS.)"""
     for family in pt.FAMILIES:
-        path = pt.template_path(family)
+        path = REPO_PROMPT_DIR / f"{family}.txt"
         assert path.exists(), f"missing template file: {path}"
         on_disk = pt._normalise(path.read_text(encoding="utf-8"))
         assert on_disk == pt.DEFAULTS[family], f"{family}.txt drifted from DEFAULTS"
