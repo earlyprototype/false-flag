@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>False Flag — Facilitator Dashboard</title>
+<style>
+  /* Control-room theme: one deliberate dark look, fully self-contained. */
+  :root {
+    --bg: #0b0f14;
+    --panel: #121821;
+    --panel-2: #0e141c;
+    --line: #1f2a38;
+    --text: #d7e1ec;
+    --muted: #7c8a9a;
+    --accent: #4da3ff;
+    /* Layer palette — the legend in the header names these. */
+    --sitrep: #4da3ff;
+    --intel: #ffb020;
+    --diplomatic: #b07aff;
+    --domestic: #2fd6c3;
+    --cabinet: #6fd649;
+    --referee: #ff5d5d;
+    --mono: "Cascadia Mono", "Consolas", "SF Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, "Segoe UI", sans-serif; }
+  h1, h2 { margin: 0; font-weight: 600; }
+  h1 { font-size: 15px; letter-spacing: .12em; }
+  h2 { font-size: 11px; letter-spacing: .14em; color: var(--muted);
+    text-transform: uppercase; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  button { background: #1a2432; color: var(--text); border: 1px solid #2c3b4f;
+    border-radius: 4px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: #133157; border-color: #1f5aa0; }
+  button.danger { background: #3a1420; border-color: #74263b; }
+  input, select, textarea { background: #0d1420; color: var(--text);
+    border: 1px solid #2c3b4f; border-radius: 4px; padding: 5px 7px; font-size: 12px; }
+  input:focus, select:focus, textarea:focus, button:focus-visible {
+    outline: 1px solid var(--accent); outline-offset: 1px; }
+  textarea { font-family: var(--mono); font-size: 11.5px; line-height: 1.5; }
+
+  header { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center;
+    padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 5; }
+  header .brand { display: flex; flex-direction: column; gap: 2px; }
+  header .brand small { color: var(--muted); font-size: 11px; letter-spacing: .05em; }
+  .sess { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .sess input { width: 250px; font-family: var(--mono); font-size: 11px; }
+  #sessionBadge { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  #sessionBadge b { color: var(--text); }
+  .facil { color: var(--referee); font-weight: 600; }
+
+  .legend { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .legend .chip { cursor: pointer; user-select: none; }
+  .legend .chip.off { opacity: .25; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: 10.5px; letter-spacing: .08em; font-weight: 600;
+    border: 1px solid transparent; text-transform: uppercase; }
+  .chip.sitrep     { color: var(--sitrep);     border-color: var(--sitrep);     background: rgba(77,163,255,.08); }
+  .chip.intel      { color: var(--intel);      border-color: var(--intel);      background: rgba(255,176,32,.08); }
+  .chip.diplomatic { color: var(--diplomatic); border-color: var(--diplomatic); background: rgba(176,122,255,.08); }
+  .chip.domestic   { color: var(--domestic);   border-color: var(--domestic);   background: rgba(47,214,195,.08); }
+  .chip.cabinet    { color: var(--cabinet);    border-color: var(--cabinet);    background: rgba(111,214,73,.08); }
+  .chip.referee    { color: var(--referee);    border-color: var(--referee);    background: rgba(255,93,93,.08); }
+  .chan { display: inline-block; font-family: var(--mono); font-size: 10px;
+    color: var(--muted); border: 1px dashed #33465e; border-radius: 3px; padding: 0 5px; }
+
+  main { display: grid; gap: 12px; padding: 12px 16px 40px;
+    grid-template-columns: minmax(430px, 1.35fr) minmax(360px, 1fr) minmax(360px, 1fr); }
+  @media (max-width: 1280px) { main { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 900px)  { main { grid-template-columns: 1fr; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+    display: flex; flex-direction: column; min-height: 120px; }
+  section .body { padding: 10px 12px; overflow: auto; }
+  .tall { grid-row: span 3; }
+  .note { color: var(--muted); font-size: 11px; margin: 4px 0 8px; }
+  .note code { font-family: var(--mono); font-size: 10.5px; color: #a9bccf; }
+
+  /* Ledger */
+  #ledger { display: flex; flex-direction: column; gap: 6px; max-height: 78vh; }
+  .ev { border: 1px solid var(--line); border-left-width: 3px; border-radius: 4px;
+    background: var(--panel-2); padding: 6px 9px; font-size: 12.5px; }
+  .ev .meta { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-bottom: 2px; }
+  .ev .title { font-weight: 600; }
+  .ev .content { white-space: pre-wrap; color: #b9c6d4; font-size: 12px;
+    max-height: 130px; overflow: auto; }
+  .ev.l-sitrep { border-left-color: var(--sitrep); }
+  .ev.l-intel { border-left-color: var(--intel); }
+  .ev.l-diplomatic { border-left-color: var(--diplomatic); }
+  .ev.l-domestic { border-left-color: var(--domestic); }
+  .ev.l-cabinet { border-left-color: var(--cabinet); }
+  .ev.l-referee { border-left-color: var(--referee); }
+  .ev.manual { outline: 1px dashed var(--referee); }
+
+  /* Charts */
+  .chartwrap { padding: 8px 12px 4px; }
+  svg text { fill: var(--muted); font-size: 9.5px; font-family: var(--mono); }
+  .serieslabel { display: flex; gap: 12px; flex-wrap: wrap; padding: 0 12px 10px;
+    font-size: 11px; color: var(--muted); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px;
+    margin-right: 5px; vertical-align: baseline; }
+
+  /* LLM calls */
+  #calls { display: flex; flex-direction: column; gap: 5px; max-height: 34vh; }
+  .call { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 11px; border: 1px solid var(--line);
+    border-left: 3px solid var(--referee); border-radius: 4px;
+    background: var(--panel-2); padding: 4px 8px; }
+  .call .fam { color: var(--text); font-weight: 600; }
+  .call .lat { color: var(--intel); }
+  .call .fb { color: var(--referee); font-weight: 700; }
+  .call .tier { color: var(--diplomatic); }
+
+  /* Routing matrix */
+  table { border-collapse: collapse; width: 100%; font-size: 11.5px; }
+  th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+  td select, td input { font-size: 11px; padding: 2px 4px; max-width: 110px; }
+  tr.overridden td { background: rgba(255,93,93,.06); }
+  tr.overridden td:first-child { box-shadow: inset 3px 0 0 var(--referee); }
+  td.mono, .mono { font-family: var(--mono); font-size: 10.5px; }
+
+  form.stack { display: flex; flex-direction: column; gap: 7px; }
+  form.stack label { font-size: 11px; color: var(--muted); display: flex;
+    flex-direction: column; gap: 3px; }
+  .row { display: flex; gap: 7px; align-items: end; flex-wrap: wrap; }
+  .status { font-size: 11px; font-family: var(--mono); min-height: 15px; }
+  .status.ok { color: var(--cabinet); } .status.err { color: var(--referee); }
+  .badge-edited { color: var(--intel); font-size: 10px; font-weight: 700;
+    letter-spacing: .08em; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>FALSE FLAG · FACILITATOR DASHBOARD</h1>
+    <small>Layer-tagged event bus · EXCON control surface</small>
+  </div>
+  <div class="sess">
+    <button id="btnNew" class="primary" title="POST /game/new with facilitator:true">New facilitator session</button>
+    <button id="btnDemo" title="POST /demo/start — drives a mock campaign headless">Start demo campaign</button>
+    <button id="btnDemoStop" title="POST /demo/{id}/stop">Stop demo</button>
+    <input id="sessionInput" placeholder="…or paste a session id" spellcheck="false">
+    <button id="btnAttach">Attach</button>
+    <span id="sessionBadge">no session</span>
+  </div>
+  <div class="legend" id="legend" title="Click a layer to show/hide it in the ledger">
+    <span class="chip sitrep" data-layer="sitrep">sitrep</span>
+    <span class="chip intel" data-layer="intel">intel</span>
+    <span class="chip diplomatic" data-layer="diplomatic">diplomatic</span>
+    <span class="chip domestic" data-layer="domestic">domestic</span>
+    <span class="chip cabinet" data-layer="cabinet">cabinet</span>
+    <span class="chip referee" data-layer="referee">referee</span>
+  </div>
+</header>
+
+<main>
+  <!-- ============ LEDGER ============ -->
+  <section class="tall">
+    <h2>Event ledger — six layers, newest first</h2>
+    <div class="body">
+      <p class="note">Every event is stamped at the bus with turn, T+ and one of six
+        layers (SITREP / INTEL / DIPLOMATIC / DOMESTIC / CABINET / REFEREE).
+        Inject channels observed in the wild — <code>briefing</code>,
+        <code>intelligence</code>, <code>emergency</code>, <code>flash_alert</code>,
+        <code>diplomatic</code>, <code>media</code>, <code>military</code> — map onto
+        those layers. REFEREE rows arrive only on facilitator sessions; a player
+        stream has them filtered server-side.</p>
+      <div id="ledger"></div>
+    </div>
+  </section>
+
+  <!-- ============ METRICS ============ -->
+  <section>
+    <h2>Metric traces — hidden gauges (0–100) per turn</h2>
+    <div class="chartwrap"><svg id="chartMetrics" width="100%" height="170" viewBox="0 0 460 170" preserveAspectRatio="none"></svg></div>
+    <div class="serieslabel">
+      <span><span class="dot" style="background:var(--referee)"></span>escalation_risk</span>
+      <span><span class="dot" style="background:var(--domestic)"></span>domestic_stability</span>
+      <span><span class="dot" style="background:var(--sitrep)"></span>alliance_cohesion</span>
+    </div>
+    <div class="chartwrap"><svg id="chartCas" width="100%" height="80" viewBox="0 0 460 80" preserveAspectRatio="none"></svg></div>
+    <div class="serieslabel">
+      <span><span class="dot" style="background:var(--intel)"></span>casualties_mil</span>
+      <span><span class="dot" style="background:var(--diplomatic)"></span>casualties_civ</span>
+      <span style="margin-left:auto">updates on <code>state_update</code></span>
+    </div>
+  </section>
+
+  <!-- ============ LLM CALLS ============ -->
+  <section>
+    <h2>LLM calls — live relay (REFEREE layer)</h2>
+    <div class="body">
+      <p class="note">One card per router dispatch: family · tier · provider/model ·
+        latency · fallback flag. Prompt and reply bodies never cross the wire.</p>
+      <div id="calls"></div>
+    </div>
+  </section>
+
+  <!-- ============ ROUTING ============ -->
+  <section>
+    <h2>Reroute matrix — 12 LLM contexts</h2>
+    <div class="body">
+      <p class="note">Runtime override per context: pin a tier, a provider, or an
+        exact model. Rows with an active override are marked. Applies to the next
+        call of that family, process-wide.</p>
+      <div id="routingStatus" class="status"></div>
+      <table id="routingTable">
+        <thead><tr><th>context</th><th>effective</th><th>tier</th><th>model</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ INJECT CONSOLE ============ -->
+  <section>
+    <h2>Inject console — fire an event into the session</h2>
+    <div class="body">
+      <form class="stack" id="injectForm">
+        <div class="row">
+          <label>channel
+            <select id="injChannel">
+              <option>briefing</option><option>intelligence</option>
+              <option>emergency</option><option>flash_alert</option>
+              <option>diplomatic</option><option>media</option><option>military</option>
+            </select>
+          </label>
+          <label>target (optional)<input id="injTarget" placeholder="e.g. Baltic Sea"></label>
+        </div>
+        <label>headline<input id="injHeadline" required placeholder="RUSSIAN AUXILIARY ALTERS COURSE"></label>
+        <label>content<textarea id="injContent" rows="4" required placeholder="Two paragraphs of in-fiction reporting…"></textarea></label>
+        <div class="row">
+          <label>effect metric
+            <select id="injMetric">
+              <option value="">— none —</option>
+              <option>escalation_risk</option><option>domestic_stability</option>
+              <option>alliance_cohesion</option><option>casualties_mil</option>
+              <option>casualties_civ</option>
+            </select>
+          </label>
+          <label>delta<input id="injDelta" type="number" value="0" style="width:70px"></label>
+          <button type="submit" class="primary">Fire inject</button>
+        </div>
+        <div id="injectStatus" class="status"></div>
+      </form>
+    </div>
+  </section>
+
+  <!-- ============ PROMPT EDITOR ============ -->
+  <section>
+    <h2>Prompt hot-edit — instruction templates</h2>
+    <div class="body">
+      <form class="stack" id="promptForm">
+        <div class="row">
+          <label>family
+            <select id="promptFamily"></select>
+          </label>
+          <span id="promptEdited" class="badge-edited"></span>
+          <button type="submit" class="primary">Save</button>
+          <button type="button" id="promptReset" class="danger" title="Restore the shipped default">Reset to default</button>
+        </div>
+        <label>template text (placeholders in <span class="mono">{braces}</span> — <span class="mono" id="promptPlaceholders"></span>)
+          <textarea id="promptText" rows="14" spellcheck="false"></textarea>
+        </label>
+        <div id="promptStatus" class="status"></div>
+      </form>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+/* ------------------------------------------------------------------ state */
+const LAYERS = ["sitrep","intel","diplomatic","domestic","cabinet","referee"];
+const MAX_LEDGER = 400, MAX_CALLS = 80;
+let sessionId = null, source = null, facilitator = false;
+const layerVisible = Object.fromEntries(LAYERS.map(l => [l, true]));
+// Metric history: {turn -> value} kept as ordered arrays.
+const series = { escalation_risk: [], domestic_stability: [], alliance_cohesion: [],
+                 casualties_mil: [], casualties_civ: [] };
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function api(method, path, body) {
+  const res = await fetch(path, {
+    method,
+    headers: body ? {"Content-Type": "application/json"} : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = {raw: text}; }
+  if (!res.ok) throw new Error((data && (data.detail || data.raw)) || res.statusText);
+  return data;
+}
+function setStatus(id, msg, ok) {
+  const el = $(id); el.textContent = msg; el.className = "status " + (ok ? "ok" : "err");
+  if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 5000);
+}
+
+/* ---------------------------------------------------------------- session */
+function setSession(id, isFacilitator) {
+  sessionId = id; facilitator = !!isFacilitator;
+  $("sessionInput").value = id || "";
+  $("sessionBadge").innerHTML = id
+    ? `session <b>${esc(id.slice(0,8))}…</b> ${facilitator ? '<span class="facil">FACILITATOR</span>' : "player-view"}`
+    : "no session";
+  connectStream();
+}
+
+function connectStream() {
+  if (source) { source.close(); source = null; }
+  if (!sessionId) return;
+  source = new EventSource(`/stream/${sessionId}`);
+  const on = (name, fn) => source.addEventListener(name, e => {
+    let d = {}; try { d = JSON.parse(e.data); } catch {}
+    fn(d, name);
+  });
+  ["transcript","system","diplomacy","intel","ending","inject_fired",
+   "adjudication","parse_health"].forEach(n => on(n, addLedgerRow));
+  on("state_update", d => { addLedgerRow(d, "state_update"); recordMetrics(d); });
+  on("llm_call", d => { addLedgerRow(d, "llm_call"); addCallCard(d); });
+  source.onerror = () => { /* EventSource auto-reconnects */ };
+}
+
+$("btnNew").onclick = async () => {
+  try {
+    const d = await api("POST", "/game/new", {facilitator: true});
+    setSession(d.session_id, true);
+    seedFromState(d);
+  } catch (e) { alert("New session failed: " + e.message); }
+};
+$("btnAttach").onclick = async () => {
+  const id = $("sessionInput").value.trim();
+  if (!id) return;
+  try {
+    const d = await api("GET", `/game/${id}`);
+    // The server filters REFEREE for player sessions regardless; we cannot
+    // know the flag from here, so show what the stream proves.
+    setSession(id, true);
+    seedFromState(d);
+  } catch (e) { alert("Attach failed: " + e.message); }
+};
+$("btnDemo").onclick = async () => {
+  try {
+    const d = await api("POST", "/demo/start", {turns: 5, pace_s: 2.0});
+    setSession(d.session_id, true);
+  } catch (e) { alert("Demo start failed: " + e.message); }
+};
+$("btnDemoStop").onclick = async () => {
+  if (!sessionId) return;
+  try { await api("POST", `/demo/${sessionId}/stop`); } catch (e) { alert(e.message); }
+};
+function seedFromState(d) {
+  if (d && d.metrics) recordMetrics({turn: d.turn, metrics: d.metrics});
+}
+
+/* ----------------------------------------------------------------- ledger */
+$("legend").addEventListener("click", e => {
+  const chip = e.target.closest(".chip"); if (!chip) return;
+  const layer = chip.dataset.layer;
+  layerVisible[layer] = !layerVisible[layer];
+  chip.classList.toggle("off", !layerVisible[layer]);
+  document.querySelectorAll(`#ledger .ev.l-${layer}`)
+    .forEach(el => el.style.display = layerVisible[layer] ? "" : "none");
+});
+
+function summarise(d, kind) {
+  switch (kind) {
+    case "transcript": {
+      const title = d.title || (d.role ? d.role : (d.type || "").toUpperCase());
+      return [title, d.content || ""];
+    }
+    case "system": return ["SYSTEM", d.content || ""];
+    case "state_update":
+      return ["STATE UPDATE", d.metrics
+        ? `turn ${d.turn} · phase ${d.phase} · ` +
+          Object.entries(d.metrics).map(([k,v]) => `${k}=${v}`).join(" · ")
+        : `turn ${d.turn} · phase ${d.phase}`];
+    case "llm_call":
+      return [`LLM CALL · ${d.family || "untagged"}`,
+        `${d.tier || "-"} · ${d.provider || "-"}${d.model ? " / " + d.model : ""} · ` +
+        `${d.latency_ms ?? "?"} ms${d.fallback ? " · FALLBACK" : ""}`];
+    case "adjudication":
+      return ["ADJUDICATION (RAW)", JSON.stringify(d.effects || {}) +
+        (d.error ? ` · error: ${d.error}` : "")];
+    case "parse_health": {
+      const n = o => Object.values(o || {}).reduce((a,b) => a+b, 0);
+      return ["PARSE HEALTH", `misses ${n(d.misses)} · fallbacks ${n(d.fallbacks)}` +
+        ` · truncations ${n(d.truncations)} · residue ${n(d.residue)}`];
+    }
+    case "diplomacy":
+      return [d.type === "call_started" ? `CALL OPENED · ${d.country || ""}` : "CALL EXCHANGE",
+        (d.lines || d.transcript || []).join("\n") +
+        (d.outcome ? "\nOUTCOME: " + JSON.stringify(d.outcome) : "")];
+    case "intel": return [`INTEL PULLED · ${d.actor || d.code || ""}`, `confidence ${d.confidence || "?"}`];
+    case "inject_fired":
+      return [`INJECT FIRED · ${d.title || ""}`, `channel ${d.channel} · effects ${JSON.stringify(d.effects || [])}`];
+    case "ending": return [`ENDING · ${d.title || d.ending_id || ""}`, d.verdict || ""];
+    default: return [kind.toUpperCase(), JSON.stringify(d)];
+  }
+}
+
+function addLedgerRow(d, kind) {
+  const layer = LAYERS.includes(d.layer) ? d.layer : "sitrep";
+  const [title, content] = summarise(d, kind);
+  const el = document.createElement("div");
+  el.className = `ev l-${layer}` + (d.manual ? " manual" : "");
+  if (!layerVisible[layer]) el.style.display = "none";
+  const tplus = (d.t_plus_s != null) ? `T+${Number(d.t_plus_s).toFixed(1)}s` : "";
+  el.innerHTML =
+    `<div class="meta">` +
+      `<span>#${d.event_seq ?? ""}</span>` +
+      `<span>turn ${d.turn ?? "?"}</span>` +
+      `<span>${tplus}</span>` +
+      `<span class="chip ${layer}">${layer}</span>` +
+      (d.channel ? `<span class="chan">${esc(d.channel)}</span>` : "") +
+      `<span>${esc(kind)}</span>` +
+    `</div>` +
+    `<div class="title">${esc(title)}</div>` +
+    (content ? `<div class="content">${esc(content)}</div>` : "");
+  const ledger = $("ledger");
+  ledger.prepend(el);
+  while (ledger.children.length > MAX_LEDGER) ledger.lastChild.remove();
+}
+
+/* ----------------------------------------------------------------- charts */
+function recordMetrics(d) {
+  if (!d || !d.metrics) return;
+  const turn = d.turn ?? (series.escalation_risk.length + 1);
+  for (const key of Object.keys(series)) {
+    if (!(key in d.metrics)) continue;
+    const arr = series[key];
+    const last = arr[arr.length - 1];
+    if (last && last.turn === turn) last.v = d.metrics[key];
+    else arr.push({turn, v: d.metrics[key]});
+  }
+  drawCharts();
+}
+
+function polyline(points, xmap, ymap, color) {
+  if (!points.length) return "";
+  const pts = points.map(p => `${xmap(p.turn).toFixed(1)},${ymap(p.v).toFixed(1)}`).join(" ");
+  const dots = points.map(p =>
+    `<circle cx="${xmap(p.turn).toFixed(1)}" cy="${ymap(p.v).toFixed(1)}" r="2.4" fill="${color}"/>`).join("");
+  return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6"/>` + dots;
+}
+
+function drawCharts() {
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const all = Object.values(series).flat();
+  const turns = all.map(p => p.turn);
+  const t0 = Math.min(...turns, 1), t1 = Math.max(...turns, t0 + 1);
+  const W = 460, PAD = 26;
+  const xmap = t => PAD + (t - t0) / (t1 - t0) * (W - PAD - 8);
+
+  // Gauges 0-100
+  { const H = 170, ymap = v => 12 + (100 - Math.max(0, Math.min(100, v))) / 100 * (H - 30);
+    let g = "";
+    for (const yv of [0, 50, 100])
+      g += `<line x1="${PAD}" y1="${ymap(yv)}" x2="${W-6}" y2="${ymap(yv)}" stroke="#1f2a38" stroke-width="1"/>` +
+           `<text x="2" y="${ymap(yv)+3}">${yv}</text>`;
+    for (let t = Math.ceil(t0); t <= t1; t++)
+      g += `<text x="${xmap(t)-4}" y="${H-3}">T${t}</text>`;
+    g += polyline(series.escalation_risk, xmap, ymap, css("--referee"));
+    g += polyline(series.domestic_stability, xmap, ymap, css("--domestic"));
+    g += polyline(series.alliance_cohesion, xmap, ymap, css("--sitrep"));
+    $("chartMetrics").innerHTML = g; }
+
+  // Casualties: own scale
+  { const H = 80;
+    const cas = series.casualties_mil.concat(series.casualties_civ);
+    const vmax = Math.max(5, ...cas.map(p => p.v));
+    const ymap = v => 8 + (vmax - v) / vmax * (H - 22);
+    let g = `<line x1="${PAD}" y1="${ymap(0)}" x2="${W-6}" y2="${ymap(0)}" stroke="#1f2a38"/>` +
+            `<text x="2" y="${ymap(0)+3}">0</text><text x="2" y="${ymap(vmax)+3}">${vmax}</text>`;
+    g += polyline(series.casualties_mil, xmap, ymap, css("--intel"));
+    g += polyline(series.casualties_civ, xmap, ymap, css("--diplomatic"));
+    $("chartCas").innerHTML = g; }
+}
+
+/* -------------------------------------------------------------- llm calls */
+function addCallCard(d) {
+  const el = document.createElement("div");
+  el.className = "call";
+  el.innerHTML =
+    `<span class="fam">${esc(d.family || "untagged")}</span>` +
+    `<span class="tier">${esc(d.tier || "-")}</span>` +
+    `<span>${esc(d.provider || "-")}${d.model ? " / " + esc(d.model) : ""}</span>` +
+    `<span class="lat">${d.latency_ms ?? "?"} ms</span>` +
+    (d.batch_size ? `<span>batch ${d.batch_index + 1}/${d.batch_size}</span>` : "") +
+    `<span>${(d.prompt_chars ?? 0)}→${(d.reply_chars ?? 0)} ch</span>` +
+    (d.fallback ? `<span class="fb">FALLBACK</span>` : "");
+  const calls = $("calls");
+  calls.prepend(el);
+  while (calls.children.length > MAX_CALLS) calls.lastChild.remove();
+}
+
+/* ---------------------------------------------------------------- routing */
+async function loadRouting() {
+  try {
+    const d = await api("GET", "/routing");
+    const tbody = $("routingTable").querySelector("tbody");
+    tbody.innerHTML = "";
+    for (const row of d.contexts) {
+      const tr = document.createElement("tr");
+      if (row.override) tr.className = "overridden";
+      tr.innerHTML =
+        `<td class="mono">${esc(row.context)}</td>` +
+        `<td class="mono" title="what the next call of this family uses">` +
+          `${esc(row.effective_tier)} · ${esc(row.effective_model || row.effective_provider)}` +
+          `${row.override ? " ⟵ override" : ""}</td>` +
+        `<td><select data-k="tier">` +
+          `<option value="">(default)</option>` +
+          `<option${row.override?.tier === "flash" ? " selected" : ""}>flash</option>` +
+          `<option${row.override?.tier === "pro" ? " selected" : ""}>pro</option>` +
+        `</select></td>` +
+        `<td><input data-k="model" placeholder="exact model" value="${esc(row.override?.model || "")}"></td>` +
+        `<td><button data-act="apply">Apply</button> <button data-act="clear">Clear</button></td>`;
+      tr.querySelector('[data-act="apply"]').onclick = async () => {
+        const tier = tr.querySelector('[data-k="tier"]').value || null;
+        const model = tr.querySelector('[data-k="model"]').value.trim() || null;
+        if (!tier && !model) { setStatus("routingStatus", "pick a tier or type a model first", false); return; }
+        try {
+          await api("POST", `/routing/${row.context}`, {tier, model});
+          setStatus("routingStatus", `override set: ${row.context}`, true);
+          loadRouting();
+        } catch (e) { setStatus("routingStatus", e.message, false); }
+      };
+      tr.querySelector('[data-act="clear"]').onclick = async () => {
+        try {
+          await api("DELETE", `/routing/${row.context}`);
+          setStatus("routingStatus", `override cleared: ${row.context}`, true);
+          loadRouting();
+        } catch (e) { setStatus("routingStatus", e.message, false); }
+      };
+      tbody.appendChild(tr);
+    }
+  } catch (e) { setStatus("routingStatus", "routing load failed: " + e.message, false); }
+}
+
+/* ----------------------------------------------------------------- inject */
+$("injectForm").onsubmit = async e => {
+  e.preventDefault();
+  if (!sessionId) { setStatus("injectStatus", "attach a session first", false); return; }
+  const metric = $("injMetric").value, delta = Number($("injDelta").value);
+  const body = {
+    channel: $("injChannel").value,
+    headline: $("injHeadline").value.trim(),
+    content: $("injContent").value.trim(),
+    target: $("injTarget").value.trim() || null,
+    effects: metric && delta ? [{metric, delta}] : [],
+  };
+  try {
+    const d = await api("POST", `/game/${sessionId}/inject`, body);
+    setStatus("injectStatus", `delivered on ${d.layer.toUpperCase()} (channel ${d.channel})`, true);
+  } catch (err) { setStatus("injectStatus", err.message, false); }
+};
+
+/* ---------------------------------------------------------------- prompts */
+async function loadPromptFamilies() {
+  try {
+    const d = await api("GET", "/prompts");
+    const sel = $("promptFamily");
+    sel.innerHTML = d.families.map(f =>
+      `<option value="${esc(f.family)}">${esc(f.family)}${f.edited ? " *" : ""}</option>`).join("");
+    if (d.families.length) loadPrompt(sel.value);
+  } catch (e) { setStatus("promptStatus", e.message, false); }
+}
+async function loadPrompt(family) {
+  try {
+    const d = await api("GET", `/prompts/${family}`);
+    $("promptText").value = d.text;
+    $("promptPlaceholders").textContent = d.placeholders.map(p => `{${p}}`).join(" ");
+    $("promptEdited").textContent = d.edited ? "EDITED" : "";
+  } catch (e) { setStatus("promptStatus", e.message, false); }
+}
+$("promptFamily").onchange = e => loadPrompt(e.target.value);
+$("promptForm").onsubmit = async e => {
+  e.preventDefault();
+  const family = $("promptFamily").value;
+  try {
+    await api("PUT", `/prompts/${family}`, {text: $("promptText").value});
+    setStatus("promptStatus", `saved ${family} — next call uses it`, true);
+    loadPromptFamilies();
+  } catch (err) { setStatus("promptStatus", err.message, false); }
+};
+$("promptReset").onclick = async () => {
+  const family = $("promptFamily").value;
+  try {
+    await api("DELETE", `/prompts/${family}`);
+    setStatus("promptStatus", `reset ${family} to default`, true);
+    loadPromptFamilies();
+  } catch (err) { setStatus("promptStatus", err.message, false); }
+};
+
+/* ------------------------------------------------------------------- boot */
+loadRouting();
+loadPromptFamilies();
+drawCharts();
+</script>
+</body>
+</html>
