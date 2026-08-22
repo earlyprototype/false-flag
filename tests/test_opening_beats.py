@@ -125,6 +125,25 @@ def test_a_briefing_opening_on_the_handover_is_left_whole():
     assert report == []
 
 
+def test_the_production_turn_one_briefing_splits_on_its_handover():
+    """The re-paced turn 1 hands over on "gestures", not "clears"/"begins".
+
+    The browser splits turn 1 (docs/py/bridge.py), so the shipped yaml and
+    _REPORT_VERBS must agree — this pins the exact line the scenario ships.
+    """
+    from engine.events import load_inject_for_turn
+
+    inject = load_inject_for_turn("war_game_2025", 1)
+    assert inject, "turn_001.yaml failed to load"
+
+    setting, report = split_briefing(str(inject["description"]).split("\n"))
+    assert report, "no handover found in the production turn 1 briefing"
+    handover = "The National Security Adviser gestures to the wall display."
+    assert report[0] == handover
+    assert any("COBRA" in line for line in setting), \
+        "the room should stay in the scene-setting"
+
+
 # ------------------------------------------------- the asset, and the bundle
 
 def test_a_missing_intro_asset_raises_rather_than_reading_as_empty(monkeypatch,
