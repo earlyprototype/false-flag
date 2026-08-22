@@ -223,8 +223,230 @@ def append_recommendations_to_decision(original_decision: str, critical_concerns
     enhanced = original_decision
     enhanced += "\n\nAdditionally:"
     enhanced += "\n" + "\n".join(additions)
-    
+
     return enhanced
+
+
+def run_decision_phase(world, scenario: str, rng: Random, root: Path,
+                       transcript: list, narrative_state=None) -> Optional[tuple]:
+    """Run the interactive decision loop for one turn (extracted from play()).
+
+    Returns (action, interpretation, pushback) once the player commits a
+    decision, or None when the player returns to the discussion phase.
+
+    Exactly one "Prime Minister's Decision:" block lands in `transcript`
+    for the committed decision (issue #22): when the player applies advisor
+    recommendations, the enhanced decision's block replaces the superseded
+    original's. Declining the residual-concerns confirm keeps the enhanced
+    decision in hand and re-offers it at the next Decision> prompt instead
+    of silently discarding it (issue #16).
+    """
+    COLORS = theme_manager.get_colors()
+
+    decision_confirmed = False
+    # Set when the player chose to amend: the notice must render AFTER
+    # the loop's typer.clear(), or it is erased before it can be read
+    amend_pending = False
+    # Issue #16: a declined "Proceed anyway?" stores the enhanced decision
+    # here so the next Decision> prompt re-offers it (Enter re-submits it)
+    # instead of dropping the player to a blank prompt.
+    pending_decision = ""
+    # Issue #22: how many transcript lines the declined decision's block
+    # occupies, so re-running it replaces that block instead of stacking a
+    # second one for the same decision.
+    pending_block_len = 0
+    while not decision_confirmed:
+        # Decision phase - clear screen and start at top
+        typer.clear()
+        typer.echo("")  # Buffer line
+
+        if RICH_ENABLED:
+            console.print(ae.phase_banner("DECISION", world.turn))
+            typer.echo("")
+            typer.echo("  Enter your decision (or 'cancel' to return to discussion)")
+        else:
+            console.print("=" * 79)
+            console.print(f"[{COLORS['emphasis']} bold]TURN {world.turn}: DECISION PHASE[/{COLORS['emphasis']} bold]")
+            console.print("=" * 79)
+            console.print("")
+            console.print("Enter your decision (or 'cancel' to return to discussion):")
+
+        if amend_pending:
+            amend_pending = False
+            typer.echo("")
+            console.print(f"  [{COLORS['warning']}]Your advisors' concerns stand. Enter your amended decision.[/{COLORS['warning']}]")
+
+        if pending_decision:
+            # Deferred like amend_pending: rendered here, after the
+            # loop-top typer.clear(), or it would be erased unread.
+            typer.echo("")
+            console.print(f"  [{COLORS['warning']}]Residual concerns stand. Your enhanced decision is still in hand:[/{COLORS['warning']}]")
+            typer.echo("")
+            console.print(Panel(f"[italic]{rich_escape(pending_decision)}[/italic]", title="[bold]ENHANCED DECISION[/bold]", border_style="white"))
+            typer.echo("  Press Enter to re-submit it, type a replacement, or type 'cancel' to return to discussion.")
+
+        typer.echo("")
+
+        action = typer.prompt("Decision>", default=pending_decision, show_default=False).strip()
+        pending_decision = ""
+
+        if action.lower() == "cancel":
+            # Return to discussion phase. A declined enhanced decision may
+            # still occupy the transcript tail; it was never committed, so
+            # drop its block rather than leave a phantom
+            # "Prime Minister's Decision:" line in the record.
+            if pending_block_len:
+                del transcript[-pending_block_len:]
+            return None
+
+        if not action:
+            if pending_block_len:
+                # As on 'cancel': the pending declined block was never
+                # committed - remove it before leaving the phase.
+                del transcript[-pending_block_len:]
+            typer.echo("No action entered. Returning to discussion.")
+            typer.echo("")
+            wait_for_space("Press SPACE (or Enter) to return to discussion...")
+            return None
+
+        # Interpret and get pushback
+        interpretation, pushback, critical_concerns, decision_lines = run_turn_decision(world, scenario, action, rng, root, transcript, narrative_state=narrative_state)
+        if pending_block_len:
+            # Issue #22: this run supersedes the declined decision still
+            # sitting at the transcript tail - replace its block rather
+            # than record two blocks for one decision.
+            del transcript[-pending_block_len:]
+            pending_block_len = 0
+        transcript.extend(decision_lines)
+
+        # Display decision with improved UX
+        display_decision_summary(action, interpretation, show_details=False)
+
+        # Option to see full details
+        see_details = typer.prompt(
+            "Press Enter to continue (or type 'details' for the full interpretation)",
+            default="", show_default=False
+        ).strip().lower()
+        if see_details == "details":
+            display_decision_summary(action, interpretation, show_details=True)
+            console.print("")
+
+        # Handle critical omissions with selective addressing
+        if critical_concerns:
+            action_code, selected_indices = display_critical_concerns_with_selection(critical_concerns)
+
+            if action_code == 'D':
+                # Return to discussion
+                typer.echo("")
+                typer.echo("Returning to discussion phase.")
+                typer.echo("")
+                wait_for_space("Press SPACE (or Enter) to return to discussion...")
+                return None
+
+            elif action_code == 'M':
+                # Modify manually
+                typer.echo("")
+                typer.echo("Decision cancelled. Please enter a modified decision.")
+                typer.echo("")
+                continue
+
+            elif action_code in ['A', 'S'] and selected_indices:
+                # Apply selected recommendations
+                console.print("")
+                console.print(f"[{COLORS['success']}]Applying {len(selected_indices)} recommendation(s)...[/{COLORS['success']}]")
+                console.print("")
+
+                # Append recommendations
+                enhanced_decision = append_recommendations_to_decision(action, critical_concerns, selected_indices)
+
+                # Show enhanced decision
+                console.print(Panel(f"[italic]{rich_escape(enhanced_decision)}[/italic]", title="[bold]ENHANCED DECISION[/bold]", border_style="white"))
+                console.print("")
+
+                # Confirm
+                confirm = typer.confirm("Proceed with enhanced decision?", default=True)
+
+                if not confirm:
+                    console.print("")
+                    console.print("Decision cancelled.")
+                    console.print("")
+                    continue
+
+                # Update action for adjudication
+                action = enhanced_decision
+
+                # Re-interpret
+                console.print("")
+                console.print("Re-interpreting enhanced decision...")
+                console.print("")
+
+                interpretation, pushback, critical_concerns_2, decision_lines_2 = run_turn_decision(world, scenario, action, rng, root, transcript, narrative_state=narrative_state)
+                # Issue #22: the enhanced decision supersedes the original,
+                # whose block was extended above - replace it so exactly one
+                # decision block lands for one committed decision.
+                if decision_lines:
+                    del transcript[-len(decision_lines):]
+                transcript.extend(decision_lines_2)
+
+                # Display new interpretation
+                display_decision_summary(action, interpretation, show_details=False)
+
+                # If STILL have concerns, warn
+                if critical_concerns_2:
+                    console.print("")
+                    console.print(f"[{COLORS['warning']}]{SYMBOLS['warning']} Warning: Critical concerns remain.[/{COLORS['warning']}]")
+                    console.print("")
+                    # Let player proceed or go back
+                    cont = typer.confirm("Proceed anyway?", default=False)
+                    if not cont:
+                        # Issue #16: keep the enhanced decision in hand -
+                        # the next Decision> prompt re-offers it instead of
+                        # silently discarding the text just built.
+                        pending_decision = enhanced_decision
+                        pending_block_len = len(decision_lines_2)
+                        continue
+
+                decision_confirmed = True
+
+            else:  # 'I' - Ignore
+                typer.echo("")
+                typer.echo(f"[{COLORS['warning']}]Proceeding despite all concerns...[/{COLORS['warning']}]")
+                typer.echo("")
+                decision_confirmed = True
+
+        # Confirm decision (regular pushback, if any)
+        elif pushback:
+            typer.echo("")
+            console.print(f"[{COLORS['warning']} bold]ADVISOR CONCERNS[/{COLORS['warning']} bold]")
+            typer.echo("")
+            for role, concern in pushback:
+                console.print(f"  [{COLORS['secondary']} bold]{rich_escape(display_role(role))}:[/{COLORS['secondary']} bold] {rich_escape(concern)}")
+                typer.echo("")
+            console.print("Your advisors have concerns. How do you wish to proceed?")
+            console.print(f"  [{COLORS['primary']}]P[/{COLORS['primary']}] - Proceed with this decision")
+            console.print(f"  [{COLORS['primary']}]A[/{COLORS['primary']}] - Amend the decision (re-enter decision text)")
+            console.print(f"  [{COLORS['primary']}]C[/{COLORS['primary']}] - Cancel and return to discussion")
+            typer.echo("")
+            choice = typer.prompt("Choose [P/A/C]", default="P", show_default=False).strip().upper()
+            if choice == "A":
+                # Amend: re-prompt for decision text without returning
+                # to the discussion phase. The notice is deferred so it
+                # renders after the loop-top typer.clear() instead of
+                # being erased by it.
+                amend_pending = True
+                continue
+            elif choice == "C":
+                typer.echo("")
+                typer.echo("Decision cancelled. Returning to discussion.")
+                typer.echo("")
+                wait_for_space("Press SPACE (or Enter) to return to discussion...")
+                return None  # Return to discussion
+            else:
+                decision_confirmed = True  # Proceed to adjudication
+        else:
+            decision_confirmed = True  # No pushback, proceed to adjudication
+
+    return action, interpretation, pushback
 
 
 def select_scenario_variant(scenario_id: str) -> str:
@@ -1746,166 +1968,15 @@ def play(
 
                 typer.echo("")
         
-            # Decision phase loop - allows returning to discussion if decision is cancelled
-            decision_confirmed = False
-            # Set when the player chose to amend: the notice must render AFTER
-            # the loop's typer.clear(), or it is erased before it can be read
-            amend_pending = False
-            while not decision_confirmed:
-                # Decision phase - clear screen and start at top
-                typer.clear()
-                typer.echo("")  # Buffer line
-
-                if RICH_ENABLED:
-                    console.print(ae.phase_banner("DECISION", world.turn))
-                    typer.echo("")
-                    typer.echo("  Enter your decision (or 'cancel' to return to discussion)")
-                else:
-                    console.print("=" * 79)
-                    console.print(f"[{COLORS['emphasis']} bold]TURN {world.turn}: DECISION PHASE[/{COLORS['emphasis']} bold]")
-                    console.print("=" * 79)
-                    console.print("")
-                    console.print("Enter your decision (or 'cancel' to return to discussion):")
-
-                if amend_pending:
-                    amend_pending = False
-                    typer.echo("")
-                    console.print(f"  [{COLORS['warning']}]Your advisors' concerns stand. Enter your amended decision.[/{COLORS['warning']}]")
-
-                typer.echo("")
-
-                action = typer.prompt("Decision>", default="", show_default=False).strip()
-
-                if action.lower() == "cancel":
-                    # Return to discussion phase
-                    break
-
-                if not action:
-                    typer.echo("No action entered. Returning to discussion.")
-                    typer.echo("")
-                    wait_for_space("Press SPACE (or Enter) to return to discussion...")
-                    break
-
-                # Interpret and get pushback
-                interpretation, pushback, critical_concerns, decision_lines = run_turn_decision(world, scenario, action, rng, root, transcript, narrative_state=narrative_state)
-                transcript.extend(decision_lines)
-
-                # Display decision with improved UX
-                display_decision_summary(action, interpretation, show_details=False)
-
-                # Option to see full details
-                see_details = typer.prompt(
-                    "Press Enter to continue (or type 'details' for the full interpretation)",
-                    default="", show_default=False
-                ).strip().lower()
-                if see_details == "details":
-                    display_decision_summary(action, interpretation, show_details=True)
-                    console.print("")
-            
-                # Handle critical omissions with selective addressing
-                if critical_concerns:
-                    action_code, selected_indices = display_critical_concerns_with_selection(critical_concerns)
-                
-                    if action_code == 'D':
-                        # Return to discussion
-                        typer.echo("")
-                        typer.echo("Returning to discussion phase.")
-                        typer.echo("")
-                        wait_for_space("Press SPACE (or Enter) to return to discussion...")
-                        break
-                
-                    elif action_code == 'M':
-                        # Modify manually
-                        typer.echo("")
-                        typer.echo("Decision cancelled. Please enter a modified decision.")
-                        typer.echo("")
-                        continue
-                
-                    elif action_code in ['A', 'S'] and selected_indices:
-                        # Apply selected recommendations
-                        console.print("")
-                        console.print(f"[{COLORS['success']}]Applying {len(selected_indices)} recommendation(s)...[/{COLORS['success']}]")
-                        console.print("")
-                    
-                        # Append recommendations
-                        enhanced_decision = append_recommendations_to_decision(action, critical_concerns, selected_indices)
-                    
-                        # Show enhanced decision
-                        console.print(Panel(f"[italic]{rich_escape(enhanced_decision)}[/italic]", title="[bold]ENHANCED DECISION[/bold]", border_style="white"))
-                        console.print("")
-                    
-                        # Confirm
-                        confirm = typer.confirm("Proceed with enhanced decision?", default=True)
-                    
-                        if not confirm:
-                            console.print("")
-                            console.print("Decision cancelled.")
-                            console.print("")
-                            continue
-                    
-                        # Update action for adjudication
-                        action = enhanced_decision
-                    
-                        # Re-interpret
-                        console.print("")
-                        console.print("Re-interpreting enhanced decision...")
-                        console.print("")
-                    
-                        interpretation, pushback, critical_concerns_2, decision_lines_2 = run_turn_decision(world, scenario, action, rng, root, transcript, narrative_state=narrative_state)
-                        transcript.extend(decision_lines_2)
-                    
-                        # Display new interpretation
-                        display_decision_summary(action, interpretation, show_details=False)
-                    
-                        # If STILL have concerns, warn
-                        if critical_concerns_2:
-                            console.print("")
-                            console.print(f"[{COLORS['warning']}]{SYMBOLS['warning']} Warning: Critical concerns remain.[/{COLORS['warning']}]")
-                            console.print("")
-                            # Let player proceed or go back
-                            cont = typer.confirm("Proceed anyway?", default=False)
-                            if not cont:
-                                continue
-                    
-                        decision_confirmed = True
-                
-                    else:  # 'I' - Ignore
-                        typer.echo("")
-                        typer.echo(f"[{COLORS['warning']}]Proceeding despite all concerns...[/{COLORS['warning']}]")
-                        typer.echo("")
-                        decision_confirmed = True
-            
-                # Confirm decision (regular pushback, if any)
-                elif pushback:
-                    typer.echo("")
-                    console.print(f"[{COLORS['warning']} bold]ADVISOR CONCERNS[/{COLORS['warning']} bold]")
-                    typer.echo("")
-                    for role, concern in pushback:
-                        console.print(f"  [{COLORS['secondary']} bold]{rich_escape(display_role(role))}:[/{COLORS['secondary']} bold] {rich_escape(concern)}")
-                        typer.echo("")
-                    console.print("Your advisors have concerns. How do you wish to proceed?")
-                    console.print(f"  [{COLORS['primary']}]P[/{COLORS['primary']}] - Proceed with this decision")
-                    console.print(f"  [{COLORS['primary']}]A[/{COLORS['primary']}] - Amend the decision (re-enter decision text)")
-                    console.print(f"  [{COLORS['primary']}]C[/{COLORS['primary']}] - Cancel and return to discussion")
-                    typer.echo("")
-                    choice = typer.prompt("Choose [P/A/C]", default="P", show_default=False).strip().upper()
-                    if choice == "A":
-                        # Amend: re-prompt for decision text without returning
-                        # to the discussion phase. The notice is deferred so it
-                        # renders after the loop-top typer.clear() instead of
-                        # being erased by it.
-                        amend_pending = True
-                        continue
-                    elif choice == "C":
-                        typer.echo("")
-                        typer.echo("Decision cancelled. Returning to discussion.")
-                        typer.echo("")
-                        wait_for_space("Press SPACE (or Enter) to return to discussion...")
-                        break  # Break inner loop, return to discussion
-                    else:
-                        decision_confirmed = True  # Proceed to adjudication
-                else:
-                    decision_confirmed = True  # No pushback, proceed to adjudication
+            # Decision phase loop - extracted to run_decision_phase() so the
+            # confirm/re-offer flow is unit-testable (issues #16, #22)
+            decision_result = run_decision_phase(
+                world, scenario, rng, root, transcript,
+                narrative_state=narrative_state,
+            )
+            if decision_result is not None:
+                action, interpretation, pushback = decision_result
+                decision_confirmed = True
 
 
         # Adjudication phase - clear screen and start at top

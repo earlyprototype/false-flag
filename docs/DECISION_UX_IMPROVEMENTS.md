@@ -321,7 +321,9 @@ Proceeding to adjudication...
    - *Mitigation*: Text wrapping at 70 characters
 
 3. **Multiple re-interpretations**: If concerns persist, player may need multiple iterations.
-   - *Mitigation*: Warning shown, option to proceed or go back
+   - *Mitigation*: Warning shown, option to proceed or go back. Declining keeps the
+     enhanced decision in hand: the next Decision> prompt re-offers it (Enter
+     re-submits it, or type a replacement) instead of discarding it (#16)
 
 ---
 
