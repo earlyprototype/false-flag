@@ -112,8 +112,8 @@ Three key metrics guide your decision-making:
 
 **Public Sentiment (Influence):** the `/status` screen also shows an
 "Influence" score (-10 to +10). This is not a stored metric — it is derived
-for display from (Domestic Stability + Alliance Cohesion) / 2 and is
-currently informational only.
+for display as int(((Domestic Stability + Alliance Cohesion) / 2 - 50) / 5),
+clamped to -10..+10, and is currently informational only.
 
 **Additional Tracking:**
 - Military casualties
