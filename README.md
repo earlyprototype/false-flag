@@ -281,6 +281,7 @@ false-flag/
 - **[Diplomatic System](docs/handover/DIPLOMATIC_SYSTEM.md)**: How alliance negotiation and diplomatic encounters work
 - **[Nuclear Command Chain](docs/handover/NUCLEAR_COMMAND_CHAIN_SYSTEM.md)**: Nuclear authority, consequences, and escalation control
 - **[Dynamic Narrative System](docs/handover/DYNAMIC_NARRATIVE_SYSTEM.md)**: The hidden-narrative engine driving emergent storytelling
+- **Engineering audit trail**: [audits/](audits/) — the engineering-review (ER) register, measurement runs, and handover notes; check here for known issues and prior investigations
 
 ## Credits
 
