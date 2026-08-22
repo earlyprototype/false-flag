@@ -1,4 +1,10 @@
 # Current Sprint
+
+> **HISTORICAL RECORD — FROZEN 23 NOV 2025.** This sprint sheet is no longer
+> maintained and has been superseded; the work it tracks has since moved on.
+> It is kept as a historical record only. For actual phase status see
+> [../00_MASTER_DEV_PLAN.md](../00_MASTER_DEV_PLAN.md).
+
 **Week of:** 23-29 November 2025  
 **Phase:** 1 - Decision Loop Parity  
 **Sprint Goal:** Align Web App decision logic with CLI discipline (Interpret → Commit)
