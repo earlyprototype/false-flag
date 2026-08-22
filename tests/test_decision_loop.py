@@ -4,6 +4,11 @@ These pin the two decision-flow bugs fixed on this branch, in-process (the
 subprocess-driven turn-loop integration tests are skipped on Windows, so
 this seam is driven directly with scripted prompt/confirm stand-ins):
 
+- Issue #16: after the player applies advisor recommendations and residual
+  concerns trigger the second confirm ("Proceed anyway?", default No),
+  declining must NOT silently discard the enhanced decision. The next
+  Decision> prompt re-offers it: pressing Enter re-submits the enhanced
+  text unchanged.
 - Issue #22: on the apply-recommendations branch, exactly one
   "Prime Minister's Decision:" block lands in the transcript for one
   committed decision - the enhanced block replaces the superseded
@@ -24,6 +29,7 @@ sys.path.insert(0, str(root))
 import cli.main as cli_main  # noqa: E402
 
 DECISION = "Hold current military posture and convene COBRA."
+REPLACEMENT = "Stand down patrols and open a back channel."
 CONCERNS = [("NSA", "No cyber posture set.", "Raise CNI cyber readiness to HIGH.")]
 
 # Sentinel: the player pressed Enter, accepting whatever default is offered.
@@ -109,6 +115,80 @@ def decision_blocks(transcript):
 def enhanced_text():
     """The enhanced decision exactly as production builds it."""
     return cli_main.append_recommendations_to_decision(DECISION, CONCERNS, [0])
+
+
+# --- issue #16: declining the residual-concerns confirm ---------------------
+
+def test_declining_residual_concerns_reoffers_enhanced_decision(monkeypatch):
+    """Player applies recommendations, confirms the enhanced decision, and
+    residual concerns raise "Proceed anyway?" - pressing Enter (default No)
+    must re-offer the enhanced decision at the next Decision> prompt, not
+    drop back to a blank prompt with the text unrecoverable."""
+    enhanced = enhanced_text()
+    io = ScriptedIO(
+        prompts=[DECISION,  # Decision>
+                 "",        # see-details gate
+                 ENTER,     # Decision> again: Enter keeps the re-offered text
+                 ""],       # see-details gate
+        confirms=[ENTER,    # "Proceed with enhanced decision?" (default True)
+                  ENTER],   # "Proceed anyway?" (default False -> decline)
+    )
+    result, transcript, fake = drive(
+        monkeypatch, io,
+        script=[(CONCERNS, []),   # original: concerns raised
+                (CONCERNS, []),   # enhanced: concerns REMAIN -> second gate
+                ([], [])],        # re-submitted enhanced: clean
+    )
+
+    # The declined confirm was the second gate, at its documented default.
+    assert io.confirm_log == [("Proceed with enhanced decision?", True),
+                              ("Proceed anyway?", False)]
+
+    # The Decision> prompt after the decline offered the enhanced decision
+    # as its default - the text is still in hand, Enter re-submits it.
+    decision_prompts = [(t, d) for t, d in io.prompt_log if t == "Decision>"]
+    assert decision_prompts == [("Decision>", ""), ("Decision>", enhanced)]
+
+    # Pressing Enter committed the enhanced decision, nothing was lost.
+    assert result is not None
+    action, interpretation, pushback = result
+    assert action == enhanced
+    assert interpretation == f"Interpretation of: {enhanced}"
+    assert fake.calls == [DECISION, enhanced, enhanced]
+
+
+def test_decline_then_resubmit_lands_exactly_one_decision_block(monkeypatch):
+    """The decline/re-offer cycle must not stack transcript blocks either:
+    one committed decision, one "Prime Minister's Decision:" block."""
+    enhanced = enhanced_text()
+    prior = "Foreign Secretary: earlier discussion line."
+    io = ScriptedIO(prompts=[DECISION, "", ENTER, ""],
+                    confirms=[ENTER, ENTER])
+    result, transcript, _ = drive(
+        monkeypatch, io,
+        script=[(CONCERNS, []), (CONCERNS, []), ([], [])],
+        transcript=[prior],
+    )
+
+    assert result is not None and result[0] == enhanced
+    assert transcript[0] == prior, "earlier history must survive the replace"
+    assert decision_blocks(transcript) == [
+        f"Prime Minister's Decision: {enhanced}"]
+
+
+def test_decline_then_replacement_decision_lands_exactly_one_block(monkeypatch):
+    """Typing a fresh decision over the re-offered text replaces the
+    declined enhanced block instead of stacking a second one."""
+    io = ScriptedIO(prompts=[DECISION, "", REPLACEMENT, ""],
+                    confirms=[ENTER, ENTER])
+    result, transcript, fake = drive(
+        monkeypatch, io,
+        script=[(CONCERNS, []), (CONCERNS, []), ([], [])],
+    )
+
+    assert result is not None and result[0] == REPLACEMENT
+    assert decision_blocks(transcript) == [
+        f"Prime Minister's Decision: {REPLACEMENT}"]
 
 
 # --- issue #22: one committed decision, one transcript block ----------------

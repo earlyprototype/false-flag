@@ -237,7 +237,9 @@ def run_decision_phase(world, scenario: str, rng: Random, root: Path,
     Exactly one "Prime Minister's Decision:" block lands in `transcript`
     for the committed decision (issue #22): when the player applies advisor
     recommendations, the enhanced decision's block replaces the superseded
-    original's.
+    original's. Declining the residual-concerns confirm keeps the enhanced
+    decision in hand and re-offers it at the next Decision> prompt instead
+    of silently discarding it (issue #16).
     """
     COLORS = theme_manager.get_colors()
 
@@ -245,6 +247,14 @@ def run_decision_phase(world, scenario: str, rng: Random, root: Path,
     # Set when the player chose to amend: the notice must render AFTER
     # the loop's typer.clear(), or it is erased before it can be read
     amend_pending = False
+    # Issue #16: a declined "Proceed anyway?" stores the enhanced decision
+    # here so the next Decision> prompt re-offers it (Enter re-submits it)
+    # instead of dropping the player to a blank prompt.
+    pending_decision = ""
+    # Issue #22: how many transcript lines the declined decision's block
+    # occupies, so re-running it replaces that block instead of stacking a
+    # second one for the same decision.
+    pending_block_len = 0
     while not decision_confirmed:
         # Decision phase - clear screen and start at top
         typer.clear()
@@ -266,9 +276,19 @@ def run_decision_phase(world, scenario: str, rng: Random, root: Path,
             typer.echo("")
             console.print(f"  [{COLORS['warning']}]Your advisors' concerns stand. Enter your amended decision.[/{COLORS['warning']}]")
 
+        if pending_decision:
+            # Deferred like amend_pending: rendered here, after the
+            # loop-top typer.clear(), or it would be erased unread.
+            typer.echo("")
+            console.print(f"  [{COLORS['warning']}]Residual concerns stand. Your enhanced decision is still in hand:[/{COLORS['warning']}]")
+            typer.echo("")
+            console.print(Panel(f"[italic]{rich_escape(pending_decision)}[/italic]", title="[bold]ENHANCED DECISION[/bold]", border_style="white"))
+            typer.echo("  Press Enter to re-submit it, type a replacement, or type 'cancel' to return to discussion.")
+
         typer.echo("")
 
-        action = typer.prompt("Decision>", default="", show_default=False).strip()
+        action = typer.prompt("Decision>", default=pending_decision, show_default=False).strip()
+        pending_decision = ""
 
         if action.lower() == "cancel":
             # Return to discussion phase
@@ -282,6 +302,12 @@ def run_decision_phase(world, scenario: str, rng: Random, root: Path,
 
         # Interpret and get pushback
         interpretation, pushback, critical_concerns, decision_lines = run_turn_decision(world, scenario, action, rng, root, transcript, narrative_state=narrative_state)
+        if pending_block_len:
+            # Issue #22: this run supersedes the declined decision still
+            # sitting at the transcript tail - replace its block rather
+            # than record two blocks for one decision.
+            del transcript[-pending_block_len:]
+            pending_block_len = 0
         transcript.extend(decision_lines)
 
         # Display decision with improved UX
@@ -364,6 +390,11 @@ def run_decision_phase(world, scenario: str, rng: Random, root: Path,
                     # Let player proceed or go back
                     cont = typer.confirm("Proceed anyway?", default=False)
                     if not cont:
+                        # Issue #16: keep the enhanced decision in hand -
+                        # the next Decision> prompt re-offers it instead of
+                        # silently discarding the text just built.
+                        pending_decision = enhanced_decision
+                        pending_block_len = len(decision_lines_2)
                         continue
 
                 decision_confirmed = True
@@ -1929,7 +1960,7 @@ def play(
                 typer.echo("")
         
             # Decision phase loop - extracted to run_decision_phase() so the
-            # decision-transcript flow is unit-testable (issue #22)
+            # confirm/re-offer flow is unit-testable (issues #16, #22)
             decision_result = run_decision_phase(
                 world, scenario, rng, root, transcript,
                 narrative_state=narrative_state,
