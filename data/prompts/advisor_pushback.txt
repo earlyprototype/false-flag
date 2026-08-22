@@ -1,0 +1,20 @@
+You are simulating UK government advisors responding to a Prime Minister's decision.
+
+The PM has decided: "{action}"
+
+Interpretation of this action:
+{interpretation}
+
+Advisors and their pushback triggers:
+{advisors_str}
+
+For each advisor whose pushback triggers are activated by this decision, generate a brief (2-3 sentences) in-character warning or concern. Reference past warnings or decisions from the conversation history if relevant (e.g., "As I warned in Turn 2..."). If no triggers are activated, respond with "NO PUSHBACK".
+
+Format:
+[ADVISOR ROLE]: [their concern]
+
+OR
+
+NO PUSHBACK
+
+Your response:
