@@ -464,6 +464,56 @@ def test_manual_inject_unknown_session_is_404(client):
     assert response.status_code == 404
 
 
+def test_manual_inject_requires_facilitator_session(client):
+    """The inject console is an EXCON lever: firing into a session created
+    WITHOUT the facilitator flag is refused (403) and delivers nothing.
+    (The facilitator-session 200 path is covered above.)"""
+    created = _new_game(client, facilitator=False)
+    session_id = created["session_id"]
+    from api import server
+    manager = server.sessions[session_id].manager
+    risk_before = manager.world.metrics.escalation_risk
+    injects_before = list(manager.world.recent_injects)
+
+    response = client.post(f"/game/{session_id}/inject", json={
+        "channel": "briefing",
+        "headline": "NOT FOR PLAYERS",
+        "content": "This must never be delivered.",
+        "effects": [{"metric": "escalation_risk", "delta": 10}],
+    })
+    assert response.status_code == 403
+
+    assert manager.world.metrics.escalation_risk == risk_before
+    assert list(manager.world.recent_injects) == injects_before
+
+
+def test_session_lock_serialises_inject_with_other_mutators(client):
+    """GameSession.lock: while another mutator holds the session's lock,
+    an inject waits; it delivers once the lock is released."""
+    import threading
+
+    created = _new_game(client, facilitator=True)
+    session_id = created["session_id"]
+    from api import server
+    session = server.sessions[session_id]
+
+    outcome = {}
+
+    def fire():
+        outcome["response"] = client.post(f"/game/{session_id}/inject", json={
+            "channel": "briefing", "headline": "WAITS", "content": "held",
+        })
+
+    thread = threading.Thread(target=fire, daemon=True)
+    with session.lock:
+        thread.start()
+        thread.join(0.3)
+        assert thread.is_alive(), "inject did not wait for the session lock"
+    thread.join(5.0)
+    assert not thread.is_alive(), "inject never completed after release"
+    assert outcome["response"].status_code == 200
+
+
 # --- demo driver -----------------------------------------------------------
 
 def test_demo_start_runs_a_short_campaign(client):
