@@ -515,8 +515,25 @@ def wait_awaiting(page, kinds, timeout=420_000):
         clear_pauses(page, timeout=max(1_000, int((deadline - time.time()) * 1000)))
 
 
+def type_line(page, text):
+    """Put one line through the prompt.
+
+    One prompt box drives the whole session — decisions, questions and slash
+    commands all go through it — so these are the only two ids the play loop
+    needs to know about.
+    """
+    page.fill("#promptInput", text)
+    page.click("#promptSend")
+
+
 def send_decision(page, text, timeout=420_000):
-    """Type a decision and wait for the turn to actually resolve.
+    """Give the order, and wait for the turn to actually resolve.
+
+    Two lines, because that is what the terminal takes: ``/decide`` bare arms
+    the order prompt, and the next line is the order. ``cli/main.py`` matches
+    the whole input against its exact decide forms, so "/decide <order>" is
+    an unknown command there — and, since this build is meant to be the same
+    game, here too.
 
     ``FF_PLAY.awaiting`` still reads 'decision' for the instant between the
     click and the worker's first reply, so waiting on the state alone returns
@@ -524,13 +541,10 @@ def send_decision(page, text, timeout=420_000):
     exists to observe. Wait for the transcript to have grown *and* the session
     to have settled into 'confirm' (or ended).
     """
+    type_line(page, "/decide")
+    wait_awaiting(page, ["order"], timeout=timeout)
     before = page.evaluate("window.FF_PLAY.text().length")
-    # One prompt box drives the whole session (decisions, questions and slash
-    # commands all go through it), so these are the only two ids the play loop
-    # needs to know about — and, as in the terminal, a bare line is a question
-    # to the room. Only /decide resolves the turn.
-    page.fill("#promptInput", "/decide " + text)
-    page.click("#promptSend")
+    type_line(page, text)
     deadline = time.time() + timeout / 1000
     while True:
         remaining = max(1_000, int((deadline - time.time()) * 1000))

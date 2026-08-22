@@ -288,18 +288,22 @@ function input(text) {
   switch (verb) {
     case 'menu': case 'help': menu(); break;
     case 'decide': case 'decision':
-      if (rest) { decide(rest); }
-      else {
-        out('\n' + C.amber + rule('YOUR ORDER') + C.off + '\n' +
-            C.muted + '  Write what you are doing, in your own words.' +
-            C.off + '\n\n');
-        state.armed = true;
-        awaiting('decision');
-      }
+      // Bare only, as in cli/main.py and docs/py/bridge.py: the terminal
+      // matches the whole line against its exact decide forms, so
+      // "/decide <order>" is an unknown command rather than an order.
+      if (rest) { usage(null, verb); break; }
+      out('\n' + C.amber + rule('YOUR ORDER') + C.off + '\n' +
+          C.muted + '  Write what you are doing, in your own words.' +
+          C.off + '\n\n');
+      state.armed = true;
+      awaiting('decision');
       break;
     case 'askall': rest ? ask('all', rest) : usage('/askall <question>'); break;
-    case 'call': rest ? call(rest.split(' ')[0], rest.split(' ').slice(1).join(' '))
-                      : usage('/call <country>'); break;
+    case 'call':
+      if (!rest) { usage('/call <country>'); break; }
+      var target = splitCallTarget(rest);
+      call(target[0], target[1]);
+      break;
     case 'save': self.onmessage({ data: { type: 'save' } }); break;
     case 'status': case 'advise': case 'resources': case 'intel':
     case 'quit': case 'theme': case 'llm': case 'settings':
@@ -313,8 +317,37 @@ function input(text) {
   }
 }
 
-var BARE_COMMANDS = ['menu', 'help', 'status', 'advise', 'resources', 'intel',
+// Bare forms the terminal accepts. Not 'intel': cli/main.py matches only the
+// slashed form, so a bare "intel" is a question to the room there — and so
+// docs/py/bridge.py treats it as one too.
+var BARE_COMMANDS = ['menu', 'help', 'status', 'advise', 'resources',
                      'decide', 'decision', 'save', 'quit'];
+
+// Country names have spaces in them, so /call cannot split on the first one:
+// that dialled "united" and said "states" down the line. Longest name wins,
+// as in _split_call_target; the list mirrors the multi-word entries of
+// engine/diplomacy.COUNTRY_ALIASES.
+var CALL_ALIASES = ['united states'];
+
+function splitCallTarget(rest) {
+  var text = rest.trim();
+  var quote = text.charAt(0);
+  if (quote === '"' || quote === "'") {
+    var closing = text.indexOf(quote, 1);
+    if (closing !== -1) {
+      return [text.slice(1, closing).trim(), text.slice(closing + 1).trim()];
+    }
+  }
+  var lowered = text.toLowerCase();
+  for (var i = 0; i < CALL_ALIASES.length; i++) {
+    var alias = CALL_ALIASES[i];
+    if (lowered === alias || lowered.indexOf(alias + ' ') === 0) {
+      return [text.slice(0, alias.length), text.slice(alias.length).trim()];
+    }
+  }
+  var space = text.indexOf(' ');
+  return space === -1 ? [text, ''] : [text.slice(0, space), text.slice(space + 1).trim()];
+}
 
 function usage(form, verb) {
   out('\n' + C.amber + '  ' + (form
