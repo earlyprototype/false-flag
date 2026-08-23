@@ -60,6 +60,9 @@ class DemoStartRequest(BaseModel):
     scenario_id: str = "war_game_2025"
     variant: str = "standard"
     play_mode: str = "immersive"
+    # Mystery Mode: draw a hidden narrative truth, so the dataflow view can
+    # demonstrate the secret->actor/adjudication paths live.
+    mystery_mode: bool = False
     seed: int = 42
 
 
@@ -180,6 +183,7 @@ async def start_demo(request: DemoStartRequest) -> Dict[str, Any]:
             scenario_id=request.scenario_id,
             variant=request.variant,
             play_mode=request.play_mode,
+            mystery_mode=request.mystery_mode,
             seed=request.seed,
             endings=True,
         )

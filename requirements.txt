@@ -6,6 +6,11 @@ rich==13.7.1
 PyYAML==6.0.2
 requests==2.32.3
 
+# API server + dashboards (api/): not needed for CLI play
+fastapi==0.141.1
+uvicorn==0.52.4
+sse-starlette==3.4.8
+
 # Tooling extras (content ingestion, terminal-graphics demos) live in
 # requirements-dev.txt — they are not needed to play, and feedparser's
 # sgmllib3k dependency fails to build on some modern Python setups.

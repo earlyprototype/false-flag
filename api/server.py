@@ -233,6 +233,9 @@ class NewGameRequest(BaseModel):
     variant: str = "standard"
     difficulty: str = "standard"
     play_mode: str = "immersive"
+    # Draw a hidden narrative truth (the CLI's Mystery Mode). Without this
+    # field the HTTP path could not start a mystery campaign at all.
+    mystery_mode: bool = False
     player_name: str = "Prime Minister"
     # Facilitator (EXCON) sessions receive REFEREE-layer events over
     # /stream: raw adjudication effects, llm_call records, parse health.
@@ -454,7 +457,8 @@ async def new_game(request: NewGameRequest, facilitator: bool = False):
         scenario_id=request.scenario_id,
         variant=request.variant,
         difficulty=request.difficulty,
-        play_mode=request.play_mode
+        play_mode=request.play_mode,
+        mystery_mode=request.mystery_mode
     )
 
     # Store session
@@ -1109,6 +1113,22 @@ async def _stream_adjudication_results(session: GameSession, result: Dict[str, A
 
 
 _DASHBOARD_PATH = Path(__file__).resolve().parent / "dashboard.html"
+_DATAFLOW_PATH = Path(__file__).resolve().parent / "dataflow.html"
+
+
+@app.get("/dataflow")
+async def dataflow_page():
+    """The operable data-flow view (self-contained, no build step).
+
+    The engine's call graph as a live schema: a game-type selector
+    (classic/immersive/emergent x mystery) dims the paths a mode never
+    exercises; every LLM call-family node pulses as its calls happen and
+    opens reroute (POST /routing/{context}) and prompt hot-edit
+    (PUT /prompts/{family}) controls in place.
+    """
+    if not _DATAFLOW_PATH.exists():
+        raise HTTPException(status_code=500, detail="dataflow.html missing")
+    return FileResponse(_DATAFLOW_PATH, media_type="text/html")
 
 
 @app.get("/dashboard")
