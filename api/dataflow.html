@@ -106,6 +106,12 @@
   .node.clickable { cursor: grab; }
 
   .dim { opacity: .22; transition: opacity .25s; }
+  .wt-current rect { stroke: #1f66d0 !important; stroke-width: 2.6; }
+  .wt-done { opacity: .55; }
+  #pWalk { border: 1px solid #8db4e8; background: #eef4fc; border-radius: 6px;
+    padding: 10px 12px; margin-bottom: 12px; }
+  #pWalk .prog { font-family: var(--mono); font-size: 11px; color: var(--muted);
+    margin-bottom: 6px; }
 
   @keyframes pulse {
     0% { filter: drop-shadow(0 0 0 rgba(31,102,208,0)); }
@@ -163,6 +169,7 @@
     <button id="mockAllBtn" title="Route all 12 call families to the mock provider (free)">All → mock</button>
     <button id="clearAllBtn" title="Clear every runtime routing override">Clear overrides</button>
     <button id="resetLayoutBtn" title="Discard your dragged positions and restore the original layout">Reset layout</button>
+    <button id="wtBtn" class="primary" title="Step through one turn of the selected game type, one hop at a time">▶ Walkthrough</button>
   </div>
   <div class="group">
     <span id="sessBadge">no session</span>
@@ -173,6 +180,7 @@
 <main>
   <div id="stage"></div>
   <aside id="panel" aria-live="polite">
+    <div id="pWalk" hidden></div>
     <h2 id="pTitle">Select a node</h2>
     <div class="anchor" id="pAnchor"></div>
     <div class="desc" id="pDesc">Click any box in the schema. LLM call families
@@ -266,7 +274,7 @@ const NODES = [
   desc:"Who is actually doing this. Feeds actor behaviour and the roleplay prompt audience; must never reach the player."},
  {id:"scrubber", x:560, y:880, w:190, h:56, kind:"mystery", label:"LEAK SCRUBBER", myst:"on",
   sub:"parse boundary", anchor:"engine/narrative_adjudication.py:47",
-  desc:"Strips leaked secret-truth markers out of model output before it reaches any surface. The owner's open design question: segregate context instead, so player-facing calls never receive the secret at all."},
+  desc:"Strips leaked secret-truth markers out of model output before it reaches any surface. Being removed by PR #63 (context segregation): player-facing calls stop receiving the secret at all, so there is nothing to scrub."},
  {id:"bus", x:1130, y:84, w:70, h:700, kind:"rail", label:"EVENT BUS", vertical:true,
   anchor:"api/server.py:99 (push_event)",
   desc:"Every event is stamped with a data layer here — at the bus, never inside the engine. Six layers: SITREP, INTEL, DIPLOMATIC, DOMESTIC, CABINET, REFEREE."},
@@ -476,10 +484,15 @@ function render() {
         "data-axis": geom.axis}, g);
       h.addEventListener("pointerdown", ev => {
         ev.stopPropagation(); ev.preventDefault();
+        const start = svgPt(ev);
+        const st = {moved: false};
         beginDrag(ev, q => {
+          // Same 5px threshold as nodes: a stray press must not persist.
+          if (!st.moved && Math.hypot(q.x - start.x, q.y - start.y) < 5) return;
+          st.moved = true;
           if (geom.axis === "x") e.mx = snap(q.x); else e.my = snap(q.y);
           scheduleRender();
-        }, saveLayout);
+        }, () => { if (st.moved) saveLayout(); });
       });
     }
   });
@@ -547,6 +560,7 @@ function renderAll() {
       cc.querySelector("text").textContent = cnt; }
   });
   if (selected && $("node-" + selected)) $("node-" + selected).classList.add("selected");
+  if (wt) applyWt();
 }
 
 function activeUnder(elDef) {
@@ -566,8 +580,150 @@ function applyModeFilter() {
     $("drop-" + n.id).classList.toggle("dim", !activeUnder(n)));
 }
 
+/* ---------- walkthrough: one turn, one hop at a time ---------- */
+/* Steps are filtered by the game-type selector (same m / myst fields as
+   nodes and edges), so each mode teaches only its own cascade. */
+const WALKTHROUGH = [
+ {t:"An inject opens the turn",
+  x:"Scripted events live in the MSEL (the episodes yaml). The turn briefing delivers the next one; when the scripted list runs out, the LLM inject generator writes new ones in the same shape.",
+  n:["msel","injgen","briefing"], e:[["msel","briefing"],["injgen","briefing"]]},
+ {t:"The briefing reaches every screen through the bus",
+  x:"The inject's channel (briefing, intelligence, flash alert…) picks its data layer, the narrator adds a line of atmosphere, and both land on the event bus — the single pipe every surface listens to.",
+  n:["narrator","bus"], e:[["briefing","narrator"],["narrator","bus"],["briefing","bus"]]},
+ {t:"Mystery only: a hidden truth was drawn at setup", myst:"on",
+  x:"One narrative — protagonist, antagonist, patsy, secret motives per country — was drawn from narratives.yaml when the session started. The player must never see it.",
+  n:["narrbank","secret"], e:[["narrbank","secret"]]},
+ {t:"The player questions the cabinet",
+  x:"Each question becomes an Advisor Q&A call; the answers stream on the CABINET layer.",
+  n:["player","advqa"], e:[["player","advqa"],["advqa","bus"]]},
+ {t:"A draft decision gets a preview",
+  x:"Free text goes through interpretation (what did the player mean?), advisor pushback (objections) and critical omissions (what is being missed?) — then back to the player, still uncommitted.",
+  n:["interp","pushback","omissions"],
+  e:[["player","interp"],["interp","pushback"],["pushback","omissions"],["omissions","player"]]},
+ {t:"Commit: adjudication begins",
+  x:"The player commits the same text. Resolve Decision runs the round for real.",
+  n:["resolve"], e:[["player","resolve"]]},
+ {t:"The quality verdict drives the numbers",
+  x:"Quality Assessment judges the action; its multiplier scales the metric deltas onto the hidden metrics, and the outcome is written to the event ledger — directions, never numbers.",
+  n:["quality","metrics","ledger"], e:[["resolve","quality"],["quality","metrics"],["quality","ledger"]]},
+ {t:"Mystery only: the secret and the scrubber — for now", myst:"on",
+  x:"In this build the judge receives the hidden truth as background, and its player-visible reasoning is scrubbed for leaks afterwards. PR #63 removes both: player-facing calls simply never receive the secret.",
+  n:["scrubber"], e:[["secret","quality"],["quality","scrubber"],["scrubber","bus"]]},
+ {t:"Foreign capitals respond in character",
+  x:"One Actor Simulation call per relevant capital: a public response (a cable on the DIPLOMATIC layer) and a private assessment the player never sees. In Mystery, each capital plays its own secret stance.",
+  n:["actorsim"], e:[["resolve","actorsim"],["actorsim","bus"],["secret","actorsim"]]},
+ {t:"Flavour, then the rolling summary",
+  x:"Character Response adds colour. Situation Summary folds the ledger and state into the campaign's rolling memory — every later call quotes it, so its quality propagates everywhere.",
+  n:["charresp","summary"],
+  e:[["quality","charresp"],["charresp","bus"],["ledger","summary"],["metrics","summary"],["summary","bus"]]},
+ {t:"Immersive: numbers become vibes", m:["immersive"],
+  x:"The hidden metrics render as 0–5 dots and trends — the only sanctioned crossing of the referee line. The player never sees a number.",
+  n:["vibes","viewvibes"], e:[["metrics","vibes"],["vibes","bus"]]},
+ {t:"Classic: raw numbers and endings", m:["classic"],
+  x:"Metrics go to the player raw — the traditional wargame readout — and the endings check grades the campaign against win/lose thresholds.",
+  n:["endings","viewraw"], e:[["metrics","bus"],["metrics","endings"],["endings","bus"]]},
+ {t:"Emergent: narrative only", m:["emergent"],
+  x:"The situation summary IS the display — minimal structure, maximum LLM freedom.",
+  n:["viewsumm"], e:[]},
+ {t:"The red phone",
+  x:"Diplomacy calls are live conversations with a leader — scripted mandatory calls cannot be declined. When a call ends, Call Outcome assesses it and the cohesion delta lands on the hidden metrics.",
+  n:["diploconv","diploout"],
+  e:[["player","diploconv"],["diploconv","diploout"],["diploout","metrics"],["diploconv","bus"],["msel","diploconv"]]},
+ {t:"The intel desk",
+  x:"Pulling intelligence renders the hidden metrics as noisy in-fiction sensor reads — SIGINT, cable traffic, media monitoring. Deterministic: no model call.",
+  n:["intel"], e:[["player","intel"],["metrics","intel"],["intel","bus"]]},
+ {t:"One bus, two streams",
+  x:"Every event is layer-tagged at the bus. The REFEREE filter strips the hidden layer server-side: facilitator sessions get all six layers, player sessions get five.",
+  n:["reffilter","streamfac","streamply"],
+  e:[["bus","reffilter"],["reffilter","streamfac"],["reffilter","streamply"]]},
+ {t:"Every model call passes one choke point",
+  x:"All 12 LLM families route through llm/router.py: your runtime reroutes, the provider chain, the call log — and each call is relayed back onto the bus as a REFEREE llm_call event. That is what makes these boxes pulse.",
+  n:["router"], e:[["router","bus"]]},
+ {t:"That's the loop",
+  x:"Briefing → discussion → decision → adjudication → render, then the next turn. Click any blue-bordered box to reroute its model or edit its prompt — changes bite on the very next call.",
+  n:[], e:[]},
+];
+const EDGE_IDX = {};
+EDGES.forEach((e, i) => { EDGE_IDX[e.f + ">" + e.t] = i; });
+
+let wt = null;  // {steps, i} while a walkthrough is running
+
+function startWalkthrough() {
+  wt = {steps: WALKTHROUGH.filter(activeUnder), i: 0};
+  applyWt();
+}
+function exitWalkthrough() {
+  wt = null;
+  $("pWalk").hidden = true;
+  applyModeFilter();
+  document.querySelectorAll(".wt-current,.wt-done").forEach(g =>
+    g.classList.remove("wt-current", "wt-done"));
+  $("pTitle").textContent = "Select a node";
+  $("pDesc").textContent = "Click any box in the schema. LLM call families " +
+    "(blue border) open live controls: reroute the model behind that call, " +
+    "or edit its prompt template.";
+}
+function applyWt() {
+  const steps = wt.steps, i = wt.i, cur = steps[i];
+  const finale = !cur.n.length && !cur.e.length;
+  document.querySelectorAll(".node, .edge").forEach(g => {
+    g.classList.remove("wt-current", "wt-done");
+    g.classList.toggle("dim", !finale);
+  });
+  if (finale) applyModeFilter();
+  const mark = (domId, cls) => {
+    const g = $(domId);
+    if (g) { g.classList.remove("dim", "wt-current", "wt-done"); g.classList.add(cls); }
+  };
+  if (!finale) {
+    for (let s = 0; s <= i; s++) {
+      const cls = s === i ? "wt-current" : "wt-done";
+      steps[s].n.forEach(id => {
+        if (activeUnder(NODE_BY_ID[id])) mark("node-" + id, cls);
+      });
+      steps[s].e.forEach(pair => {
+        const j = EDGE_IDX[pair[0] + ">" + pair[1]];
+        if (j !== undefined && activeUnder(EDGES[j])) mark("edge-" + j, cls);
+      });
+    }
+    cur.n.forEach(id => pulse("node-" + id));
+  }
+  // Panel: narration + controls
+  const w = $("pWalk"); w.hidden = false; w.replaceChildren();
+  const prog = document.createElement("div"); prog.className = "prog";
+  prog.textContent = `Walkthrough · step ${i + 1} of ${steps.length} · ` +
+    mode + (mystery ? " + mystery" : "");
+  const row = document.createElement("div"); row.className = "row";
+  const back = document.createElement("button"); back.textContent = "← Back";
+  back.disabled = i === 0;
+  const next = document.createElement("button"); next.className = "primary";
+  next.textContent = i === steps.length - 1 ? "Finish" : "Next →";
+  const exit = document.createElement("button"); exit.textContent = "Exit";
+  back.onclick = () => { wt.i = Math.max(0, wt.i - 1); applyWt(); };
+  next.onclick = () => {
+    if (wt.i >= wt.steps.length - 1) exitWalkthrough();
+    else { wt.i += 1; applyWt(); }
+  };
+  exit.onclick = exitWalkthrough;
+  row.append(back, next, exit);
+  w.append(prog, row);
+  $("pTitle").textContent = cur.t;
+  $("pDesc").textContent = cur.x;
+  ["pLayers", "pLive", "pRoute", "pPrompt"].forEach(id => $(id).replaceChildren());
+  $("pMsg").textContent = ""; $("pMsg").className = "";
+}
+document.addEventListener("keydown", ev => {
+  if (!wt || ev.target.tagName === "TEXTAREA" || ev.target.tagName === "INPUT") return;
+  if (ev.key === "ArrowRight") { ev.preventDefault();
+    if (wt.i < wt.steps.length - 1) { wt.i += 1; applyWt(); } }
+  if (ev.key === "ArrowLeft") { ev.preventDefault();
+    wt.i = Math.max(0, wt.i - 1); applyWt(); }
+  if (ev.key === "Escape") exitWalkthrough();
+});
+
 /* ---------- side panel ---------- */
 function selectNode(id) {
+  if (wt) exitWalkthrough();
   selected = id;
   document.querySelectorAll(".node.selected").forEach(g => g.classList.remove("selected"));
   $("node-" + id).classList.add("selected");
@@ -793,9 +949,12 @@ function setStatus(t, isErr) {
 /* ---------- header controls ---------- */
 document.querySelectorAll("button.seg").forEach(b => b.onclick = () => {
   document.querySelectorAll("button.seg").forEach(x => x.classList.remove("on"));
-  b.classList.add("on"); mode = b.dataset.mode; applyModeFilter();
+  b.classList.add("on"); mode = b.dataset.mode;
+  if (wt) startWalkthrough(); else applyModeFilter();
 });
-$("mysteryChk").onchange = e => { mystery = e.target.checked; applyModeFilter(); };
+$("mysteryChk").onchange = e => { mystery = e.target.checked;
+  if (wt) startWalkthrough(); else applyModeFilter(); };
+$("wtBtn").onclick = () => wt ? exitWalkthrough() : startWalkthrough();
 $("attachBtn").onclick = () => { const v = $("sessInput").value.trim(); if (v) attach(v); };
 $("demoBtn").onclick = async () => {
   setStatus("starting demo session…");
