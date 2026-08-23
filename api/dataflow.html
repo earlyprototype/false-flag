@@ -5,36 +5,37 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>False Flag — Live Data Flow</title>
 <style>
-  /* Same control-room theme as dashboard.html: one deliberate dark look. */
+  /* One deliberate LIGHT look: paper situation-room. Layer colours are
+     darkened for contrast on white; same six-layer legend as the stream. */
   :root {
-    --bg: #0b0f14;
-    --panel: #121821;
-    --panel-2: #0e141c;
-    --line: #1f2a38;
-    --text: #d7e1ec;
-    --muted: #7c8a9a;
-    --accent: #4da3ff;
-    --sitrep: #4da3ff;
-    --intel: #ffb020;
-    --diplomatic: #b07aff;
-    --domestic: #2fd6c3;
-    --cabinet: #6fd649;
-    --referee: #ff5d5d;
-    --mystery: #d06bff;
+    --bg: #eef1f5;
+    --panel: #ffffff;
+    --panel-2: #f7f9fc;
+    --line: #d7dee8;
+    --text: #1a2330;
+    --muted: #556577;
+    --accent: #1f66d0;
+    --sitrep: #1f66d0;
+    --intel: #9c6500;
+    --diplomatic: #6f3bcf;
+    --domestic: #0b7f70;
+    --cabinet: #2f7d18;
+    --referee: #c22f2f;
+    --mystery: #8a2fd0;
     --mono: "Cascadia Mono", "Consolas", "SF Mono", ui-monospace, monospace;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
     font: 14px/1.45 system-ui, "Segoe UI", sans-serif; }
   h1 { margin: 0; font-size: 15px; letter-spacing: .12em; font-weight: 600; }
-  button { background: #1a2432; color: var(--text); border: 1px solid #2c3b4f;
+  button { background: #ffffff; color: var(--text); border: 1px solid #c3cdd9;
     border-radius: 4px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
   button:hover { border-color: var(--accent); }
-  button.primary { background: #133157; border-color: #1f5aa0; }
-  button.danger { background: #3a1420; border-color: #74263b; }
-  button.seg.on { background: #133157; border-color: var(--accent); color: #fff; }
-  input, select, textarea { background: #0d1420; color: var(--text);
-    border: 1px solid #2c3b4f; border-radius: 4px; padding: 5px 7px; font-size: 12px; }
+  button.primary { background: #e5eefb; border-color: #8db4e8; color: #14418a; }
+  button.danger { background: #fbe9ec; border-color: #dc9aa5; color: #8f1f30; }
+  button.seg.on { background: #1f66d0; border-color: #1f66d0; color: #fff; }
+  input, select, textarea { background: #ffffff; color: var(--text);
+    border: 1px solid #c3cdd9; border-radius: 4px; padding: 5px 7px; font-size: 12px; }
   input:focus, select:focus, textarea:focus, button:focus-visible {
     outline: 1px solid var(--accent); outline-offset: 1px; }
   textarea { font-family: var(--mono); font-size: 11.5px; line-height: 1.5; width: 100%; }
@@ -69,26 +70,26 @@
   svg { display: block; min-width: 1120px; width: 100%; height: auto; }
 
   /* Diagram */
-  .node rect { fill: var(--panel-2); stroke: var(--line); stroke-width: 1.2; rx: 5; }
+  .node rect { fill: #ffffff; stroke: #b9c5d4; stroke-width: 1.2; rx: 5; }
   .node text { fill: var(--text); font-size: 12px; font-weight: 600; }
   .node .sub { fill: var(--muted); font-size: 9.5px; font-weight: 400;
     font-family: var(--mono); }
   .node .mb { fill: var(--intel); font-size: 9px; font-family: var(--mono);
     font-weight: 400; }
-  .node.llm rect { stroke: #2c72c9; stroke-width: 1.6; }
-  .node.store rect { fill: #101a26; stroke: #3a4d63; stroke-dasharray: none; rx: 10; }
-  .node.mystery rect { stroke: var(--mystery); }
-  .node.mystery text { fill: #e6c4ff; }
-  .node.rail rect { fill: #0d1826; stroke: #26507e; }
-  .node.surface rect { fill: #0f1520; stroke: #33465e; stroke-dasharray: 4 3; }
+  .node.llm rect { stroke: #4a8fe0; stroke-width: 1.6; }
+  .node.store rect { fill: #eef3f9; stroke: #93a7bd; stroke-dasharray: none; rx: 10; }
+  .node.mystery rect { stroke: var(--mystery); fill: #faf5ff; }
+  .node.mystery text { fill: #5e1ea0; }
+  .node.rail rect { fill: #e8f0fa; stroke: #7aa7dd; }
+  .node.surface rect { fill: #fbfcfe; stroke: #9fb0c4; stroke-dasharray: 4 3; }
   .node.clickable { cursor: pointer; }
   .node.clickable:hover rect, .node.clickable:focus rect,
   .node.selected rect { stroke: var(--accent); stroke-width: 2; }
   .node:focus { outline: none; }
-  .cc circle { fill: #133157; stroke: var(--accent); stroke-width: 1; }
-  .cc text { fill: #cfe4ff; font-size: 9px; font-family: var(--mono); font-weight: 600; }
+  .cc circle { fill: #1f66d0; stroke: #14418a; stroke-width: 1; }
+  .cc text { fill: #ffffff; font-size: 9px; font-family: var(--mono); font-weight: 600; }
 
-  .edge path { fill: none; stroke: #33465e; stroke-width: 1.4; }
+  .edge path { fill: none; stroke: #8595a8; stroke-width: 1.4; }
   .edge.dashed path { stroke-dasharray: 5 4; }
   .edge text { fill: var(--muted); font-size: 9px; font-family: var(--mono); }
   .edge.sitrep path { stroke: var(--sitrep); } .edge.sitrep text { fill: var(--sitrep); }
@@ -98,14 +99,18 @@
   .edge.cabinet path { stroke: var(--cabinet); } .edge.cabinet text { fill: var(--cabinet); }
   .edge.referee path { stroke: var(--referee); } .edge.referee text { fill: var(--referee); }
   .edge.mystery path { stroke: var(--mystery); } .edge.mystery text { fill: var(--mystery); }
-  .edge.rdrop path { stroke: #1f3a55; stroke-width: 1; stroke-dasharray: 2 4; }
+  .edge.rdrop path { stroke: #b7c6d9; stroke-width: 1; stroke-dasharray: 2 4; }
+  .ehit { stroke: transparent; stroke-width: 12; fill: none; cursor: col-resize; }
+  .ehit[data-axis="y"] { cursor: row-resize; }
+  .edge:hover .ehit { stroke: rgba(31,102,208,.12); }
+  .node.clickable { cursor: grab; }
 
-  .dim { opacity: .16; transition: opacity .25s; }
+  .dim { opacity: .22; transition: opacity .25s; }
 
   @keyframes pulse {
-    0% { filter: drop-shadow(0 0 0 rgba(77,163,255,0)); }
-    25% { filter: drop-shadow(0 0 9px rgba(77,163,255,.95)); }
-    100% { filter: drop-shadow(0 0 0 rgba(77,163,255,0)); }
+    0% { filter: drop-shadow(0 0 0 rgba(31,102,208,0)); }
+    25% { filter: drop-shadow(0 0 9px rgba(31,102,208,.85)); }
+    100% { filter: drop-shadow(0 0 0 rgba(31,102,208,0)); }
   }
   .pulse { animation: pulse .9s ease-out; }
   @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } .dim { transition: none; } }
@@ -115,14 +120,14 @@
     border-left: 1px solid var(--line); padding: 14px 16px 30px;
     height: calc(100vh - 58px); overflow: auto; position: sticky; top: 58px; }
   #panel h2 { margin: 0 0 2px; font-size: 14px; letter-spacing: .06em; }
-  #panel .anchor { font-family: var(--mono); font-size: 10.5px; color: #a9bccf; }
-  #panel .desc { color: #b9c6d4; font-size: 12.5px; margin: 8px 0; }
+  #panel .anchor { font-family: var(--mono); font-size: 10.5px; color: #46617e; }
+  #panel .desc { color: #33404f; font-size: 12.5px; margin: 8px 0; }
   #panel section { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; }
   #panel section h3 { margin: 0 0 8px; font-size: 10.5px; color: var(--muted);
     text-transform: uppercase; letter-spacing: .14em; }
   .row { display: flex; gap: 6px; align-items: center; margin: 6px 0; flex-wrap: wrap; }
   .row label { font-size: 11px; color: var(--muted); min-width: 58px; }
-  .kv { font-family: var(--mono); font-size: 11px; color: #b9c6d4; margin: 3px 0; }
+  .kv { font-family: var(--mono); font-size: 11px; color: #3d4c5e; margin: 3px 0; }
   .kv b { color: var(--text); }
   .ph { display: inline-block; font-family: var(--mono); font-size: 10px;
     color: var(--domestic); border: 1px dashed #2fd6c355; border-radius: 3px;
@@ -136,7 +141,8 @@
 <header>
   <div class="brand">
     <h1>FALSE FLAG — LIVE DATA FLOW</h1>
-    <small>every box is code · LLM nodes are clickable: reroute the model, edit the prompt</small>
+    <small>every box is code · click an LLM node to reroute or edit its prompt ·
+      drag boxes and line elbows to tidy (layout saves locally)</small>
   </div>
   <div class="group" role="group" aria-label="Game type">
     <span class="lbl">Game type</span>
@@ -156,6 +162,7 @@
   <div class="group">
     <button id="mockAllBtn" title="Route all 12 call families to the mock provider (free)">All → mock</button>
     <button id="clearAllBtn" title="Clear every runtime routing override">Clear overrides</button>
+    <button id="resetLayoutBtn" title="Discard your dragged positions and restore the original layout">Reset layout</button>
   </div>
   <div class="group">
     <span id="sessBadge">no session</span>
@@ -358,25 +365,100 @@ function el(tag, attrs, parent) {
 }
 
 /* ---------- render ---------- */
-function edgePath(e) {
+/* Geometry for one edge: path, label anchor, and (when adjustable) the
+   drag-handle segment. e.mx / e.my are user-dragged elbow overrides,
+   persisted with the node layout. */
+function edgeGeom(e) {
   const a = NODE_BY_ID[e.f], b = NODE_BY_ID[e.t];
-  if (e.route === "railup")   // router rail → bus bottom
-    return `M ${a.x + a.w - 14} ${a.y} L ${a.x + a.w - 14} ${b.y + b.h + 8} L ${b.x + b.w/2} ${b.y + b.h + 8} L ${b.x + b.w/2} ${b.y + b.h}`;
-  if (e.route === "v") {      // top/bottom ports
+  if (e.route === "railup") {  // router rail → bus bottom
+    const rx = a.x + a.w - 14, hy = b.y + b.h + 8, bx = b.x + b.w/2;
+    return {d: `M ${rx} ${a.y} L ${rx} ${hy} L ${bx} ${hy} L ${bx} ${b.y + b.h}`,
+            lx: (rx + bx) / 2, ly: hy - 5};
+  }
+  if (e.route === "v") {       // top/bottom ports; draggable elbow: my
     const down = b.y > a.y;
     const y1 = down ? a.y + a.h : a.y, y2 = down ? b.y : b.y + b.h;
-    const x1 = a.x + a.w/2, x2 = b.x + b.w/2, ym = (y1 + y2) / 2;
-    return `M ${x1} ${y1} L ${x1} ${ym} L ${x2} ${ym} L ${x2} ${y2}`;
+    const x1 = a.x + a.w/2, x2 = b.x + b.w/2;
+    const ym = e.my !== undefined ? e.my : (y1 + y2) / 2;
+    return {d: `M ${x1} ${y1} L ${x1} ${ym} L ${x2} ${ym} L ${x2} ${y2}`,
+            lx: (x1 + x2) / 2, ly: ym - 5,
+            handle: `M ${Math.min(x1,x2)} ${ym} L ${Math.max(x1,x2)} ${ym}`, axis: "y"};
   }
   const leftToRight = b.x >= a.x + a.w;
   const x1 = leftToRight ? a.x + a.w : a.x, x2 = leftToRight ? b.x : b.x + b.w;
-  const y1 = a.y + a.h/2, y2 = b.y + b.h/2, xm = (x1 + x2) / 2;
-  return `M ${x1} ${y1} L ${xm} ${y1} L ${xm} ${y2} L ${x2} ${y2}`;
+  const y1 = a.y + a.h/2, y2 = b.y + b.h/2;
+  const xm = e.mx !== undefined ? e.mx : (x1 + x2) / 2;
+  return {d: `M ${x1} ${y1} L ${xm} ${y1} L ${xm} ${y2} L ${x2} ${y2}`,
+          lx: xm, ly: Math.min(y1, y2) === y1 && y1 === y2 ? y1 - 6 : (y1 + y2) / 2 - 6,
+          handle: `M ${xm} ${Math.min(y1,y2)} L ${xm} ${Math.max(y1,y2)}`, axis: "x"};
+}
+
+/* ---------- Miro-style layout adjustment ----------
+   Drag a box to move it (connected lines re-route themselves); drag a
+   line's elbow to shift the bend. Positions persist in localStorage.
+   ponytail: whole-diagram rerender per drag frame, virtualise if it lags. */
+let curSvg = null;
+const LAYOUT_KEY = "ff-dataflow-layout-v1";
+const PRISTINE = NODES.map(n => [n.id, n.x, n.y]);
+const snap = v => Math.round(v / 8) * 8;
+
+function svgPt(ev) {
+  const p = curSvg.createSVGPoint();
+  p.x = ev.clientX; p.y = ev.clientY;
+  return p.matrixTransform(curSvg.getScreenCTM().inverse());
+}
+let rafPending = false;
+function scheduleRender() {
+  if (rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(() => { rafPending = false; renderAll(); });
+}
+function saveLayout() {
+  try {
+    const nodes = {}; NODES.forEach(n => nodes[n.id] = [n.x, n.y]);
+    const elbows = {};
+    EDGES.forEach((e, i) => {
+      if (e.mx !== undefined) elbows["x" + i] = e.mx;
+      if (e.my !== undefined) elbows["y" + i] = e.my;
+    });
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify({nodes, elbows}));
+  } catch {}
+}
+function loadLayout() {
+  try {
+    const d = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "null");
+    if (!d) return;
+    NODES.forEach(n => {
+      const p = d.nodes && d.nodes[n.id];
+      if (p) { n.x = p[0]; n.y = p[1]; }
+    });
+    EDGES.forEach((e, i) => {
+      if (d.elbows && d.elbows["x" + i] !== undefined) e.mx = d.elbows["x" + i];
+      if (d.elbows && d.elbows["y" + i] !== undefined) e.my = d.elbows["y" + i];
+    });
+  } catch {}
+}
+function resetLayout() {
+  try { localStorage.removeItem(LAYOUT_KEY); } catch {}
+  PRISTINE.forEach(([id, x, y]) => { NODE_BY_ID[id].x = x; NODE_BY_ID[id].y = y; });
+  EDGES.forEach(e => { delete e.mx; delete e.my; });
+  renderAll();
+}
+function beginDrag(ev, onMove, onUp) {
+  const move = mv => onMove(svgPt(mv));
+  const up = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    onUp();
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
 }
 
 function render() {
   const svg = el("svg", {viewBox: "0 0 1580 1044", role: "img",
     "aria-label": "False Flag data-flow schema"});
+  curSvg = svg;
   const defs = el("defs", {}, svg);
   const mk = el("marker", {id:"arr", viewBox:"0 0 8 8", refX:"7", refY:"4",
     markerWidth:"7", markerHeight:"7", orient:"auto-start-reverse"}, defs);
@@ -385,14 +467,20 @@ function render() {
   EDGES.forEach((e, i) => {
     const g = el("g", {"class": "edge" + (e.cls ? " " + e.cls : "") + (e.dash ? " dashed" : ""),
       id: "edge-" + i}, svg);
-    const d = edgePath(e);
-    el("path", {d, "marker-end": "url(#arr)"}, g);
-    if (e.lbl) {
-      const nums = d.match(/-?\d+(\.\d+)?/g).map(Number);
-      const xs = nums.filter((_, j) => j % 2 === 0), ys = nums.filter((_, j) => j % 2 === 1);
-      const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
-      const cy = (Math.min(...ys) + Math.max(...ys)) / 2 - 4;
-      el("text", {x: cx, y: cy, "text-anchor": "middle"}, g).textContent = e.lbl;
+    const geom = edgeGeom(e);
+    el("path", {d: geom.d, "marker-end": "url(#arr)"}, g);
+    if (e.lbl)
+      el("text", {x: geom.lx, y: geom.ly, "text-anchor": "middle"}, g).textContent = e.lbl;
+    if (geom.handle) {
+      const h = el("path", {d: geom.handle, "class": "ehit",
+        "data-axis": geom.axis}, g);
+      h.addEventListener("pointerdown", ev => {
+        ev.stopPropagation(); ev.preventDefault();
+        beginDrag(ev, q => {
+          if (geom.axis === "x") e.mx = snap(q.x); else e.my = snap(q.y);
+          scheduleRender();
+        }, saveLayout);
+      });
     }
   });
 
@@ -405,8 +493,7 @@ function render() {
   });
 
   NODES.forEach(n => {
-    const clickable = true;
-    const g = el("g", {"class": "node " + n.kind + (clickable ? " clickable" : ""),
+    const g = el("g", {"class": "node " + n.kind + " clickable",
       id: "node-" + n.id, tabindex: "0", role: "button",
       "aria-label": n.label + (n.ctx ? " — click to reroute or edit prompt" : "")}, svg);
     el("rect", {x: n.x, y: n.y, width: n.w, height: n.h, rx: n.kind === "store" ? 10 : 5}, g);
@@ -427,7 +514,19 @@ function render() {
       el("circle", {cx: n.x + n.w - 14, cy: n.y + 13, r: 10}, cc);
       el("text", {x: n.x + n.w - 14, y: n.y + 16.5, "text-anchor": "middle"}, cc).textContent = "0";
     }
-    g.addEventListener("click", () => selectNode(n.id));
+    // Drag to move; a press that never travels is a select-click.
+    g.addEventListener("pointerdown", ev => {
+      if (ev.button !== 0) return;
+      const start = svgPt(ev);
+      const st = {ox: n.x, oy: n.y, moved: false};
+      beginDrag(ev, q => {
+        if (!st.moved && Math.hypot(q.x - start.x, q.y - start.y) < 5) return;
+        st.moved = true;
+        n.x = snap(st.ox + q.x - start.x);
+        n.y = snap(st.oy + q.y - start.y);
+        scheduleRender();
+      }, () => { if (st.moved) saveLayout(); else selectNode(n.id); });
+    });
     g.addEventListener("keydown", ev => {
       if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); selectNode(n.id); }
     });
@@ -435,6 +534,19 @@ function render() {
 
   $("stage").replaceChildren(svg);
   applyModeFilter();
+}
+
+/* Full repaint: geometry plus the dynamic state a rebuild would lose
+   (model badges, call counters, selection highlight). */
+function renderAll() {
+  render();
+  paintBadges();
+  Object.entries(callCounts).forEach(([fam, cnt]) => {
+    const cc = $("cc-" + fam);
+    if (cc) { cc.setAttribute("visibility", "visible");
+      cc.querySelector("text").textContent = cnt; }
+  });
+  if (selected && $("node-" + selected)) $("node-" + selected).classList.add("selected");
 }
 
 function activeUnder(elDef) {
@@ -618,19 +730,22 @@ function msg(text, isErr) {
 }
 
 /* ---------- routing matrix (model badges) ---------- */
+function paintBadges() {
+  Object.values(routingRows).forEach(row => {
+    const badge = $("mb-" + row.context);
+    if (!badge) return;
+    const model = row.effective_model || row.effective_provider;
+    badge.textContent = row.effective_tier + " · " +
+      (model.length > 24 ? model.slice(0, 23) + "…" : model) +
+      (row.override ? " *" : "");
+  });
+}
+
 async function refreshRouting() {
   try {
     const d = await (await fetch("/routing")).json();
-    d.contexts.forEach(row => {
-      routingRows[row.context] = row;
-      const badge = $("mb-" + row.context);
-      if (badge) {
-        const model = row.effective_model || row.effective_provider;
-        badge.textContent = row.effective_tier + " · " +
-          (model.length > 24 ? model.slice(0, 23) + "…" : model) +
-          (row.override ? " *" : "");
-      }
-    });
+    d.contexts.forEach(row => { routingRows[row.context] = row; });
+    paintBadges();
     setStatus("");
   } catch (e) { setStatus("server unreachable — start api/server.py", true); }
 }
@@ -718,7 +833,10 @@ $("clearAllBtn").onclick = async () => {
   setStatus("all overrides cleared");
 };
 
-render();
+$("resetLayoutBtn").onclick = resetLayout;
+
+loadLayout();
+renderAll();
 refreshRouting();
 setInterval(refreshRouting, 15000);
 </script>
