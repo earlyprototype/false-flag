@@ -50,18 +50,24 @@ class NarrativeConfig(BaseModel):
     patsy: str = Field(..., description="A nation being used as a pawn or scapegoat, if any.")
     stances: List[FactionStance] = Field(..., description="A list of faction stances that define the behaviour of key nations.")
 
-    def to_llm_context(self, target_country_code: Optional[str] = None,
-                       audience: str = "roleplay") -> str:
-        """Format the narrative truth as LLM context.
+    def to_llm_context(self, target_country_code: Optional[str] = None) -> str:
+        """Format the narrative truth for a FACTION being roleplayed.
+
+        This block reaches exactly two prompt families: state-actor
+        simulation and diplomacy conversations — the readers ARE factions
+        acting on their secret motives (the double-blind design).
+
+        Player-facing calls (advisors, decision interpretation, quality
+        assessment, inject generation) never receive this context. That
+        segregation IS the leak defence: text shown to the player comes from
+        models that do not know the secret, so nothing downstream needs
+        scrubbing. Supersedes the ER-021 "briefing audience", which handed
+        the secret to player-facing calls with a do-not-reveal instruction
+        and scrubbed the output afterwards.
 
         Args:
             target_country_code: If provided, include the specific stance for this country.
                                 If None, provide only the global narrative truth.
-            audience: "roleplay" when the reader IS a faction being played (a
-                     foreign leader, a state actor) and should act on its
-                     secret motive; "briefing" when the reader is briefing or
-                     judging the player (advisors, inject generation, quality
-                     assessment) and must never deceive them (ER-021).
 
         Returns:
             Formatted string for injection into LLM system prompt.
@@ -111,20 +117,7 @@ class NarrativeConfig(BaseModel):
                 from llm.parse_health import record_miss
                 record_miss("narrative_stance", target_country_code)
 
-        if audience == "briefing":
-            # The reader advises or judges the Prime Minister. The truth is
-            # background for the simulation, never a script to act out.
-            context_lines.extend([
-                "",
-                "=" * 60,
-                "INSTRUCTIONS:",
-                "- This hidden truth is background for YOU, the simulation, only.",
-                "- The player has not been told it and must not be told it directly.",
-                "- Use it to judge plausibility and foresee consequences; never to deceive the Prime Minister.",
-                "=" * 60,
-                ""
-            ])
-        elif stance or not target_country_code:
+        if stance or not target_country_code:
             # The reader IS a faction being roleplayed, and it has a stance
             # (or no specific country was asked for).
             context_lines.extend([

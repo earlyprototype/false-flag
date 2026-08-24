@@ -480,7 +480,7 @@ def test_adjudication_writes_consequences_and_the_next_quality_prompt_sees_them(
                 "EFFECTS:\nescalation_risk: 0\n")
 
     assess_action_quality("Hold current posture.", ns, "interp",
-                          capture_llm, None, Random(2))
+                          capture_llm, Random(2))
     quality_prompt = prompts[0]
     assert "outcome: Escorting the submarine out was firm" in quality_prompt
     assert "risk down" in quality_prompt

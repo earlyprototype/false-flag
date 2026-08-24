@@ -120,31 +120,34 @@ def test_adjudication_passes_the_narrative_per_actor(monkeypatch):
 # ER-021: audience-gated instruction block
 # ---------------------------------------------------------------------------
 
-def test_briefing_audience_is_never_told_to_deceive():
+def test_narrative_context_is_roleplay_only():
+    """The 'briefing audience' is gone: only factions read the narrative."""
+    import inspect
+
     narrative = _narrative()
+    assert "audience" not in inspect.signature(
+        narrative.to_llm_context).parameters
 
-    briefing = narrative.to_llm_context(audience="briefing")
-    assert "Provide plausible deniability" not in briefing
-    assert "Act according to your secret motive" not in briefing
-    assert "never to deceive the Prime Minister" in briefing
-
-    roleplay = narrative.to_llm_context(audience="roleplay")
-    assert "Provide plausible deniability" in roleplay
-    assert "Act according to your secret motive" in roleplay
+    context = narrative.to_llm_context()
+    assert "Provide plausible deniability" in context
+    assert "Act according to your secret motive" in context
+    assert "never to deceive the Prime Minister" not in context
 
 
-def test_shared_dossier_and_inject_context_use_briefing_audience():
+def test_shared_dossier_and_inject_context_are_secret_free():
+    """Player-facing context builders never carry the narrative truth."""
     from llm.context_builder import (build_shared_context_prefix,
                                      get_stochastic_inject_context)
 
     gm = GameManager(seed=11, mystery_mode=True)
+    assert gm.world.narrative is not None, "arrangement: mystery truth drawn"
     dossier = build_shared_context_prefix(["a line"], gm.world)
     inject_ctx = get_stochastic_inject_context("summary", ["a line"], gm.world)
 
     for context in (dossier, inject_ctx):
-        assert "SECRET NARRATIVE CONTEXT" in context
-        assert "Provide plausible deniability" not in context
-        assert "never to deceive the Prime Minister" in context
+        assert "SECRET NARRATIVE CONTEXT" not in context
+        assert "GLOBAL TRUTH" not in context
+        assert gm.world.narrative.description[:40] not in context
 
 
 def test_diplomat_context_keeps_the_roleplay_block():

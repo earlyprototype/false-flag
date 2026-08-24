@@ -421,8 +421,7 @@ def run_decision_pipeline(
     round2.append(
         ("quality_assessment",
          lambda task_rng: assess_action_quality(
-             action, narrative_state, interpretation, gen,
-             world_narrative, task_rng),
+             action, narrative_state, interpretation, gen, task_rng),
          lambda: _heuristic_quality_assessment(action, narrative_state)))
     pushback, critical_concerns, quality_assessment = run_round(
         round2, rng, status="CABINET REVIEW ── 3 CHANNELS")

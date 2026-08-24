@@ -404,29 +404,35 @@ def _advisor_responses(narrative, character_id="national_security_advisor"):
     ]
 
 
-def test_advisor_tells_differ_by_narrative():
+def test_advisor_prompts_and_output_are_secret_free():
+    """Advisors never see the narrative, so mock answers carry no tells.
+
+    Deduction now runs on faction behaviour (diplomacy and actor lanes,
+    covered above) - the cabinet is honestly ignorant of the hidden truth.
+    """
+    from llm.prompts import build_advisor_context
+
     narratives = _narratives()
+    world = _world(narratives["CHINA_PROXY_WAR"])
+    conditions = {"characters": {
+        "national_security_advisor": {"role": "Intelligence Coordinator"}}}
+    prompt = build_advisor_context(world, conditions,
+                                   "national_security_advisor",
+                                   "Who is behind this?", _TRANSCRIPT)
+    assert "SECRET NARRATIVE CONTEXT" not in prompt
+    assert "GLOBAL TRUTH" not in prompt
 
     china = " ".join(_advisor_responses(narratives["CHINA_PROXY_WAR"]))
     russia = " ".join(_advisor_responses(narratives["RUSSIA_AGGRESSION"]))
-    plain = " ".join(_advisor_responses(None))
-
-    # Intelligence answers point east under the China proxy narrative...
-    assert "Hong Kong" in china
-    # ...stay conventional under Russia aggression...
-    assert "Hong Kong" not in russia
-    assert "GRU tradecraft" in russia
-    # ...and carry no tells at all outside Mystery mode
-    assert "Hong Kong" not in plain and "GRU tradecraft" not in plain
+    assert "Hong Kong" not in china and "GRU tradecraft" not in china
+    assert "Hong Kong" not in russia and "GRU tradecraft" not in russia
 
 
-def test_foreign_secretary_notes_beijing_quietness_under_china_proxy():
+def test_foreign_secretary_carries_no_tells_either():
     narratives = _narratives()
     china = " ".join(_advisor_responses(narratives["CHINA_PROXY_WAR"],
                                         character_id="foreign_secretary"))
-    plain = " ".join(_advisor_responses(None, character_id="foreign_secretary"))
-    assert "Beijing" in china
-    assert "Beijing" not in plain
+    assert "Beijing" not in china
 
 
 def test_actor_simulation_tells_under_china_proxy():
@@ -457,18 +463,25 @@ def test_actor_simulation_tells_under_china_proxy():
     assert "Beijing" not in rus_china, "Russia's actor responses stay on script"
 
 
-def test_inject_tells_present_and_yaml_stays_valid():
+def test_injects_are_secret_free_and_yaml_stays_valid():
+    """Inject prompts carry no narrative, so no tells - and still parse."""
+    from llm.prompts import build_inject_generation_prompt
+
     narratives = _narratives()
+    prompt = build_inject_generation_prompt(
+        _world(narratives["CHINA_PROXY_WAR"]), 2, {}, None, _TRANSCRIPT)
+    assert "SECRET NARRATIVE CONTEXT" not in prompt
+    assert "GLOBAL TRUTH" not in prompt
 
     china = _inject_for(narratives["CHINA_PROXY_WAR"])
     russia = _inject_for(narratives["RUSSIA_AGGRESSION"])
     plain = _inject_for(None)
 
-    assert "Hong Kong" in china["description"]
-    assert "Hong Kong" not in russia["description"]
-    assert "planning signatures" in russia["description"]
-    assert "Hong Kong" not in plain["description"]
-    assert "planning signatures" not in plain["description"]
+    for inject in (china, russia, plain):
+        assert inject["description"], "inject must still render a body"
+    assert "Hong Kong" not in china["description"]
+    assert "planning signatures" not in russia["description"]
+    assert "Attribution note" not in china["description"]
 
 
 def test_every_pool_inject_can_carry_a_tell():

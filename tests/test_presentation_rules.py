@@ -125,14 +125,12 @@ class TestNarrativeStances:
 
     def test_stanceless_roleplay_gets_no_secret_motive_order(self):
         narratives = self._narratives()
-        context = narratives[0].to_llm_context(
-            target_country_code="XYZ", audience="roleplay")
+        context = narratives[0].to_llm_context(target_country_code="XYZ")
         assert "Act according to your secret motive" not in context
         assert "declared interests" in context
 
     def test_stanced_roleplay_still_gets_its_motive(self):
         narratives = self._narratives()
-        context = narratives[0].to_llm_context(
-            target_country_code="FRA", audience="roleplay")
+        context = narratives[0].to_llm_context(target_country_code="FRA")
         assert "SECRET MOTIVE" in context
         assert "Act according to your secret motive" in context
