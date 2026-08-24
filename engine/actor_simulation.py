@@ -40,7 +40,7 @@ def build_actor_prompt(actor: StateActor, player_action: str,
     narrative_block = ""
     if world_narrative is not None:
         narrative_block = "\n" + world_narrative.to_llm_context(
-            actor.country_code, audience="roleplay") + "\n"
+            actor.country_code) + "\n"
     return f"""
 You are simulating {actor.full_name}'s response to a UK government action.
 

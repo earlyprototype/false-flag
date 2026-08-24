@@ -2019,7 +2019,6 @@ def play(
                     interpretation,
                     rng,
                     llm_generate_fn=generate_text,
-                    world_narrative=world.narrative,
                     llm_batch_fn=batch_generate_text,
                     pushback=pushback
                 )

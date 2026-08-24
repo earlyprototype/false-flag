@@ -481,10 +481,12 @@ def _extract_player_line(prompt: str) -> str:
 # Mystery mode narratives
 #
 # When a hidden narrative is active, its context block (models/narrative.py
-# to_llm_context) reaches prompts via the context builders and includes a
-# "Crisis Protagonist: <ISO>" line. Detection keys on that line; tells are
-# short clauses appended deterministically to roughly half of the outputs so
-# the deduction loop is playable offline without turning into a headline.
+# to_llm_context) reaches ONLY the roleplay prompts - diplomacy conversations
+# and state-actor simulation. Player-facing prompts (advisors, injects,
+# quality assessment) are segregated from the secret, so their mock output
+# carries no tells; deduction runs on faction behaviour. Detection keys on
+# the "Crisis Protagonist: <ISO>" line; tells are short clauses appended
+# deterministically so the deduction loop is playable offline.
 # ---------------------------------------------------------------------------
 
 _NARRATIVE_PROTAGONISTS = {

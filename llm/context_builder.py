@@ -404,13 +404,11 @@ def build_shared_context_prefix(transcript: FullTranscript,
         "",
     ]
 
-    # Mystery mode's secret truth is drawn once at setup and never changes,
-    # so it belongs with the static framing rather than below the transcript.
-    # Global truth only - no per-country stance. Briefing audience: the
-    # readers advise the player, they are not roleplaying a faction (ER-021).
-    if world_state.narrative:
-        parts.append(world_state.narrative.to_llm_context(audience="briefing"))
-        parts.append("")
+    # Mystery mode's secret truth is deliberately ABSENT from this dossier.
+    # It briefs player-facing readers (advisors, interpretation, pushback,
+    # omissions), and keeping the secret out of their context is the leak
+    # defence: their output cannot reveal what they never saw. See
+    # NarrativeConfig.to_llm_context for the segregation rule.
 
     parts.append(render_transcript_block(transcript))
     parts.append("")
@@ -513,14 +511,11 @@ def get_stochastic_inject_context(summary: str, last_turn_transcript: List[str],
     context_parts.append(f"Alliance Cohesion: {world_state.metrics.alliance_cohesion}/100")
     context_parts.append("")
     
-    # Add narrative context (the secret truth that guides story generation).
-    # Briefing audience: the generator stages events, it is not a faction
-    # deceiving the UK (ER-021).
-    if world_state.narrative:
-        narrative_context = world_state.narrative.to_llm_context(audience="briefing")  # No specific country - global truth
-        context_parts.append(narrative_context)
-        context_parts.append("")
-    
+    # The secret truth is deliberately ABSENT: generated inject text goes to
+    # the player verbatim, so the generator is a player-facing call and never
+    # receives the narrative (see NarrativeConfig.to_llm_context). Story
+    # steering comes from the summary and the event ledger below.
+
     # Add high-level summary
     context_parts.append("=" * 60)
     context_parts.append("STORY SO FAR (HIGH-LEVEL SUMMARY)")
@@ -641,7 +636,7 @@ def get_diplomatic_context(transcript: FullTranscript, world_state: WorldState, 
     # roleplayed, so it gets its stance and the roleplay instructions.
     if world_state.narrative:
         narrative_context = world_state.narrative.to_llm_context(
-            target_country_code, audience="roleplay")
+            target_country_code)
         context_parts.append(narrative_context)
         context_parts.append("")
 
