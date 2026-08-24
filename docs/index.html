@@ -6,13 +6,13 @@
 <title>FALSE FLAG — play it in your browser</title>
 <meta name="description" content="Play FALSE FLAG in the browser. You are the Prime Minister in COBRA; your decisions are a paragraph you write yourself, not an option (b).">
 <meta name="color-scheme" content="dark">
-<meta name="ff-build" content="8a6109e30d25">
+<meta name="ff-build" content="5285b999b416">
 <meta property="og:title" content="FALSE FLAG — play it in your browser">
 <meta property="og:description" content="You are the Prime Minister in COBRA. Type what you would actually do. The cabinet answers.">
 <meta property="og:type" content="website">
 <!-- Inline, so the page still makes zero external requests. -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230b1017'/%3E%3Crect x='0.5' y='0.5' width='15' height='15' fill='none' stroke='%23004e89'/%3E%3Ctext x='8' y='12' font-family='monospace' font-size='10' font-weight='bold' fill='%23ff6b35' text-anchor='middle'%3EFF%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="play.css?v=8a6109e30d25">
+<link rel="stylesheet" href="play.css?v=5285b999b416">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -216,85 +216,33 @@
     </div>
 
     <div id="controls" hidden>
-      <div class="tabs" role="tablist" aria-label="What to send">
-        <button type="button" role="tab" id="tab-decide" aria-selected="true"
-                aria-controls="panel-decide">Decide</button>
-        <button type="button" role="tab" id="tab-ask" aria-selected="false"
-                aria-controls="panel-ask">Ask an advisor</button>
-        <button type="button" role="tab" id="tab-call" aria-selected="false"
-                aria-controls="panel-call">Make a call</button>
+      <!-- One prompt, as the terminal build has always had. Free text is a
+           question to the room; a leading slash is a command. The engine
+           parses the line (docs/py/bridge.py: WebGame.submit), so the page
+           never holds a second, drifting copy of the command table. -->
+      <label for="promptInput" id="promptLabel">
+        ASK THE ROOM, OR TYPE A COMMAND ── /menu FOR THE LIST
+      </label>
+      <div class="promptrow">
+        <span class="caret" aria-hidden="true">&gt;</span>
+        <textarea id="promptInput" rows="2" spellcheck="true"
+          autocomplete="off" autocapitalize="sentences"
+          placeholder="What can we actually sustain in the GIUK gap for a fortnight, and what breaks if we try?"></textarea>
       </div>
+      <p class="hint" id="promptHint">
+        <kbd>Enter</kbd> sends, <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new
+        line, <kbd>↑</kbd> for what you typed before. Asking costs nothing but
+        time. Quick: <code>/status</code> <code>/menu</code>
+        <code>/advise</code> <code>/resources</code> <code>/intel</code>
+      </p>
 
-      <div class="tabpanel" id="panel-decide" role="tabpanel" aria-labelledby="tab-decide">
-        <label for="decideText">YOUR DECISION ── WRITE IT AS YOU WOULD SAY IT</label>
-        <textarea id="decideText" rows="5" spellcheck="true"
-          placeholder="Order HMS Prince of Wales north of Orkney, keep her outside twelve miles, and put two Typhoons on airborne alert. Brief the Norwegians before anyone briefs the press."></textarea>
-        <p class="hint">A paragraph beats a sentence. Say what you are doing,
-        what you are not doing, and who you are telling. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> sends.</p>
-        <div class="actions" style="margin-top:12px">
-          <button type="button" class="primary" id="sendDecide">Transmit decision</button>
-          <span class="spacer"></span>
-          <button type="button" id="endTurn" hidden>Continue to next turn</button>
-        </div>
-      </div>
-
-      <div class="tabpanel" id="panel-ask" role="tabpanel" aria-labelledby="tab-ask" hidden>
-        <div class="fields">
-          <div>
-            <label for="advisor">ADVISOR</label>
-            <select id="advisor">
-              <option value="national_security_advisor">National Security Advisor</option>
-              <option value="chief_defence_staff">Chief of the Defence Staff</option>
-              <option value="home_secretary">Home Secretary</option>
-              <option value="foreign_secretary">Foreign Secretary</option>
-              <option value="attorney_general">Attorney General</option>
-              <option value="all">Everyone — the whole room answers</option>
-            </select>
-          </div>
-          <div>
-            <label for="askText">YOUR QUESTION</label>
-            <textarea id="askText" rows="3"
-              placeholder="What can we actually sustain in the GIUK gap for a fortnight, and what breaks if we try?"></textarea>
-          </div>
-        </div>
-        <div class="actions">
-          <button type="button" class="primary" id="sendAsk">Put the question</button>
-        </div>
-        <p class="hint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> sends. Asking costs you nothing but time. The room is where the
-        game is played; the decision is only where it lands.</p>
-      </div>
-
-      <div class="tabpanel" id="panel-call" role="tabpanel" aria-labelledby="tab-call" hidden>
-        <div class="fields">
-          <div>
-            <label for="country">CAPITAL</label>
-            <select id="country">
-              <option value="USA">Washington — United States</option>
-              <option value="RUS">Moscow — Russian Federation</option>
-              <option value="FRA">Paris — France</option>
-              <option value="DEU">Berlin — Germany</option>
-              <option value="CHN">Beijing — China</option>
-              <option value="IRL">Dublin — Ireland</option>
-            </select>
-          </div>
-          <div>
-            <label for="callText">WHAT YOU SAY ON THE LINE ── OR LEAVE EMPTY TO JUST OPEN THE LINE</label>
-            <textarea id="callText" rows="3"
-              placeholder="Tell me plainly whether your carrier group is coming, because I am about to tell the House one way or the other. (Or leave this empty: the line opens, they speak first, and your next send is what you say.)"></textarea>
-          </div>
-        </div>
-        <div class="actions">
-          <button type="button" class="primary" id="sendCall">Place the call</button>
-        </div>
-        <p class="hint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> sends. A leader-level call is on the record with them, even
-        when it is off the record with everyone else.</p>
-      </div>
-
-      <div class="actions" style="margin-top:14px">
+      <div class="actions" style="margin-top:12px">
+        <button type="button" class="primary" id="promptSend">Send</button>
+        <button type="button" id="endTurn" hidden>Continue to next turn</button>
+        <span class="spacer"></span>
         <button type="button" class="ghost" id="saveGame">Save</button>
         <button type="button" class="ghost" id="loadGame">Load</button>
         <input type="file" id="loadFile" accept=".json,application/json" class="offscreen">
-        <span class="spacer"></span>
         <button type="button" class="ghost" id="abandon">Abandon campaign</button>
       </div>
     </div>
@@ -319,8 +267,8 @@
   </div>
 </footer>
 
-<script src="ansi.js?v=8a6109e30d25"></script>
-<script src="assets.js?v=8a6109e30d25"></script>
-<script src="app.js?v=8a6109e30d25"></script>
+<script src="ansi.js?v=5285b999b416"></script>
+<script src="assets.js?v=5285b999b416"></script>
+<script src="app.js?v=5285b999b416"></script>
 </body>
 </html>
