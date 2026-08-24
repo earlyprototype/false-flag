@@ -126,7 +126,14 @@ def display_inject(inject: Dict[str, Any], root_path: Path, display_panel: bool 
         lines.append("")
         if display_panel:
             console.print(panel)  # Display Rich Panel to user
-        
+        elif title:
+            # No panel is printed, so the headline it would have carried has
+            # to travel in the lines - they ARE the record for a streaming
+            # caller (GameManager.deliver_inject -> transcript and SSE).
+            # Same form the plain-text branch below writes.
+            lines.append(f"=== {title.upper()} ===")
+            lines.append("")
+
         # NEW: Also return description lines for scene parser
         lines.extend(description_lines)
         lines.append("")
