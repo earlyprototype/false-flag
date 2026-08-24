@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>False Flag — Live Data Flow</title>
+<style>
+  /* One deliberate LIGHT look: paper situation-room. Layer colours are
+     darkened for contrast on white; same six-layer legend as the stream. */
+  :root {
+    --bg: #eef1f5;
+    --panel: #ffffff;
+    --panel-2: #f7f9fc;
+    --line: #d7dee8;
+    --text: #1a2330;
+    --muted: #556577;
+    --accent: #1f66d0;
+    --sitrep: #1f66d0;
+    --intel: #9c6500;
+    --diplomatic: #6f3bcf;
+    --domestic: #0b7f70;
+    --cabinet: #2f7d18;
+    --referee: #c22f2f;
+    --mystery: #8a2fd0;
+    --mono: "Cascadia Mono", "Consolas", "SF Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, "Segoe UI", sans-serif; }
+  h1 { margin: 0; font-size: 15px; letter-spacing: .12em; font-weight: 600; }
+  button { background: #ffffff; color: var(--text); border: 1px solid #c3cdd9;
+    border-radius: 4px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: #e5eefb; border-color: #8db4e8; color: #14418a; }
+  button.danger { background: #fbe9ec; border-color: #dc9aa5; color: #8f1f30; }
+  button.seg.on { background: #1f66d0; border-color: #1f66d0; color: #fff; }
+  input, select, textarea { background: #ffffff; color: var(--text);
+    border: 1px solid #c3cdd9; border-radius: 4px; padding: 5px 7px; font-size: 12px; }
+  input:focus, select:focus, textarea:focus, button:focus-visible {
+    outline: 1px solid var(--accent); outline-offset: 1px; }
+  textarea { font-family: var(--mono); font-size: 11.5px; line-height: 1.5; width: 100%; }
+
+  header { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center;
+    padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 5; }
+  header .brand small { display: block; color: var(--muted); font-size: 11px; }
+  .group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .group .lbl { color: var(--muted); font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: .1em; }
+  .seg { border-radius: 0; }
+  .seg:first-of-type { border-radius: 4px 0 0 4px; }
+  .seg:last-of-type { border-radius: 0 4px 4px 0; }
+  #sessBadge, #turnBadge, #status { font-family: var(--mono); font-size: 11px;
+    color: var(--muted); }
+  #status.err { color: var(--referee); }
+  #sessInput { width: 230px; font-family: var(--mono); font-size: 11px; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: 10.5px; letter-spacing: .08em; font-weight: 600;
+    border: 1px solid transparent; text-transform: uppercase; }
+  .chip.sitrep     { color: var(--sitrep);     border-color: var(--sitrep); }
+  .chip.intel      { color: var(--intel);      border-color: var(--intel); }
+  .chip.diplomatic { color: var(--diplomatic); border-color: var(--diplomatic); }
+  .chip.domestic   { color: var(--domestic);   border-color: var(--domestic); }
+  .chip.cabinet    { color: var(--cabinet);    border-color: var(--cabinet); }
+  .chip.referee    { color: var(--referee);    border-color: var(--referee); }
+
+  main { display: flex; }
+  #stage { flex: 1; overflow: auto; padding: 8px 12px 20px;
+    height: calc(100vh - 58px); }
+  svg { display: block; min-width: 1120px; width: 100%; height: auto; }
+
+  /* Diagram */
+  .node rect { fill: #ffffff; stroke: #b9c5d4; stroke-width: 1.2; rx: 5; }
+  .node text { fill: var(--text); font-size: 12px; font-weight: 600; }
+  .node .sub { fill: var(--muted); font-size: 9.5px; font-weight: 400;
+    font-family: var(--mono); }
+  .node .mb { fill: var(--intel); font-size: 9px; font-family: var(--mono);
+    font-weight: 400; }
+  .node.llm rect { stroke: #4a8fe0; stroke-width: 1.6; }
+  .node.store rect { fill: #eef3f9; stroke: #93a7bd; stroke-dasharray: none; rx: 10; }
+  .node.mystery rect { stroke: var(--mystery); fill: #faf5ff; }
+  .node.mystery text { fill: #5e1ea0; }
+  .node.rail rect { fill: #e8f0fa; stroke: #7aa7dd; }
+  .node.surface rect { fill: #fbfcfe; stroke: #9fb0c4; stroke-dasharray: 4 3; }
+  .node.clickable { cursor: pointer; }
+  .node.clickable:hover rect, .node.clickable:focus rect,
+  .node.selected rect { stroke: var(--accent); stroke-width: 2; }
+  .node:focus { outline: none; }
+  .cc circle { fill: #1f66d0; stroke: #14418a; stroke-width: 1; }
+  .cc text { fill: #ffffff; font-size: 9px; font-family: var(--mono); font-weight: 600; }
+
+  .edge path { fill: none; stroke: #8595a8; stroke-width: 1.4; }
+  .edge.dashed path { stroke-dasharray: 5 4; }
+  .edge text { fill: var(--muted); font-size: 9px; font-family: var(--mono); }
+  .edge.sitrep path { stroke: var(--sitrep); } .edge.sitrep text { fill: var(--sitrep); }
+  .edge.intel path { stroke: var(--intel); } .edge.intel text { fill: var(--intel); }
+  .edge.diplomatic path { stroke: var(--diplomatic); } .edge.diplomatic text { fill: var(--diplomatic); }
+  .edge.domestic path { stroke: var(--domestic); } .edge.domestic text { fill: var(--domestic); }
+  .edge.cabinet path { stroke: var(--cabinet); } .edge.cabinet text { fill: var(--cabinet); }
+  .edge.referee path { stroke: var(--referee); } .edge.referee text { fill: var(--referee); }
+  .edge.mystery path { stroke: var(--mystery); } .edge.mystery text { fill: var(--mystery); }
+  .edge.rdrop path { stroke: #b7c6d9; stroke-width: 1; stroke-dasharray: 2 4; }
+  .ehit { stroke: transparent; stroke-width: 12; fill: none; cursor: col-resize; }
+  .ehit[data-axis="y"] { cursor: row-resize; }
+  .edge:hover .ehit { stroke: rgba(31,102,208,.12); }
+  .node.clickable { cursor: grab; }
+
+  .dim { opacity: .22; transition: opacity .25s; }
+  .wt-current rect { stroke: #1f66d0 !important; stroke-width: 2.6; }
+  .wt-done { opacity: .55; }
+  #pWalk { border: 1px solid #8db4e8; background: #eef4fc; border-radius: 6px;
+    padding: 10px 12px; margin-bottom: 12px; }
+  #pWalk .prog { font-family: var(--mono); font-size: 11px; color: var(--muted);
+    margin-bottom: 6px; }
+
+  @keyframes pulse {
+    0% { filter: drop-shadow(0 0 0 rgba(31,102,208,0)); }
+    25% { filter: drop-shadow(0 0 9px rgba(31,102,208,.85)); }
+    100% { filter: drop-shadow(0 0 0 rgba(31,102,208,0)); }
+  }
+  .pulse { animation: pulse .9s ease-out; }
+  @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } .dim { transition: none; } }
+
+  /* Side panel */
+  #panel { width: 380px; flex: none; background: var(--panel);
+    border-left: 1px solid var(--line); padding: 14px 16px 30px;
+    height: calc(100vh - 58px); overflow: auto; position: sticky; top: 58px; }
+  #panel h2 { margin: 0 0 2px; font-size: 14px; letter-spacing: .06em; }
+  #panel .anchor { font-family: var(--mono); font-size: 10.5px; color: #46617e; }
+  #panel .desc { color: #33404f; font-size: 12.5px; margin: 8px 0; }
+  #panel section { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; }
+  #panel section h3 { margin: 0 0 8px; font-size: 10.5px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .14em; }
+  .row { display: flex; gap: 6px; align-items: center; margin: 6px 0; flex-wrap: wrap; }
+  .row label { font-size: 11px; color: var(--muted); min-width: 58px; }
+  .kv { font-family: var(--mono); font-size: 11px; color: #3d4c5e; margin: 3px 0; }
+  .kv b { color: var(--text); }
+  .ph { display: inline-block; font-family: var(--mono); font-size: 10px;
+    color: var(--domestic); border: 1px dashed #2fd6c355; border-radius: 3px;
+    padding: 0 5px; margin: 2px 3px 2px 0; }
+  #pMsg { font-size: 11px; font-family: var(--mono); min-height: 15px; }
+  #pMsg.ok { color: var(--cabinet); } #pMsg.err { color: var(--referee); }
+  .hint { color: var(--muted); font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1>FALSE FLAG — LIVE DATA FLOW</h1>
+    <small>every box is code · click an LLM node to reroute or edit its prompt ·
+      drag boxes and line elbows to tidy (layout saves locally)</small>
+  </div>
+  <div class="group" role="group" aria-label="Game type">
+    <span class="lbl">Game type</span>
+    <button class="seg on" data-mode="immersive">Immersive</button>
+    <button class="seg" data-mode="classic">Classic</button>
+    <button class="seg" data-mode="emergent">Emergent</button>
+    <label class="lbl" style="display:flex;align-items:center;gap:5px;cursor:pointer">
+      <input type="checkbox" id="mysteryChk"> Mystery</label>
+  </div>
+  <div class="group">
+    <span class="lbl">Session</span>
+    <input id="sessInput" placeholder="session id (attach)" aria-label="Session id">
+    <button id="attachBtn">Attach</button>
+    <button id="demoBtn" class="primary">Start live demo</button>
+    <button id="stopBtn" class="danger">Stop</button>
+  </div>
+  <div class="group">
+    <button id="mockAllBtn" title="Route all 12 call families to the mock provider (free)">All → mock</button>
+    <button id="clearAllBtn" title="Clear every runtime routing override">Clear overrides</button>
+    <button id="resetLayoutBtn" title="Discard your dragged positions and restore the original layout">Reset layout</button>
+    <button id="wtBtn" class="primary" title="Step through one turn of the selected game type, one hop at a time">▶ Walkthrough</button>
+  </div>
+  <div class="group">
+    <span id="sessBadge">no session</span>
+    <span id="turnBadge"></span>
+    <span id="status"></span>
+  </div>
+</header>
+<main>
+  <div id="stage"></div>
+  <aside id="panel" aria-live="polite">
+    <div id="pWalk" hidden></div>
+    <h2 id="pTitle">Select a node</h2>
+    <div class="anchor" id="pAnchor"></div>
+    <div class="desc" id="pDesc">Click any box in the schema. LLM call families
+      (blue border) open live controls: reroute the model behind that call, or
+      edit its prompt template — changes apply to the very next call the engine
+      makes. The game-type selector dims the paths a mode never exercises.</div>
+    <div id="pLayers"></div>
+    <div id="pLive"></div>
+    <div id="pRoute"></div>
+    <div id="pPrompt"></div>
+    <div id="pMsg"></div>
+  </aside>
+</main>
+<script>
+"use strict";
+/* ---------- schema data: nodes and edges are code-verified anchors -------- */
+/* modes: m = play modes the element is live in (absent = all three).
+   y: "on" = only when Mystery is on; "off" = only when Mystery is off. */
+const NODES = [
+ {id:"msel", x:24, y:84, w:156, h:46, kind:"store", label:"MSEL EPISODES",
+  sub:"scripted injects (yaml)", anchor:"data/scenarios/*/episodes · engine/events.py:43",
+  desc:"The authored Master Scenario Events List. Each inject carries a channel: tag that names its layer."},
+ {id:"injgen", x:24, y:150, w:156, h:56, kind:"llm", ctx:"inject_generation", label:"INJECT GENERATOR",
+  anchor:"llm/inject_generator.py:75",
+  desc:"LLM-authored stochastic injects once the scripted MSEL runs out."},
+ {id:"console", x:24, y:226, w:156, h:46, kind:"store", label:"INJECT CONSOLE",
+  sub:"facilitator EXCON", anchor:"api/control.py:141",
+  desc:"Facilitator-authored injects fired into a live session over POST /game/{id}/inject. Facilitator sessions only."},
+ {id:"player", x:24, y:330, w:156, h:180, kind:"surface", label:"PLAYER (PM)",
+  sub:"questions · decisions\ncalls · intel pulls", anchor:"cli/main.py · docs (browser)",
+  desc:"Every player input enters the engine through four verbs: ask the cabinet, decide, answer the phone, pull intelligence."},
+ {id:"briefing", x:240, y:96, w:168, h:54, kind:"engine", label:"TURN BRIEFING",
+  sub:"inject → channel → layer", anchor:"engine/game_manager.py (get_turn_briefing)",
+  desc:"Delivers the turn's inject: description to the transcript, effects onto the metrics, channel mapped onto a data layer."},
+ {id:"narrator", x:452, y:96, w:168, h:56, kind:"llm", ctx:"narrator", label:"NARRATOR",
+  anchor:"engine/narrator.py:41",
+  desc:"Short atmospheric bridges around briefings."},
+ {id:"advqa", x:240, y:330, w:168, h:56, kind:"llm", ctx:"advisor_qa", label:"ADVISOR Q&A",
+  anchor:"agents/conversation.py:219",
+  desc:"Cabinet answers to player questions, in persona. One call per advisor asked."},
+ {id:"intel", x:664, y:330, w:168, h:50, kind:"engine", label:"INTEL DESK",
+  sub:"noisy sensor reads", anchor:"engine/intelligence.py:12",
+  desc:"Deterministic rendering of hidden metrics as in-fiction SIGINT / cable traffic / media monitoring. No LLM."},
+ {id:"interp", x:240, y:414, w:168, h:56, kind:"llm", ctx:"decision_interpretation", label:"INTERPRETATION",
+  anchor:"agents/conversation.py:355",
+  desc:"Parses the player's free-text decision into forces, timeline and intent."},
+ {id:"pushback", x:452, y:414, w:168, h:56, kind:"llm", ctx:"advisor_pushback", label:"ADVISOR PUSHBACK",
+  anchor:"agents/conversation.py:390",
+  desc:"Advisors' objections to the interpreted decision, before commitment."},
+ {id:"omissions", x:664, y:414, w:168, h:56, kind:"llm", ctx:"critical_omissions", label:"CRITICAL OMISSIONS",
+  anchor:"agents/conversation.py:537",
+  desc:"Strategic gap detection on the previewed decision."},
+ {id:"resolve", x:240, y:510, w:168, h:54, kind:"engine", label:"RESOLVE DECISION",
+  sub:"adjudication entry", anchor:"engine/game_manager.py:511",
+  desc:"Commits the decision: runs adjudication, syncs hidden metrics back over world state, writes the transcript."},
+ {id:"quality", x:452, y:510, w:168, h:56, kind:"llm", ctx:"quality_assessment", label:"QUALITY ASSESSMENT",
+  anchor:"engine/narrative_adjudication.py:338",
+  desc:"The verdict call: decides what actually happens, with what quality multiplier. Drives metric deltas."},
+ {id:"actorsim", x:240, y:596, w:168, h:56, kind:"llm", ctx:"actor_simulation", label:"ACTOR SIMULATION",
+  anchor:"engine/actor_simulation.py:147",
+  desc:"One in-character call per simulated capital: public response vs private assessment."},
+ {id:"charresp", x:452, y:596, w:168, h:56, kind:"llm", ctx:"character_response", label:"CHARACTER RESPONSE",
+  anchor:"engine/narrative_adjudication.py:737",
+  desc:"Flavour reactions after the verdict."},
+ {id:"summary", x:664, y:650, w:168, h:56, kind:"llm", ctx:"situation_summary", label:"SITUATION SUMMARY",
+  anchor:"engine/narrative_adjudication.py:950",
+  desc:"The rolling synopsis — the campaign's memory. Every deciding call quotes it, so this node's quality propagates everywhere."},
+ {id:"diploconv", x:240, y:760, w:168, h:56, kind:"llm", ctx:"diplomacy_conversation", label:"DIPLOMACY CALL",
+  anchor:"engine/diplomacy.py:606",
+  desc:"Leader/diplomat dialogue on the red phone. Mandatory scripted calls cannot be declined."},
+ {id:"diploout", x:452, y:760, w:168, h:56, kind:"llm", ctx:"diplomacy_outcome", label:"CALL OUTCOME",
+  anchor:"engine/diplomacy.py:366",
+  desc:"Assesses the finished call; cohesion delta lands on the hidden metrics."},
+ {id:"metrics", x:900, y:470, w:180, h:60, kind:"store", label:"HIDDEN METRICS",
+  sub:"the referee's truth", anchor:"models/narrative_state.py:117",
+  desc:"Escalation, stability, cohesion, casualties — live truth during adjudication, synced back over world state after."},
+ {id:"vibes", x:900, y:380, w:180, h:50, kind:"engine", label:"VIBES 0–5", m:["immersive"],
+  sub:"sanctioned rendering", anchor:"models/narrative_state.py:175",
+  desc:"Immersive mode's only crossing of the referee line: metrics rendered as dots and trends, never numbers."},
+ {id:"ledger", x:900, y:590, w:180, h:50, kind:"store", label:"EVENT LEDGER",
+  sub:"dispositions, not numbers", anchor:"models/narrative_state.py:46",
+  desc:"One line per staged event: how the thread was left. Numbers deliberately never stored."},
+ {id:"endings", x:900, y:680, w:180, h:50, kind:"engine", label:"ENDINGS CHECK", m:["classic"],
+  sub:"win / lose thresholds", anchor:"engine/endings.py:113",
+  desc:"Terminal grading. CLI rule: classic only. API and demo sessions opt in for every mode (endings=True) so campaigns can finish."},
+ {id:"narrbank", x:24, y:880, w:156, h:46, kind:"store", label:"narratives.yaml", myst:"on",
+  anchor:"engine/game_manager.py:113",
+  desc:"The scenario's bank of hidden truths. Mystery mode draws one at session start."},
+ {id:"secret", x:240, y:880, w:190, h:56, kind:"mystery", label:"NARRATIVE TRUTH", myst:"on",
+  sub:"protagonist · antagonist · patsy", anchor:"models/narrative.py:36",
+  desc:"Who is actually doing this. Feeds actor behaviour and the roleplay prompt audience; must never reach the player."},
+ {id:"segfence", x:560, y:880, w:210, h:56, kind:"mystery", label:"CONTEXT SEGREGATION", myst:"on",
+  sub:"the leak defence", anchor:"models/narrative.py (to_llm_context)",
+  desc:"The secret reaches ONLY the two roleplay lanes — actor simulation and diplomacy calls, where the reader IS the deceiving faction. Player-facing calls (advisors, interpretation, inject generation, quality assessment) never receive it, so their output cannot reveal it. assess_action_quality does not even accept a narrative, so no call site can reintroduce one. This replaced an output leak-scrubber (issue #19), deleted with its cause."},
+ {id:"bus", x:1130, y:84, w:70, h:700, kind:"rail", label:"EVENT BUS", vertical:true,
+  anchor:"api/server.py:99 (push_event)",
+  desc:"Every event is stamped with a data layer here — at the bus, never inside the engine. Six layers: SITREP, INTEL, DIPLOMATIC, DOMESTIC, CABINET, REFEREE."},
+ {id:"reffilter", x:950, y:830, w:150, h:54, kind:"engine", label:"REFEREE FILTER",
+  sub:"server-side", anchor:"api/server.py:819",
+  desc:"REFEREE-layer events (raw effects, verdicts, llm_call records, parse health) are dropped from player streams. Only facilitator sessions receive them."},
+ {id:"streamfac", x:1270, y:760, w:150, h:50, kind:"surface", label:"FACILITATOR /stream",
+  anchor:"api/server.py:832",
+  desc:"All six layers. This page and the dashboard listen here."},
+ {id:"streamply", x:1270, y:846, w:150, h:50, kind:"surface", label:"PLAYER /stream",
+  anchor:"api/server.py:832",
+  desc:"Five layers; REFEREE filtered server-side."},
+ {id:"viewraw", x:1450, y:760, w:110, h:44, kind:"surface", label:"RAW METRICS", m:["classic"],
+  anchor:"models/narrative_state.py:258",
+  desc:"Classic: the traditional wargame readout — real numbers."},
+ {id:"viewvibes", x:1450, y:816, w:110, h:44, kind:"surface", label:"VIBES VIEW", m:["immersive"],
+  anchor:"models/narrative_state.py:265",
+  desc:"Immersive: dots, trends and crises. No numbers."},
+ {id:"viewsumm", x:1450, y:872, w:110, h:44, kind:"surface", label:"SUMMARY ONLY", m:["emergent"],
+  anchor:"models/narrative_state.py:277",
+  desc:"Emergent: narrative only, minimal structure."},
+ {id:"router", x:24, y:986, w:1176, h:46, kind:"rail", label:"llm/router.py — SINGLE CHOKE POINT",
+  sub:"routing_overrides → provider chain → call_log → REFEREE relay", anchor:"llm/router.py · llm/routing_overrides.py · api/llm_relay.py",
+  desc:"Every one of the 12 call families passes through here. The reroute matrix you edit from this page installs runtime overrides at this choke point; each call is logged and relayed onto the stream as a REFEREE llm_call event — which is what makes the nodes above pulse."},
+];
+
+const EDGES = [
+ {f:"msel", t:"briefing"},
+ {f:"injgen", t:"briefing", lbl:"when MSEL runs out"},
+ {f:"briefing", t:"narrator"},
+ {f:"narrator", t:"bus", cls:"sitrep"},
+ {f:"briefing", t:"bus", lbl:"inject · channel→layer"},
+ {f:"msel", t:"diploconv", lbl:"mandatory call", dash:true, route:"v"},
+ {f:"console", t:"bus", lbl:"manual inject"},
+ {f:"console", t:"metrics", lbl:"effects", dash:true},
+ {f:"player", t:"advqa", lbl:"question"},
+ {f:"advqa", t:"bus", cls:"cabinet"},
+ {f:"player", t:"interp", lbl:"draft decision"},
+ {f:"interp", t:"pushback"},
+ {f:"pushback", t:"omissions"},
+ {f:"omissions", t:"player", lbl:"preview", dash:true},
+ {f:"player", t:"resolve", lbl:"commit"},
+ {f:"resolve", t:"quality"},
+ {f:"quality", t:"metrics", lbl:"deltas"},
+ {f:"quality", t:"ledger", lbl:"disposition"},
+ {f:"quality", t:"charresp", route:"v"},
+ {f:"charresp", t:"bus", cls:"sitrep"},
+ {f:"resolve", t:"actorsim", route:"v"},
+ {f:"actorsim", t:"bus", cls:"diplomatic", lbl:"cables"},
+ {f:"ledger", t:"summary"},
+ {f:"metrics", t:"summary", dash:true},
+ {f:"summary", t:"bus", cls:"sitrep"},
+ {f:"metrics", t:"vibes", m:["immersive"], route:"v"},
+ {f:"vibes", t:"bus", cls:"sitrep", m:["immersive"]},
+ {f:"metrics", t:"bus", lbl:"state_update (raw)", m:["classic"]},
+ {f:"metrics", t:"endings", m:["classic"], route:"v"},
+ {f:"endings", t:"bus", cls:"sitrep", m:["classic"]},
+ {f:"player", t:"diploconv", lbl:"reply"},
+ {f:"diploconv", t:"diploout"},
+ {f:"diploout", t:"metrics", lbl:"cohesion Δ"},
+ {f:"diploconv", t:"bus", cls:"diplomatic"},
+ {f:"player", t:"intel", lbl:"pull"},
+ {f:"metrics", t:"intel", lbl:"noisy reads", dash:true},
+ {f:"intel", t:"bus", cls:"intel"},
+ {f:"narrbank", t:"secret", myst:"on"},
+ {f:"secret", t:"segfence", cls:"mystery", myst:"on"},
+ {f:"segfence", t:"actorsim", cls:"mystery", dash:true, lbl:"roleplay lanes only", myst:"on", route:"v"},
+ {f:"segfence", t:"diploconv", cls:"mystery", dash:true, myst:"on", route:"v"},
+ {f:"bus", t:"reffilter"},
+ {f:"reffilter", t:"streamfac", cls:"referee", lbl:"all layers"},
+ {f:"reffilter", t:"streamply", lbl:"REFEREE dropped"},
+ {f:"streamply", t:"viewraw", m:["classic"]},
+ {f:"streamply", t:"viewvibes", m:["immersive"]},
+ {f:"streamply", t:"viewsumm", m:["emergent"]},
+ {f:"router", t:"bus", cls:"referee", lbl:"llm_call", route:"railup"},
+];
+
+const LAYERS = ["sitrep","intel","diplomatic","domestic","cabinet","referee"];
+const NODE_BY_ID = Object.fromEntries(NODES.map(n => [n.id, n]));
+const CTX_NODE = Object.fromEntries(NODES.filter(n => n.ctx).map(n => [n.ctx, n.id]));
+
+let mode = "immersive", mystery = false, selected = null;
+let sessionId = null, es = null;
+let routingRows = {};      // ctx -> row from GET /routing
+let editableFams = null;   // Set of hot-editable prompt families
+const callCounts = {};     // ctx -> count
+
+const $ = id => document.getElementById(id);
+const svgNS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(svgNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+/* ---------- render ---------- */
+/* Geometry for one edge: path, label anchor, and (when adjustable) the
+   drag-handle segment. e.mx / e.my are user-dragged elbow overrides,
+   persisted with the node layout. */
+function edgeGeom(e) {
+  const a = NODE_BY_ID[e.f], b = NODE_BY_ID[e.t];
+  if (e.route === "railup") {  // router rail → bus bottom
+    const rx = a.x + a.w - 14, hy = b.y + b.h + 8, bx = b.x + b.w/2;
+    return {d: `M ${rx} ${a.y} L ${rx} ${hy} L ${bx} ${hy} L ${bx} ${b.y + b.h}`,
+            lx: (rx + bx) / 2, ly: hy - 5};
+  }
+  if (e.route === "v") {       // top/bottom ports; draggable elbow: my
+    const down = b.y > a.y;
+    const y1 = down ? a.y + a.h : a.y, y2 = down ? b.y : b.y + b.h;
+    const x1 = a.x + a.w/2, x2 = b.x + b.w/2;
+    const ym = e.my !== undefined ? e.my : (y1 + y2) / 2;
+    return {d: `M ${x1} ${y1} L ${x1} ${ym} L ${x2} ${ym} L ${x2} ${y2}`,
+            lx: (x1 + x2) / 2, ly: ym - 5,
+            handle: `M ${Math.min(x1,x2)} ${ym} L ${Math.max(x1,x2)} ${ym}`, axis: "y"};
+  }
+  const leftToRight = b.x >= a.x + a.w;
+  const x1 = leftToRight ? a.x + a.w : a.x, x2 = leftToRight ? b.x : b.x + b.w;
+  const y1 = a.y + a.h/2, y2 = b.y + b.h/2;
+  const xm = e.mx !== undefined ? e.mx : (x1 + x2) / 2;
+  return {d: `M ${x1} ${y1} L ${xm} ${y1} L ${xm} ${y2} L ${x2} ${y2}`,
+          lx: xm, ly: Math.min(y1, y2) === y1 && y1 === y2 ? y1 - 6 : (y1 + y2) / 2 - 6,
+          handle: `M ${xm} ${Math.min(y1,y2)} L ${xm} ${Math.max(y1,y2)}`, axis: "x"};
+}
+
+/* ---------- Miro-style layout adjustment ----------
+   Drag a box to move it (connected lines re-route themselves); drag a
+   line's elbow to shift the bend. Positions persist in localStorage.
+   ponytail: whole-diagram rerender per drag frame, virtualise if it lags. */
+let curSvg = null;
+const LAYOUT_KEY = "ff-dataflow-layout-v1";
+const PRISTINE = NODES.map(n => [n.id, n.x, n.y]);
+const snap = v => Math.round(v / 8) * 8;
+
+function svgPt(ev) {
+  const p = curSvg.createSVGPoint();
+  p.x = ev.clientX; p.y = ev.clientY;
+  return p.matrixTransform(curSvg.getScreenCTM().inverse());
+}
+let rafPending = false;
+function scheduleRender() {
+  if (rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(() => { rafPending = false; renderAll(); });
+}
+function saveLayout() {
+  try {
+    const nodes = {}; NODES.forEach(n => nodes[n.id] = [n.x, n.y]);
+    const elbows = {};
+    EDGES.forEach((e, i) => {
+      if (e.mx !== undefined) elbows["x" + i] = e.mx;
+      if (e.my !== undefined) elbows["y" + i] = e.my;
+    });
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify({nodes, elbows}));
+  } catch {}
+}
+function loadLayout() {
+  try {
+    const d = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "null");
+    if (!d) return;
+    NODES.forEach(n => {
+      const p = d.nodes && d.nodes[n.id];
+      if (p) { n.x = p[0]; n.y = p[1]; }
+    });
+    EDGES.forEach((e, i) => {
+      if (d.elbows && d.elbows["x" + i] !== undefined) e.mx = d.elbows["x" + i];
+      if (d.elbows && d.elbows["y" + i] !== undefined) e.my = d.elbows["y" + i];
+    });
+  } catch {}
+}
+function resetLayout() {
+  try { localStorage.removeItem(LAYOUT_KEY); } catch {}
+  PRISTINE.forEach(([id, x, y]) => { NODE_BY_ID[id].x = x; NODE_BY_ID[id].y = y; });
+  EDGES.forEach(e => { delete e.mx; delete e.my; });
+  renderAll();
+}
+function beginDrag(ev, onMove, onUp) {
+  const move = mv => onMove(svgPt(mv));
+  const up = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    onUp();
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+}
+
+function render() {
+  const svg = el("svg", {viewBox: "0 0 1580 1044", role: "img",
+    "aria-label": "False Flag data-flow schema"});
+  curSvg = svg;
+  const defs = el("defs", {}, svg);
+  const mk = el("marker", {id:"arr", viewBox:"0 0 8 8", refX:"7", refY:"4",
+    markerWidth:"7", markerHeight:"7", orient:"auto-start-reverse"}, defs);
+  el("path", {d:"M 0 0 L 8 4 L 0 8 z", fill:"#5b7692"}, mk);
+
+  EDGES.forEach((e, i) => {
+    const g = el("g", {"class": "edge" + (e.cls ? " " + e.cls : "") + (e.dash ? " dashed" : ""),
+      id: "edge-" + i}, svg);
+    const geom = edgeGeom(e);
+    el("path", {d: geom.d, "marker-end": "url(#arr)"}, g);
+    if (e.lbl)
+      el("text", {x: geom.lx, y: geom.ly, "text-anchor": "middle"}, g).textContent = e.lbl;
+    if (geom.handle) {
+      const h = el("path", {d: geom.handle, "class": "ehit",
+        "data-axis": geom.axis}, g);
+      h.addEventListener("pointerdown", ev => {
+        ev.stopPropagation(); ev.preventDefault();
+        const start = svgPt(ev);
+        const st = {moved: false};
+        beginDrag(ev, q => {
+          // Same 5px threshold as nodes: a stray press must not persist.
+          if (!st.moved && Math.hypot(q.x - start.x, q.y - start.y) < 5) return;
+          st.moved = true;
+          if (geom.axis === "x") e.mx = snap(q.x); else e.my = snap(q.y);
+          scheduleRender();
+        }, () => { if (st.moved) saveLayout(); });
+      });
+    }
+  });
+
+  // thin drops: every LLM node → router rail
+  const rail = NODE_BY_ID.router;
+  NODES.filter(n => n.kind === "llm").forEach(n => {
+    const g = el("g", {"class": "edge rdrop", id: "drop-" + n.id}, svg);
+    const x = n.x + 18;
+    el("path", {d: `M ${x} ${n.y + n.h} L ${x} ${rail.y}`}, g);
+  });
+
+  NODES.forEach(n => {
+    const g = el("g", {"class": "node " + n.kind + " clickable",
+      id: "node-" + n.id, tabindex: "0", role: "button",
+      "aria-label": n.label + (n.ctx ? " — click to reroute or edit prompt" : "")}, svg);
+    el("rect", {x: n.x, y: n.y, width: n.w, height: n.h, rx: n.kind === "store" ? 10 : 5}, g);
+    if (n.vertical) {
+      const t = el("text", {x: n.x + n.w/2, y: n.y + n.h/2, "text-anchor": "middle",
+        transform: `rotate(-90 ${n.x + n.w/2} ${n.y + n.h/2})`}, g);
+      t.textContent = n.label;
+    } else {
+      el("text", {x: n.x + 10, y: n.y + 18}, g).textContent = n.label;
+      if (n.sub) n.sub.split("\n").forEach((line, i) =>
+        el("text", {x: n.x + 10, y: n.y + 31 + i * 11, "class": "sub"}, g).textContent = line);
+      if (n.ctx)
+        el("text", {x: n.x + 10, y: n.y + n.h - 8, "class": "mb", id: "mb-" + n.ctx}, g)
+          .textContent = "model: —";
+    }
+    if (n.ctx) {
+      const cc = el("g", {"class": "cc", id: "cc-" + n.ctx, visibility: "hidden"}, g);
+      el("circle", {cx: n.x + n.w - 14, cy: n.y + 13, r: 10}, cc);
+      el("text", {x: n.x + n.w - 14, y: n.y + 16.5, "text-anchor": "middle"}, cc).textContent = "0";
+    }
+    // Drag to move; a press that never travels is a select-click.
+    g.addEventListener("pointerdown", ev => {
+      if (ev.button !== 0) return;
+      const start = svgPt(ev);
+      const st = {ox: n.x, oy: n.y, moved: false};
+      beginDrag(ev, q => {
+        if (!st.moved && Math.hypot(q.x - start.x, q.y - start.y) < 5) return;
+        st.moved = true;
+        n.x = snap(st.ox + q.x - start.x);
+        n.y = snap(st.oy + q.y - start.y);
+        scheduleRender();
+      }, () => { if (st.moved) saveLayout(); else selectNode(n.id); });
+    });
+    g.addEventListener("keydown", ev => {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); selectNode(n.id); }
+    });
+  });
+
+  $("stage").replaceChildren(svg);
+  applyModeFilter();
+}
+
+/* Full repaint: geometry plus the dynamic state a rebuild would lose
+   (model badges, call counters, selection highlight). */
+function renderAll() {
+  render();
+  paintBadges();
+  Object.entries(callCounts).forEach(([fam, cnt]) => {
+    const cc = $("cc-" + fam);
+    if (cc) { cc.setAttribute("visibility", "visible");
+      cc.querySelector("text").textContent = cnt; }
+  });
+  if (selected && $("node-" + selected)) $("node-" + selected).classList.add("selected");
+  if (wt) applyWt();
+}
+
+function activeUnder(elDef) {
+  if (elDef.m && !elDef.m.includes(mode)) return false;
+  if (elDef.myst && ((elDef.myst === "on") !== mystery)) return false;
+  return true;
+}
+
+function applyModeFilter() {
+  NODES.forEach(n =>
+    $("node-" + n.id).classList.toggle("dim", !activeUnder(n)));
+  EDGES.forEach((e, i) => {
+    const on = activeUnder(e) && activeUnder(NODE_BY_ID[e.f]) && activeUnder(NODE_BY_ID[e.t]);
+    $("edge-" + i).classList.toggle("dim", !on);
+  });
+  NODES.filter(n => n.kind === "llm").forEach(n =>
+    $("drop-" + n.id).classList.toggle("dim", !activeUnder(n)));
+}
+
+/* ---------- walkthrough: one turn, one hop at a time ---------- */
+/* Steps are filtered by the game-type selector (same m / myst fields as
+   nodes and edges), so each mode teaches only its own cascade. */
+const WALKTHROUGH = [
+ {t:"An inject opens the turn",
+  x:"Scripted events live in the MSEL (the episodes yaml). The turn briefing delivers the next one; when the scripted list runs out, the LLM inject generator writes new ones in the same shape.",
+  n:["msel","injgen","briefing"], e:[["msel","briefing"],["injgen","briefing"]]},
+ {t:"The briefing reaches every screen through the bus",
+  x:"The inject's channel (briefing, intelligence, flash alert…) picks its data layer, the narrator adds a line of atmosphere, and both land on the event bus — the single pipe every surface listens to.",
+  n:["narrator","bus"], e:[["briefing","narrator"],["narrator","bus"],["briefing","bus"]]},
+ {t:"Mystery only: a hidden truth was drawn at setup", myst:"on",
+  x:"One narrative — protagonist, antagonist, patsy, secret motives per country — was drawn from narratives.yaml when the session started. The player must never see it.",
+  n:["narrbank","secret"], e:[["narrbank","secret"]]},
+ {t:"The player questions the cabinet",
+  x:"Each question becomes an Advisor Q&A call; the answers stream on the CABINET layer.",
+  n:["player","advqa"], e:[["player","advqa"],["advqa","bus"]]},
+ {t:"A draft decision gets a preview",
+  x:"Free text goes through interpretation (what did the player mean?), advisor pushback (objections) and critical omissions (what is being missed?) — then back to the player, still uncommitted.",
+  n:["interp","pushback","omissions"],
+  e:[["player","interp"],["interp","pushback"],["pushback","omissions"],["omissions","player"]]},
+ {t:"Commit: adjudication begins",
+  x:"The player commits the same text. Resolve Decision runs the round for real.",
+  n:["resolve"], e:[["player","resolve"]]},
+ {t:"The quality verdict drives the numbers",
+  x:"Quality Assessment judges the action; its multiplier scales the metric deltas onto the hidden metrics, and the outcome is written to the event ledger — directions, never numbers.",
+  n:["quality","metrics","ledger"], e:[["resolve","quality"],["quality","metrics"],["quality","ledger"]]},
+ {t:"Mystery only: the secret is fenced, not filtered", myst:"on",
+  x:"The truth reaches only the roleplay lanes — actor simulation and diplomacy calls, where the reader IS the deceiving faction. The quality judge, advisors and inject generator never receive it, so their player-visible text cannot leak it. Nothing is scrubbed afterwards; there is nothing to scrub.",
+  n:["segfence"], e:[["secret","segfence"],["segfence","actorsim"],["segfence","diploconv"]]},
+ {t:"Foreign capitals respond in character",
+  x:"One Actor Simulation call per relevant capital: a public response (a cable on the DIPLOMATIC layer) and a private assessment the player never sees. In Mystery, each capital plays its own secret stance.",
+  n:["actorsim"], e:[["resolve","actorsim"],["actorsim","bus"],["segfence","actorsim"]]},
+ {t:"Flavour, then the rolling summary",
+  x:"Character Response adds colour. Situation Summary folds the ledger and state into the campaign's rolling memory — every later call quotes it, so its quality propagates everywhere.",
+  n:["charresp","summary"],
+  e:[["quality","charresp"],["charresp","bus"],["ledger","summary"],["metrics","summary"],["summary","bus"]]},
+ {t:"Immersive: numbers become vibes", m:["immersive"],
+  x:"The hidden metrics render as 0–5 dots and trends — the only sanctioned crossing of the referee line. The player never sees a number.",
+  n:["vibes","viewvibes"], e:[["metrics","vibes"],["vibes","bus"]]},
+ {t:"Classic: raw numbers and endings", m:["classic"],
+  x:"Metrics go to the player raw — the traditional wargame readout — and the endings check grades the campaign against win/lose thresholds.",
+  n:["endings","viewraw"], e:[["metrics","bus"],["metrics","endings"],["endings","bus"]]},
+ {t:"Emergent: narrative only", m:["emergent"],
+  x:"The situation summary IS the display — minimal structure, maximum LLM freedom.",
+  n:["viewsumm"], e:[]},
+ {t:"The red phone",
+  x:"Diplomacy calls are live conversations with a leader — scripted mandatory calls cannot be declined. When a call ends, Call Outcome assesses it and the cohesion delta lands on the hidden metrics.",
+  n:["diploconv","diploout"],
+  e:[["player","diploconv"],["diploconv","diploout"],["diploout","metrics"],["diploconv","bus"],["msel","diploconv"]]},
+ {t:"The intel desk",
+  x:"Pulling intelligence renders the hidden metrics as noisy in-fiction sensor reads — SIGINT, cable traffic, media monitoring. Deterministic: no model call.",
+  n:["intel"], e:[["player","intel"],["metrics","intel"],["intel","bus"]]},
+ {t:"One bus, two streams",
+  x:"Every event is layer-tagged at the bus. The REFEREE filter strips the hidden layer server-side: facilitator sessions get all six layers, player sessions get five.",
+  n:["reffilter","streamfac","streamply"],
+  e:[["bus","reffilter"],["reffilter","streamfac"],["reffilter","streamply"]]},
+ {t:"Every model call passes one choke point",
+  x:"All 12 LLM families route through llm/router.py: your runtime reroutes, the provider chain, the call log — and each call is relayed back onto the bus as a REFEREE llm_call event. That is what makes these boxes pulse.",
+  n:["router"], e:[["router","bus"]]},
+ {t:"That's the loop",
+  x:"Briefing → discussion → decision → adjudication → render, then the next turn. Click any blue-bordered box to reroute its model or edit its prompt — changes bite on the very next call.",
+  n:[], e:[]},
+];
+const EDGE_IDX = {};
+EDGES.forEach((e, i) => { EDGE_IDX[e.f + ">" + e.t] = i; });
+
+let wt = null;  // {steps, i} while a walkthrough is running
+
+function startWalkthrough() {
+  wt = {steps: WALKTHROUGH.filter(activeUnder), i: 0};
+  applyWt();
+}
+function exitWalkthrough() {
+  wt = null;
+  $("pWalk").hidden = true;
+  applyModeFilter();
+  document.querySelectorAll(".wt-current,.wt-done").forEach(g =>
+    g.classList.remove("wt-current", "wt-done"));
+  $("pTitle").textContent = "Select a node";
+  $("pDesc").textContent = "Click any box in the schema. LLM call families " +
+    "(blue border) open live controls: reroute the model behind that call, " +
+    "or edit its prompt template.";
+}
+function applyWt() {
+  const steps = wt.steps, i = wt.i, cur = steps[i];
+  const finale = !cur.n.length && !cur.e.length;
+  document.querySelectorAll(".node, .edge").forEach(g => {
+    g.classList.remove("wt-current", "wt-done");
+    g.classList.toggle("dim", !finale);
+  });
+  if (finale) applyModeFilter();
+  const mark = (domId, cls) => {
+    const g = $(domId);
+    if (g) { g.classList.remove("dim", "wt-current", "wt-done"); g.classList.add(cls); }
+  };
+  if (!finale) {
+    for (let s = 0; s <= i; s++) {
+      const cls = s === i ? "wt-current" : "wt-done";
+      steps[s].n.forEach(id => {
+        if (activeUnder(NODE_BY_ID[id])) mark("node-" + id, cls);
+      });
+      steps[s].e.forEach(pair => {
+        const j = EDGE_IDX[pair[0] + ">" + pair[1]];
+        if (j !== undefined && activeUnder(EDGES[j])) mark("edge-" + j, cls);
+      });
+    }
+    cur.n.forEach(id => pulse("node-" + id));
+  }
+  // Panel: narration + controls
+  const w = $("pWalk"); w.hidden = false; w.replaceChildren();
+  const prog = document.createElement("div"); prog.className = "prog";
+  prog.textContent = `Walkthrough · step ${i + 1} of ${steps.length} · ` +
+    mode + (mystery ? " + mystery" : "");
+  const row = document.createElement("div"); row.className = "row";
+  const back = document.createElement("button"); back.textContent = "← Back";
+  back.disabled = i === 0;
+  const next = document.createElement("button"); next.className = "primary";
+  next.textContent = i === steps.length - 1 ? "Finish" : "Next →";
+  const exit = document.createElement("button"); exit.textContent = "Exit";
+  back.onclick = () => { wt.i = Math.max(0, wt.i - 1); applyWt(); };
+  next.onclick = () => {
+    if (wt.i >= wt.steps.length - 1) exitWalkthrough();
+    else { wt.i += 1; applyWt(); }
+  };
+  exit.onclick = exitWalkthrough;
+  row.append(back, next, exit);
+  w.append(prog, row);
+  $("pTitle").textContent = cur.t;
+  $("pDesc").textContent = cur.x;
+  ["pLayers", "pLive", "pRoute", "pPrompt"].forEach(id => $(id).replaceChildren());
+  $("pMsg").textContent = ""; $("pMsg").className = "";
+}
+document.addEventListener("keydown", ev => {
+  if (!wt || ev.target.tagName === "TEXTAREA" || ev.target.tagName === "INPUT") return;
+  if (ev.key === "ArrowRight") { ev.preventDefault();
+    if (wt.i < wt.steps.length - 1) { wt.i += 1; applyWt(); } }
+  if (ev.key === "ArrowLeft") { ev.preventDefault();
+    wt.i = Math.max(0, wt.i - 1); applyWt(); }
+  if (ev.key === "Escape") exitWalkthrough();
+});
+
+/* ---------- side panel ---------- */
+function selectNode(id) {
+  if (wt) exitWalkthrough();
+  selected = id;
+  document.querySelectorAll(".node.selected").forEach(g => g.classList.remove("selected"));
+  $("node-" + id).classList.add("selected");
+  const n = NODE_BY_ID[id];
+  $("pTitle").textContent = n.label;
+  $("pAnchor").textContent = n.anchor || "";
+  $("pDesc").textContent = n.desc || "";
+  $("pMsg").textContent = ""; $("pMsg").className = "";
+  $("pLayers").replaceChildren();
+  renderLive(n); renderRoute(n); renderPrompt(n);
+}
+
+function renderLive(n) {
+  const box = $("pLive"); box.replaceChildren();
+  if (!n.ctx) return;
+  const sec = document.createElement("section");
+  sec.innerHTML = "<h3>Live</h3>";
+  const count = callCounts[n.ctx] || 0;
+  const last = lastCall[n.ctx];
+  const d1 = document.createElement("div"); d1.className = "kv";
+  d1.innerHTML = `calls this session: <b>${count}</b>`;
+  sec.appendChild(d1);
+  const d2 = document.createElement("div"); d2.className = "kv";
+  d2.innerHTML = last
+    ? `last: <b>${last.model || "?"}</b> · ${last.provider} · ${last.latency_ms} ms` +
+      (last.fallback ? ` · <span style="color:var(--referee)">fallback</span>` : "")
+    : "last: —";
+  sec.appendChild(d2);
+  box.appendChild(sec);
+}
+
+function renderRoute(n) {
+  const box = $("pRoute"); box.replaceChildren();
+  if (!n.ctx) return;
+  const row = routingRows[n.ctx];
+  const sec = document.createElement("section");
+  sec.innerHTML = "<h3>Reroute this call family</h3>";
+  if (row) {
+    const kv = document.createElement("div"); kv.className = "kv";
+    kv.innerHTML = `default tier <b>${row.default_tier}</b> → effective ` +
+      `<b>${row.effective_tier}</b> · <b>${row.effective_provider}</b> · ` +
+      `<b>${row.effective_model || "provider default"}</b>` +
+      (row.override ? ` <span style="color:var(--intel)">(override active)</span>` : "");
+    sec.appendChild(kv);
+  }
+  const mkRow = (labelText, control) => {
+    const r = document.createElement("div"); r.className = "row";
+    const l = document.createElement("label"); l.textContent = labelText;
+    r.append(l, control); return r;
+  };
+  const tierSel = document.createElement("select");
+  tierSel.innerHTML = `<option value="">(keep)</option><option value="flash">flash</option><option value="pro">pro</option>`;
+  const provSel = document.createElement("select");
+  provSel.innerHTML = `<option value="">(keep)</option>` +
+    ["gemini","openai_compat","mock","offline"].map(p => `<option>${p}</option>`).join("");
+  const modelIn = document.createElement("input");
+  modelIn.placeholder = "explicit model name (optional)";
+  modelIn.style.width = "100%";
+  sec.append(mkRow("tier", tierSel), mkRow("provider", provSel), mkRow("model", modelIn));
+
+  const btns = document.createElement("div"); btns.className = "row";
+  const apply = document.createElement("button"); apply.className = "primary";
+  apply.textContent = "Apply override";
+  const clear = document.createElement("button"); clear.textContent = "Clear override";
+  btns.append(apply, clear); sec.appendChild(btns);
+
+  apply.onclick = async () => {
+    // Merge with the standing override: POST /routing/{ctx} replaces the
+    // whole override server-side, so "(keep)" fields must resend the
+    // existing values or they'd be silently dropped.
+    const existing = (routingRows[n.ctx] || {}).override || {};
+    const body = {};
+    const tier = tierSel.value || existing.tier;
+    const provider = provSel.value || existing.provider;
+    const model = modelIn.value.trim() || existing.model;
+    if (tier) body.tier = tier;
+    if (provider) body.provider = provider;
+    if (model) body.model = model;
+    if (!Object.keys(body).length) return msg("nothing to apply", true);
+    try {
+      const r = await fetch("/routing/" + n.ctx, {method: "POST",
+        headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+      if (!r.ok) throw new Error((await r.json()).detail || r.status);
+      await refreshRouting();
+      renderRoute(n);
+      msg("override set — applies to the next " + n.ctx + " call");
+    } catch (e) { msg("reroute failed: " + e.message, true); }
+  };
+  clear.onclick = async () => {
+    try {
+      await fetch("/routing/" + n.ctx, {method: "DELETE"});
+      await refreshRouting();
+      renderRoute(n);
+      msg("override cleared — back to defaults");
+    } catch (e) { msg("clear failed: " + e.message, true); }
+  };
+  box.appendChild(sec);
+}
+
+async function renderPrompt(n) {
+  const box = $("pPrompt"); box.replaceChildren();
+  if (!n.ctx) return;
+  if (editableFams === null) {
+    try {
+      const r = await fetch("/prompts");
+      editableFams = new Set((await r.json()).families.map(f => f.family));
+    } catch { editableFams = new Set(); }
+  }
+  const sec = document.createElement("section");
+  sec.innerHTML = "<h3>Prompt template</h3>";
+  if (!editableFams.has(n.ctx)) {
+    const p = document.createElement("div"); p.className = "hint";
+    p.textContent = "This family's template is not yet extracted for hot-edit " +
+      "(today: " + [...editableFams].join(", ") + "). Its prompt lives in code — see the anchor above.";
+    sec.appendChild(p); box.appendChild(sec); return;
+  }
+  try {
+    const d = await (await fetch("/prompts/" + n.ctx)).json();
+    const phWrap = document.createElement("div");
+    d.placeholders.forEach(p => {
+      const s = document.createElement("span"); s.className = "ph";
+      s.textContent = "{" + p + "}"; phWrap.appendChild(s);
+    });
+    const ta = document.createElement("textarea");
+    ta.rows = 14; ta.value = d.text;
+    ta.setAttribute("aria-label", "Prompt template for " + n.ctx);
+    const btns = document.createElement("div"); btns.className = "row";
+    const save = document.createElement("button"); save.className = "primary";
+    save.textContent = d.edited ? "Save (edited)" : "Save";
+    const reset = document.createElement("button"); reset.textContent = "Reset to default";
+    btns.append(save, reset);
+    save.onclick = async () => {
+      try {
+        const r = await fetch("/prompts/" + n.ctx, {method: "PUT",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({text: ta.value})});
+        if (!r.ok) throw new Error((await r.json()).detail || r.status);
+        msg("saved — the next " + n.ctx + " call uses this text");
+        save.textContent = "Save (edited)";
+      } catch (e) { msg("rejected: " + e.message, true); }
+    };
+    reset.onclick = async () => {
+      try {
+        await fetch("/prompts/" + n.ctx, {method: "DELETE"});
+        const d2 = await (await fetch("/prompts/" + n.ctx)).json();
+        ta.value = d2.text; save.textContent = "Save";
+        msg("reset to canonical default");
+      } catch (e) { msg("reset failed: " + e.message, true); }
+    };
+    sec.append(phWrap, ta, btns);
+  } catch (e) {
+    const p = document.createElement("div"); p.className = "hint";
+    p.textContent = "template unavailable: " + e.message; sec.appendChild(p);
+  }
+  box.appendChild(sec);
+}
+
+function msg(text, isErr) {
+  const m = $("pMsg"); m.textContent = text; m.className = isErr ? "err" : "ok";
+}
+
+/* ---------- routing matrix (model badges) ---------- */
+function paintBadges() {
+  Object.values(routingRows).forEach(row => {
+    const badge = $("mb-" + row.context);
+    if (!badge) return;
+    const model = row.effective_model || row.effective_provider;
+    badge.textContent = row.effective_tier + " · " +
+      (model.length > 24 ? model.slice(0, 23) + "…" : model) +
+      (row.override ? " *" : "");
+  });
+}
+
+async function refreshRouting() {
+  try {
+    const d = await (await fetch("/routing")).json();
+    d.contexts.forEach(row => { routingRows[row.context] = row; });
+    paintBadges();
+    setStatus("");
+  } catch (e) { setStatus("server unreachable — start api/server.py", true); }
+}
+
+/* ---------- live stream ---------- */
+const lastCall = {};
+function pulse(domId) {
+  const g = $(domId); if (!g) return;
+  g.classList.remove("pulse"); void g.getBoundingClientRect(); g.classList.add("pulse");
+}
+function attach(sid) {
+  if (es) { es.close(); es = null; }
+  sessionId = sid;
+  $("sessBadge").textContent = sid ? "session " + sid.slice(0, 8) + "…" : "no session";
+  if (!sid) return;
+  es = new EventSource("/stream/" + sid);
+  es.addEventListener("llm_call", ev => {
+    const d = JSON.parse(ev.data);
+    const nodeId = CTX_NODE[d.family];
+    if (nodeId) {
+      pulse("node-" + nodeId);
+      callCounts[d.family] = (callCounts[d.family] || 0) + 1;
+      lastCall[d.family] = d;
+      const cc = $("cc-" + d.family);
+      if (cc) { cc.setAttribute("visibility", "visible");
+        cc.querySelector("text").textContent = callCounts[d.family]; }
+      if (selected && NODE_BY_ID[selected].ctx === d.family) renderLive(NODE_BY_ID[selected]);
+    }
+    pulse("node-router");
+  });
+  ["transcript","diplomacy","intel","inject_fired","adjudication","system","ending"]
+    .forEach(t => es.addEventListener(t, () => pulse("node-bus")));
+  es.addEventListener("state_update", ev => {
+    const d = JSON.parse(ev.data);
+    if (d.turn) $("turnBadge").textContent = "turn " + d.turn;
+    pulse("node-bus");
+  });
+  es.onerror = () => setStatus("stream lost — session gone or server down", true);
+  es.onopen = () => setStatus("");
+}
+function setStatus(t, isErr) {
+  const s = $("status"); s.textContent = t; s.className = isErr ? "err" : "";
+}
+
+/* ---------- header controls ---------- */
+document.querySelectorAll("button.seg").forEach(b => b.onclick = () => {
+  document.querySelectorAll("button.seg").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); mode = b.dataset.mode;
+  if (wt) startWalkthrough(); else applyModeFilter();
+});
+$("mysteryChk").onchange = e => { mystery = e.target.checked;
+  if (wt) startWalkthrough(); else applyModeFilter(); };
+$("wtBtn").onclick = () => wt ? exitWalkthrough() : startWalkthrough();
+$("attachBtn").onclick = () => { const v = $("sessInput").value.trim(); if (v) attach(v); };
+$("demoBtn").onclick = async () => {
+  setStatus("starting demo session…");
+  try {
+    const r = await fetch("/demo/start", {method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({turns: 6, pace_s: 2.0, play_mode: mode, mystery_mode: mystery})});
+    if (!r.ok) throw new Error((await r.json()).detail || r.status);
+    const d = await r.json();
+    $("sessInput").value = d.session_id;
+    attach(d.session_id);
+    setStatus("live demo running (" + mode + (mystery ? " + mystery" : "") + ")");
+  } catch (e) { setStatus("demo failed: " + e.message, true); }
+};
+$("stopBtn").onclick = async () => {
+  if (!sessionId) return;
+  try { await fetch("/demo/" + sessionId + "/stop", {method: "POST"}); } catch {}
+  setStatus("stop requested");
+};
+$("mockAllBtn").onclick = async () => {
+  const ctxs = Object.keys(CTX_NODE);
+  for (const c of ctxs)
+    await fetch("/routing/" + c, {method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({provider: "mock"})}).catch(() => {});
+  await refreshRouting();
+  if (selected) renderRoute(NODE_BY_ID[selected]);
+  setStatus("all 12 families → mock (free)");
+};
+$("clearAllBtn").onclick = async () => {
+  for (const c of Object.keys(CTX_NODE))
+    await fetch("/routing/" + c, {method: "DELETE"}).catch(() => {});
+  await refreshRouting();
+  if (selected) renderRoute(NODE_BY_ID[selected]);
+  setStatus("all overrides cleared");
+};
+
+$("resetLayoutBtn").onclick = resetLayout;
+
+loadLayout();
+renderAll();
+refreshRouting();
+setInterval(refreshRouting, 15000);
+</script>
+</body>
+</html>

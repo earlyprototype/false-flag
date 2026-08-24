@@ -26,15 +26,49 @@ import json
 import os
 import threading
 import time
-from typing import Optional
+from typing import Callable, List, Optional
 
 _lock = threading.Lock()
 _seq = 0
 _fields: dict = {}  # annotations merged into every record (e.g. turn)
 
+# Listeners receive a copy of every record as it is made - the live relay
+# behind the API dashboard's per-call feed. Independent of the JSONL file:
+# either sink alone keeps record() running.
+_listeners: List[Callable[[dict], None]] = []
+
 
 def enabled() -> bool:
+    """True when the JSONL file sink is configured (WARGAME_CALL_LOG)."""
     return bool(os.getenv("WARGAME_CALL_LOG"))
+
+
+def add_listener(listener: Callable[[dict], None]) -> None:
+    """Register a callable invoked with a copy of every call record.
+
+    Listeners run on the calling thread (batch drivers dispatch from a
+    thread pool) and must not raise; a raising listener is contained so it
+    can never fail an LLM call.
+    """
+    with _lock:
+        if listener not in _listeners:
+            _listeners.append(listener)
+
+
+def remove_listener(listener: Callable[[dict], None]) -> None:
+    with _lock:
+        if listener in _listeners:
+            _listeners.remove(listener)
+
+
+def has_listeners() -> bool:
+    with _lock:
+        return bool(_listeners)
+
+
+def active() -> bool:
+    """True when any sink (JSONL file or listener) wants call records."""
+    return enabled() or has_listeners()
 
 
 def set_field(name: str, value) -> None:
@@ -61,12 +95,12 @@ def record(*,
            fallback: bool = False,
            batch_index: Optional[int] = None,
            batch_size: Optional[int] = None) -> None:
-    """Append one call record. No-op unless WARGAME_CALL_LOG is set."""
+    """Append one call record. No-op unless a sink (file or listener) exists."""
     path = os.getenv("WARGAME_CALL_LOG")
-    if not path:
-        return
     global _seq
     with _lock:
+        if not path and not _listeners:
+            return
         _seq += 1
         entry = {
             "ts": round(time.time(), 3),
@@ -84,8 +118,18 @@ def record(*,
             "batch_index": batch_index,
             "batch_size": batch_size,
         }
-        with open(path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        if path:
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        listeners = list(_listeners)
+
+    # Outside the lock: a slow listener must not serialise the thread pool,
+    # and a raising one must never fail the LLM call it observed.
+    for listener in listeners:
+        try:
+            listener(dict(entry))
+        except Exception:
+            pass
 
 
 def reset() -> None:

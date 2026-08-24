@@ -348,3 +348,37 @@ def test_restored_turn_six_session_exposes_the_live_mandatory_call(client):
     assert call["required"] is True
     assert call["transcript"] == list(encounter.transcript)
     assert call["transcript"], "the opened call should have an opening line"
+
+
+def test_dataflow_page_serves_the_operable_schema(client):
+    """GET /dataflow returns the self-contained live data-flow view."""
+    response = client.get("/dataflow")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    body = response.text
+    # The operable pieces the page is for: reroute + prompt endpoints and
+    # the game-type selector's three modes.
+    assert "/routing/" in body
+    assert "/prompts/" in body
+    for mode_name in ("classic", "immersive", "emergent"):
+        assert mode_name in body
+
+
+def test_new_game_mystery_mode_reaches_the_manager(client):
+    """mystery_mode on /game/new must construct a mystery-mode manager."""
+    from api import server
+
+    response = client.post("/game/new", json={
+        "scenario_id": "war_game_2025",
+        "play_mode": "immersive",
+        "mystery_mode": True,
+    })
+    assert response.status_code == 200
+    session_id = response.json()["session_id"]
+
+    manager = server.sessions[session_id].manager
+    assert manager.mystery_mode is True
+    # The default path stays unchanged.
+    plain = client.post("/game/new", json={"scenario_id": "war_game_2025"})
+    plain_manager = server.sessions[plain.json()["session_id"]].manager
+    assert plain_manager.mystery_mode is False

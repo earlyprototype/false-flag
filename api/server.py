@@ -11,10 +11,13 @@ import os
 import sys
 import asyncio
 import json
+import threading
+import time
 from typing import Dict, Optional, List, Any
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -22,7 +25,9 @@ from sse_starlette.sse import EventSourceResponse
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from models.world import WorldState
+from models.layers import Layer, layer_for_channel
 from engine.game_manager import GameManager
+from api import llm_relay
 
 app = FastAPI(
     title="False Flag: The Wargame API",
@@ -41,19 +46,186 @@ app.add_middleware(
 
 # Session Container
 class GameSession:
-    def __init__(self, manager: GameManager):
-        self.manager = manager
-        self.event_queue: asyncio.Queue = asyncio.Queue()
+    """One running campaign plus its tagged event stream.
 
-    async def push_event(self, event_type: str, data: Any):
-        """Push an event to the SSE stream."""
-        await self.event_queue.put({
+    Every event carries a data layer (models/layers.py) stamped here at the
+    bus - never inside the engine. ``facilitator`` sessions receive the
+    REFEREE layer over /stream; player sessions have it filtered
+    server-side (see stream_game_events), so the hidden-truth tag can never
+    reach a player browser.
+    """
+
+    def __init__(self, manager: GameManager, facilitator: bool = False):
+        self.manager = manager
+        self.facilitator = facilitator
+        self.event_queue: asyncio.Queue = asyncio.Queue()
+        self.started_at = time.time()
+        self._event_seq = 0
+        # Serialises GameManager mutation. The demo driver's daemon thread
+        # and the API endpoints can otherwise interleave read-then-write
+        # engine calls (deliver_inject on world.metrics, decision
+        # adjudication) on the same manager. Held only around engine
+        # mutation calls - never across pacing sleeps or streaming.
+        self.lock = threading.Lock()
+        # The loop that owns event_queue, for thread-safe pushes from
+        # worker threads (LLM relay, demo driver). Absent outside async
+        # context (direct construction in tests).
+        try:
+            self._loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self._loop = None
+
+    def _make_item(self, event_type: str, data: Any,
+                   layer: Optional[Layer]) -> Dict[str, Any]:
+        """Assemble one SSE queue item: stamp layer, turn, T+ and sequence.
+
+        ``_layer`` is server-side only (the stream filter pops it before
+        yielding); the same layer value also travels inside the JSON data
+        so clients can filter and colour without parsing conventions.
+        """
+        layer = layer or Layer.SITREP
+        payload = dict(data) if isinstance(data, dict) else {"value": data}
+        payload.setdefault("layer", layer.value)
+        payload.setdefault("turn", self.manager.world.turn)
+        payload.setdefault("t_plus_s", round(time.time() - self.started_at, 3))
+        self._event_seq += 1
+        payload.setdefault("event_seq", self._event_seq)
+        return {
             "event": event_type,
-            "data": json.dumps(data)
-        })
+            "data": json.dumps(payload),
+            "_layer": layer,
+        }
+
+    async def push_event(self, event_type: str, data: Any,
+                         layer: Optional[Layer] = None):
+        """Push an event to the SSE stream (async endpoints)."""
+        await self.event_queue.put(self._make_item(event_type, data, layer))
+
+    def push_event_threadsafe(self, event_type: str, data: Any,
+                              layer: Optional[Layer] = None) -> None:
+        """Push an event from a worker thread (LLM relay, demo driver)."""
+        item = self._make_item(event_type, data, layer)
+        if self._loop is not None:
+            self._loop.call_soon_threadsafe(self.event_queue.put_nowait, item)
+        else:
+            self.event_queue.put_nowait(item)
 
 # Map: session_id -> GameSession
 sessions: Dict[str, GameSession] = {}
+
+# Every LLM call made while serving a session lands on that session's
+# stream as a REFEREE llm_call event (no prompt/reply bodies).
+llm_relay.install()
+
+
+def _session_or_404(session_id: str) -> GameSession:
+    """Look up a session and attribute this request's LLM calls to it."""
+    session = sessions.get(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    llm_relay.bind(session_id)
+    return session
+
+
+def _register_session(session_id: str, session: GameSession) -> None:
+    sessions[session_id] = session
+    llm_relay.register_session(session_id, session.push_event_threadsafe)
+    llm_relay.bind(session_id)
+
+
+# --- Event mapping (pure) -------------------------------------------------
+# The async endpoints and the demo driver's worker thread must emit the
+# same events for the same engine results; these mappers are the single
+# source of that shape. Each returns [(event_type, data, layer), ...].
+
+def briefing_events(inject: Dict[str, Any]):
+    """Events for one turn briefing: the inject on its channel's layer
+    (DATA_LAYERS.md par. D - `channel` is the authoring-side tag), then the
+    ready prompt."""
+    channel = inject.get("channel", "briefing")
+    return [
+        ("transcript", {
+            "type": "inject",
+            "title": inject.get("title", "SITUATION UPDATE"),
+            "channel": channel,
+            "content": inject.get("description", "") or
+                       "\n".join(inject.get("description_lines", [])),
+        }, layer_for_channel(channel)),
+        ("system", {
+            "content": "BRIEFING COMPLETE. AWAITING ACKNOWLEDGEMENT."
+        }, Layer.SITREP),
+    ]
+
+
+def adjudication_events(result: Dict[str, Any], manager: GameManager):
+    """Events for one adjudicated decision, layer-tagged per
+    DATA_LAYERS.md par. D: player-facing prose on SITREP, advisor
+    reactions on CABINET, cables on DIPLOMATIC, raw effects/verdicts and
+    parse health on REFEREE (server-filtered from player streams)."""
+    events = [
+        ("transcript", {
+            "type": "system",
+            "content": f"INTERPRETATION: {result['interpretation']}"
+        }, Layer.SITREP),
+        ("transcript", {
+            "type": "narrator",
+            "content": result['reasoning']
+        }, Layer.SITREP),
+        ("transcript", {
+            "type": "system",
+            "content": "UPDATING STRATEGIC METRICS..."
+        }, Layer.SITREP),
+    ]
+
+    if result['advisor_reactions']:
+        for role, txt in result['advisor_reactions']:
+            events.append(("transcript", {
+                "type": "advisor",
+                "role": role,
+                "content": txt
+            }, Layer.CABINET))
+
+    if result['international_reactions']:
+        for r in result['international_reactions']:
+            events.append(("transcript", {
+                "type": "inject",
+                "title": f"DIPLOMATIC CABLE: {r['actor_id']}",
+                "channel": "diplomatic",
+                "content": r['public_response']
+            }, Layer.DIPLOMATIC))
+
+    # The referee's own record of the turn: applied metric deltas and the
+    # advisory verdicts, raw. Never reaches a player stream.
+    events.append(("adjudication", {
+        "interpretation": result.get("interpretation"),
+        "effects": result.get("effects") or {},
+        "pushback": result.get("pushback") or [],
+        "critical_concerns": result.get("critical_concerns") or [],
+        "error": result.get("error"),
+    }, Layer.REFEREE))
+
+    if result.get("ending"):
+        events.append(("ending", result["ending"], Layer.SITREP))
+
+    events.append(("system", {
+        "content": f"TURN {manager.world.turn} COMPLETE. ADVANCING..."
+    }, Layer.SITREP))
+
+    events.append(("state_update", {
+        "phase": manager.world.phase,
+        "turn": manager.world.turn,
+        "metrics": manager.world.metrics.dict()
+    }, Layer.SITREP))
+
+    # LLM system health after the heaviest call cluster of the turn
+    # (DATA_LAYERS.md par. D: facilitator feed).
+    try:
+        from llm.parse_health import snapshot
+        events.append(("parse_health", snapshot(), Layer.REFEREE))
+    except Exception:
+        pass
+
+    return events
 
 
 class NewGameRequest(BaseModel):
@@ -61,7 +233,17 @@ class NewGameRequest(BaseModel):
     variant: str = "standard"
     difficulty: str = "standard"
     play_mode: str = "immersive"
+    # Draw a hidden narrative truth (the CLI's Mystery Mode). Without this
+    # field the HTTP path could not start a mystery campaign at all.
+    mystery_mode: bool = False
     player_name: str = "Prime Minister"
+    # Facilitator (EXCON) sessions receive REFEREE-layer events over
+    # /stream: raw adjudication effects, llm_call records, parse health.
+    # Player sessions (the default) have REFEREE filtered server-side.
+    # Set here at create time - there is deliberately no way to raise a
+    # live session to facilitator afterwards. `?facilitator=true` on the
+    # POST /game/new query string works too (curl convenience).
+    facilitator: bool = False
 
 
 class DiscussionRequest(BaseModel):
@@ -261,23 +443,29 @@ async def health_check():
 
 
 @app.post("/game/new", response_model=SessionResponse)
-async def new_game(request: NewGameRequest):
-    """Initialize a new game session."""
+async def new_game(request: NewGameRequest, facilitator: bool = False):
+    """Initialize a new game session.
+
+    ``facilitator`` (body field or query param) opts the session's /stream
+    into the REFEREE layer - see NewGameRequest.
+    """
     import uuid
     session_id = str(uuid.uuid4())
-    
+
     # Initialize game manager
     manager = GameManager(
         scenario_id=request.scenario_id,
         variant=request.variant,
         difficulty=request.difficulty,
-        play_mode=request.play_mode
+        play_mode=request.play_mode,
+        mystery_mode=request.mystery_mode
     )
-    
+
     # Store session
-    session = GameSession(manager)
-    sessions[session_id] = session
-    
+    session = GameSession(manager,
+                          facilitator=request.facilitator or facilitator)
+    _register_session(session_id, session)
+
     # Generate initial briefing
     pending_encounter = None
     try:
@@ -292,29 +480,21 @@ async def new_game(request: NewGameRequest):
                 "location": scene.location,
                 "timestamp": scene.timestamp,
                 "content": "\n".join(scene.body),
-            })
+            }, layer=Layer.SITREP)
 
         inject = manager.get_turn_briefing()
         pending_encounter = inject.get("pending_encounter")
 
-        # Push Briefing as event
-        await session.push_event("transcript", {
-            "type": "inject",
-            "title": inject.get("title", "SITUATION UPDATE"),
-            "content": inject.get("description", "") or "\n".join(inject.get("description_lines", []))
-        })
-        
-        # Push ready prompt
-        await session.push_event("system", {
-            "content": "BRIEFING COMPLETE. AWAITING ACKNOWLEDGEMENT."
-        })
-        
+        # Push Briefing as event, on the layer its authored channel names
+        for event_type, data, layer in briefing_events(inject):
+            await session.push_event(event_type, data, layer=layer)
+
     except Exception as e:
         print(f"Error generating initial briefing: {e}")
         await session.push_event("transcript", {
             "type": "error",
             "content": "FAILED TO LOAD BRIEFING DATA"
-        })
+        }, layer=Layer.SITREP)
     
     return SessionResponse(
         session_id=session_id,
@@ -454,12 +634,21 @@ async def get_intel_list(session_id: str):
 @app.get("/game/{session_id}/intel/{actor_code}", response_model=IntelDetailResponse)
 async def get_intel_detail(session_id: str, actor_code: str):
     """Get detailed intelligence assessment for an actor."""
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
+    session = _session_or_404(session_id)
+
     # This might be slow, consider async execution if needed
     try:
-        return sessions[session_id].manager.get_intel_detail(actor_code)
+        detail = session.manager.get_intel_detail(actor_code)
+        # The dispatch box: an intelligence product was pulled (INTEL layer)
+        await session.push_event("intel", {
+            "type": "assessment_pulled",
+            "actor": detail.get("actor"),
+            "code": detail.get("code"),
+            "confidence": detail.get("confidence"),
+        }, layer=Layer.INTEL)
+        return detail
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -469,12 +658,21 @@ async def get_intel_detail(session_id: str, actor_code: str):
 @app.post("/game/action/call", response_model=DiplomacyResponse)
 async def make_diplomatic_call(request: DiplomaticCallRequest):
     """Initiate a diplomatic call."""
-    session_id = request.session_id
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
+    session = _session_or_404(request.session_id)
+
     try:
-        return sessions[session_id].manager.start_diplomacy(request.country_name)
+        with session.lock:
+            result = session.manager.start_diplomacy(request.country_name)
+        # The red phone: mirror the call opening onto the DIPLOMATIC layer
+        await session.push_event("diplomacy", {
+            "type": "call_started",
+            "country": request.country_name,
+            "title": result.get("title"),
+            "transcript": result.get("transcript", []),
+        }, layer=Layer.DIPLOMATIC)
+        return result
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"ERROR CALL INIT: {e}")
         import traceback; traceback.print_exc()
@@ -484,12 +682,24 @@ async def make_diplomatic_call(request: DiplomaticCallRequest):
 @app.post("/game/action/diplomacy/reply", response_model=DiplomacyResponse)
 async def reply_diplomatic_call(request: DiplomacyReplyRequest):
     """Reply to the active diplomatic call."""
-    session_id = request.session_id
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
+    session = _session_or_404(request.session_id)
+
     try:
-        return sessions[session_id].manager.process_diplomacy(request.message)
+        with session.lock:
+            mark = len(getattr(session.manager.active_encounter,
+                               "transcript", []) or [])
+            result = session.manager.process_diplomacy(request.message)
+        # New exchange lines and (once the call ends) the outcome reading,
+        # mirrored onto the DIPLOMATIC layer
+        await session.push_event("diplomacy", {
+            "type": "call_turn",
+            "lines": (result.get("transcript") or [])[mark:],
+            "active": result.get("active"),
+            "outcome": result.get("outcome"),
+        }, layer=Layer.DIPLOMATIC)
+        return result
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"ERROR CALL REPLY: {e}")
         import traceback; traceback.print_exc()
@@ -525,7 +735,7 @@ async def load_game_endpoint(request: LoadGameRequest):
         import uuid
         new_session_id = str(uuid.uuid4())
         new_session = GameSession(manager)
-        sessions[new_session_id] = new_session
+        _register_session(new_session_id, new_session)
         
         return {
             "session_id": new_session_id,
@@ -610,24 +820,44 @@ async def update_llm_settings(request: LLMConfigUpdateRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _stream_filter(item: Dict[str, Any], facilitator: bool) -> Optional[Dict[str, Any]]:
+    """Strip the server-side layer key; drop REFEREE items for players.
+
+    The REFEREE tag (raw effects, verdicts, llm_call records, parse health)
+    must never reach a player browser (DATA_LAYERS.md par. D); only a
+    session created with the facilitator flag receives it.
+    """
+    layer = item.pop("_layer", None)
+    if layer is Layer.REFEREE and not facilitator:
+        return None
+    return item
+
+
 @app.get("/stream/{session_id}")
 async def stream_game_events(session_id: str, request: Request):
-    """SSE endpoint for streaming game events."""
+    """SSE endpoint for streaming game events.
+
+    REFEREE-layer events are filtered server-side unless the session was
+    created with the facilitator flag - see _stream_filter.
+    """
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     session = sessions[session_id]
-    
+
     async def event_generator():
         while True:
             # Check for disconnection
             if await request.is_disconnected():
                 break
-                
+
             # Wait for event
             try:
                 # Wait for event with timeout to allow checking connection status
                 event = await asyncio.wait_for(session.event_queue.get(), timeout=1.0)
+                event = _stream_filter(event, session.facilitator)
+                if event is None:
+                    continue  # server-side REFEREE filter
                 yield event
             except asyncio.TimeoutError:
                 # Keep-alive comment
@@ -635,7 +865,7 @@ async def stream_game_events(session_id: str, request: Request):
             except Exception as e:
                 print(f"Stream error: {e}")
                 break
-    
+
     return EventSourceResponse(event_generator())
 
 
@@ -649,36 +879,26 @@ async def run_turn_briefing_endpoint(session_id: str):
     briefing after turn one. Same payload shape as /game/new. Refused while
     a scripted mandatory call is still live.
     """
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    session = sessions[session_id]
+    session = _session_or_404(session_id)
     manager = session.manager
     _require_no_mandatory_call(manager)
 
     pending_encounter = None
     try:
-        inject = manager.get_turn_briefing()
+        with session.lock:
+            inject = manager.get_turn_briefing()
         pending_encounter = inject.get("pending_encounter")
 
-        # Push Briefing as event
-        await session.push_event("transcript", {
-            "type": "inject",
-            "title": inject.get("title", "SITUATION UPDATE"),
-            "content": inject.get("description", "") or "\n".join(inject.get("description_lines", []))
-        })
-
-        # Push ready prompt
-        await session.push_event("system", {
-            "content": "BRIEFING COMPLETE. AWAITING ACKNOWLEDGEMENT."
-        })
+        # Push Briefing as event, on the layer its authored channel names
+        for event_type, data, layer in briefing_events(inject):
+            await session.push_event(event_type, data, layer=layer)
 
     except Exception as e:
         print(f"Error generating briefing: {e}")
         await session.push_event("transcript", {
             "type": "error",
             "content": "FAILED TO LOAD BRIEFING DATA"
-        })
+        }, layer=Layer.SITREP)
 
     return SessionResponse(
         session_id=session_id,
@@ -699,26 +919,25 @@ async def run_turn_briefing_endpoint(session_id: str):
 @app.post("/game/{session_id}/briefing/ack")
 async def acknowledge_briefing(session_id: str):
     """Acknowledge briefing and move to discussion phase."""
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    session = sessions[session_id]
+    session = _session_or_404(session_id)
     manager = session.manager
-    
-    if manager.world.phase != "briefing":
-        if manager.world.phase == "discussion":
-            return {"status": "success", "phase": "discussion"}
-        raise HTTPException(status_code=400, detail=f"Wrong phase: {manager.world.phase}")
-    
-    # Advance phase
-    manager.world.phase = "discussion"
-    
+
+    with session.lock:
+        if manager.world.phase != "briefing":
+            if manager.world.phase == "discussion":
+                return {"status": "success", "phase": "discussion"}
+            raise HTTPException(status_code=400,
+                                detail=f"Wrong phase: {manager.world.phase}")
+
+        # Advance phase
+        manager.world.phase = "discussion"
+
     # Push state update
     await session.push_event("state_update", {
         "phase": "discussion",
         "turn": manager.world.turn
-    })
-    
+    }, layer=Layer.SITREP)
+
     return {"status": "success", "phase": "discussion"}
 
 
@@ -761,31 +980,29 @@ def classify_discussion_line(line: str):
 @app.post("/game/discussion")
 async def post_discussion(request: DiscussionRequest):
     """Ask advisors a question."""
-    session_id = request.session_id
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    session = sessions[session_id]
+    session = _session_or_404(request.session_id)
     manager = session.manager
-    
+
     if manager.world.phase != "discussion":
         raise HTTPException(status_code=400, detail=f"Wrong phase: {manager.world.phase}")
-    
+
     # Process question (blocking for now, could be async in future).
     # advisor == "all" asks the whole room: every advisor answers in role.
-    if (request.advisor or "").strip().lower() == "all":
-        responses = manager.process_question_all(request.question)
-    else:
-        responses = manager.process_question(request.question)
-    
-    # Push responses to stream
+    with session.lock:
+        if (request.advisor or "").strip().lower() == "all":
+            responses = manager.process_question_all(request.question)
+        else:
+            responses = manager.process_question(request.question)
+
+    # Push responses to stream. Advisor lines belong to the CABINET layer
+    # (DATA_LAYERS.md par. D); narrator/other lines stay on SITREP.
     for line in responses:
         msg_type, role, content = classify_discussion_line(line)
         await session.push_event("transcript", {
             "type": msg_type,
             "role": role,
             "content": content
-        })
+        }, layer=Layer.CABINET if msg_type == "advisor" else Layer.SITREP)
 
     return {"status": "processed"}
 
@@ -813,22 +1030,18 @@ async def post_decision(request: DecisionRequest):
     
     Use /game/decision/interpret and /game/decision/commit for the new 2-step flow.
     """
-    session_id = request.session_id
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    session = sessions[session_id]
+    session = _session_or_404(request.session_id)
     manager = session.manager
-    
+
     if manager.world.phase not in ["discussion", "decision"]:
         raise HTTPException(status_code=400, detail=f"Wrong phase: {manager.world.phase}")
     _require_no_mandatory_call(manager)
 
-    manager.world.phase = "decision"
+    with session.lock:
+        manager.world.phase = "decision"
+        # Process decision (legacy one-shot)
+        result = manager.resolve_decision(request.action_text)
 
-    # Process decision (legacy one-shot)
-    result = manager.resolve_decision(request.action_text)
-    
     # ... (rest of response handling identical to commit)
     await _stream_adjudication_results(session, result)
     
@@ -838,13 +1051,9 @@ async def post_decision(request: DecisionRequest):
 @app.post("/game/decision/interpret", response_model=InterpretationResponse)
 async def interpret_decision(request: InterpretDecisionRequest):
     """Step 1: Interpret decision and get advisor feedback."""
-    session_id = request.session_id
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    session = sessions[session_id]
+    session = _session_or_404(request.session_id)
     manager = session.manager
-    
+
     if manager.world.phase not in ["discussion", "decision"]:
         raise HTTPException(status_code=400, detail=f"Wrong phase: {manager.world.phase}")
     _require_no_mandatory_call(manager)
@@ -852,7 +1061,8 @@ async def interpret_decision(request: InterpretDecisionRequest):
     # Interpret without committing
     try:
         print(f"DEBUG: calling manager.interpret_decision with '{request.action_text}'")
-        result = manager.interpret_decision(request.action_text)
+        with session.lock:
+            result = manager.interpret_decision(request.action_text)
         print(f"DEBUG: result keys: {result.keys()}")
         
         return InterpretationResponse(
@@ -877,23 +1087,19 @@ async def interpret_decision(request: InterpretDecisionRequest):
 @app.post("/game/decision/commit")
 async def commit_decision(request: CommitDecisionRequest):
     """Step 2: Commit to a decision and run adjudication."""
-    session_id = request.session_id
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    session = sessions[session_id]
+    session = _session_or_404(request.session_id)
     manager = session.manager
-    
+
     # Allow 'discussion' phase too, as client might come straight from there if skipping interpret
     if manager.world.phase not in ["discussion", "decision"]:
         raise HTTPException(status_code=400, detail=f"Wrong phase: {manager.world.phase}")
     _require_no_mandatory_call(manager)
 
-    manager.world.phase = "decision"
-    
-    # Resolve decision
-    result = manager.resolve_decision(request.action_text)
-    
+    with session.lock:
+        manager.world.phase = "decision"
+        # Resolve decision
+        result = manager.resolve_decision(request.action_text)
+
     # Stream results
     await _stream_adjudication_results(session, result)
     
@@ -901,56 +1107,51 @@ async def commit_decision(request: CommitDecisionRequest):
 
 
 async def _stream_adjudication_results(session: GameSession, result: Dict[str, Any]):
-    """Helper to stream adjudication results to SSE."""
-    manager = session.manager
-    
-    # Push interpretation
-    await session.push_event("transcript", {
-        "type": "system",
-        "content": f"INTERPRETATION: {result['interpretation']}"
-    })
-    
-    # Push reasoning
-    await session.push_event("transcript", {
-        "type": "narrator",
-        "content": result['reasoning']
-    })
-    
-    # Push effects (informational)
-    await session.push_event("transcript", {
-        "type": "system",
-        "content": "UPDATING STRATEGIC METRICS..."
-    })
-    
-    # Push advisor reactions
-    if result['advisor_reactions']:
-        for role, txt in result['advisor_reactions']:
-            await session.push_event("transcript", {
-                "type": "advisor",
-                "role": role,
-                "content": txt
-            })
-            
-    # Push international reactions
-    if result['international_reactions']:
-        for r in result['international_reactions']:
-            await session.push_event("transcript", {
-                "type": "inject",
-                "title": f"DIPLOMATIC CABLE: {r['actor_id']}",
-                "content": r['public_response']
-            })
-    
-    # Push turn advance
-    await session.push_event("system", {
-        "content": f"TURN {manager.world.turn} COMPLETE. ADVANCING..."
-    })
-    
-    # Push new state
-    await session.push_event("state_update", {
-        "phase": manager.world.phase,
-        "turn": manager.world.turn,
-        "metrics": manager.world.metrics.dict()
-    })
+    """Helper to stream adjudication results to SSE, layer-tagged."""
+    for event_type, data, layer in adjudication_events(result, session.manager):
+        await session.push_event(event_type, data, layer=layer)
+
+
+_DASHBOARD_PATH = Path(__file__).resolve().parent / "dashboard.html"
+_DATAFLOW_PATH = Path(__file__).resolve().parent / "dataflow.html"
+
+
+@app.get("/dataflow")
+async def dataflow_page():
+    """The operable data-flow view (self-contained, no build step).
+
+    The engine's call graph as a live schema: a game-type selector
+    (classic/immersive/emergent x mystery) dims the paths a mode never
+    exercises; every LLM call-family node pulses as its calls happen and
+    opens reroute (POST /routing/{context}) and prompt hot-edit
+    (PUT /prompts/{family}) controls in place.
+    """
+    if not _DATAFLOW_PATH.exists():
+        raise HTTPException(status_code=500, detail="dataflow.html missing")
+    return FileResponse(_DATAFLOW_PATH, media_type="text/html")
+
+
+@app.get("/dashboard")
+async def dashboard_page():
+    """The observability + control dashboard (self-contained, no build step).
+
+    Panels: layer-tagged event ledger, metric traces, llm_call feed,
+    reroute matrix, inject console, prompt editor, demo driver. Create or
+    attach to a session from the page header; facilitator sessions show
+    the REFEREE layer.
+    """
+    if not _DASHBOARD_PATH.exists():
+        raise HTTPException(status_code=500, detail="dashboard.html missing")
+    return FileResponse(_DASHBOARD_PATH, media_type="text/html")
+
+
+# Control surface (reroute matrix, inject console, prompt editor) and the
+# headless demo driver live in their own modules.
+from api.control import router as control_router  # noqa: E402
+from api.demo import router as demo_router  # noqa: E402
+
+app.include_router(control_router)
+app.include_router(demo_router)
 
 
 if __name__ == "__main__":

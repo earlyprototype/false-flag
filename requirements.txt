@@ -6,6 +6,10 @@ rich==13.7.1
 PyYAML==6.0.2
 requests==2.32.3
 
+# The API server and its dashboards (api/) are not needed to play; their
+# dependencies live in api/requirements.txt. Keep them there: fastapi pulls
+# pydantic>=2.9, which cannot co-exist with the pin above.
+
 # Tooling extras (content ingestion, terminal-graphics demos) live in
 # requirements-dev.txt — they are not needed to play, and feedparser's
 # sgmllib3k dependency fails to build on some modern Python setups.
