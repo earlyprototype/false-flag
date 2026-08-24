@@ -90,7 +90,7 @@ Your access to leaders vs. diplomats depends on **Alliance Cohesion**:
 
 ### 📊 **Core Metrics**
 
-Four key metrics guide your decision-making:
+Three key metrics guide your decision-making:
 
 1. **Escalation Risk (0-100)**
    - How close the crisis is to military conflict
@@ -110,11 +110,10 @@ Four key metrics guide your decision-making:
    - Determines diplomatic access levels
    - **Critical threshold: <25 = Alliance fragmentation**
 
-4. **Influence (0-100)**
-   - UK's ability to shape international response
-   - Credibility with allies and adversaries
-   - Effectiveness of diplomatic and military posturing
-   - **Critical threshold: <20 = Loss of leadership role**
+**Public Sentiment (Influence):** the `/status` screen also shows an
+"Influence" score (-10 to +10). This is not a stored metric — it is derived
+for display as int(((Domestic Stability + Alliance Cohesion) / 2 - 50) / 5),
+clamped to -10..+10, and is currently informational only.
 
 **Additional Tracking:**
 - Military casualties
@@ -271,7 +270,7 @@ data/scenarios/war_game_2025/
 
 ### The Challenge:
 Every decision involves trade-offs:
-- Act aggressively → Escalation Risk ↑, Influence ↑
+- Act aggressively → Escalation Risk ↑, perceived resolve ↑
 - Seek diplomacy → Escalation Risk ↓, Perceived weakness
 - Rally NATO → Alliance Cohesion ↑, Domestic Stability ↓ (if allies don't deliver)
 - Public transparency → Domestic panic vs. democratic legitimacy
@@ -285,7 +284,8 @@ Every decision involves trade-offs:
 ### Requirements:
 - Python 3.10+
 - Google Gemini API key (or compatible LLM)
-- Windows (for current msvcrt-based input handling)
+- Windows, Linux, or macOS (input handling is cross-platform — see the
+  README quickstart for both PowerShell and bash setups)
 
 ### Quick Start:
 

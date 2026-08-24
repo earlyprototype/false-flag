@@ -80,14 +80,21 @@ def display_inject(inject: Dict[str, Any], root_path: Path, display_panel: bool 
     
     title = inject.get("title", "")
     description = inject.get("description", "")
-    channel = inject.get("channel", "briefing")  # briefing/intel/breaking
-    
+    # Channel vocabulary from episode YAML + llm/mock_driver.py stochastic injects
+    channel = inject.get("channel", "briefing")
+
     if RICH_ENABLED:
         # Channel colors
         channel_colors = {
-            "briefing": COLORS["accent"],      # blue
-            "intel": COLORS["warning"],        # yellow
-            "breaking": COLORS["danger"]       # red
+            "briefing": COLORS["accent"],       # steel blue - routine briefing
+            "intelligence": COLORS["warning"],  # amber - intelligence reporting
+            "intel": COLORS["warning"],         # amber - legacy alias
+            "emergency": COLORS["primary"],     # deep orange - urgent incident
+            "flash_alert": COLORS["danger"],    # red - FLASH precedence, most urgent
+            "breaking": COLORS["danger"],       # red - legacy alias
+            "diplomatic": COLORS["success"],    # teal - diplomatic traffic
+            "media": COLORS["muted"],           # muted blue - press and media
+            "domestic": COLORS["secondary"],    # navy - home front
         }
         color = channel_colors.get(channel, COLORS["accent"])
         

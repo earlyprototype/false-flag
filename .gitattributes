@@ -1,0 +1,15 @@
+# Normalise line endings: store LF in the repo and check out LF everywhere.
+# Keeps checkout content byte-identical across platforms, so the
+# docs/game.zip bundle-hash tests stay stable on Windows (CRLF checkout
+# inflation previously changed the hashed source bytes).
+* text=auto eol=lf
+
+# Windows batch files must stay CRLF (cmd.exe goto labels misbehave on LF-only).
+*.bat text eol=crlf
+
+# Binaries — never text-normalise or diff as text.
+*.zip binary
+*.gif binary
+*.jpg binary
+*.jpeg binary
+*.png binary
