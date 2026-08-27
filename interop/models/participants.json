@@ -1,0 +1,66 @@
+[
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:falseflag:Role;1",
+    "@type": "Interface",
+    "displayName": "Role",
+    "description": "A role in the exercise (SimexBuilder docs: name/count plus level or cluster keying). influence, knowledgeDomains, pushbackTriggers and keyConcerns are False Flag profile extensions that parameterise emergent advisor behaviour.",
+    "contents": [
+      { "@type": "Property", "name": "name", "schema": "string" },
+      { "@type": "Property", "name": "count", "schema": "integer" },
+      { "@type": "Property", "name": "level", "schema": "string" },
+      { "@type": "Property", "name": "cluster", "schema": "string" },
+      { "@type": "Property", "name": "influence", "schema": "integer" },
+      {
+        "@type": "Property",
+        "name": "knowledgeDomains",
+        "schema": { "@type": "Array", "elementSchema": "string" }
+      },
+      {
+        "@type": "Property",
+        "name": "pushbackTriggers",
+        "description": "False Flag extension: conditions under which this role objects to a player decision. Feeds the emergent adjudication loop instead of scripted expected responses.",
+        "schema": { "@type": "Array", "elementSchema": "string" }
+      },
+      {
+        "@type": "Property",
+        "name": "keyConcerns",
+        "schema": { "@type": "Array", "elementSchema": "string" }
+      },
+      {
+        "@type": "Property",
+        "name": "objectives",
+        "schema": { "@type": "Array", "elementSchema": "string" }
+      }
+    ]
+  },
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:falseflag:Participant;1",
+    "@type": "Interface",
+    "displayName": "Participant",
+    "description": "Participant configuration entry (SEDL post names the block without detail). kind distinguishes the human player seat from AI-driven seats - a False Flag design choice.",
+    "contents": [
+      { "@type": "Property", "name": "name", "schema": "string" },
+      { "@type": "Property", "name": "characterId", "schema": "string" },
+      {
+        "@type": "Property",
+        "name": "kind",
+        "schema": {
+          "@type": "Enum",
+          "valueSchema": "string",
+          "enumValues": [
+            { "name": "human", "enumValue": "human" },
+            { "name": "ai_agent", "enumValue": "ai_agent" }
+          ]
+        }
+      },
+      {
+        "@type": "Relationship",
+        "name": "assignedRole",
+        "target": "dtmi:falseflag:Role;1",
+        "maxMultiplicity": 1
+      }
+    ]
+  }
+]

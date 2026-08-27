@@ -1,0 +1,101 @@
+{
+  "@context": "dtmi:dtdl:context;3",
+  "@id": "dtmi:falseflag:emergent:Session;1",
+  "@type": "Interface",
+  "displayName": "Session",
+  "description": "One run of an exercise. DTDL Telemetry models the runtime data stream (SEDL post assigns Telemetry that role); metric telemetry names are False Flag's real metric identifiers. Part of the emergent-assessment profile.",
+  "contents": [
+    { "@type": "Property", "name": "startedAt", "schema": "dateTime" },
+    { "@type": "Property", "name": "endedAt", "schema": "dateTime" },
+    { "@type": "Property", "name": "seed", "schema": "integer" },
+    {
+      "@type": "Property",
+      "name": "playMode",
+      "schema": {
+        "@type": "Enum",
+        "valueSchema": "string",
+        "enumValues": [
+          { "name": "classic", "enumValue": "classic" },
+          { "name": "immersive", "enumValue": "immersive" },
+          { "name": "emergent", "enumValue": "emergent" }
+        ]
+      }
+    },
+    { "@type": "Property", "name": "provider", "schema": "string" },
+    { "@type": "Property", "name": "turnsPlayed", "schema": "integer" },
+    { "@type": "Telemetry", "name": "escalation_risk", "schema": "integer" },
+    { "@type": "Telemetry", "name": "domestic_stability", "schema": "integer" },
+    { "@type": "Telemetry", "name": "alliance_cohesion", "schema": "integer" },
+    { "@type": "Telemetry", "name": "casualties_civ", "schema": "integer" },
+    { "@type": "Telemetry", "name": "casualties_mil", "schema": "integer" },
+    {
+      "@type": "Telemetry",
+      "name": "inject_triggered",
+      "description": "An inject reached participants. Name mirrors SimexBuilder's runtime event type 'inject-triggered' (DTDL names cannot contain hyphens).",
+      "schema": {
+        "@type": "Object",
+        "fields": [
+          { "name": "turn", "schema": "integer" },
+          { "name": "injectId", "schema": "string" },
+          { "name": "title", "schema": "string" },
+          { "name": "channel", "schema": "string" }
+        ]
+      }
+    },
+    {
+      "@type": "Telemetry",
+      "name": "participant_action",
+      "description": "A participant acted. Name mirrors SimexBuilder's runtime event type 'participant-action'.",
+      "schema": {
+        "@type": "Object",
+        "fields": [
+          { "name": "turn", "schema": "integer" },
+          { "name": "actionType", "schema": "string" },
+          { "name": "text", "schema": "string" }
+        ]
+      }
+    },
+    {
+      "@type": "Telemetry",
+      "name": "phase_changed",
+      "description": "Turn phase transition. Name mirrors SimexBuilder's runtime event type 'phase-changed'; False Flag phases are briefing/discussion/decision/adjudication.",
+      "schema": {
+        "@type": "Object",
+        "fields": [
+          { "name": "turn", "schema": "integer" },
+          { "name": "phase", "schema": "string" }
+        ]
+      }
+    },
+    {
+      "@type": "Telemetry",
+      "name": "advisor_trust",
+      "description": "False Flag extension: per-advisor hidden trust after each adjudicated turn - the run-time instrument of the emergent trust economy.",
+      "schema": {
+        "@type": "Object",
+        "fields": [
+          { "name": "turn", "schema": "integer" },
+          { "name": "characterId", "schema": "string" },
+          { "name": "trust", "schema": "integer" },
+          { "name": "relationship", "schema": "string" }
+        ]
+      }
+    },
+    {
+      "@type": "Relationship",
+      "name": "exercise",
+      "target": "dtmi:falseflag:Exercise;1",
+      "maxMultiplicity": 1
+    },
+    {
+      "@type": "Relationship",
+      "name": "decisions",
+      "target": "dtmi:falseflag:emergent:AdjudicatedDecision;1"
+    },
+    {
+      "@type": "Relationship",
+      "name": "ledger",
+      "target": "dtmi:falseflag:emergent:EventLedgerEntry;1"
+    }
+  ]
+}

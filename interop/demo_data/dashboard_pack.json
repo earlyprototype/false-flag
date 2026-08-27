@@ -1,0 +1,1267 @@
+{
+  "$metadata": {
+    "generatedAt": "2026-08-22T02:01:59+00:00",
+    "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md.",
+    "source": [
+      "run_record.json",
+      "run_telemetry.json",
+      "exercise_war_game_2025.json",
+      "run.calls.jsonl",
+      "run.calls.jsonl.state.jsonl"
+    ],
+    "builder": "interop/demo_data/build_dashboard_pack.py"
+  },
+  "run": {
+    "id": "session_war_game_2025_seed42",
+    "exercise": "ex_war_game_2025",
+    "scenario_id": "war_game_2025",
+    "seed": 42,
+    "playMode": "emergent",
+    "provider": "mock",
+    "turnsRequested": 10,
+    "turnsPlayed": 10,
+    "startedAt": "2026-08-22T01:58:33+00:00",
+    "endedAt": "2026-08-22T01:58:35+00:00",
+    "scriptedTurns": 6,
+    "stochasticFrom": 7,
+    "ending": {
+      "turn": 10,
+      "title": "THE GUNS OF OCTOBER",
+      "endingId": "war",
+      "verdict": "defeat"
+    }
+  },
+  "metadata": {
+    "name": "False Flag: The Wargame",
+    "type": "tabletop",
+    "description": "A simulated crisis where Russia launches a false flag operation against the UK, escalating to potential military conflict",
+    "duration": {
+      "hours": 20
+    },
+    "participants": {
+      "total": 1,
+      "max": 1
+    },
+    "startDate": "2025-10-05",
+    "startTime": "17:00"
+  },
+  "timeline": {
+    "phases": [
+      {
+        "id": "phase_scripted",
+        "name": "Scripted Crisis",
+        "turns": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "id": "phase_emergent",
+        "name": "Emergent Escalation",
+        "turns": [
+          7,
+          8,
+          9,
+          10
+        ]
+      }
+    ]
+  },
+  "telemetry": {
+    "escalation_risk": [
+      {
+        "stamp": "T+0",
+        "turn": 0,
+        "value": 60
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "value": 63
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "value": 70
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "value": 75
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "value": 76
+      },
+      {
+        "stamp": "T+5",
+        "turn": 5,
+        "value": 81
+      },
+      {
+        "stamp": "T+6",
+        "turn": 6,
+        "value": 83
+      },
+      {
+        "stamp": "T+7",
+        "turn": 7,
+        "value": 94
+      },
+      {
+        "stamp": "T+8",
+        "turn": 8,
+        "value": 95
+      },
+      {
+        "stamp": "T+9",
+        "turn": 9,
+        "value": 96
+      },
+      {
+        "stamp": "T+10",
+        "turn": 10,
+        "value": 100
+      }
+    ],
+    "domestic_stability": [
+      {
+        "stamp": "T+0",
+        "turn": 0,
+        "value": 50
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "value": 48
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "value": 45
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "value": 40
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "value": 38
+      },
+      {
+        "stamp": "T+5",
+        "turn": 5,
+        "value": 30
+      },
+      {
+        "stamp": "T+6",
+        "turn": 6,
+        "value": 30
+      },
+      {
+        "stamp": "T+7",
+        "turn": 7,
+        "value": 23
+      },
+      {
+        "stamp": "T+8",
+        "turn": 8,
+        "value": 22
+      },
+      {
+        "stamp": "T+9",
+        "turn": 9,
+        "value": 19
+      },
+      {
+        "stamp": "T+10",
+        "turn": 10,
+        "value": 15
+      }
+    ],
+    "alliance_cohesion": [
+      {
+        "stamp": "T+0",
+        "turn": 0,
+        "value": 40
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "value": 48
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "value": 45
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "value": 46
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "value": 48
+      },
+      {
+        "stamp": "T+5",
+        "turn": 5,
+        "value": 64
+      },
+      {
+        "stamp": "T+6",
+        "turn": 6,
+        "value": 78
+      },
+      {
+        "stamp": "T+7",
+        "turn": 7,
+        "value": 79
+      },
+      {
+        "stamp": "T+8",
+        "turn": 8,
+        "value": 77
+      },
+      {
+        "stamp": "T+9",
+        "turn": 9,
+        "value": 84
+      },
+      {
+        "stamp": "T+10",
+        "turn": 10,
+        "value": 93
+      }
+    ],
+    "casualties_civ": [
+      {
+        "stamp": "T+0",
+        "turn": 0,
+        "value": 0
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "value": 0
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "value": 0
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "value": 6
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "value": 6
+      },
+      {
+        "stamp": "T+5",
+        "turn": 5,
+        "value": 6
+      },
+      {
+        "stamp": "T+6",
+        "turn": 6,
+        "value": 6
+      },
+      {
+        "stamp": "T+7",
+        "turn": 7,
+        "value": 6
+      },
+      {
+        "stamp": "T+8",
+        "turn": 8,
+        "value": 6
+      },
+      {
+        "stamp": "T+9",
+        "turn": 9,
+        "value": 7
+      },
+      {
+        "stamp": "T+10",
+        "turn": 10,
+        "value": 7
+      }
+    ],
+    "casualties_mil": [
+      {
+        "stamp": "T+0",
+        "turn": 0,
+        "value": 2
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "value": 2
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "value": 2
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "value": 2
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "value": 2
+      },
+      {
+        "stamp": "T+5",
+        "turn": 5,
+        "value": 2
+      },
+      {
+        "stamp": "T+6",
+        "turn": 6,
+        "value": 2
+      },
+      {
+        "stamp": "T+7",
+        "turn": 7,
+        "value": 2
+      },
+      {
+        "stamp": "T+8",
+        "turn": 8,
+        "value": 2
+      },
+      {
+        "stamp": "T+9",
+        "turn": 9,
+        "value": 2
+      },
+      {
+        "stamp": "T+10",
+        "turn": 10,
+        "value": 3
+      }
+    ]
+  },
+  "advisor_trust": {
+    "usa_nsa": {
+      "name": "US National Security Advisor",
+      "series": [
+        {
+          "stamp": "T+0",
+          "turn": 0,
+          "trust": 50,
+          "relationship": "neutral"
+        },
+        {
+          "stamp": "T+1",
+          "turn": 1,
+          "trust": 50,
+          "relationship": "neutral"
+        },
+        {
+          "stamp": "T+2",
+          "turn": 2,
+          "trust": 50,
+          "relationship": "neutral"
+        },
+        {
+          "stamp": "T+3",
+          "turn": 3,
+          "trust": 50,
+          "relationship": "neutral"
+        },
+        {
+          "stamp": "T+4",
+          "turn": 4,
+          "trust": 50,
+          "relationship": "neutral"
+        },
+        {
+          "stamp": "T+5",
+          "turn": 5,
+          "trust": 50,
+          "relationship": "neutral"
+        },
+        {
+          "stamp": "T+6",
+          "turn": 6,
+          "trust": 50,
+          "relationship": "neutral"
+        },
+        {
+          "stamp": "T+7",
+          "turn": 7,
+          "trust": 50,
+          "relationship": "neutral"
+        },
+        {
+          "stamp": "T+8",
+          "turn": 8,
+          "trust": 50,
+          "relationship": "neutral"
+        },
+        {
+          "stamp": "T+9",
+          "turn": 9,
+          "trust": 50,
+          "relationship": "neutral"
+        },
+        {
+          "stamp": "T+10",
+          "turn": 10,
+          "trust": 50,
+          "relationship": "neutral"
+        }
+      ]
+    },
+    "uk_foreign_sec": {
+      "name": "Foreign Secretary",
+      "series": [
+        {
+          "stamp": "T+0",
+          "turn": 0,
+          "trust": 75,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+1",
+          "turn": 1,
+          "trust": 75,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+2",
+          "turn": 2,
+          "trust": 75,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+3",
+          "turn": 3,
+          "trust": 75,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+4",
+          "turn": 4,
+          "trust": 75,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+5",
+          "turn": 5,
+          "trust": 75,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+6",
+          "turn": 6,
+          "trust": 75,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+7",
+          "turn": 7,
+          "trust": 75,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+8",
+          "turn": 8,
+          "trust": 75,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+9",
+          "turn": 9,
+          "trust": 75,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+10",
+          "turn": 10,
+          "trust": 75,
+          "relationship": "allied"
+        }
+      ]
+    },
+    "uk_home_sec": {
+      "name": "Home Secretary",
+      "series": [
+        {
+          "stamp": "T+0",
+          "turn": 0,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+1",
+          "turn": 1,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+2",
+          "turn": 2,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+3",
+          "turn": 3,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+4",
+          "turn": 4,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+5",
+          "turn": 5,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+6",
+          "turn": 6,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+7",
+          "turn": 7,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+8",
+          "turn": 8,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+9",
+          "turn": 9,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+10",
+          "turn": 10,
+          "trust": 70,
+          "relationship": "allied"
+        }
+      ]
+    },
+    "uk_cds": {
+      "name": "Chief of the Defence Staff",
+      "series": [
+        {
+          "stamp": "T+0",
+          "turn": 0,
+          "trust": 80,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+1",
+          "turn": 1,
+          "trust": 80,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+2",
+          "turn": 2,
+          "trust": 79,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+3",
+          "turn": 3,
+          "trust": 79,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+4",
+          "turn": 4,
+          "trust": 79,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+5",
+          "turn": 5,
+          "trust": 79,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+6",
+          "turn": 6,
+          "trust": 79,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+7",
+          "turn": 7,
+          "trust": 78,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+8",
+          "turn": 8,
+          "trust": 78,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+9",
+          "turn": 9,
+          "trust": 78,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+10",
+          "turn": 10,
+          "trust": 78,
+          "relationship": "allied"
+        }
+      ]
+    },
+    "uk_nsa": {
+      "name": "National Security Advisor",
+      "series": [
+        {
+          "stamp": "T+0",
+          "turn": 0,
+          "trust": 85,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+1",
+          "turn": 1,
+          "trust": 85,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+2",
+          "turn": 2,
+          "trust": 85,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+3",
+          "turn": 3,
+          "trust": 85,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+4",
+          "turn": 4,
+          "trust": 85,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+5",
+          "turn": 5,
+          "trust": 85,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+6",
+          "turn": 6,
+          "trust": 85,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+7",
+          "turn": 7,
+          "trust": 85,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+8",
+          "turn": 8,
+          "trust": 85,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+9",
+          "turn": 9,
+          "trust": 85,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+10",
+          "turn": 10,
+          "trust": 85,
+          "relationship": "allied"
+        }
+      ]
+    },
+    "uk_attorney_general": {
+      "name": "Attorney General",
+      "series": [
+        {
+          "stamp": "T+0",
+          "turn": 0,
+          "trust": 70,
+          "relationship": "neutral"
+        },
+        {
+          "stamp": "T+1",
+          "turn": 1,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+2",
+          "turn": 2,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+3",
+          "turn": 3,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+4",
+          "turn": 4,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+5",
+          "turn": 5,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+6",
+          "turn": 6,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+7",
+          "turn": 7,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+8",
+          "turn": 8,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+9",
+          "turn": 9,
+          "trust": 70,
+          "relationship": "allied"
+        },
+        {
+          "stamp": "T+10",
+          "turn": 10,
+          "trust": 70,
+          "relationship": "allied"
+        }
+      ]
+    }
+  },
+  "injects": [
+    {
+      "stamp": "T+1",
+      "turn": 1,
+      "injectId": "turn_001_cobra_briefing",
+      "title": "COBRA Emergency Meeting Convened",
+      "channel": "briefing",
+      "layer": "command",
+      "scripted": true
+    },
+    {
+      "stamp": "T+2",
+      "turn": 2,
+      "injectId": "turn_002_submarine_provocation",
+      "title": "Russian Submarine Surfaces Near UK Waters",
+      "channel": "intelligence",
+      "layer": "intelligence",
+      "scripted": true
+    },
+    {
+      "stamp": "T+3",
+      "turn": 3,
+      "injectId": "turn_003_infrastructure_attack",
+      "title": "Major Power Station Explosion",
+      "channel": "emergency",
+      "layer": "civil",
+      "scripted": true
+    },
+    {
+      "stamp": "T+4",
+      "turn": 4,
+      "injectId": "turn_004_nato_consultation",
+      "title": "Emergency NATO Consultation - Article 4 Invoked",
+      "channel": "diplomatic",
+      "layer": "diplomatic",
+      "scripted": true
+    },
+    {
+      "stamp": "T+5",
+      "turn": 5,
+      "injectId": "turn_005_missile_launch_detection",
+      "title": "MISSILE LAUNCH DETECTION - BALLISTIC TRAJECTORY",
+      "channel": "emergency",
+      "layer": "civil",
+      "scripted": true
+    },
+    {
+      "stamp": "T+6",
+      "turn": 6,
+      "injectId": "turn_006_us_demands_answers",
+      "title": "US Demands Coordination",
+      "channel": "briefing",
+      "layer": "command",
+      "scripted": true
+    },
+    {
+      "stamp": "T+7",
+      "turn": 7,
+      "injectId": "turn_007_inject",
+      "title": "Moscow Issues an Ultimatum",
+      "channel": "flash_alert",
+      "layer": "flash",
+      "scripted": false
+    },
+    {
+      "stamp": "T+8",
+      "turn": 8,
+      "injectId": "turn_008_inject",
+      "title": "Berlin Breaks Ranks on Sanctions",
+      "channel": "diplomatic",
+      "layer": "diplomatic",
+      "scripted": false
+    },
+    {
+      "stamp": "T+9",
+      "turn": 9,
+      "injectId": "turn_009_inject",
+      "title": "Ransomware Locks NHS Trusts in the North West",
+      "channel": "emergency",
+      "layer": "civil",
+      "scripted": false
+    },
+    {
+      "stamp": "T+10",
+      "turn": 10,
+      "injectId": "turn_010_inject",
+      "title": "RAF Typhoon Down over the North Sea",
+      "channel": "flash_alert",
+      "layer": "flash",
+      "scripted": false
+    }
+  ],
+  "decisions": [
+    {
+      "id": "decision_t1",
+      "turn": 1,
+      "playerDecisionText": "Open a direct diplomatic channel to Moscow and inform NATO allies first.",
+      "interpretationSnippet": "INTERPRETATION: Open a direct diplomatic channel to Moscow and inform NATO allies first.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (within",
+      "qualityVerdict": "adequate",
+      "effects": {
+        "escalation_risk": 0,
+        "alliance_cohesion": 8,
+        "domestic_stability": 0
+      },
+      "pushback": [],
+      "overriddenObjectors": [],
+      "criticalConcerns": []
+    },
+    {
+      "id": "decision_t2",
+      "turn": 2,
+      "playerDecisionText": "Deploy the carrier strike group to shadow the vessel and make a public statement.",
+      "interpretationSnippet": "INTERPRETATION: Deploy the carrier strike group to shadow the vessel and make a public statement.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediat",
+      "qualityVerdict": "adequate",
+      "effects": {
+        "escalation_risk": 3,
+        "alliance_cohesion": -1,
+        "domestic_stability": 0
+      },
+      "pushback": [
+        "Chief of the Defence Staff"
+      ],
+      "overriddenObjectors": [
+        "Chief of the Defence Staff"
+      ],
+      "criticalConcerns": []
+    },
+    {
+      "id": "decision_t3",
+      "turn": 3,
+      "playerDecisionText": "Convene the North Atlantic Council under Article 4 and hold the deployment.",
+      "interpretationSnippet": "INTERPRETATION: Convene the North Atlantic Council under Article 4 and hold the deployment.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (wit",
+      "qualityVerdict": "adequate",
+      "effects": {
+        "escalation_risk": 0,
+        "alliance_cohesion": 3,
+        "domestic_stability": 1
+      },
+      "pushback": [],
+      "overriddenObjectors": [],
+      "criticalConcerns": []
+    },
+    {
+      "id": "decision_t4",
+      "turn": 4,
+      "playerDecisionText": "Authorise defensive patrols only, and instruct the Attorney General to review the legal basis.",
+      "interpretationSnippet": "INTERPRETATION: Authorise defensive patrols only, and instruct the Attorney General to review the legal basis.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMEL",
+      "qualityVerdict": "adequate",
+      "effects": {
+        "escalation_risk": -1,
+        "alliance_cohesion": 7,
+        "domestic_stability": 0
+      },
+      "pushback": [],
+      "overriddenObjectors": [],
+      "criticalConcerns": []
+    },
+    {
+      "id": "decision_t5",
+      "turn": 5,
+      "playerDecisionText": "Raise readiness across home commands and brief the Cabinet in full.",
+      "interpretationSnippet": "INTERPRETATION: Raise readiness across home commands and brief the Cabinet in full.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (within 1 tu",
+      "qualityVerdict": "adequate",
+      "effects": {
+        "escalation_risk": -3,
+        "alliance_cohesion": 13,
+        "domestic_stability": 0
+      },
+      "pushback": [],
+      "overriddenObjectors": [],
+      "criticalConcerns": []
+    },
+    {
+      "id": "decision_t6",
+      "turn": 6,
+      "playerDecisionText": "Open a direct diplomatic channel to Moscow and inform NATO allies first.",
+      "interpretationSnippet": "INTERPRETATION: Open a direct diplomatic channel to Moscow and inform NATO allies first.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (within",
+      "qualityVerdict": "adequate",
+      "effects": {
+        "escalation_risk": -3,
+        "alliance_cohesion": 14,
+        "domestic_stability": 2
+      },
+      "pushback": [],
+      "overriddenObjectors": [],
+      "criticalConcerns": []
+    },
+    {
+      "id": "decision_t7",
+      "turn": 7,
+      "playerDecisionText": "Deploy the carrier strike group to shadow the vessel and make a public statement.",
+      "interpretationSnippet": "INTERPRETATION: Deploy the carrier strike group to shadow the vessel and make a public statement.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediat",
+      "qualityVerdict": "adequate",
+      "effects": {
+        "escalation_risk": 3,
+        "alliance_cohesion": -1,
+        "domestic_stability": -2
+      },
+      "pushback": [
+        "Chief of the Defence Staff"
+      ],
+      "overriddenObjectors": [
+        "Chief of the Defence Staff"
+      ],
+      "criticalConcerns": []
+    },
+    {
+      "id": "decision_t8",
+      "turn": 8,
+      "playerDecisionText": "Convene the North Atlantic Council under Article 4 and hold the deployment.",
+      "interpretationSnippet": "INTERPRETATION: Convene the North Atlantic Council under Article 4 and hold the deployment.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (wit",
+      "qualityVerdict": "adequate",
+      "effects": {
+        "escalation_risk": 0,
+        "alliance_cohesion": 2,
+        "domestic_stability": 1
+      },
+      "pushback": [],
+      "overriddenObjectors": [],
+      "criticalConcerns": []
+    },
+    {
+      "id": "decision_t9",
+      "turn": 9,
+      "playerDecisionText": "Authorise defensive patrols only, and instruct the Attorney General to review the legal basis.",
+      "interpretationSnippet": "INTERPRETATION: Authorise defensive patrols only, and instruct the Attorney General to review the legal basis.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMEL",
+      "qualityVerdict": "adequate",
+      "effects": {
+        "escalation_risk": -1,
+        "alliance_cohesion": 7,
+        "domestic_stability": 1
+      },
+      "pushback": [],
+      "overriddenObjectors": [],
+      "criticalConcerns": []
+    },
+    {
+      "id": "decision_t10",
+      "turn": 10,
+      "playerDecisionText": "Raise readiness across home commands and brief the Cabinet in full.",
+      "interpretationSnippet": "INTERPRETATION: Raise readiness across home commands and brief the Cabinet in full.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (within 1 tu",
+      "qualityVerdict": "adequate",
+      "effects": {
+        "escalation_risk": 0,
+        "alliance_cohesion": 7,
+        "domestic_stability": 0
+      },
+      "pushback": [],
+      "overriddenObjectors": [],
+      "criticalConcerns": []
+    }
+  ],
+  "ledger": [
+    {
+      "id": "ledger_t1",
+      "turn": 1,
+      "title": "COBRA Emergency Meeting Convened",
+      "disposition": "open",
+      "objectors": []
+    },
+    {
+      "id": "ledger_t2",
+      "turn": 2,
+      "title": "Russian Submarine Surfaces Near UK Waters",
+      "disposition": "open",
+      "objectors": [
+        "Chief of the Defence Staff"
+      ]
+    },
+    {
+      "id": "ledger_t3",
+      "turn": 3,
+      "title": "Major Power Station Explosion",
+      "disposition": "open",
+      "objectors": []
+    },
+    {
+      "id": "ledger_t4",
+      "turn": 4,
+      "title": "Emergency NATO Consultation - Article 4 Invoked",
+      "disposition": "open",
+      "objectors": []
+    },
+    {
+      "id": "ledger_t5",
+      "turn": 5,
+      "title": "MISSILE LAUNCH DETECTION - BALLISTIC TRAJECTORY",
+      "disposition": "open",
+      "objectors": []
+    },
+    {
+      "id": "ledger_t6",
+      "turn": 6,
+      "title": "US Demands Coordination",
+      "disposition": "open",
+      "objectors": []
+    },
+    {
+      "id": "ledger_t7",
+      "turn": 7,
+      "title": "Moscow Issues an Ultimatum",
+      "disposition": "open",
+      "objectors": [
+        "Chief of the Defence Staff"
+      ]
+    },
+    {
+      "id": "ledger_t8",
+      "turn": 8,
+      "title": "Berlin Breaks Ranks on Sanctions",
+      "disposition": "open",
+      "objectors": []
+    },
+    {
+      "id": "ledger_t9",
+      "turn": 9,
+      "title": "Ransomware Locks NHS Trusts in the North West",
+      "disposition": "open",
+      "objectors": []
+    },
+    {
+      "id": "ledger_t10",
+      "turn": 10,
+      "title": "RAF Typhoon Down over the North Sea",
+      "disposition": "open",
+      "objectors": []
+    }
+  ],
+  "llm_calls": {
+    "totals": {
+      "count": 163,
+      "meanLatencyMs": 0.2,
+      "fallbackCount": 0
+    },
+    "perTurn": [
+      {
+        "turn": 1,
+        "count": 15,
+        "meanLatencyMs": 0.1,
+        "fallbackCount": 0
+      },
+      {
+        "turn": 2,
+        "count": 13,
+        "meanLatencyMs": 0.0,
+        "fallbackCount": 0
+      },
+      {
+        "turn": 3,
+        "count": 13,
+        "meanLatencyMs": 0.4,
+        "fallbackCount": 0
+      },
+      {
+        "turn": 4,
+        "count": 16,
+        "meanLatencyMs": 0.0,
+        "fallbackCount": 0
+      },
+      {
+        "turn": 5,
+        "count": 16,
+        "meanLatencyMs": 0.4,
+        "fallbackCount": 0
+      },
+      {
+        "turn": 6,
+        "count": 28,
+        "meanLatencyMs": 0.1,
+        "fallbackCount": 0
+      },
+      {
+        "turn": 7,
+        "count": 14,
+        "meanLatencyMs": 0.0,
+        "fallbackCount": 0
+      },
+      {
+        "turn": 8,
+        "count": 14,
+        "meanLatencyMs": 0.4,
+        "fallbackCount": 0
+      },
+      {
+        "turn": 9,
+        "count": 17,
+        "meanLatencyMs": 0.5,
+        "fallbackCount": 0
+      },
+      {
+        "turn": 10,
+        "count": 17,
+        "meanLatencyMs": 0.5,
+        "fallbackCount": 0
+      }
+    ],
+    "perFamily": [
+      {
+        "family": "actor_simulation",
+        "count": 22,
+        "meanLatencyMs": 0.1,
+        "fallbackCount": 0
+      },
+      {
+        "family": "advisor_pushback",
+        "count": 10,
+        "meanLatencyMs": 0.1,
+        "fallbackCount": 0
+      },
+      {
+        "family": "advisor_qa",
+        "count": 10,
+        "meanLatencyMs": 0.2,
+        "fallbackCount": 0
+      },
+      {
+        "family": "character_response",
+        "count": 16,
+        "meanLatencyMs": 0.0,
+        "fallbackCount": 0
+      },
+      {
+        "family": "critical_omissions",
+        "count": 50,
+        "meanLatencyMs": 0.5,
+        "fallbackCount": 0
+      },
+      {
+        "family": "decision_interpretation",
+        "count": 10,
+        "meanLatencyMs": 0.2,
+        "fallbackCount": 0
+      },
+      {
+        "family": "diplomacy_conversation",
+        "count": 11,
+        "meanLatencyMs": 0.3,
+        "fallbackCount": 0
+      },
+      {
+        "family": "diplomacy_outcome",
+        "count": 1,
+        "meanLatencyMs": 0.0,
+        "fallbackCount": 0
+      },
+      {
+        "family": "inject_generation",
+        "count": 4,
+        "meanLatencyMs": 0.2,
+        "fallbackCount": 0
+      },
+      {
+        "family": "narrator",
+        "count": 9,
+        "meanLatencyMs": 0.0,
+        "fallbackCount": 0
+      },
+      {
+        "family": "quality_assessment",
+        "count": 10,
+        "meanLatencyMs": 0.1,
+        "fallbackCount": 0
+      },
+      {
+        "family": "situation_summary",
+        "count": 10,
+        "meanLatencyMs": 0.0,
+        "fallbackCount": 0
+      }
+    ]
+  },
+  "channel_layer_mapping": {
+    "briefing": "command",
+    "intelligence": "intelligence",
+    "emergency": "civil",
+    "diplomatic": "diplomatic",
+    "flash_alert": "flash"
+  }
+}

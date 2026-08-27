@@ -1,0 +1,78 @@
+[
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:falseflag:Timeline;1",
+    "@type": "Interface",
+    "displayName": "Timeline",
+    "description": "Container for the temporal structure (phases, scenarios, scenes). The container interface itself is a False Flag design choice; the SEDL post names only the three timeline elements.",
+    "contents": [
+      { "@type": "Property", "name": "name", "schema": "string" },
+      {
+        "@type": "Relationship",
+        "name": "phases",
+        "target": "dtmi:falseflag:Phase;1"
+      }
+    ]
+  },
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:falseflag:Phase;1",
+    "@type": "Interface",
+    "displayName": "Phase",
+    "description": "Major exercise stage (SEDL post). Field shapes follow SimexBuilder docs examples (name, duration{minutes}, scenarios).",
+    "contents": [
+      { "@type": "Property", "name": "name", "schema": "string" },
+      {
+        "@type": "Property",
+        "name": "duration",
+        "schema": {
+          "@type": "Object",
+          "fields": [
+            { "name": "hours", "schema": "double" },
+            { "name": "minutes", "schema": "double" },
+            { "name": "seconds", "schema": "double" }
+          ]
+        }
+      },
+      {
+        "@type": "Relationship",
+        "name": "scenarios",
+        "target": "dtmi:falseflag:Scenario;1"
+      }
+    ]
+  },
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:falseflag:Scenario;1",
+    "@type": "Interface",
+    "displayName": "Scenario",
+    "description": "Specific situation (SEDL post). The public record shows scenarios only as name strings; the scene decomposition below is a False Flag design choice.",
+    "contents": [
+      { "@type": "Property", "name": "name", "schema": "string" },
+      { "@type": "Property", "name": "description", "schema": "string" },
+      {
+        "@type": "Relationship",
+        "name": "scenes",
+        "target": "dtmi:falseflag:Scene;1"
+      }
+    ]
+  },
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:falseflag:Scene;1",
+    "@type": "Interface",
+    "displayName": "Scene",
+    "description": "Detailed moment with injects (SEDL post). One False Flag game turn maps to one Scene; injects bind to scenes via Inject.timing.sceneRelative rather than a Scene-side relationship.",
+    "contents": [
+      { "@type": "Property", "name": "name", "schema": "string" },
+      {
+        "@type": "Property",
+        "name": "turnNumber",
+        "description": "False Flag profile extension: the 1-indexed game turn this scene represents.",
+        "schema": "integer"
+      },
+      { "@type": "Property", "name": "gameTime", "schema": "string" },
+      { "@type": "Property", "name": "description", "schema": "string" }
+    ]
+  }
+]

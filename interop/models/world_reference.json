@@ -1,0 +1,96 @@
+{
+  "@context": "dtmi:dtdl:context;3",
+  "@id": "dtmi:falseflag:WorldReference;1",
+  "@type": "Interface",
+  "displayName": "World Reference",
+  "description": "Operational context: geographic location, organisational structures, risk profiles, environmental factors (SEDL post). Free-field names follow SimexBuilder docs examples.",
+  "contents": [
+    { "@type": "Property", "name": "location", "schema": "string" },
+    { "@type": "Property", "name": "context", "schema": "string" },
+    { "@type": "Property", "name": "geographicScope", "schema": "string" },
+    { "@type": "Property", "name": "affectedPopulation", "schema": "integer" },
+    { "@type": "Property", "name": "connectivity", "schema": "string" },
+    { "@type": "Property", "name": "resources", "schema": "string" },
+    { "@type": "Property", "name": "externalSupport", "schema": "string" },
+    {
+      "@type": "Property",
+      "name": "organisations",
+      "description": "Organisational structures. Role enum lead/partner/support per SimexBuilder docs; 'adversary' is a False Flag profile extension (hostile state actors are first-class in a wargame).",
+      "schema": {
+        "@type": "Array",
+        "elementSchema": {
+          "@type": "Object",
+          "fields": [
+            { "name": "id", "schema": "string" },
+            { "name": "name", "schema": "string" },
+            {
+              "name": "role",
+              "schema": {
+                "@type": "Enum",
+                "valueSchema": "string",
+                "enumValues": [
+                  { "name": "lead", "enumValue": "lead" },
+                  { "name": "partner", "enumValue": "partner" },
+                  { "name": "support", "enumValue": "support" },
+                  { "name": "adversary", "enumValue": "adversary" }
+                ]
+              }
+            },
+            { "name": "staff", "schema": "integer" },
+            { "name": "disposition", "schema": "string" },
+            { "name": "accessLevel", "schema": "integer" }
+          ]
+        }
+      }
+    },
+    {
+      "@type": "Property",
+      "name": "risks",
+      "description": "Risk profiles. Shape follows the SimexBuilder world-composition example (type, severity, probability).",
+      "schema": {
+        "@type": "Array",
+        "elementSchema": {
+          "@type": "Object",
+          "fields": [
+            { "name": "type", "schema": "string" },
+            {
+              "name": "severity",
+              "schema": {
+                "@type": "Enum",
+                "valueSchema": "string",
+                "enumValues": [
+                  { "name": "low", "enumValue": "low" },
+                  { "name": "medium", "enumValue": "medium" },
+                  { "name": "high", "enumValue": "high" }
+                ]
+              }
+            },
+            {
+              "name": "probability",
+              "schema": {
+                "@type": "Enum",
+                "valueSchema": "string",
+                "enumValues": [
+                  { "name": "low", "enumValue": "low" },
+                  { "name": "medium", "enumValue": "medium" },
+                  { "name": "high", "enumValue": "high" }
+                ]
+              }
+            },
+            { "name": "note", "schema": "string" }
+          ]
+        }
+      }
+    },
+    {
+      "@type": "Property",
+      "name": "environmentalFactors",
+      "description": "Environmental factors as free key/value pairs (e.g. False Flag's public_mood, media_coverage, economic_impact, weather).",
+      "schema": {
+        "@type": "Map",
+        "mapKey": { "name": "factor", "schema": "string" },
+        "mapValue": { "name": "value", "schema": "string" }
+      }
+    }
+  ]
+}
