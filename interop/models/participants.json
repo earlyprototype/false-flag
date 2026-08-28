@@ -4,7 +4,7 @@
     "@id": "dtmi:falseflag:Role;1",
     "@type": "Interface",
     "displayName": "Role",
-    "description": "A role in the exercise (SimexBuilder docs: name/count plus level or cluster keying). influence, knowledgeDomains, pushbackTriggers and keyConcerns are False Flag profile extensions that parameterise emergent advisor behaviour.",
+    "description": "A role in the exercise (reference docs: name/count plus level or cluster keying). influence, knowledgeDomains, pushbackTriggers and keyConcerns are False Flag profile extensions that parameterise emergent advisor behaviour.",
     "contents": [
       { "@type": "Property", "name": "name", "schema": "string" },
       { "@type": "Property", "name": "count", "schema": "integer" },

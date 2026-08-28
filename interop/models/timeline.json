@@ -19,7 +19,7 @@
     "@id": "dtmi:falseflag:Phase;1",
     "@type": "Interface",
     "displayName": "Phase",
-    "description": "Major exercise stage (SEDL post). Field shapes follow SimexBuilder docs examples (name, duration{minutes}, scenarios).",
+    "description": "Major exercise stage (SEDL post). Field shapes follow the exercise-platform reference docs (name, duration{minutes}, scenarios).",
     "contents": [
       { "@type": "Property", "name": "name", "schema": "string" },
       {

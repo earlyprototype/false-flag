@@ -3,7 +3,7 @@
   "@id": "dtmi:falseflag:WorldReference;1",
   "@type": "Interface",
   "displayName": "World Reference",
-  "description": "Operational context: geographic location, organisational structures, risk profiles, environmental factors (SEDL post). Free-field names follow SimexBuilder docs examples.",
+  "description": "Operational context: geographic location, organisational structures, risk profiles, environmental factors (SEDL post). Free-field names follow the exercise-platform reference docs.",
   "contents": [
     { "@type": "Property", "name": "location", "schema": "string" },
     { "@type": "Property", "name": "context", "schema": "string" },
@@ -15,7 +15,7 @@
     {
       "@type": "Property",
       "name": "organisations",
-      "description": "Organisational structures. Role enum lead/partner/support per SimexBuilder docs; 'adversary' is a False Flag profile extension (hostile state actors are first-class in a wargame).",
+      "description": "Organisational structures. Role enum lead/partner/support per the exercise-platform reference docs; 'adversary' is a False Flag profile extension (hostile state actors are first-class in a wargame).",
       "schema": {
         "@type": "Array",
         "elementSchema": {
@@ -46,7 +46,7 @@
     {
       "@type": "Property",
       "name": "risks",
-      "description": "Risk profiles. Shape follows the SimexBuilder world-composition example (type, severity, probability).",
+      "description": "Risk profiles. Shape follows the exercise-platform's world-composition example (type, severity, probability).",
       "schema": {
         "@type": "Array",
         "elementSchema": {
