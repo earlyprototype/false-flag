@@ -1,195 +1,169 @@
 # Feasibility Study — The Situation Globe
 
-**Integrating simulated gods-eye-view GEOINT layers into FALSE FLAG as a between-turn XR data layer**
+**Integrating simulated gods-eye-view GEOINT layers into FALSE FLAG as a between-turn XR data layer — with an authoritative spatial layer and a VR ops room**
 
-*Study date: 2026-08-28 · Basis: this repository at `main` (35c11c0) plus the open DTDL PRs #65/#66, and [bilawalsidhu/gods-eye-view](https://github.com/bilawalsidhu/gods-eye-view) (MIT) at commit `314a0e1`. Produced by a multi-agent analysis: six codebase readers, three competing architecture designs, a three-lens judging panel, seven adversarially-verified feasibility claims, and a completeness critique.*
+*Version 2, 2026-08-28. Basis: this repository at `main` (35c11c0) plus the open DTDL PRs #65/#66, and [bilawalsidhu/gods-eye-view](https://github.com/bilawalsidhu/gods-eye-view) (MIT) at commit `314a0e1`. Produced by two multi-agent analysis passes (39 agents total): pass 1 — six codebase readers, three competing presentation architectures, three-lens judging, seven adversarially-verified claims, completeness critique; pass 2, under the owner's revised **build-what's-needed** framing — three targeted engine readers, three competing authoritative-spatial-layer designs, two-lens judging, five further verified claims (two by executing probes against the real engine), completeness critique. Raw agent output: `audits/2026-08-28-xr-feasibility/`. Cut material: `XR_GLOBE_FEASIBILITY_DISCARDS.md`.*
+
+*Owner rulings recorded 2026-08-28, which this version incorporates: (1) feasibility means what can be **built**, not what current code supports — the v1 "engine-untouched" virtue is explicitly revoked, replaced by protected-tree diff discipline and the new test files named in §4a; (2) the VR aim is **presence in the ops room** — the theatrical experience is the product; (3) the VR cast is **stylised comic characters against a hyper-real globe** — the register contrast is deliberate; (4) the between-turn window is **design-paced**, not LLM-latency-paced.*
 
 ---
 
 ## 1. Verdict
 
-**Feasible, high-value, and well-matched to this codebase — but as a port of ideas, not an embed of code.** The recommended shape is a **zero-build CesiumJS "situation globe"** (`api/globe.html`, served exactly like `dashboard.html`), fed by a **per-session ambient GEOINT simulator** daemon over a **new dedicated SSE endpoint**, vendoring only gods-eye-view's three GLSL sensor shaders and its scene-recipe camera grammar, with a **DTDL `Theatre;1` sidecar interface** making the globe a renderer over the twin model that PRs #65/#66 land.
+**Feasible at both layers, as a port of ideas rather than an embed of code — and the two layers are order-independent tracks, not a stack.**
 
-Three findings frame everything:
-
-1. **The "between-inject/turn" framing is architecturally exact.** The engine is provably quiescent between `resolve_decision` and the next `POST /briefing` — nothing runs. That dead time is free real estate an ambient simulator can own completely without racing the engine, using the already-sanctioned daemon-thread pattern from `api/demo.py`.
-2. **The scenario is already geospatial in prose.** Geography is real-world (Portsmouth, Faslane, RAF Lossiemouth, Severomorsk, the GIUK gap — ~30 named places), so a hand-authored gazetteer (an afternoon of work) puts the existing ORBAT on a real globe. But there are **zero machine-readable coordinates anywhere**, `WorldState.spatial_state` is a confirmed-dead field, and positions never advance during play — so every moving entity on the globe is presentation-layer fiction and must be labeled as such.
-3. **VR must not be built on CesiumJS.** Cesium's WebXR request has been open since 2016 with an unmerged proof-of-concept PR; its "VR mode" is legacy WebVR-era stereo. The honest headset path is **three.js + NASA-AMMOS 3DTilesRendererJS** (working WebXR example, loads Google 3D Tiles) or **Cesium for Unity** (official Quest/OpenXR support). Ship the projector "war-room wall" first; keep the event contract renderer-agnostic so a headset client is a bolt-on later.
+- **Track A — Presentation** (v1 verdict, unchanged in substance): a zero-build CesiumJS "situation globe" (`api/globe.html`, served like `dashboard.html`), fed over a dedicated `/geo/stream` SSE endpoint with per-subscriber fan-out; vendor only gods-eye-view's three GLSL sensor shaders and its camera-recipe grammar; DTDL `Theatre;1` sidecar. One change from v1: **the scripted red-fleet track legs are cut** — Track B's first stage supersedes them with real state for about the same effort.
+- **Track B — Authoritative spatial layer** (new, sanctioned by the reframing): typed unit positions become **engine truth at turn boundaries**. The LLM never touches a coordinate: it emits **movement orders** (unit, mission, gazetteer destination, speed band) in one added non-blocking call; a pure, RNG-free kinematics module advances positions once per adjudication; deterministic **geometric tripwires** turn crossings into narrative events; the globe renders truth with a provenance ladder (adjudicated / simulated / estimated) and honest fog-of-war. The map can go stale, but it can never lie, teleport, or freeze.
+- **VR** — the projected-screen ops room: Cesium never enters the XR pipeline (the v1 "never build VR on CesiumJS" ruling is *extended*, not reversed). A three.js WebXR boardroom renders the globe as a texture on a wall screen, with the advisors as stylised sprites from the repo's existing pixel-art pipeline. Sound under two hard conditions (§6), verified against specs and shipping code.
 
 ---
 
-## 2. What each repository brings
+## 2. Three findings, restated under the new framing
 
-| | FALSE FLAG | gods-eye-view |
-|---|---|---|
-| **Core** | LLM-driven turn-based crisis narrative: injects, advisor discussion, free-text decisions, LLM adjudication | Continuous real-time photorealistic 3D globe (CesiumJS + Google 3D Tiles) with 13 live GEOINT layers |
-| **Data model** | Metrics, flags, actor trust, hidden narrative truth; DTDL twin model (13 interfaces, Microsoft-parser-validated) on PRs #65/#66 | Per-layer entity feeds (flights, vessels, satellites, fires, CCTV, radio…) with dead-reckoning interpolation |
-| **Serving** | FastAPI + layer-tagged SSE bus (SITREP/INTEL/DIPLOMATIC/DOMESTIC/CABINET/REFEREE), zero-build `FileResponse` HTML pages | Vite dev server with same-origin `/api/*` middlemen for every feed |
-| **Aesthetic** | CRT/terminal, classification strips, phosphor green | "Forbidden cockpit": CRT/NVG/FLIR GLSL sensor shaders, cinematic scene director |
-| **What transfers** | The event bus, the facilitator inject seam, the demo driver, the DTDL model | The *ideas* and 3 shader modules + scene-recipe JSON grammar (~1–1.5k lines), **not** the ~25–30k lines of live-feed plumbing |
-
-The deep symmetry: gods-eye-view's native rendering model is **sparse keyframes (15–30 s) + client-side dead reckoning** — which is exactly what a turn-based engine can emit. FALSE FLAG doesn't need to become real-time; the globe client manufactures continuity from keyframes, the same way gods-eye-view already does for 15-second ADS-B polls.
+1. **The between-turn window is architecturally exact — and design-paced.** The engine is provably quiescent between `resolve_decision` and the next `POST /briefing`; the next turn starts only when the client asks (`api/server.py:872-916`). The window is therefore whatever the design wants: a **watch-floor phase** with its own verbs and an explicit "Convene COBRA" action, not filler during LLM latency. The ambient daemon owns that window; under Track B it interpolates engine truth forward along the same kinematics the engine itself uses.
+2. **Geography is real, and becomes real state.** ~30 named real-world places (Portsmouth, Faslane, RAF Lossiemouth, Severomorsk, the GIUK gap) make the gazetteer an afternoon's work. Today there are zero machine-readable coordinates and positions never advance — v1 called moving entities "presentation-layer fiction". Under the sanctioned build that ruling becomes a **provenance ladder**: positions are engine truth at turn boundaries (`adjudicated`), deterministic projection between them (`simulated`), and fog-filtered estimates to the player (`estimated`).
+3. **VR is real — as presence, not as immersive terrain.** CesiumJS in-headset remains refuted. But the game's fiction is a PM in a briefing room looking at screens, so the correct VR shape is the **ops room**: world-locked screens (comfortable, cheap, crisp via WebXR quad layers on Quest), a stylised comic cast (no rigging, no uncanny valley, and nothing that could be mistaken for real footage), and the hyper-real globe on the wall. The register contrast — chunky comic advisors debating brinkmanship in front of a bleeding-edge surveillance picture — is a deliberate aesthetic stance.
 
 ---
 
-## 3. Verified feasibility claims
+## 3. Verified claims (twelve, adversarially tested)
 
-Each claim was adversarially verified (attempt-to-refute, with primary sources; the DTDL claim was proven by actually running Microsoft's parser).
+Pass-1 claims 1–7; pass-2 claims 8–12. "Executed" = proven by running code, not reading it.
 
 | # | Claim | Verdict | Essence |
 |---|---|---|---|
-| 1 | CesiumJS can do in-headset VR/WebXR today | **REFUTED** | No WebXR as of v1.144. `Scene.useWebVR` is dead WebVR-era stereo. PoC PR #11372 unmerged since 2023. Use three.js + 3DTilesRendererJS (working WebXR example) or Cesium for Unity (Quest/OpenXR) for any real headset work. |
-| 2 | Google Photorealistic 3D Tiles fit a demo budget; keyless fallback exists | **CONDITIONAL** | 1,000 free root-tileset queries/month (one covers ~3 h of rendering) is ample — but needs a billing-enabled account with quota caps. gods-eye-view **hard-throws without a Google key** (`src/main.js:83-86`); a dummy key or 3-line patch drops it to the keyless stack: OSM raster imagery + Re:Earth terrain (not Cesium World Terrain, not Bing — those need an ion token). |
-| 3 | gods-eye-view layers can run on locally simulated feeds, no external keys | **CONDITIONAL (essentially yes)** | The layer contract is source-agnostic; `mode:'sim'` is a first-class feed state (the traffic layer's keyless default *is* a built-in simulation); nearly every layer consumes same-origin `/api/*` middleware — a local scenario server emitting the documented shapes drives layers with **zero client changes** (~200–600 LOC + fixtures, 1–3 days). Feeds must pass freshness/schema guards (current timestamps, valid ids, finite lat/lon). |
-| 4 | CesiumJS embeds cleanly in the Next.js frontend | **CONDITIONAL** | The committed frontend is a **non-buildable scaffold** — `package.json`, lockfile, `tsconfig`, and `lib/utils.ts` were never committed. The documented Next+Cesium pattern works (client component, `ssr:false`, copy static assets, `CESIUM_BASE_URL`, Node ≥ 22, Turbopack ignores webpack plugins) but requires bootstrapping the frontend first. **The zero-build `FileResponse` pattern is the only serving path that has ever worked in this repo** — use it for the MVP. |
-| 5 | The SSE bus can carry globe-cadence telemetry without rework | **CONDITIONAL** | Raw throughput is fine (~957 batched 500-entity events/s measured), but each session's single `asyncio.Queue` is a *work queue, not a broadcast bus*: concurrent consumers steal alternate events (a live defect already affecting player-UI + dashboard on one session). Adding any second screen needs per-subscriber fan-out (realistically 100+ lines with cleanup and tests, not the "~30 lines" a naive read suggests). Correct design: **sparse keyframes + client interpolation on a dedicated `/geo/stream` endpoint** — never 1–10 Hz server push. |
-| 6 | A DTDL geospatial extension is standard-clean | **CONFIRMED (executed proof)** | A candidate `TheatreAsset` with geospatial `point`/`lineString` telemetry + `Latitude`/`Longitude` semantic co-types parsed clean alongside the existing 13 interfaces in Microsoft's official DTDLParser: **PARSE OK, 14 interfaces, 309 entities**. Geospatial schemas are *core* DTDL v2/v3/v4. Stay on `dtmi:dtdl:context;3` (ADT supports only v2/v3); model altitude as `Distance`/metre (no Altitude semantic type exists). |
-| 7 | Scenarios contain enough geospatial ground truth | **CONDITIONAL** | Geography is unambiguously real-world; a ~30-entry gazetteer covers every named location. But no coordinates exist in state, the ORBAT is served from static initial conditions forever, and the Russian flotilla has only region + heading. Fixed sites: cheap and honest. Moving units: authored tracks or uncertainty areas, never fake precision. LLM geocoding only as *extraction + gazetteer lookup*, never freehand lat/lon. |
+| 1 | CesiumJS can do in-headset VR today | **REFUTED** | No WebXR as of v1.144; PoC PR #11372 unmerged and unprioritized. Never build or wait on it. |
+| 2 | Google 3D Tiles fit a demo budget; keyless fallback exists | **CONDITIONAL** | 1,000 free root queries/month is ample (billing account + caps needed). gods-eye-view hard-throws without a key; 3-line patch → keyless OSM + Re:Earth stack. Keyless photoreal also exists via Cesium ion asset 2275207. |
+| 3 | gods-eye-view layers run on locally simulated feeds | **CONDITIONAL (yes)** | Layer contract is source-agnostic; `mode:'sim'` is first-class; same-origin `/api/*` seam → zero client changes, ~1–3 days. Feeds must pass freshness/schema guards. |
+| 4 | CesiumJS embeds in the Next.js frontend | **CONDITIONAL** | The committed frontend never builds (no `package.json` in git). Zero-build `FileResponse` HTML is the only proven serving path here — use it. |
+| 5 | The SSE bus carries globe telemetry without rework | **CONDITIONAL** | Throughput fine (~957 batched 500-entity events/s measured); but the per-session queue is a destructive work-queue — any second consumer needs per-subscriber fan-out (a live defect worth fixing regardless). Sparse keyframes + client interpolation, never high-Hz push. |
+| 6 | A DTDL geospatial extension is standard-clean | **CONFIRMED (executed)** | `TheatreAsset` with geospatial telemetry parsed clean in Microsoft's DTDLParser (14 interfaces, 309 entities). Stay on `context;3`; no Altitude semantic type. *The new provenance fields (§4a) require a re-validation run — pending.* |
+| 7 | Scenarios hold enough geospatial ground truth | **CONDITIONAL** | Real-world names throughout; gazetteer cheap. No coordinates in state — which Track B now fixes rather than works around. |
+| 8 | The repo's LLM plumbing can carry a movement-orders schema | **CONDITIONAL** | The house labelled-line dialect (`llm/parsing.py`) plus 5 defensive layers already parse state-mutating numbers (quality effects, actor trust) — orders extend a battle-tested pattern, **not JSON** (no repair infrastructure exists). Normative guards: separate non-blocking call; fail-to-hold; closed-vocabulary validation (ORBAT ids + gazetteer); terminal sentinel with whole-block discard on truncation (today truncation is counted, never rejected); mock driver must answer `NO_ORDERS` so an API outage can never fabricate movement. |
+| 9 | A typed spatial field keeps old saves loadable and the suite green | **CONDITIONAL (executed)** | Probed on the repo's pinned pydantic 2.7.3 with the real `save_game`/`load_game`: an `Optional[...] = None` field loads every old save byte-identically (a *required* field kills them all). Suite green **only after** `python3 dev-scripts/build_play_bundle.py` regenerates `docs/game.zip` (4 stamp tests fail otherwise — baseline 712 passed restored after rebuild). Downgrade direction is loadable but **silently lossy** — an accepted-loss owner decision; bump save version 2.4→2.5. Add a new field; never retype the dead `spatial_state`. |
+| 10 | A boundary tripwire can generate a legitimate game event | **CONDITIONAL (executed)** | Probed live against the real engine: surfacing, LLM visibility (3 channels), honest ledger recording (same-turn overwrite / solo entry on quiet turns), and coexistence with scripted injects all demonstrated. One legal firing instant: top of `get_turn_briefing` (replay-guarded, zero RNG draws). The load-bearing timing claim — tripwire lines land inside the LAST TURN slice the same turn's inject generator sees — was **confirmed by direct inspection** (`get_last_turn_slice`, `llm/context_builder.py:161-204`); pin with a regression test. Latch in `world.posture` or a new field, never `world.flags` (wiped on every effects application — probe-confirmed). |
+| 11 | The projected-screen VR workaround is sound | **CONDITIONAL** | Architecture confirmed and well-precedented; the *naive* version fails. Two hard conditions in §6. Quad-layer benefits are Quest-only; the streamed variant measures ~235–290 ms end-to-end (fine for turn cadence); CesiumJS flat on Quest Browser is **unproven** — half-day on-device spike required before committing to the local variant. |
+| 12 | Range rings / intercept times are computable from scenario data | **CONDITIONAL** | Structure yes, numbers no: zero speeds, ranges, or coordinates exist. But every blue platform is real with published figures (Aster 30 ~120 km, Spearfish ~50–56 km, verified) — authoring is cheap. ASW sonar and Sea Viper BMD rings are classified territory: **fictional-doctrine labels mandatory**. A turn→clock table must be authored (game time never advances; episode intervals are irregular comments). And `engine/intelligence.py:197-199` already **fabricates random distances** ("holding {150–250}nm") — replace with the real layer, don't coexist. |
 
 ---
 
-## 4. Recommended architecture
+## 4. Track A — Presentation architecture
 
-**"Situation Globe" — zero-build, engine-untouched, twin-shaped.** (Winner of a 3-design judged comparison — MVP-first beat both a full-XR plan and a DTDL-purist plan on feasibility and demo reliability — then hardened with the best grafts from the losers.)
+As v1, with corrections. Components: `api/globe.html` (zero-build CesiumJS, layer toggles, mini scene-director, vendored CRT/NVG/FLIR shaders, EXERCISE watermark, DTMI HUD badges) · `api/geo_sim.py` (**~500 greenfield lines** — v1's "upgrade the daemon" framing was wrong, no such file exists; the pass-1 judges' 2–3× effort multiplier applies) · server tap + `/geo/stream` fan-out + snapshot-on-connect · gazetteer + geo pack (camera hints keyed by inject id) · `Theatre;1` DTDL sidecar with `twin_lifecycle`/`twin_telemetry`-shaped wire events.
 
-### Components
+Changes under Track B: the daemon's keyframe source flips from scripted fiction to an immutable deep-copied `SpatialSnapshot` published by `resolve_decision` into a latest-wins mailbox on the session; between snapshots it interpolates by calling **the same `engine/kinematics.advance()`** at fractional dt — the ambient picture is the truth's own forward projection, provenance `simulated`. Slew-not-teleport reconciliation (30–90 s decay, read as an intelligence-picture refresh) is retained verbatim. A version-polled `GET /theatre` state endpoint (ETag) serves as the globe's source of truth with SSE as nudge — sidestepping the destructive queue rather than relying on mailbox discipline alone. Escalation→sensor ladder, fog-of-war ellipses, click-to-inject EXCON console, and the demo runbook carry over unchanged.
 
-- **`api/globe.html`** (~1.5–2k lines, new): self-contained CesiumJS page at `GET /globe`, session-attach header cloned from `dashboard.html`, six-layer toggle sidebar reusing the dashboard legend colors, `SampledPositionProperty` entity rendering, a mini scene-director (~120 lines) consuming camera-recipe JSON, a **permanent EXERCISE/SIMULATED watermark**, and facilitator click-to-compose wired to the existing `POST /game/{sid}/inject`.
-- **`api/geo_sim.py`** (~500–700 lines, new): per-session ambient-simulator daemon cloned from the `api/demo.py:_drive` pattern — but it **never takes `session.lock` and never mutates engine state**. Own seeded RNG (engine determinism untouched). Reads game events from a tap; emits `geo_batch` / `geo_focus` / `geo_event` / `sim_clock` frames into **its own per-subscriber queue fan-out**. Scripted per-turn track legs (red fleet along North Atlantic → GIUK → UK waters) **slewed across however long the real turn takes**, plus procedural ambient corridors modulated by `escalation_risk`. Applies facilitator-vs-player truth filtering at emit time.
-- **`api/server.py`** (~90–150 lines modified): a mirror tap where events are stamped (`_make_item` + both push paths), a bounded `recent_events` ring, subscriber register/unregister, `GET /globe`, `GET /geo/stream/{sid}` (SSE, snapshot-on-connect), `GET /geo/config/{scenario}`, static mount for pinned Cesium assets.
-- **Geo pack** (`geo_layer.yaml`, ~200 lines, authored): the gazetteer (name → lat/lon for every ORBAT/scenario location), per-turn scripted tracks, per-inject camera hints **keyed by inject id, not turn number** (the `fast_start` variant renumbers files).
-- **Vendored from gods-eye-view (MIT, headers + pinned commit in a `VENDORED.md`)**: `styles/thermal.js`, `styles/retro.js`, `styles/surveillance.js` — self-contained Cesium `PostProcessStage` GLSL modules (FLIR/CRT/NVG) — plus the `SCENE_RECIPES` JSON *shape* (reimplemented; the upstream director hard-requires its 10k-line UI monolith). **Explicitly not vendored**: the live-feed manager, per-feed adapters, Vite middleware, voice stack, and the CC BY-NC-SA submarine-cable dataset.
-- **DTDL sidecar — pulled into the MVP** (cheap, verified): a `Theatre;1` / `TheatreAsset;1` interface file added to `interop/models/` (auto-served by the `/dtdl` glob; `Session;1` stays frozen — the 9-stream test asserts the *run document*, not the interface count, so nothing breaks). Wire events shaped as `twin_lifecycle` / `twin_telemetry` so the Phase-2+ Azure story is a relabeling, not a rewire. HUD shows live `dtmi:falseflag:*` badges — the flashy demo visibly renders the Microsoft-validated twin.
+## 4a. Track B — The authoritative spatial layer
 
-### Data flow
+The reconciled hybrid of the two leading pass-2 designs (the judges split 1–1 between them; their grafts converge on exactly this): **TASKORD**'s order emission + pure kinematics, plus **IRONCLAD**'s transition-graph legality, detected-visibility tripwires, readiness-as-live-state, and authored route polylines, plus the derived-seed movement call both judges endorsed.
 
-```
-engine (quiescent between turns; untouched)
-  └─ adjudication / inject events ──► SSE bus (stamped in _make_item)
-                                        ├─► /stream (player UI, dashboard — unchanged)
-                                        └─► mirror tap ──► geo_sim daemon
-                                                             ├─ scripted + ambient track keyframes
-                                                             ├─ sim_clock (fictional time, slew ratio)
-                                                             ├─ truth filter (REFEREE vs player estimate)
-                                                             └─► /geo/stream fan-out ──► globe client(s)
-                                                                        Cesium interpolation fills the gaps
-facilitator globe click ──► POST /game/{sid}/inject (existing 403-gated seam) ──► engine
-```
+**Spatial model** (`models/spatial.py`, new, JSON-native scalars only): `UnitTrack{unit_id, side, domain, lat, lon, heading_deg, speed_kts, location_name, status, order, last_confirmed_turn, …}`; `MovementOrder{unit_id, mission, destination|bearing_deg, speed_band, issued_turn, source}`; `Mission ∈ {hold, transit, patrol, screen, shadow, intercept, strike, rtb, surge}`; provenance `∈ {adjudicated, simulated, estimated}`; a bounded `order_log` (~50) for AAR replay. Added to `WorldState` as `spatial: Optional[SpatialState] = None` (the executable probe's load-bearing default); the dead `spatial_state` field is deleted in the same change; save version 2.4→2.5; **every `models/world.py` edit is followed by the play-bundle rebuild**.
 
-### Reconciliation rules (turn-based truth vs continuous picture)
+**Movement.** The LLM decides *intent*, never coordinates: one dedicated `MOVEMENT` call appended to decision round 3 (a free worker slot exists — the honest claim is "no added worker contention", not "zero wall-clock"), seeded from a derived generator (`crc32(f"{seed}:movement:{turn}")`) rather than a master-RNG draw — erasing the cross-version determinism fence entirely. Output is the house labelled-line dialect: `NO_ORDERS` or up to 8 `ORDER: <unit_id> | mission=<enum> | dest=<gazetteer_id> | speed=<band>` lines with a terminal sentinel. Validation is set-membership plus a per-unit **mission transition graph** (red cannot jump rendezvous→strike) enforcing escalation ordering on movement itself. `engine/kinematics.py` (pure, zero RNG) advances tracks once per `resolve_decision` along **authored route polylines** (sea lanes, not great circles through Ireland), decrementing readiness (`turns_to_full_readiness` becomes live state — "surge degraded now vs. wait 3 turns" renders on the globe). Red pressure is a deterministic doctrine track the player can read and race. Second channel: injects gain an optional `movements:` list beside `effects:`; the facilitator inherits physics-respecting spatial power through `deliver_inject` for free (a true teleport requires an explicit REFEREE-logged primitive).
 
-- Positions are **decorative, never adjudicative** — they never enter engine state, saves, or the DTDL run export (honoring the "wire, never fabricate" ruling; `spatial_state` stays dormant).
-- On a turn boundary that contradicts interpolation: **slew, don't teleport** — decay the correction over 30–90 s, presented diegetically as an intelligence-picture refresh.
-- Escalation bands drive the sensor shader ladder: **0–25 clean, 25–50 CRT, 50–75 NVG, 75–100 FLIR** (crossfaded) — plus the fictional clock (the campaign runs Sun 5 Oct 17:00 → 03:00, so late turns play in real darkness). The player *sees* escalation before reading a number.
-- Classified assets (SSBN on patrol) render as **probability areas labeled POSITION WITHHELD**, never fake dots. Player view gets **uncertainty ellipses** that bloom with time-since-fix; the facilitator view renders ground truth — the REFEREE layer split made visible as fog-of-war geometry.
-- When a threshold ending fires, the simulator needs an ending state machine (fleet stops advancing on `resolution`; goes dark on `war`) — currently unspecified anywhere, must be in the MVP.
+**Degradation ladder (normative).** Clean parse → applied, provenance `adjudicated`. Partial → valid lines applied, bad lines skipped with a **player-visible transcript line** plus `record_miss` (telemetry alone leaves half-executed intent invisible). Empty / mock-substituted / truncated → **zero new orders, all units hold on standing orders**, kinematics still advances, provenance `simulated`, with a dashboard counter so a campaign can't run "spatially deaf" unnoticed. A stale position beats a false move, always.
+
+**Tripwires.** Declarative predicates in scenario YAML (`zone_entry`, `zone_exit`, `range_ring`, `closing_within`, `eta_below`), evaluated as pure functions at exactly one instant: the top of `get_turn_briefing`, where positions are final, the replay guard is available, and — confirmed by inspection — the lines land inside the context slice the same turn's inject generator narrates from. Effects flow through the deliver-style primitives *with* the hidden-metrics sync (skipping it is the documented silent-revert bug). Ledger honesty via `PlayedEvent.kind ∈ {played, system}`. **Detected-visibility semantics**: the player-facing inject fires only when the current fog estimate supports detection; the REFEREE record always fires; undetected crossings surface later as delayed ambiguous intel — fog becomes event-level gameplay. On scripted-exhausted turns a firing tripwire *becomes* the turn's inject: geometry fills narrative dead air. Scenario starter set: GIUK crossing (flash_alert), 200 nm from Faslane (intelligence), Kalibr envelope of London (military), blue carrier into the gap (REFEREE-only, feeds red doctrine).
+
+**Fog and ISR.** `engine/intel_picture.py`: blue renders as truth; red renders to the player as last confirmed fix + error radius growing with staleness, collapsing inside blue sensor footprints. Noise comes from a derived generator (`Random(hash((seed, unit_id, turn, 'fog')))`) — never the sacred child-seed sequence — so reloads render identical estimates. ISR tasking becomes a move with a rendered receipt: P-8s up or a towed-array frigate forward visibly shrinks ellipses next turn; `shadow` holds a contact solid while trail is maintained. The facilitator view superimposes the player-estimate layer on truth — **the deception gap is the visible false-flag game**. Mystery-mode side channel closed by CI, not discipline: a prompt-grep test asserts no `NarrativeConfig` secret strings reach the movement prompt; red movement derives only from player-visible events.
+
+**Single-store rule.** Engine `world.spatial` is the only authority; the daemon and every client hold read-only snapshots; any position cache in narrative state or facilitator effect without the metrics sync recreates the silent-revert class. Quality-assessment REASONING is player-visible verbatim — player-facing calls receive the blue+estimates rendering only; one renderer split, one leak. Pinned by dedicated regression tests (see engine-diff list in the raw output).
+
+**What stays decorative, permanently:** civil air/shipping corridors, satellite passes, shader cosmetics, sub-turn interpolated micro-positions (derived, never written back), the classified SSBN and other abstract-location units (never rendered as points), and the player's uncertainty ellipses (a view, not state). Spatial *ending* predicates are *v2 opt-in only* — conditioning scoring on geometry is an owner decision, deliberately deferred.
+
+**Incremental LLM cost:** one extra FLASH call per turn; the spatial block adds ~450–1,300 tokens to the deciding calls (~2.5–6.5k/turn across them). The demo loop stays $0: in mock mode without live orders the map runs **doctrine-only** — red still closes on schedule offline, which is a defensible demo story stated honestly.
 
 ---
 
-## 5. Requirements
+## 5. Gates
 
-**Zero mandatory external dependencies.** No npm/Node build, no Google key, no Cesium ion token, no LLM spend for the demo loop.
+The decision points, each with an owner and an exit criterion. (Two v1 gates are struck: ~~LLM response time~~ — the window is design-paced; ~~the 30 s attract-mode pacing cap~~ — one line of our own `api/demo.py`.)
 
-- CesiumJS pinned to the version in gods-eye-view's actual `package.json` at the vendored commit; fetched by a ~20-line script into `api/static/cesium/` (fetch-not-commit, like the Pyodide precedent), CDN fallback. **Note: local Cesium assets do not make imagery offline** — bundle Cesium's low-res NaturalEarthII textures as the true no-network fallback; OSM streaming (with attribution + identifying User-Agent, per OSMF tile policy) is the online default.
-- Optional upgrades: `CESIUM_ION_TOKEN` (Bing imagery + World Terrain), Google Maps key (photorealistic 3D tiles — metered: 1,000 free root queries/month, then $6/1,000; set quota caps).
-- Python: no new packages (FastAPI + sse-starlette already present); PyYAML for the geo pack.
-- New SSE vocabulary on a **new endpoint** — deliberately *no* `Layer` enum change (in-payload layer tags instead), keeping the diff outside the protected tree.
-- Branch off the merged #65/#66 tree (the design assumes `/dtdl` exists); all changes are additive routes + one tap, so rebases stay contained.
-- Tests: geo-pack loads, gazetteer covers every ORBAT name, simulator determinism under a fixed seed, **facilitator truth never leaks into player queues**, snapshot-on-connect ordering. Never touch `interop/test_interop.py`.
-- Demo runbook: `WARGAME_LLM=mock`, `POST /demo/start`, globe on the projector, dashboard on the operator laptop. One `/stream` consumer per session until fan-out also covers the game bus. 60-second cold-restart drill. **Pre-record a video capture as the demo-day dead-man fallback.**
-
-### Prerequisites (do these before building)
-
-1. **Measure a real-LLM campaign.** The entire thesis fills "multi-minute" between-turn dead air, but turn wall-time and call count were never measured — and `api/demo.py` caps `pace_s` at 30 s, so **attract mode structurally cannot showcase the ambient layer**; it shows cinematics. Present them honestly as different things.
-2. **Pin the competition parameters.** Deadline, rubric, live-demo-vs-video, IP rules appear nowhere in the repo, and the design choice (demo-reliability-first vs standards-depth-first) genuinely flips on the rubric — the judging panel split 2–1.
-3. **Security hardening before anything leaves localhost.** The API has zero auth, and unauthenticated process-wide `POST /routing` and `PUT /prompts` — on venue wifi anyone could rewrite the LLM prompts mid-demo. Bind localhost + authenticated reverse proxy, or a read-only mirror for spectator surfaces.
-4. **Gazetteer QA** — cross-check every coordinate; one wrong base position in front of judges is a credibility bug.
-5. **Session/thread lifecycle** — sessions are never evicted; per-session daemons and queues leak over a booth day. Add idle timeout + teardown.
+1. **Competition parameters** *(external — the only true blocker)*: deadline, rubric, live-vs-video, IP rules exist nowhere in the repo; the reliability-vs-standards trade-off and the whole schedule hang on them. *Clears when the owner supplies them.*
+2. **PRs #65/#66 merge sequencing** *(dependency)*: both tracks build on the merged tree; the DTDL provenance fields need a parser re-validation run post-merge. *Clears on merge + one rebase + PARSE OK.*
+3. **Solo capacity vs. tiered scope** *(resource)*: combined honest estimate **~2–3 months part-time** (Track A 2–3 weeks at the judged 2–3× multiplier; Track B ~4–6 part-time weeks staged so every stage ships playable; re-golden churn; doctrine/gazetteer authoring — which *is* game design, 2–4 days; gazetteer QA; the Quest spike). "Two tracks" means order-independent for one person, not parallel. *Managed by the cut lines in §7, never removed.*
+4. **Security before anything leaves localhost** *(engineering — worse under Track B)*: zero auth plus unauthenticated `POST /routing` and `PUT /prompts` now guard *ground truth, facilitator teleports, and a network-reachable movement prompt* — venue wifi could literally move the fleet. Bind localhost + authenticated reverse proxy; read-only spectator mirror; the WebRTC variant's DataChannel is an input surface. *Hard gate for the truth layer.*
+5. **Session/thread lifecycle** *(engineering — worse under Track B)*: sessions are never evicted, and the new per-session mailbox, daemon, fan-out queues and tripwire registries deepen the leak. *Clears with idle timeout + teardown.*
+6. **Owner decisions resolved this revision** *(recorded)*: build-what's-needed ✓; ops-room VR thesis ✓; lo-fi cast / hi-fi world ✓; design-paced holds ✓. **Still open**: geo-pack location (`data/` vs `api/geo_data/`); demo scenario variant; downgrade silent-loss acceptance (claim 9); spatial endings (v2 opt-in); real-LLM cost measurement (demoted from gate to bookkeeping); **is a Quest physically available?** — gates the on-device spike and the whole Quest-local variant.
 
 ---
 
-## 6. The honest VR/XR path
+## 6. VR: the ops room
 
-| Phase | Surface | Tech | Status |
+**Thesis (owner ruling): presence in the room is the product.** The PM's experience of the crisis is mediated through screens and people — a VR globe you could freely inspect would *break* the epistemology the fog-of-war design depends on. So the deliverable is a three.js WebXR boardroom: world-locked screens on the walls (the situation globe, the advisor transcript, a metrics board, a patrol's sensor feed — all feeds that already exist on the bus), the advisors as **stylised comic sprites** built from the repo's existing pixel-art pipeline (`Graphics/Animations`: DB16 palette, sprite scenes, diplomat variants — billboarded, 2–3 talking frames keyed off transcript SSE events), room lighting tied to `escalation_risk`, the fictional clock's darkness outside a window. The register contrast with the hyper-real globe is the point — and it's armour: stylised characters give emotional distance for mature subject matter, and nothing with a comic cast will be mistaken for real footage.
+
+**The projected screen — sound under two hard conditions** (verified against the WebGL spec, WebXR issues, Meta's own numbers, and shipping three.js code):
+
+1. **Render-loop ownership**: `window.requestAnimationFrame` is not guaranteed to fire during an immersive session on standalone headsets — Cesium must run `useDefaultRenderLoop:false` with `viewer.render()` driven from `xrSession.requestAnimationFrame`, or the globe silently freezes in-headset.
+2. **Copy timing**: the canvas→texture copy must happen in the same JS task as Cesium's render (or `preserveDrawingBuffer:true`), else the WebGL spec makes the read undefined behavior (blank texture). Cross-context sharing is impossible; cap updates at ~24–30 Hz, 720–1080p.
+
+| Shape | How | Status |
+|---|---|---|
+| **S1 · Portable** | three.js plane + `CanvasTexture`; same-task copy; controller-ray → UV → synthetic pointer events (the shipping `InteractiveGroup`/`HTMLMesh` pattern; keep the hidden canvas with a real layout rect; drive zoom via Cesium's Camera API, not fake wheel events) | Works on desktop-tethered headsets today |
+| **S2 · Quest quality** | Same, panel promoted to an **XRQuadLayer** (Meta Quest Browser ≥16.1: compositor resamples once → materially crisper text, ~2.4 ms + >25 % GPU savings per Meta's sample; three.js PR #25254 / Babylon WebXRLayers). Chrome ships only XRProjectionLayer — Quest-only benefit | Best local variant **if** the spike passes |
+| **S3 · Quest safe** | Server renders the globe; WebRTC H.264 1080p into `<video>` → `XRMediaBinding` quad layer; inputs via DataChannel. Measured ~235–290 ms end-to-end — fine for a turn-based situation screen, rubber-bandy for drag | The robust standalone path |
+| Gate | CesiumJS *flat* on Quest Browser at usable framerates is **unproven** (sole public evidence: a 2021 failure report) | Half-day on-device spike before committing to S1/S2 locally |
+
+Accepted limits: the globe is a monoscopic picture — no stereoscopic terrain, no reaching into the map (consistent with the screen-as-fiction thesis); comfort is fine (world-locked panel; screen-content latency is not head-motion latency). Accessibility now includes the headset: CRT/FLIR flicker inside an HMD is a photosensitivity risk beyond the monitor case — static shader variants and a motion-comfort setting are requirements, not polish. The native path for later remains Cesium for Unity (official Quest/OpenXR).
+
+---
+
+## 7. Roadmap — two tracks, one gate, explicit cut lines
+
+**Phase 0 spike stays the commitment gate** (1 day: `globe.html` against a demo session, hardcoded gazetteer, one shader — proves the projector wow-shot before any server change).
+
+| Stage | Track | Scope | Effort |
 |---|---|---|---|
-| Now (MVP) | **War-room wall** — full-screen clean view on a projector | CesiumJS page | The "XR story" at a fraction of the risk; reads as an operations centre from the back of a judging room |
-| Stretch 1 | In-browser headset (Quest Browser) | **three.js + NASA-AMMOS 3DTilesRendererJS** (`renderer.xr` + VRButton; working VR example upstream; loads Google 3D Tiles/ion) | Proven components; needs aggressive screen-space-error tuning on standalone Quest |
-| Stretch 2 | Native headset app | **Cesium for Unity** (official Quest 2/Pro OpenXR support) | Highest fidelity; heavier toolchain |
-| Anti-path | ~~CesiumJS VR mode~~ | `Scene.useWebVR` | Legacy WebVR stereo; browsers removed WebVR ~2020. Do not build on it, do not wait for PR #11372 |
+| 0 | A | Spike (above) | 1 day |
+| A1 | A | Fan-out + `/geo/stream` + `GET /theatre`, `globe.html`, sensor ladder, watermark, camera cues, `Theatre;1` sidecar, runbook. ~~Scripted red-fleet tracks~~ — **cut, superseded by B1** | 2–3 wks |
+| B1 | B | `models/spatial.py` + gazetteer + kinematics + hydration + red doctrine legs + save round-trip tests + bundle rebuild — **a moving truth map with zero LLM involvement** | ~1 wk |
+| B2 | B | `MOVEMENT` call (derived seed, sentinel, mock `NO_ORDERS` handler), spatial context block, one deliberate re-golden commit | ~1 wk |
+| B3 | B | Tripwires + ledger `kind` + detected-visibility + SSE surfacing + tests | ~1 wk |
+| B4 | B | Fog/`intel_picture`, `get_resources`/`ForceUnit` geo fields (pin with a serialization test — FastAPI response filtering strips undeclared fields silently), `intelligence.py` fabricated-range replacement | ~3–4 d |
+| A2 | A | Truth-fed daemon (greenfield ~500 lines), slew reconciliation, provenance stamping | ~1–1.5 wks |
+| C | — | Facilitator depth: deception-gap overlay, click-to-inject with structured geo, EXCON spatial orders, event journal + scrubber, AAR replay from the order log | ~1–1.5 wks |
+| D | — | VR ops room: S1 → Quest spike → S2/S3; sprite cast; XR accessibility pass | post-gate |
 
-The strongest XR image for judges isn't a VR globe — it's the **COBRA war-room table diorama**: the theatre rendered between the players at table height, uncertainty ellipses and all. Because the `/geo/stream` contract is renderer-agnostic (twin-telemetry frames + gazetteer), a headset client is a third renderer, not a rewrite.
-
----
-
-## 7. Phased roadmap
-
-| Phase | Scope | Effort (solo + LLM assistance) |
-|---|---|---|
-| **0 — Spike** | `globe.html` against an existing `/demo/start` session via the *existing* `/stream`, hardcoded 10-entry gazetteer, one shader. Proves the projector wow-shot end-to-end before any server change. | 1 day |
-| **1 — MVP** | Fan-out tap + `/geo/stream`, `geo_sim.py` (scripted red-fleet track + ambient corridors + `sim_clock`), geo pack for turns 1–6, sensor ladder, inject camera cues, watermark, `Theatre;1` sidecar + DTMI HUD badges, tests, runbook | 2–3 weeks *(judges' consensus: budget 2–3× the optimistic 3–5-day claim once grafts and cleanup are counted)* |
-| **2 — Facilitator depth** | Dual-truth god view + uncertainty ellipses, click-to-inject with structured `geo:{locationId,lat,lon}` on `ManualInjectRequest`, `/geo/spawn` + `/geo/track` EXCON puppeting, `scene_cue` broadcast (one button flies every screen's camera), event journal + `?since_seq` catch-up, after-action replay page from the DTDL export | 1–1.5 weeks |
-| **3 — Stretch** | Async LLM `GEO_EXTRACTION` for stochastic turns (extraction + gazetteer lookup; failure degrades to ambient-only, never blocks a turn), WebXR war-room table, voice interrogation, ADT upload demo | post-competition |
-
-Every phase is independently droppable with a named exit criterion; Phase 0+1 alone is a jury-ready demo.
+Stepping-stone inventory: ~80 % of the Track-A spend survives the authority flip verbatim (globe page, shaders, sidebar, watermark, scene grammar, fan-out, DTDL sidecar); the daemon changes only its keyframe source. Combined honest program: **~2–3 months part-time** (gate 3). Cut lines if the deadline compresses: D, C, A2, B4 drop in that order — B1 alone already beats v1's scripted fiction.
 
 ---
 
-## 8. Engagement & playability extensions
+## 8. Engagement & playability
 
-Curated from 24 generated ideas (S/M/L = effort):
+Geometry-native mechanics (pass 2), on top of the v1 set (watch floor, sensor ladder + fictional night, inject cinematics, fog globe, click-to-inject, home-front layer, voice brief, assessment overlay, ops-room screens, attract mode):
 
-1. **[M] Living watch floor** — the red fleet visibly advances through the GIUK gap while the cabinet argues. Turns the sim's worst UX moment (multi-minute silent adjudication) into its most atmospheric one.
-2. **[S] DEFCON sensor ladder + fictional night** — escalation picks the shader; the campaign clock runs into literal darkness where NVG is the only honest view. Highest feel-per-effort in the set; zero backend changes.
-3. **[M] Cinematic inject reveals** — `flash_alert` → FLIR snap-zoom on the Orkney contact; `intelligence` → NVG orbit of Severomorsk; `diplomatic` → capital-to-capital arcs. ~10 lines of authored YAML per scripted inject.
-4. **[M] Fog-of-war globe** — player sees intelligence *estimates* (aging ghost contacts, blooming ellipses); facilitator sees truth. Two screens, same session, different realities — the game's epistemic core made spatial, and the strongest two-screen judge moment.
-5. **[M] Click-the-globe EXCON console** — facilitator clicks the North Sea, a pre-filled inject composer opens, firing it plays the reveal cinematic on the player's globe. Exercises the existing 403-gated `deliver_inject` seam verbatim.
-6. **[M] Home-front layer** — media injects spawn broadcast rings over cities; city activity visibly dims as `domestic_stability` falls (reusing gods-eye-view's deterministic traffic-sim pattern). Gives the neglected domestic axis equal dramatic weight.
-7. **[M] Watch-officer voice brief** — each turn opens with a 30-second narrated camera tour built from the existing `situation_summary` (browser `speechSynthesis` = $0 baseline). Solves briefing fatigue; doubles as the shareable trailer.
-8. **[S] Assessment overlay** — decisions plotted on the timeline/globe colored by `qualityVerdict`, joined to the DTDL `LearningObjective` interfaces (Bloom levels) already in the model. Cheapest idea with the strongest serious-game credential.
-9. **[M] Multi-screen ops room** — one screen per data layer (SITREP wall, INTEL desk, DIPLOMATIC board, CABINET transcript, REFEREE console); each is a dumb SSE consumer filtering the layer tag every event already carries. Re-frames the solo game as a staffed seminar wargame.
-10. **[S] Zero-spend attract mode** — self-playing deterministic mock campaign choreographing the globe unattended (with the honest caveat from §5: it demos cinematics, not the between-turn ambience).
+1. **Spatial verbs the interpreter honors** — "move the carrier group to the GIUK gap and put a picket off Faslane" produces actual engine movement, not flavor prose.
+2. **Pre-commit geometry preview** — the interpret→confirm gate renders the projected turn: arrival snaps, and whether weapon envelopes will intersect ("can 96 Sea Viper even engage from here?"). Re-read live positions at commit — a facilitator inject between preview and commit invalidates the projection.
+3. **Advisors quote arithmetic, not vibes** — "at 16 knots they are 18 hours from our territorial waters"; the omissions scan flags computed coverage gaps ("no P-8 coverage of the gap").
+4. **Tripwire beats replace the scripted clock** — the GIUK crossing fires when the fleet actually gets there; campaign pacing derives from closure geometry.
+5. **Trail-or-lose** — `shadow` keeps an SSN in trail and holds the contact solid (fog radius → 0 while maintained); `intercept` computes a real intercept point.
+6. **ISR tasking as fog you spend** — the YAML's "can only defend 2 locations" limitation becomes a visible, aching trade-off on the map.
+7. **Deterministic red pressure** — the doctrine track is a legible dread clock the ops-room wall literally draws.
+8. **AAR with provenance** — the order log replays the campaign's actual geometry, badged adjudicated vs. projected.
 
-## 9. Synergies only possible because both repos exist
+## 9. Synergies (unchanged from v1, now on firmer ground)
 
-- **Interrogate the globe under fog-of-war** — gods-eye-view's voice action grammar (`gevActions.js` is deliberately LLM-agnostic; the OpenAI stack severs cleanly) answered by FALSE FLAG's own advisor LLM, which *structurally cannot leak hidden truth*. "Show me naval activity near the strait" → in-fiction answer + camera response, generated by the cabinet AI under real epistemic constraints. Neither repo can do this alone; strongest single judge-facing moment.
-- **After-action replay from the DTDL export** — the `Session;1` run document already carries turn-stamped metrics, injects, decisions, phase changes, and advisor trust; a replay page scrubs the whole campaign on the globe **offline, zero tokens**. Converts the DTDL work from compliance artifact into the debrief product.
-- **The twin graph as the single contract** — one Microsoft-parser-validated model drives the live globe, the dashboard twin panel, and (unchanged) an Azure Digital Twins upload. "Same twins, three surfaces" is an interoperability claim few competition entries can make.
-- **Peacetime baseline + simulated crisis deltas** — fiction-neutral live layers (real satellites, real seismicity) as ambient texture, conflict layers simulated and EXERCISE-labeled per layer, using gods-eye-view's own honest-labeling switch (`traffic.js` precedent). As escalation climbs, simulated NOTAMs thin real civil-traffic corridors. (Caveat: never propagate real current-epoch TLEs under the fictional 2025 clock — synthesize epoch-matched TLEs.)
-- **CCTV/radio as diegetic evidence** — media injects spawn clickable "camera" pins with generated stills; SIGINT intercepts become geolocated pins with real confidence grading. The player *hunts the globe* for the story between turns — a player verb, not passive watching.
+Interrogate-the-globe under fog (gods-eye-view's LLM-agnostic action grammar + the advisor LLM that structurally cannot leak truth) · after-action replay from the DTDL export, now with a real track history · one twin graph driving globe, dashboard, and ADT · peacetime live baseline + EXERCISE-labeled crisis deltas (epoch-matched TLEs only) · CCTV/radio as diegetic evidence the player hunts between turns.
 
 ---
 
-## 10. Risks and honest caveats
+## 10. Risks & labeling policy
 
-- **Scope creep is the top risk.** Judges chose the small design, then grafted ten features onto it. Tier the grafts as explicit cut lines; the Phase-0 spike is the commitment gate.
-- **The demo shows cinematics; live play shows the ambient layer.** `pace_s ≤ 30` caps mock-mode gaps. Don't imply otherwise to judges.
-- **A pre-existing bus defect** (single-consumer queue) is exposed by any second screen — fixing it is base-project repair, which is the stronger justification for the change.
-- **Narrative-contradiction risk**: ground truth is LLM prose; the globe can lag a twist the geo pack didn't script. Mitigations: author from inject prose, uncertainty rendering, slew-not-teleport; accept the residual.
-- **Optics**: simulated military tracks over real UK/Russian bases in a surveillance aesthetic, presented in neutral Ireland. Mitigations to state in the submission: permanent EXERCISE watermark, zero-live-feed construction for conflict layers, classified assets non-plotted, a short responsible-use note.
-- **Accessibility (currently zero coverage)**: CRT flicker/photosensitivity option, WCAG contrast on phosphor palettes, motion-comfort settings for camera fly-tos, captions for any voice brief. A national competition plausibly scores this.
-- **Aesthetic register**: a raw photoreal globe fights the CRT identity — ship it defaulted *into* CRT sensor mode with classification-strip chrome (deliberate stance, needs owner sign-off).
-
-### Licensing/attribution manifest
-
-| Item | License | Obligation |
-|---|---|---|
-| gods-eye-view vendored shaders + recipe grammar | MIT | Retain headers; record pinned commit in `VENDORED.md` |
-| CesiumJS | Apache-2.0 | Notice file |
-| OSM raster tiles | OSMF tile policy | Attribution, identifying User-Agent, no heavy use, no SLA |
-| Re:Earth keyless terrain | CC BY 4.0 | Attribution |
-| Cesium ion (optional) | Community tier | Free below $50K org revenue/funding — check prize implications |
-| Google 3D Tiles (optional) | Metered ToS | Visible attribution always; Google-geocoder-only pairing |
-| TeleGeography cables dataset | CC BY-NC-SA | **Do not copy** |
-
----
+- **The contradiction risk reverses direction.** v1: prose was truth and the globe could lag it. Now geometry is truth and *prose must respect it* — the movement call and the spatial context block exist precisely to keep the narrator grounded; residual drift is bounded by fail-to-hold.
+- **Determinism discipline** — fog noise or any spatial randomness touching `self.rng` corrupts resumed saves; the derived-generator rule is review-enforced. Prompt-text changes reshuffle mock goldens: land as one deliberate re-golden commit.
+- **Two-store trap recurrence** — standing discipline plus regression tests, not a one-time fix.
+- **Scope creep remains risk #1** — pass 2 produced 3 designs, 17 grafts, 16 ideas on top of pass 1's ten; the cut lines in §7 are the containment. Spatial endings stay v2 opt-in.
+- **Labeling policy (merged)**: permanent EXERCISE watermark on every surface; per-layer SIMULATED chips; classified assets as POSITION WITHHELD areas; **fictional-doctrine labels on ASW/sonar and BMD-footprint rings** (real figures are classified — the one place experts could embarrass the entry); public-figure citations for blue platform ranges; replace `intelligence.py`'s fabricated random distances; comic cast in VR as structural anti-misinformation. One responsible-use paragraph in the submission.
+- **Accessibility**: flicker-free shader variants (monitor *and* HMD), WCAG contrast on phosphor palettes, motion-comfort settings, captions for voice briefs.
+- Licensing manifest unchanged from v1 (MIT shaders w/ pinned commit; Apache-2.0 Cesium; OSM policy; Re:Earth CC BY 4.0; ion Community terms; **never** the CC BY-NC-SA cables data).
 
 ## 11. Owner decision checklist
 
-1. Competition parameters: deadline, rubric, live-demo vs video, IP/prize rules → picks the winning trade-off.
-2. Merge sequencing for #65/#66 (this design branches from the merged tree).
-3. Geo pack location: `data/scenarios/.../geo_layer.yaml` (protected tree, diff-first) vs `api/geo_data/` (zero-controversy).
-4. Aesthetic stance: photoreal locked behind CRT sensor mode by default?
-5. Demo scenario variant (standard vs `fast_start`) — geo pack keys by inject id either way.
-6. Real-LLM timing measurement: who runs it and on which provider budget.
-7. VR hardware reality: is a Quest available? (Decides whether Stretch 1 is ever more than a doc.)
-8. Spectator/QR surfaces: only behind the read-only mirror from the hardening plan.
+1. Competition parameters (gate 1) — everything is provisional until these land.
+2. Merge #65/#66; then the DTDL provenance re-validation run.
+3. Tiebreak ratification: accept the TASKORD+IRONCLAD hybrid as specified, or hear the two designs separately (both preserved in full in the audit output).
+4. Downgrade silent-loss acceptance for saves (claim 9) — accept and document, or add version-aware load warnings.
+5. Geo-pack location; demo scenario variant.
+6. Quest availability — gates the on-device spike and the S1/S2-vs-S3 choice.
+7. Spatial ending predicates — v2 opt-in, owner-approved scoring change only.
+8. Budget note: real-LLM cost measurement before any live-LLM public demo (bookkeeping, not a gate).

@@ -116,8 +116,28 @@ Full architectures for both losing designs are in the raw JSON (`designs[1]`, `d
 
 ---
 
-## F. How to examine further
+## G. Pass 2 discards (authoritative spatial layer + VR screen — 2026-08-28, second workflow)
 
-- Raw structured output: `audits/2026-08-28-xr-feasibility/workflow1_full_output.json` — keys `readers` (6), `designs` (3, full architectures), `judges` (3), `verified` (7 claims with evidence), `extensions` (24 ideas with mechanisms), `critique`.
+Raw output: `audits/2026-08-28-xr-feasibility/workflow2_full_output.json`. Most of pass 2 landed in the v2 study; what follows is what did not.
+
+**G1 · CARTOGRAPHER (async world-simulator design) — `ELIMINATED`, grafts survive.** A separate out-of-band LLM pass emitting validated spatial deltas after adjudication. Killed on two verified defects: its "in-version determinism fully preserved" claim is false (delta commit timing is wall-clock racy, so tripwire firing turns vary between identically-seeded runs), and it never addresses the save/async race (a delta committing after serialization is silently lost). Its full spec remains in the raw JSON. Grafts that survived into v2: the derived-seed idiom (`crc32`, no master-RNG draw), the `GET /theatre` ETag/version-polled endpoint with SSE as nudge, the prompt-grep Mystery-leak CI test, and the parse-health fallback dashboard counter.
+
+**G2 · IRONCLAD (doctrine state machine) — merged, not whole.** Full design preserved in raw JSON. Elements *not* carried into the hybrid: the zero-LLM-forever stance (v2 keeps the MOVEMENT call; IRONCLAD's honest cost was that the player's spatial intent is silently dropped every turn — "inaction bias is a design choice with a gameplay cost, not a free safety property"); its joint unit×posture×destination mega-parse across ~18 units (the largest parsed output ever shipped — v2 caps orders at 8 lines instead). Carried in: transition graphs, detected-visibility tripwires, readiness-as-live-state, route polylines, quiet-turn tripwire-becomes-inject.
+
+**G3 · Spatial ending predicates — `DEFERRED v2 opt-in` (unanimous).** "Resolution requires red withdrawn north of the GIUK line"; "the decapitation ending reachable only while red holds inside the Kalibr envelope." Zero-added-latency ordering argument is correct, but conditioning scoring on geometry is an owner-approved change only. One ideation agent pitched shipping it now; overruled by designs, judges, and critique alike.
+
+**G4 · Capped advisory spawned entities — `DEFERRED v2`.** CARTOGRAPHER's one keeper gameplay idea: the world simulator may spawn max 8 TTL'd, `origin='simulated'`, never-metric-bearing color entities (a shadowing trawler, an unexplained contact) so the world can grow texture without opening the coordinate-hallucination door.
+
+**G5 · FORCES INVOLVED advisory pre-highlight — `CUT` (small, free signal).** The interpretation call already *requests* a FORCES INVOLVED label and the reply is returned unparsed (`game_manager.py` returns `forces_involved: []` as a literal placeholder). Parsing it against the unit registry gives an advisory pre-highlight of tasked units in the order flow — free signal from an existing call.
+
+**G6 · FORCE_POSTURE label on actor replies — `CUT` (flavour-only third channel).** Optional posture label on the RUS actor's reply, parsed default-none — never load-bearing since actor selection caps at 3 and RUS isn't guaranteed present.
+
+**G7 · Reference facts from the pass-2 readers not in the study** — `REF`: the decision round is up to ~12 LLM calls across 3 concurrent rounds (`MAX_ROUND_WORKERS=3`); preview reuse (ER-074) draws child seeds even for no-LLM lambdas; three calls already mutate state from parsed numbers (quality effects+multiplier, actor TRUST_CHANGE/WILL_SUPPORT, diplomacy OUTCOME/delta) — the precedent the movement call extends; there is **no JSON repair and no parse-level retry anywhere** (retries are transport-only, mock-substituted on double failure — and the mock's canned replies are well-formed, hence the fabrication guard); a measured full campaign logged 16 parse misses, all content gaps, zero parser failures; `update_world_flags` **replaces the whole flags dict from metrics** (`engine/flags.py:38-40`) — nothing durable may live in `world.flags`; `world.posture` survives, serializes, and is never reassigned (probe-confirmed latch home); mid-turn tripwire firing has exactly one safe seam (post-facilitator-inject recheck, discussion phase, no ledger write); `json.dump(default=str)` silently stringifies non-native types in saves; dual pydantic pins (core 2.7.3, api ≥2.9) mean two environments to verify; the scenario clock is internally inconsistent (episode comments say +2h/+2h/+3h/+3h; `scenarios.yaml` says "6 hours over 6 turns") — the turn→clock table must pick.
+
+**G8 · Verified-claim conditions too detailed for the study** — `REF`: the full evidence chains for claims 8–12 (every parse path enumerated; the pydantic probe in both directions including required-field and retype failure modes; the tripwire live probe transcript; the complete WebXR source list — Khronos spec, immersive-web #225, Meta layer benchmarks, three.js PR #25254, the 289 ms WebRTC measurement; the platform-by-platform public range figures with sources) are in `workflow2_full_output.json → verified`.
+
+## H. How to examine further
+
+- Pass 1 raw output: `audits/2026-08-28-xr-feasibility/workflow1_full_output.json` — keys `readers` (6), `designs` (3, full architectures), `judges` (3), `verified` (7 claims with evidence), `extensions` (24 ideas with mechanisms), `critique`.
+- Pass 2 raw output: `workflow2_full_output.json` — same shape: `readers` (3), `designs` (3: TASKORD / IRONCLAD / CARTOGRAPHER in full), `judges` (2), `verified` (5, incl. executed probes), `extensions` (16), `critique`.
 - Each idea entry carries a `mechanism` field with file:line anchors into both repos — written to be actionable without re-analysis.
-- The second workflow (authoritative ORBAT layer: orders-not-positions vs doctrine-state-machine vs async world-sim; executable save-compat test; VR projected-screen verification; range-ring data sufficiency) will append its own register section and raw output on completion.
