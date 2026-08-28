@@ -124,7 +124,7 @@ Accepted limits: the globe is a monoscopic picture — no stereoscopic terrain, 
 | **M4 · The Cabinet Orders the Map** *(stretch)* | MOVEMENT call live end-to-end + the one deliberate re-golden commit | Orders parsed from injects only (no LLM call) |
 | **M5 · Post-competition** | Tripwire engine · fog/ISR · truth-fed daemon · VR ops room (S1 → Quest spike → S2/S3) | — |
 
-Parallel at all times, off-branch: the **Manus queue** — role, boundaries, priority order, and ready-to-paste task briefs in [`MANUS_TASKS.md`](MANUS_TASKS.md). Credit state 60.9k as of 28 Aug with the subscription lapsing Sunday 30 Aug: **front-load the P1 tasks (gazetteer QA, IMR brief, rubric hunt) before Sunday**; renewal is decided at D1 on demonstrated usefulness, never by sacrificing quality to the budget.
+Parallel at all times, off-branch: the **Manus queue** — role, boundaries, priority order, and ready-to-paste task briefs in [`MANUS_TASKS.md`](MANUS_TASKS.md). Credit state 60.9k as of 28 Aug, credit-based with no expiry cliff — P1 ordering is build-dependency-driven (gazetteer → M1), not deadline-driven. The scarce, clocked resource is the **primary engineering agent's subscription window** (ends ~30 Aug unless renewed): front-load the highest-context engineering work — M0 and M1 groundwork — into it, and treat renewal as the D0-adjacent decision it is, weighed against the stakes (a national final at a prospective employer's venue).
 
 **Phase 0 spike stays the commitment gate** (1 day: `globe.html` against a demo session, hardcoded gazetteer, one shader — proves the projector wow-shot before any server change). The full-program map:
 

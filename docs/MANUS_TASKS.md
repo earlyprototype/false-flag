@@ -7,7 +7,7 @@
 - No API keys, tokens, or private credentials into its sandbox — treat it as a third-party cloud environment (it is one). The public repo URL is fine.
 - Every numeric claim in a dossier must carry a source URL; unsourced figures are discarded on intake.
 
-**Credit state (2026-08-28)**: 60,900 credits (20k grant + 40k migration uptick). Reference points: multi-step research tasks run ~200–500 credits; deep research ~1,000+ ([pricing refs](https://www.lindy.ai/blog/manus-ai-pricing)). **The subscription lapses Sunday 30 Aug** — run one small calibration task first to observe real burn, then **front-load every P1 task before Sunday**. Renewal decision point: renew iff the P1/P2 outputs prove useful *and* M3 collateral (deck, video storyboard) still needs agent hours — judged at milestone D1, not before. Quality is never sacrificed to the credit budget; renewal is the fallback, not a failure.
+**Credit state (2026-08-28, corrected)**: 60,900 credits (20k grant + 40k migration uptick), **credit-based with no expiry cliff during the competition window** — spend them as the build needs them, no front-loading required. Reference points: multi-step research tasks run ~200–500 credits; deep research ~1,000+ ([pricing refs](https://www.lindy.ai/blog/manus-ai-pricing)); run one small calibration task first to observe real burn. The P1 ordering below is driven by *build dependencies* (the gazetteer feeds milestone M1), not by any deadline on the credits. Quality is never sacrificed to the credit budget.
 
 ---
 

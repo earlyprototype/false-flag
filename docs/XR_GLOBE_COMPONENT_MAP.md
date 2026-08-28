@@ -195,4 +195,4 @@ flowchart TD
 
 Reading the gates: **D0** is the only abort point — after it, every later decision only *re-orders or pauses* work, never wastes it. **D1** protects M3: standards chrome is droppable, a safe demo is not. **D2** is the LLM-overestimation hedge you asked for — if the timeline estimates were pessimistic and M3 lands early, M4 is pre-authorized; if not, it pauses cleanly to M5 (the design is verified and waiting either way).
 
-Parallel at all times, off-branch: the **Manus queue** — see [`MANUS_TASKS.md`](MANUS_TASKS.md) (front-loaded before the Sunday subscription lapse).
+Parallel at all times, off-branch: the **Manus queue** — see [`MANUS_TASKS.md`](MANUS_TASKS.md) (credits are durable; ordering is build-dependency-driven).
