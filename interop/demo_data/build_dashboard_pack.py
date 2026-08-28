@@ -60,10 +60,10 @@ def _ending_verdict(ending_id):
     sys.path.insert(0, str(FALSE_FLAG_ROOT))
     try:
         from engine.endings import ENDINGS
-        ending = ENDINGS.get(ending_id)
-        return ending.verdict if ending else None
-    except Exception:
+    except ImportError:
         return None
+    ending = ENDINGS.get(ending_id)
+    return ending.verdict if ending else None
 
 
 def _advisor_names(state_lines):
