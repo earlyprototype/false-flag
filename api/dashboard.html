@@ -341,6 +341,12 @@ function setSession(id, isFacilitator) {
   $("sessionBadge").innerHTML = id
     ? `session <b>${esc(id.slice(0,8))}…</b> ${facilitator ? '<span class="facil">FACILITATOR</span>' : "player-view"}`
     : "no session";
+  // The twin-model panel's counters are explicitly labelled "this session" -
+  // without a reset here they kept counting across New/Attach/Demo, making
+  // that label false (independent review finding, 28 Aug).
+  dtdlCounts.inject_triggered = 0;
+  dtdlCounts.participant_action = 0;
+  renderDtdlLive();
   connectStream();
 }
 
