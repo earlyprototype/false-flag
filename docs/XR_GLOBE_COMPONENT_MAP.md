@@ -10,7 +10,7 @@
 
 ```mermaid
 flowchart LR
-  subgraph ENGINE["ENGINE (Track B — truth)"]
+  subgraph ENGINE["ENGINE (Track B — stored positions)"]
     SPATIAL["models/spatial.py\nUnitTrack · MovementOrder"]:::core
     KIN["engine/kinematics.py\npure, zero-RNG advance"]:::core
     GAZ["gazetteer.yaml\n~30 authored coords"]:::core
@@ -23,7 +23,7 @@ flowchart LR
   subgraph API["API TIER (Track A — serving)"]
     FAN["per-subscriber fan-out\n+ /geo/stream SSE"]:::core
     THEATRE["GET /theatre\nversioned snapshot"]:::core
-    DAEMON["api/geo_sim.py\ntruth-fed interpolator"]:::defer
+    DAEMON["api/geo_sim.py\nsnapshot-fed interpolator"]:::defer
     DTDL["Theatre;1 DTDL sidecar\n+ /dtdl serving"]:::core
   end
 
@@ -47,7 +47,7 @@ flowchart LR
   KIN -.->|snapshot mailbox, latest-wins| DAEMON
   KIN -.->|positions| TRIP
   TRIP -.->|system inject| ENGINE
-  SPATIAL -.->|truth| FOG
+  SPATIAL -.->|stored positions| FOG
   FOG -.->|estimates| THEATRE
   THEATRE -->|poll + ETag| GLOBE
   FAN -->|SSE nudge + events| GLOBE
@@ -72,11 +72,11 @@ flowchart LR
 | `Theatre;1` sidecar + DTMI badges | CORE (promoted — IMR venue) | [Study §4](XR_GLOBE_FEASIBILITY.md#4-track-a--presentation-architecture), gate 1 | claim 6 |
 | Runbook + video fallback | CORE | [Study §5 gates 4–5, §7](XR_GLOBE_FEASIBILITY.md#5-gates) | — |
 | MOVEMENT call | STRETCH (gate D2) | [Study §4a](XR_GLOBE_FEASIBILITY.md#4a-track-b--the-authoritative-spatial-layer) | claim 8 |
-| Tripwires, fog, truth-fed daemon, VR ops room | DEFERRED | [Study §4a, §6](XR_GLOBE_FEASIBILITY.md#6-vr-the-ops-room) | claims 10, 11 |
+| Tripwires, fog, snapshot-fed daemon, VR ops room | DEFERRED | [Study §4a, §6](XR_GLOBE_FEASIBILITY.md#6-vr-the-ops-room) | claims 10, 11 |
 
 ---
 
-## 2 · Track B mechanism — how a position becomes truth (and why it can't lie)
+## 2 · Track B mechanism — how a position gets written, and why no failure path can write an invented one
 
 ```mermaid
 flowchart TD
@@ -91,7 +91,7 @@ flowchart TD
   SNAP["SpatialSnapshot →\nmailbox + GET /theatre"]:::core
   TRIPS["tripwire eval\ntop of get_turn_briefing\n(confirmed timing)"]:::defer
   EST["fog filter →\nplayer estimates\n(staleness ellipses)"]:::defer
-  TRUTH["facilitator view:\ntruth + estimate overlay"]:::defer
+  TRUTH["facilitator view:\nstored positions +\nestimate overlay"]:::defer
 
   LLM -->|parse| VAL
   INJ --> VAL
@@ -110,7 +110,7 @@ flowchart TD
   classDef defer stroke-dasharray:2 4
 ```
 
-The safety property is structural: initial coordinates come only from the authored gazetteer at hydration, and every subsequent *movement* coordinate is produced only by `kinematics.advance()` from validated enums — no LLM output ever becomes a coordinate by either path — every failure path converges on HOLD, so *a stale position beats a false move, always* ([study §4a](XR_GLOBE_FEASIBILITY.md#4a-track-b--the-authoritative-spatial-layer), claim 8 conditions).
+The safety property is structural: initial coordinates come only from the authored gazetteer at hydration, and every subsequent *movement* coordinate is produced only by `kinematics.advance()` from validated enums — no LLM output ever becomes a coordinate by either path — every failure path converges on HOLD, so a failure leaves a position un-updated (self-correcting next turn), never invented ([study §4a](XR_GLOBE_FEASIBILITY.md#4a-track-b--the-authoritative-spatial-layer), claim 8 conditions).
 
 ---
 
@@ -121,7 +121,7 @@ flowchart LR
   B["BRIEFING\ninject applied"] --> D["DISCUSSION\nadvisors, calls"]
   D --> DE["DECISION\ninterpret → commit"]
   DE --> A["ADJUDICATION\n~12 LLM calls\norders parsed here\nkinematics advances here"]
-  A --> W["WATCH FLOOR\nengine quiescent\ndesign-paced hold\nglobe interpolates truth\nplayer convenes next turn"]
+  A --> W["WATCH FLOOR\nengine quiescent\ndesign-paced hold\nglobe projects stored positions\nplayer convenes next turn"]
   W --> T{{"tripwire eval\n(top of next\nget_turn_briefing)"}}
   T -->|"crossing → system inject\n(detected-visibility)"| B2["next BRIEFING"]
   T -->|no crossing| B2
@@ -176,7 +176,7 @@ flowchart TD
   M4["M4 · THE CABINET ORDERS THE MAP\nMOVEMENT call + re-golden commit"]:::stretch
   ONSITE(["ONSITE · 12 Sep · IMR"]):::core
   FINAL(["FINAL · 14 Sep"]):::core
-  M5["M5 · post-competition\ntripwires engine · fog/ISR ·\ntruth-fed daemon · VR ops room"]:::defer
+  M5["M5 · post-competition\ntripwires engine · fog/ISR ·\nsnapshot-fed daemon · VR ops room"]:::defer
 
   M0 --> D0
   D0 -->|proceed| M1

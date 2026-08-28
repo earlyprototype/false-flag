@@ -8,7 +8,7 @@ Can FALSE FLAG gain a **live map of its war** — a satellite Earth on a big scr
 
 ## The verdict
 
-**Yes, at every layer** — as a *port of ideas*, not a copy-paste of code. The map can also become *truthful*: the game engine actually tracking where every ship is, with the AI only ever allowed to issue orders in plain words ("this unit sails to this named place") — never to invent a position. **The map can go stale, but it can never lie.**
+**Yes, at every layer** — as a *port of ideas*, not a copy-paste of code. The map can also draw from real game state: the engine keeps one position record per unit, updated once per turn by movement arithmetic along pre-drawn routes. The AI may only issue orders in plain words ("this unit sails to this named place") and never writes a number. Because only the coordinate lookup table and that arithmetic can write a position, a failure can leave the map out of date — it cannot put a made-up position on it.
 
 ## The twelve findings, plainly
 
