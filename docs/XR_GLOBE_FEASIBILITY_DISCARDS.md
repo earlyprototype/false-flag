@@ -2,7 +2,7 @@
 
 **Everything reported by analysis agents but cut or compressed out of `XR_GLOBE_FEASIBILITY.md`, preserved for future examination.**
 
-*Companion to `docs/XR_GLOBE_FEASIBILITY.md`. Raw agent output (6 readers, 3 full designs, 3 judge verdicts, 7 verifications, 24 ideas, critique) is preserved verbatim at `audits/2026-08-28-xr-feasibility/workflow1_full_output.json`. A second analysis pass (authoritative ORBAT spatial layer + VR projected-screen workaround) is in flight; its output will be registered the same way.*
+*Companion to `docs/XR_GLOBE_FEASIBILITY.md`. Raw agent output (6 readers, 3 full designs, 3 judge verdicts, 7 verifications, 24 ideas, critique) is preserved verbatim at `audits/2026-08-28-xr-feasibility/workflow1_full_output.json`. The second analysis pass (authoritative ORBAT spatial layer + VR projected-screen workaround) is complete; its output is registered at `audits/2026-08-28-xr-feasibility/workflow2_full_output.json` (see section G).*
 
 **Status codes**: `CUT` — dropped from the report entirely · `COMPRESSED` — survives as a phrase, detail lost · `RESURRECTED` — restored by an owner ruling in the 2026-08-28 session (build-what's-needed framing; ops-room-presence VR thesis; lo-fi cast/hi-fi world aesthetic; design-paced between-turn holds) · `REF` — reference fact never surfaced, kept here for whoever builds this.
 
