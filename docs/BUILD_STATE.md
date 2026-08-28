@@ -11,7 +11,7 @@
 
 ## The plan (short form — full detail in the study §7 and the component map §5)
 
-M0 First Light (spike: `api/globe.html` on a live demo session — now against merged main, so the DTMI badges can come earlier than planned) → D0b commit → M1 The Fleet Moves (zero-LLM truth map: `models/spatial.py`, `engine/kinematics.py`, `gazetteer.yaml`, doctrine legs, save round-trip + **`dev-scripts/build_play_bundle.py` after any `models/world.py` edit**) → D1 schedule check → M2 Standards on the Glass (`Theatre;1` sidecar + live badges + DTDLParser re-run) → M3 Show-Safe (runbook, proxy stance, attract loop, cold-restart drill, **recorded video fallback**) → D2 gate → M4 stretch (MOVEMENT call) → M5 post-comp (tripwires, fog, daemon, VR ops room).
+M0 First Light (spike: `api/globe.html` on a live demo session — now against merged main, so the DTMI badges can come earlier than planned) → D0b commit → M1 The Fleet Moves (zero-LLM position system: `models/spatial.py`, `engine/kinematics.py`, `gazetteer.yaml`, doctrine legs, save round-trip + **`dev-scripts/build_play_bundle.py` after any `models/world.py` edit**) → D1 schedule check → M2 Standards on the Glass (`Theatre;1` sidecar + live badges + DTDLParser re-run) → M3 Show-Safe (runbook, proxy stance, attract loop, cold-restart drill, **recorded video fallback**) → D2 gate → M4 stretch (MOVEMENT call) → M5 post-comp (tripwires, fog, daemon, VR ops room).
 
 ## Immediate next actions (in order)
 
