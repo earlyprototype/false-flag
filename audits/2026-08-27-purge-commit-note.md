@@ -16,7 +16,7 @@ anyone reading history.
 
 Everything deleted remains recoverable:
 
-```
+```shell
 git show 09a03ae --stat            # full list of what was removed
 git checkout 09a03ae^ -- <path>    # restore any of it
 ```

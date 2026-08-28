@@ -78,21 +78,28 @@ def main():
                             ":AdjudicatedDecision;1", "qualityVerdict")
     for decision in run["decisions"]:
         assert decision["playerDecisionText"], "decision point missing decision text"
-        if decision["qualityVerdict"] is not None:
-            assert decision["qualityVerdict"] in verdicts, \
-                f"verdict {decision['qualityVerdict']!r} not in model enum"
+        # qualityVerdict is a closed 5-value enum in the model - null means
+        # the capture failed to extract one, never a legitimate value
+        # (CodeRabbit, PR #65: a lenient null-check would let that pass
+        # silently instead of catching the real defect).
+        assert decision["qualityVerdict"] in verdicts, \
+            f"verdict {decision['qualityVerdict']!r} not in model enum"
 
-    assert run["telemetry"]["inject_triggered"], "run has no delivered injects"
-    for name in ("escalation_risk", "domestic_stability", "alliance_cohesion",
-                 "casualties_civ", "casualties_mil"):
-        assert run["telemetry"][name], f"metric telemetry series {name!r} is empty"
-
-    # All nine declared Session;1 telemetry streams must be present AND
-    # non-empty — a declared-but-dead stream is exactly what the conformance
-    # panel must never show (owner ruling 27 Aug: wire, never fabricate).
-    assert len(run["telemetry"]) == 9, \
-        f"expected 9 telemetry streams, found {len(run['telemetry'])}"
-    assert run["telemetry"]["phase_changed"], "phase_changed stream is empty"
+    # All nine declared Session;1 telemetry streams: present, correctly
+    # named, and non-empty. A declared-but-dead or misnamed stream is
+    # exactly what the conformance panel must never show (owner ruling
+    # 27 Aug: wire, never fabricate) - checking len() alone would let a
+    # malformed export with the right COUNT but wrong stream names pass
+    # (CodeRabbit, PR #65).
+    expected_streams = {
+        "escalation_risk", "domestic_stability", "alliance_cohesion",
+        "casualties_civ", "casualties_mil", "inject_triggered",
+        "participant_action", "advisor_trust", "phase_changed",
+    }
+    assert set(run["telemetry"]) == expected_streams, \
+        f"telemetry streams {set(run['telemetry'])} != {expected_streams}"
+    for name in expected_streams:
+        assert run["telemetry"][name], f"telemetry stream {name!r} is empty"
     phases = {"briefing", "discussion", "decision", "adjudication"}
     for entry in run["telemetry"]["phase_changed"]:
         assert entry["phase"] in phases, \

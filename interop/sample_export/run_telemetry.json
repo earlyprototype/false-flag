@@ -1,14 +1,14 @@
 {
   "$metadata": {
     "$model": "dtmi:falseflag:emergent:Session;1",
-    "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md.",
-    "generatedAt": "2026-08-27T16:45:42+00:00",
+    "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md.",
+    "generatedAt": "2026-08-28T18:32:29+00:00",
     "source": "run_record.json + run.calls.jsonl.state.jsonl"
   },
   "id": "session_war_game_2025_seed42",
   "exercise": "ex_war_game_2025",
-  "startedAt": "2026-08-27T16:45:41+00:00",
-  "endedAt": "2026-08-27T16:45:42+00:00",
+  "startedAt": "2026-08-28T18:32:28+00:00",
+  "endedAt": "2026-08-28T18:32:29+00:00",
   "seed": 42,
   "playMode": "emergent",
   "provider": "mock",
@@ -504,7 +504,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "decision_t1",
       "turn": 1,
@@ -524,7 +524,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "decision_t2",
       "turn": 2,
@@ -551,7 +551,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "decision_t3",
       "turn": 3,
@@ -571,7 +571,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "decision_t4",
       "turn": 4,
@@ -593,7 +593,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "ledger_t1",
       "turn": 1,
@@ -611,7 +611,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "ledger_t2",
       "turn": 2,
@@ -631,7 +631,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "ledger_t3",
       "turn": 3,
@@ -649,7 +649,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "ledger_t4",
       "turn": 4,

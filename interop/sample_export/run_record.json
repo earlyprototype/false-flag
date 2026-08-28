@@ -6,8 +6,8 @@
     "turns_played": 4,
     "play_mode": "emergent",
     "provider": "mock",
-    "started_at": "2026-08-27T16:45:41+00:00",
-    "ended_at": "2026-08-27T16:45:42+00:00"
+    "started_at": "2026-08-28T18:32:28+00:00",
+    "ended_at": "2026-08-28T18:32:29+00:00"
   },
   "turns": [
     {
@@ -105,7 +105,7 @@
   "final_save": {
     "metadata": {
       "save_name": "interop_sample",
-      "timestamp": "2026-08-27T17:45:42.419177",
+      "timestamp": "2026-08-28T19:32:29.419671",
       "version": "1.0.0"
     },
     "config": {

@@ -530,6 +530,10 @@ class GameManager:
         # the same ordering the serial path had.
         pending = self._pending_pushback
         self._pending_pushback = None
+        # Diagnostic reset every commit, not just when a cost is applied -
+        # otherwise a no-pushback turn keeps reporting the last turn that
+        # had one (CodeRabbit, PR #65).
+        self._last_pushback_costs = []
         if pending and pending[0] == action_text and pending[1]:
             self._apply_pushback_trust_cost(pending[1])
 
@@ -940,6 +944,10 @@ class GameManager:
 
         # Note: WorldState.parse_obj will handle nested ActorSystem if model structure matches
         manager.world = WorldState.parse_obj(state["world"])
+        # __init__ already traced a "briefing" entry against the discarded
+        # constructor world above (CodeRabbit, PR #65) - drop it so a resumed
+        # session doesn't export a phantom turn-1 transition it never lived.
+        manager._phase_trace = []
         manager.narrative_state = NarrativeState.parse_obj(state["narrative_state"])
         manager.transcript = state["transcript"]
         if state.get("initial_metrics"):

@@ -30,10 +30,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 FALSE_FLAG_ROOT = Path(__file__).resolve().parents[1]
-PROFILE_NOTE = ("False Flag interop profile - a correspondence proposal in "
+PROFILE_NOTE = ("False Flag interop profile - False Flag's twin model, in "
                 "our own DTDL namespace, not claimed SEDL-conformant "
                 "(the SEDL specification is unpublished). See "
-                "interop/CORRESPONDENCE.md.")
+                "interop/README.md.")
 
 QUALITY_RE = re.compile(
     r"QUALITY:\s*(exceptional|good|adequate|poor|catastrophic)", re.IGNORECASE)
@@ -314,7 +314,7 @@ def _build_injects(episodes):
             "effects": [{"metric": e["metric"], "delta": str(e["delta"])}
                         for e in data.get("effects", [])],
             # expectedResponse / assessmentCriteria omitted BY DESIGN:
-            # emergent adjudication (see CORRESPONDENCE.md).
+            # emergent adjudication (see interop/README.md).
         })
     return injects
 
@@ -342,7 +342,7 @@ def build_exercise_document(scenario_id, variant="standard"):
         "id": f"obj_{i + 1}",
         "statement": statement,
         # taxonomyLevel/assessmentCriteria omitted: these are operational
-        # win conditions, not pedagogical objectives (see CORRESPONDENCE.md).
+        # win conditions, not pedagogical objectives (see interop/README.md).
     } for i, statement in enumerate(statements) if statement]
 
     return {
