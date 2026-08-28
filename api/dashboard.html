@@ -270,6 +270,22 @@
       </form>
     </div>
   </section>
+
+  <!-- ============ DTDL TWIN MODEL ============ -->
+  <section>
+    <h2>Twin model — False Flag in DTDL</h2>
+    <div class="body">
+      <p class="note">The engine's exercise domain as 13 DTDL v3 interfaces
+        (<span class="mono">dtmi:falseflag</span>), validated with Microsoft's
+        official DTDLParser. The Session;1 telemetry table tracks this live
+        session — values come only from the stream, never invented. The full
+        model — every node badged, raw DTDL, captured instances — is the
+        <a href="/dataflow">data-flow page</a>'s ◇ DTDL mode.</p>
+      <div id="dtdlTelemetry"></div>
+      <div id="dtdlIfaces"></div>
+      <div id="dtdlStatus" class="status"></div>
+    </div>
+  </section>
 </main>
 
 <script>
@@ -326,6 +342,15 @@ function connectStream() {
    "adjudication","parse_health"].forEach(n => on(n, addLedgerRow));
   on("state_update", d => { addLedgerRow(d, "state_update"); recordMetrics(d); });
   on("llm_call", d => { addLedgerRow(d, "llm_call"); addCallCard(d); });
+  // Twin-model panel: count only what the stream actually carries. Turn
+  // injects arrive as transcript events with type "inject"; inject_fired
+  // is the facilitator console's delivery. Both are Inject deliveries.
+  on("transcript", d => {
+    if (d && d.type === "inject") { dtdlCounts.inject_triggered += 1; renderDtdlLive(); }
+  });
+  on("inject_fired", () => { dtdlCounts.inject_triggered += 1; renderDtdlLive(); });
+  on("adjudication", () => { dtdlCounts.participant_action += 1; renderDtdlLive(); });
+  on("state_update", renderDtdlLive);
   source.onerror = () => { /* EventSource auto-reconnects */ };
 }
 
@@ -600,10 +625,61 @@ $("promptReset").onclick = async () => {
   } catch (err) { setStatus("promptStatus", err.message, false); }
 };
 
+/* ------------------------------------------------------- DTDL twin model */
+const dtdlCounts = { inject_triggered: 0, participant_action: 0 };
+let dtdlTelemetryRows = null;  // Session;1 Telemetry contents, once fetched
+
+function renderDtdlLive() {
+  if (!dtdlTelemetryRows) return;
+  const latest = key => {
+    const arr = series[key];
+    return arr && arr.length ? arr[arr.length - 1].v : null;
+  };
+  const rows = dtdlTelemetryRows.map(t => {
+    let live;
+    if (t.name in series) {
+      const v = latest(t.name);
+      live = v === null ? "—" : `<b>${esc(v)}</b>`;
+    } else if (t.name in dtdlCounts) {
+      live = `<b>${dtdlCounts[t.name]}</b> this session`;
+    } else {
+      live = `<span class="note">captured in run exports, not streamed</span>`;
+    }
+    const desc = typeof t.description === "string" ? t.description : "";
+    return `<tr><td class="mono">${esc(t.name)}</td>` +
+      `<td>${live}</td><td class="note">${esc(desc)}</td></tr>`;
+  }).join("");
+  $("dtdlTelemetry").innerHTML =
+    `<table><thead><tr><th>Session;1 telemetry</th><th>live</th><th></th></tr></thead>` +
+    `<tbody>${rows}</tbody></table>`;
+}
+
+async function loadDtdl() {
+  try {
+    const d = await api("GET", "/dtdl");
+    const session = d.interfaces.find(i => i["@id"] === "dtmi:falseflag:emergent:Session;1");
+    const kindOf = c => Array.isArray(c["@type"]) ? c["@type"][0] : c["@type"];
+    dtdlTelemetryRows = ((session && session.contents) || [])
+      .filter(c => kindOf(c) === "Telemetry");
+    renderDtdlLive();
+    $("dtdlIfaces").innerHTML =
+      "<table><thead><tr><th>interface</th><th></th></tr></thead><tbody>" +
+      d.interfaces.map(i => {
+        const desc = typeof i.description === "string" ? i.description : "";
+        return `<tr><td class="mono">${esc(String(i["@id"]).replace("dtmi:falseflag:", ""))}</td>` +
+          `<td class="note">${esc(desc)}</td></tr>`;
+      }).join("") + "</tbody></table>";
+    setStatus("dtdlStatus",
+      `${d.counts.Interface} interfaces · ${d.counts.Property} properties · ` +
+      `${d.counts.Relationship} relationships · ${d.counts.Telemetry} telemetry`, true);
+  } catch (err) { setStatus("dtdlStatus", err.message, false); }
+}
+
 /* ------------------------------------------------------------------- boot */
 loadRouting();
 loadPromptFamilies();
 drawCharts();
+loadDtdl();
 </script>
 </body>
 </html>
