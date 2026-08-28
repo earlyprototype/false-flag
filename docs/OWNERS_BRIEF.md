@@ -2,7 +2,7 @@
 
 *This is the translation layer. The other documents are deliberately dense — they exist so no engineer (human or AI) ever loses the thread between sessions. **This one is for you and anyone new to the project.** Plain here means mechanically concrete, not vague: every section says what actually exists, what changes it, and links to the deep version. (Deep links point at the feasibility branch until PR #67 merges, after which they're neighbours in this folder.)*
 
-**Drill-down map**: [findings in plain language](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_FEASIBILITY_IN_BRIEF.md) · [full technical study](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_FEASIBILITY.md) · [visual component map](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_COMPONENT_MAP.md) · [decisions & tasks: issues #70–#75](https://github.com/earlyprototype/false-flag/issues) · [`BUILD_STATE.md`](BUILD_STATE.md) · [`DECISION_BRIEFS.md`](DECISION_BRIEFS.md)
+**Drill-down map**: [findings in plain language](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_FEASIBILITY_IN_BRIEF.md) · [full technical study](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_FEASIBILITY.md) · [visual component map](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_COMPONENT_MAP.md) · [decisions & tasks: issues #70–#75](https://github.com/earlyprototype/false-flag/issues) (the Manus research task queue plus the five open calls — each spelled out below) · [`BUILD_STATE.md`](BUILD_STATE.md) · [`DECISION_BRIEFS.md`](DECISION_BRIEFS.md)
 
 ---
 
@@ -19,18 +19,18 @@ Right now, between turns, the game goes quiet — the cabinet argues, and nothin
 - A **lookup table** of ~30 real places (Faslane, the GIUK gap, Severomorsk…) with hand-checked coordinates. This is the only place coordinates ever come from.
 - **One new record per unit** in the saved game: latitude, longitude, heading, speed, and its current order (e.g. "transit to GIUK_gap at cruise speed").
 - Positions update at **exactly one moment each turn** — when the turn resolves — by ordinary movement arithmetic: speed × time along a pre-drawn route. No randomness, no AI, in that step.
-- The AI's only involvement (and it's optional — [decision #71](https://github.com/earlyprototype/false-flag/issues/71)): after a decision it may emit text orders in a fixed format, e.g. `ORDER: HMS_Prince_of_Wales | transit | GIUK_gap | cruise`. The game checks every order against the fixed unit list and the lookup table; **an unrecognised or garbled order is ignored** — that unit keeps doing what it was already doing, and a visible note says so. The AI never writes numbers; if its call fails completely, no orders are issued and everything continues on its previous course.
+- The AI's only involvement (and it's optional — decision [#71](https://github.com/earlyprototype/false-flag/issues/71): should the AI's movement orders move your forces?): after a decision it may emit text orders in a fixed format, e.g. `ORDER: HMS_Prince_of_Wales | transit | GIUK_gap | cruise`. The game checks every order against the fixed unit list and the lookup table; **an unrecognised or garbled order is ignored** — that unit keeps doing what it was already doing, and a visible note says so. The AI never writes numbers; if its call fails completely, no orders are issued and everything continues on its previous course.
 - **Consequence of this design**: a failure can leave the map *out of date*, but nothing can ever put a *made-up position* on it. That's the whole safety argument, and it's structural, not a promise.
 
 *(Deep: [study, Track B — the full spec](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_FEASIBILITY.md#4a-track-b--the-authoritative-spatial-layer) · [map, diagram 2 — the order pipeline](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_COMPONENT_MAP.md#2--track-b-mechanism--how-a-position-gets-written-and-why-no-failure-path-can-write-an-invented-one) · the save-file and turn-timing behaviour were verified by running the real engine code — [findings 9 & 10](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_FEASIBILITY_IN_BRIEF.md).)*
 
 ## The plan, as five moments
 
-1. **First Light** — the map page exists: units from the game's force list plotted on the Earth, attached to a running demo game, on the projector. *(Needs nothing but "go".)*
+1. **First Light** — the first working version of the map page: units from the game's force list plotted on the satellite Earth, attached to a running demo game, on the projector. *(Needs nothing but "go" — the owner's authorization to start writing this project's first code; nothing is built yet.)*
 2. **The Fleet Moves** — the position system above, minus any AI: authored routes only. The red fleet advances turn by turn; save/load keeps working. Zero running cost.
 3. **Standards on the Glass** — small live badges show the map is reading the game's Microsoft-validated digital-twin model — the moment built for the IMR room. *(Deep: [finding 6](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_FEASIBILITY_IN_BRIEF.md).)*
 4. **Show-Safe** — rehearsed run-sheet, self-playing attract mode, restart drill, and a recorded film of the demo as the fail-safe.
-5. **(Stretch, gated by [#71](https://github.com/earlyprototype/false-flag/issues/71))** **The Cabinet Orders the Map** — the AI order channel above goes live: you type "surge the carrier group north" and the ships obey.
+5. **(Stretch, gated by decision [#71](https://github.com/earlyprototype/false-flag/issues/71) — the should-the-AI's-orders-move-your-forces question above)** **The Cabinet Orders the Map** — the AI order channel above goes live: you type "surge the carrier group north" and the ships obey.
 
 *(Milestones with their decision gates, visually: [map, diagram 5](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_COMPONENT_MAP.md#5--milestones-and-decision-points-replaces-day-counting).)*
 
@@ -43,7 +43,7 @@ Each is a GitHub issue — answer by commenting and closing; each has a safe def
 3. **[#73 — Which campaign cut do the judges watch?](https://github.com/earlyprototype/false-flag/issues/73)** (full slow-burn vs quick-start; we can time both and pick)
 4. **[#74 — First impression: bare satellite Earth or the CRT filter?](https://github.com/earlyprototype/false-flag/issues/74)** (both ship; this sets the default)
 
-Plus one fact when you know it: **[#75 — is a Quest headset available?](https://github.com/earlyprototype/false-flag/issues/75)** And the research task queue for Manus lives in **[#70](https://github.com/earlyprototype/false-flag/issues/70)**.
+Plus one fact when you know it: **[#75 — is a Meta Quest VR headset available?](https://github.com/earlyprototype/false-flag/issues/75)** (a plain yes/no to record on the issue). And the research task queue for Manus lives in **[#70](https://github.com/earlyprototype/false-flag/issues/70)** (paste-ready briefs for the Manus research agent).
 
 ## Glossary
 
