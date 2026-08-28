@@ -382,3 +382,46 @@ def test_new_game_mystery_mode_reaches_the_manager(client):
     plain = client.post("/game/new", json={"scenario_id": "war_game_2025"})
     plain_manager = server.sessions[plain.json()["session_id"]].manager
     assert plain_manager.mystery_mode is False
+
+
+def test_dtdl_serves_the_full_interface_set_and_covers_the_page_mapping(client):
+    """/dtdl returns all 13 interfaces, and every DTMI the dataflow page
+    badges nodes with exists in the served set (guards mapping drift)."""
+    import re
+
+    response = client.get("/dtdl")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["counts"]["Interface"] == 13
+    assert len(data["interfaces"]) == 13
+    assert data["namespace"] == "dtmi:falseflag"
+    served = {iface["@id"] for iface in data["interfaces"]}
+
+    page = (Path(__file__).resolve().parents[1] / "api" / "dataflow.html")
+    referenced = set(re.findall(r"dtmi:falseflag:[A-Za-z:]+;1", page.read_text(encoding="utf-8")))
+    assert referenced, "dataflow page references no DTMIs — mapping missing?"
+    missing = referenced - served
+    assert not missing, f"page badges DTMIs absent from the model set: {missing}"
+
+
+def test_dtdl_detail_returns_interface_with_captured_instance(client):
+    """/dtdl/{dtmi} serves one interface's raw DTDL plus a real captured
+    instance; unknown DTMIs are a 404, not an empty 200."""
+    response = client.get("/dtdl/dtmi:falseflag:Inject;1")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["interface"]["@id"] == "dtmi:falseflag:Inject;1"
+    assert data["instance"], "no captured instance served for Inject;1"
+    assert data["instance"]["$metadata"]["$model"] == "dtmi:falseflag:Inject;1"
+
+    assert client.get("/dtdl/dtmi:falseflag:Nonsense;1").status_code == 404
+
+
+def test_dtdl_degrades_to_empty_set_when_models_are_absent(client, tmp_path, monkeypatch):
+    """A clone without interop/ gets an empty model set, never a 500."""
+    from api import server
+
+    monkeypatch.setattr(server, "_DTDL_MODELS_PATH", tmp_path / "absent")
+    response = client.get("/dtdl")
+    assert response.status_code == 200
+    assert response.json()["counts"]["Interface"] == 0
