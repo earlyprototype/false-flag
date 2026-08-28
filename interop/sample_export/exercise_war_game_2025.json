@@ -1,0 +1,820 @@
+{
+  "$metadata": {
+    "$model": "dtmi:falseflag:Exercise;1",
+    "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md.",
+    "generatedAt": "2026-08-28T18:32:29+00:00",
+    "source": "data/scenarios/war_game_2025 (variant: standard)"
+  },
+  "id": "ex_war_game_2025",
+  "metadata": {
+    "name": "False Flag: The Wargame",
+    "type": "tabletop",
+    "description": "A simulated crisis where Russia launches a false flag operation against the UK, escalating to potential military conflict",
+    "duration": {
+      "hours": 20
+    },
+    "participants": {
+      "total": 1,
+      "max": 1
+    },
+    "startDate": "2025-10-05",
+    "startTime": "17:00"
+  },
+  "learningObjectives": [
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:LearningObjective;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "obj_1",
+      "statement": "De-escalate crisis without appearing weak"
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:LearningObjective;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "obj_2",
+      "statement": "Secure credible US/NATO commitment"
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:LearningObjective;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "obj_3",
+      "statement": "Defend critical infrastructure (Faslane, key bases, London)"
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:LearningObjective;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "obj_4",
+      "statement": "Avoid civilian casualties"
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:LearningObjective;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "obj_5",
+      "statement": "Maintain public confidence"
+    }
+  ],
+  "timeline": {
+    "$metadata": {
+      "$model": "dtmi:falseflag:Timeline;1",
+      "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+    },
+    "id": "timeline_war_game_2025",
+    "phases": [
+      {
+        "$metadata": {
+          "$model": "dtmi:falseflag:Phase;1",
+          "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+        },
+        "id": "phase_scripted",
+        "name": "Scripted Crisis",
+        "duration": {
+          "hours": 12
+        },
+        "scenarios": [
+          {
+            "$metadata": {
+              "$model": "dtmi:falseflag:Scenario;1",
+              "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+            },
+            "id": "scenario_false_flag_crisis",
+            "name": "UK-Russia False Flag Crisis",
+            "scenes": [
+              {
+                "$metadata": {
+                  "$model": "dtmi:falseflag:Scene;1",
+                  "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+                },
+                "id": "scene_turn_001",
+                "name": "COBRA Emergency Meeting Convened",
+                "turnNumber": 1
+              },
+              {
+                "$metadata": {
+                  "$model": "dtmi:falseflag:Scene;1",
+                  "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+                },
+                "id": "scene_turn_002",
+                "name": "Russian Submarine Surfaces Near UK Waters",
+                "turnNumber": 2
+              },
+              {
+                "$metadata": {
+                  "$model": "dtmi:falseflag:Scene;1",
+                  "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+                },
+                "id": "scene_turn_003",
+                "name": "Major Power Station Explosion",
+                "turnNumber": 3
+              },
+              {
+                "$metadata": {
+                  "$model": "dtmi:falseflag:Scene;1",
+                  "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+                },
+                "id": "scene_turn_004",
+                "name": "Emergency NATO Consultation - Article 4 Invoked",
+                "turnNumber": 4
+              },
+              {
+                "$metadata": {
+                  "$model": "dtmi:falseflag:Scene;1",
+                  "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+                },
+                "id": "scene_turn_005",
+                "name": "MISSILE LAUNCH DETECTION - BALLISTIC TRAJECTORY",
+                "turnNumber": 5
+              },
+              {
+                "$metadata": {
+                  "$model": "dtmi:falseflag:Scene;1",
+                  "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+                },
+                "id": "scene_turn_006",
+                "name": "US Demands Coordination",
+                "turnNumber": 6
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "$metadata": {
+          "$model": "dtmi:falseflag:Phase;1",
+          "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+        },
+        "id": "phase_emergent",
+        "name": "Emergent Escalation",
+        "duration": {
+          "hours": 8
+        },
+        "scenarios": [
+          {
+            "$metadata": {
+              "$model": "dtmi:falseflag:Scenario;1",
+              "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+            },
+            "id": "scenario_emergent_continuation",
+            "name": "Stochastic continuation",
+            "description": "Turns generated at run time from campaign state; scenes exist only in the run record.",
+            "scenes": []
+          }
+        ]
+      }
+    ]
+  },
+  "worldReference": {
+    "$metadata": {
+      "$model": "dtmi:falseflag:WorldReference;1",
+      "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+    },
+    "id": "world_war_game_2025",
+    "location": "United Kingdom",
+    "context": "A simulated crisis where Russia launches a false flag operation against the UK, escalating to potential military conflict",
+    "geographicScope": "London, Faslane, RAF_Marham, East_Anglia_RAF_bases, Orkney_Islands, Portsmouth, Plymouth, UK_waters, North_Atlantic, GIUK_gap, International_waters, Severomorsk",
+    "organisations": [
+      {
+        "id": "uk-government",
+        "name": "United Kingdom Government",
+        "role": "lead",
+        "staff": 6
+      },
+      {
+        "id": "usa",
+        "name": "President of the United States",
+        "role": "partner",
+        "disposition": "Wary but publicly supportive",
+        "accessLevel": 2
+      },
+      {
+        "id": "rus",
+        "name": "President of the Russian Federation",
+        "role": "adversary",
+        "disposition": "Hostile and belligerent",
+        "accessLevel": 1
+      },
+      {
+        "id": "fra",
+        "name": "President of France",
+        "role": "partner",
+        "disposition": "Concerned but advocating for EU-led diplomacy",
+        "accessLevel": 2
+      },
+      {
+        "id": "deu",
+        "name": "Chancellor of Germany",
+        "role": "partner",
+        "disposition": "Cautious and risk-averse",
+        "accessLevel": 2
+      },
+      {
+        "id": "chn",
+        "name": "President of the People's Republic of China",
+        "role": "support",
+        "disposition": "Neutral, calling for de-escalation",
+        "accessLevel": 1
+      },
+      {
+        "id": "irl",
+        "name": "Taoiseach of Ireland",
+        "role": "support",
+        "disposition": "Neutral and concerned",
+        "accessLevel": 2
+      },
+      {
+        "id": "pol",
+        "name": "President of the Republic of Poland",
+        "role": "partner",
+        "disposition": "Staunchly supportive, demanding collective action",
+        "accessLevel": 3
+      },
+      {
+        "id": "ukr",
+        "name": "President of Ukraine",
+        "role": "partner",
+        "disposition": "Supportive, urging the West to heed its warnings",
+        "accessLevel": 2
+      }
+    ],
+    "risks": [
+      {
+        "type": "infrastructure_sabotage",
+        "severity": "high",
+        "probability": "high",
+        "note": "3 attacks recorded; status degraded"
+      },
+      {
+        "type": "naval_escalation",
+        "severity": "high",
+        "probability": "high",
+        "note": "Red operation Tuman; heading southwest_toward_UK"
+      },
+      {
+        "type": "cyber_attack",
+        "severity": "medium",
+        "probability": "high",
+        "note": "65% intensity rise on UK businesses and government websites; Likely Russian state-sponsored"
+      }
+    ],
+    "environmentalFactors": {
+      "public_mood": "anxious",
+      "media_coverage": "intensive",
+      "economic_impact": "rising",
+      "weather": "normal"
+    }
+  },
+  "roles": [
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Role;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "prime_minister",
+      "name": "Prime Minister",
+      "count": 1,
+      "influence": 100,
+      "knowledgeDomains": [
+        "political_strategy",
+        "public_messaging",
+        "nato_relations"
+      ],
+      "pushbackTriggers": [
+        "Actions that risk NATO fracture",
+        "Decisions without legal/military advice",
+        "Responses that appear weak domestically"
+      ],
+      "keyConcerns": [
+        "NATO commitment",
+        "military readiness",
+        "public reassurance"
+      ]
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Role;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "chief_defence_staff",
+      "name": "Chief of the Defence Staff",
+      "count": 1,
+      "influence": 85,
+      "knowledgeDomains": [
+        "military_operations",
+        "force_readiness",
+        "threat_assessment"
+      ],
+      "pushbackTriggers": [
+        "Militarily implausible actions (e.g., deploying unavailable assets)",
+        "Operations beyond UK capability (e.g., sustained high-intensity ops)",
+        "Actions that waste limited munitions"
+      ],
+      "keyConcerns": [
+        "Russian naval exercise",
+        "pilot security",
+        "limited air defence"
+      ]
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Role;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "national_security_advisor",
+      "name": "National Security Adviser",
+      "count": 1,
+      "influence": 90,
+      "knowledgeDomains": [
+        "intelligence_assessment",
+        "cyber_security",
+        "strategic_planning"
+      ],
+      "pushbackTriggers": [
+        "Actions based on unverified intelligence",
+        "Decisions ignoring cyber vulnerabilities",
+        "Responses that telegraph UK intentions"
+      ],
+      "keyConcerns": [
+        "cyber_attacks",
+        "false_flag_detection",
+        "US_relations"
+      ]
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Role;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "home_secretary",
+      "name": "Home Secretary",
+      "count": 1,
+      "influence": 70,
+      "knowledgeDomains": [
+        "civil_protection",
+        "counter_terrorism",
+        "public_safety"
+      ],
+      "pushbackTriggers": [
+        "Military actions that risk civilian casualties",
+        "Decisions that ignore infrastructure vulnerabilities",
+        "Public messaging that causes panic"
+      ],
+      "keyConcerns": [
+        "infrastructure_attacks",
+        "diplomat_departures",
+        "public_messaging"
+      ]
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Role;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "foreign_secretary",
+      "name": "Foreign Secretary",
+      "count": 1,
+      "influence": 75,
+      "knowledgeDomains": [
+        "diplomacy",
+        "alliance_management",
+        "international_law"
+      ],
+      "pushbackTriggers": [
+        "Actions that violate international law",
+        "Military responses without diplomatic cover",
+        "Decisions that isolate UK from allies"
+      ],
+      "keyConcerns": [
+        "US_engagement",
+        "NATO_activation",
+        "Russian_ambassador_recall"
+      ]
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Role;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "attorney_general",
+      "name": "Attorney General",
+      "count": 1,
+      "influence": 60,
+      "knowledgeDomains": [
+        "international_law",
+        "rules_of_engagement",
+        "legal_frameworks"
+      ],
+      "pushbackTriggers": [
+        "Actions that violate Geneva Conventions",
+        "Use of force without legal justification",
+        "Nuclear first-use without extreme justification"
+      ],
+      "keyConcerns": [
+        "international_law",
+        "false_flag_legalities",
+        "human_rights"
+      ]
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Role;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "president_russia",
+      "name": "Supreme Commander",
+      "count": 1,
+      "influence": 100,
+      "knowledgeDomains": [
+        "strategic_deception",
+        "nato_politics",
+        "military_doctrine"
+      ],
+      "objectives": [
+        "Test NATO resolve",
+        "Fracture alliance",
+        "Neutralize UK"
+      ]
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Role;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "chief_general_staff",
+      "name": "Military Operations",
+      "count": 1,
+      "influence": 90,
+      "knowledgeDomains": [
+        "operational_planning",
+        "force_deployment",
+        "combined_arms"
+      ],
+      "objectives": [
+        "Execute Operation Tuman",
+        "Overwhelm UK defences",
+        "Demonstrate US won't intervene"
+      ]
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Role;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "head_military_intelligence",
+      "name": "Special Operations (GRU)",
+      "count": 1,
+      "influence": 85,
+      "knowledgeDomains": [
+        "covert_operations",
+        "sabotage",
+        "disinformation"
+      ],
+      "objectives": [
+        "False flag execution",
+        "Infrastructure disruption",
+        "Pilot assassinations"
+      ]
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Role;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "commander_northern_fleet",
+      "name": "Naval Operations",
+      "count": 1,
+      "influence": 80,
+      "knowledgeDomains": [
+        "submarine_warfare",
+        "naval_tactics",
+        "missile_operations"
+      ],
+      "objectives": [
+        "Position forces for strike",
+        "Demonstrate overwhelming force",
+        "Track UK naval assets"
+      ]
+    }
+  ],
+  "participants": [
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Participant;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "user_prime_minister",
+      "name": "Prime Minister",
+      "characterId": "prime_minister",
+      "kind": "human",
+      "assignedRole": "prime_minister"
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Participant;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "user_chief_defence_staff",
+      "name": "Chief of the Defence Staff",
+      "characterId": "chief_defence_staff",
+      "kind": "ai_agent",
+      "assignedRole": "chief_defence_staff"
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Participant;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "user_national_security_advisor",
+      "name": "National Security Adviser",
+      "characterId": "national_security_advisor",
+      "kind": "ai_agent",
+      "assignedRole": "national_security_advisor"
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Participant;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "user_home_secretary",
+      "name": "Home Secretary",
+      "characterId": "home_secretary",
+      "kind": "ai_agent",
+      "assignedRole": "home_secretary"
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Participant;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "user_foreign_secretary",
+      "name": "Foreign Secretary",
+      "characterId": "foreign_secretary",
+      "kind": "ai_agent",
+      "assignedRole": "foreign_secretary"
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Participant;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "user_attorney_general",
+      "name": "Attorney General",
+      "characterId": "attorney_general",
+      "kind": "ai_agent",
+      "assignedRole": "attorney_general"
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Participant;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "user_president_russia",
+      "name": "Supreme Commander",
+      "characterId": "president_russia",
+      "kind": "ai_agent",
+      "assignedRole": "president_russia"
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Participant;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "user_chief_general_staff",
+      "name": "Military Operations",
+      "characterId": "chief_general_staff",
+      "kind": "ai_agent",
+      "assignedRole": "chief_general_staff"
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Participant;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "user_head_military_intelligence",
+      "name": "Special Operations (GRU)",
+      "characterId": "head_military_intelligence",
+      "kind": "ai_agent",
+      "assignedRole": "head_military_intelligence"
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Participant;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "user_commander_northern_fleet",
+      "name": "Naval Operations",
+      "characterId": "commander_northern_fleet",
+      "kind": "ai_agent",
+      "assignedRole": "commander_northern_fleet"
+    }
+  ],
+  "injects": [
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Inject;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "turn_001_cobra_briefing",
+      "title": "COBRA Emergency Meeting Convened",
+      "trigger": {
+        "type": "time"
+      },
+      "timing": {
+        "sceneRelative": 0,
+        "seconds": 0
+      },
+      "channel": "briefing",
+      "content": "=== CABINET OFFICE BRIEFING ROOM A (COBRA) ===\nSunday 5th October 2025, 17:00\n\nThe National Security Adviser gestures to the wall display.\n\n\"Prime Minister, at 16:45 this afternoon Northwood confirmed what you are\nlooking at. Fifteen Russian submarines are at sea in the North Atlantic -\nseven ballistic missile boats and eight attack boats, with two destroyers\nand four frigates in escort. They slipped out of Kola Bay seventy-two hours\nago, and they are forming up southwest of Iceland, heading for the GIUK gap.\n\nFor context: on a normal day there are two to five submarines in the entire\nAtlantic, from every navy in the world combined. This is the whole of the\nNorthern Fleet, bar a single boat. We have not seen numbers like this in\npeacetime. Not even at the height of the Cold War.\n\nAnd Moscow has said nothing. No exercise notification, no statement. The\ndeployment was made in silence - and it was made to be found.\n\nThe National Security Council's preliminary assessment is that this is a\ndeliberate test: of us, and of NATO's resolve. We must respond carefully -\nneither appearing weak nor provoking further escalation. The room is yours,\nPrime Minister.\"\n",
+      "targets": [
+        "Prime Minister"
+      ],
+      "effects": [
+        {
+          "metric": "escalation_risk",
+          "delta": "5..8"
+        },
+        {
+          "metric": "domestic_stability",
+          "delta": "-1..-3"
+        }
+      ]
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Inject;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "turn_002_submarine_provocation",
+      "title": "Russian Submarine Surfaces Near UK Waters",
+      "trigger": {
+        "type": "time"
+      },
+      "timing": {
+        "sceneRelative": 1,
+        "seconds": 0
+      },
+      "channel": "intelligence",
+      "content": "=== INTELLIGENCE UPDATE ===\n\nPrime Minister, we have a developing situation.\n\nApproximately 15 minutes ago, a Russian Kilo-class submarine surfaced in international \nwaters approximately 12 nautical miles off the Orkney Islands. The submarine remained \non the surface for approximately 15 minutes before submerging.\n\nThis provocative act was witnessed by passengers aboard the MV Hamnavoe ferry service \nbetween Scrabster and Stromness. Multiple civilians have already posted photos and \nvideos to social media. The images are spreading rapidly.\n\nGCHQ Assessment:\nThis is a deliberate show of force designed to intimidate and test UK response. The \nsubmarine is part of the larger Northern Fleet deployment we briefed earlier. Its \nsurfacing in sight of civilians is highly unusual and represents a significant \nescalation in Russian messaging.\n\nCDS Assessment:\nThe submarine's position places it within striking range of several critical \ninfrastructure targets in Scotland, including Scapa Flow, Faslane naval base, and \nNorth Sea oil installations. We assess this as reconnaissance and psychological \nwarfare combined.\n\nHome Secretary:\nPrime Minister, the public is already reacting. Social media is ablaze with speculation.\nWe're seeing panic buying reports from supermarkets in northern Scotland. Some MPs are\ncalling for immediate military response.\n\nAnd there is a second matter which, as of this evening, I no longer believe is\nseparate. Two F-35 pilots were found shot dead in Norfolk on Saturday night. Norfolk\nConstabulary and the Security Service now assess that both men were tracked for days\nbefore they were killed - that is special forces tradecraft, on British soil. Until\nthis afternoon it was a murder inquiry. With that submarine on every phone in the\ncountry, I have to treat it as part of the same picture.\n\nForeign Secretary:\nI've just received word that the Russian Ambassador has declined our request for an\nemergency meeting. This is unprecedented. And Moscow has found its voice tonight in\nthe worst way: state media is accusing us of the Severomorsk attack - the bombing at\ntheir naval base last week that killed over a hundred of their sailors. GCHQ assesses\nwith high confidence that Dagestani extremists were responsible, but the Kremlin is\nbuilding a pretext. Their diplomats' families have been flying out of Heathrow since\nthis morning. The US National Security Advisor has called to express concern but\nstopped short of offering concrete support.\n\nPrime Minister, how do you wish to respond?\n",
+      "targets": [
+        "Prime Minister"
+      ],
+      "effects": [
+        {
+          "metric": "escalation_risk",
+          "delta": "5..10"
+        },
+        {
+          "metric": "domestic_stability",
+          "delta": "-7..-10"
+        },
+        {
+          "metric": "alliance_cohesion",
+          "delta": "-2..-5"
+        }
+      ]
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Inject;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "turn_003_infrastructure_attack",
+      "title": "Major Power Station Explosion",
+      "trigger": {
+        "type": "time"
+      },
+      "timing": {
+        "sceneRelative": 2,
+        "seconds": 0
+      },
+      "channel": "emergency",
+      "content": "=== EMERGENCY BRIEFING ===\n\nPrime Minister, we have a critical incident.\n\nAt 20:47 this evening, a major explosion occurred at Drax Power Station in North \nYorkshire. Drax supplies approximately 6% of the UK's electricity. Initial reports \nindicate a catastrophic failure in the cooling system, but early forensic analysis \nsuggests sabotage.\n\nImmediate Impact:\n- 2 million homes without power across Yorkshire and the North East\n- Emergency services responding to multiple casualties (estimated 5-8 fatalities)\n- National Grid implementing rolling blackouts to manage load\n- Hospitals switching to backup generators\n\nGCHQ Assessment:\nFor a week we have watched cyber attacks on UK businesses and government systems\nclimb by sixty-five percent - probing, we assessed. Then, approximately 30 minutes\nbefore the explosion, we intercepted encrypted communications between suspected\nRussian intelligence operatives in the UK. The timing is highly suspicious. We\nassess with moderate confidence this was a coordinated sabotage operation.\n\nHome Secretary:\nPrime Minister, this is a direct attack on our critical national infrastructure. We \nneed to consider invoking emergency powers. The public will demand protection. We're \nalready seeing reports of vigilante groups forming to \"protect\" other power stations.\n\nCDS:\nPrime Minister, I recommend we raise our military readiness to BIKINI BLACK SPECIAL. \nThis would authorize deployment of armed forces to protect critical infrastructure. \nHowever, it will be visible to Russian intelligence and may be interpreted as \npreparation for offensive action.\n\nAttorney General:\nPrime Minister, if we can establish Russian state involvement, we have legal grounds \nfor invoking Article 5 of the NATO treaty - collective defence. However, the evidence \nmust be unambiguous. A premature invocation could fracture the alliance if other \nmembers don't agree with our assessment.\n\nNSA:\nPrime Minister, we're at a critical juncture. Russia is testing whether we'll respond \nwith force or restraint. Our next move will signal our resolve - or lack thereof - \nto Moscow, Washington, and our own people.\n",
+      "targets": [
+        "Prime Minister"
+      ],
+      "effects": [
+        {
+          "metric": "escalation_risk",
+          "delta": "8..12"
+        },
+        {
+          "metric": "domestic_stability",
+          "delta": "-10..-15"
+        },
+        {
+          "metric": "casualties_civ",
+          "delta": "5..8"
+        },
+        {
+          "metric": "alliance_cohesion",
+          "delta": "-3..-5"
+        }
+      ]
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Inject;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "turn_004_nato_consultation",
+      "title": "Emergency NATO Consultation - Article 4 Invoked",
+      "trigger": {
+        "type": "time"
+      },
+      "timing": {
+        "sceneRelative": 3,
+        "seconds": 0
+      },
+      "channel": "diplomatic",
+      "content": "=== NATO SECURE VIDEO CONFERENCE ===\n\nPrime Minister, you are now connected to an emergency NATO consultation under \nArticle 4. The Secretary General has convened all 32 member states.\n\nNATO Secretary General:\n\"Prime Minister, the North Atlantic Council has received your request for emergency \nconsultations under Article 4. We are treating this matter with the utmost seriousness. \nHowever, I must be frank - there is significant division among allies regarding the \nappropriate response.\"\n\nUS Position (National Security Advisor):\n\"Prime Minister, the President has asked me to convey his concern for the UK's \nsituation. However, the President is not convinced that Russian state involvement \nhas been definitively established. He's concerned about being drawn into a European \nconflict based on circumstantial evidence. The President wants to see more proof \nbefore committing US forces.\"\n\nFrench Position:\n\"We stand with our British allies, but we must be cautious. An overreaction could \nprovoke exactly the wider conflict we seek to avoid. France recommends a measured \ndiplomatic response combined with defensive military posture.\"\n\nPolish Position:\n\"Poland has faced Russian aggression for years. We believe the UK's assessment is \ncorrect. We are prepared to invoke Article 5 if the UK requests it. Russia must be \nstopped now, or they will continue testing NATO's resolve.\"\n\nGerman Position:\n\"Germany shares concerns about Russian actions, but we must exhaust all diplomatic \nchannels first. A military response at this stage would be premature and potentially \ncatastrophic. We urge restraint.\"\n\nNSA (Private Channel):\nPrime Minister, this is going as poorly as we feared. The alliance is fracturing. \nWithout clear US commitment, several smaller members will not support strong action. \nWe need to decide: do we act unilaterally to defend British interests, or do we \naccept that NATO may not come to our aid?\n\nCDS:\nPrime Minister, if we're going to act alone, we need to do so soon. Our window for \neffective military response is narrowing. Russian forces are positioning for \nsomething - we just don't know what yet.\n\nForeign Secretary:\nPrime Minister, this is the moment that will define Britain's place in the world. \nDo we lead, or do we wait for permission that may never come?\n",
+      "targets": [
+        "Prime Minister"
+      ],
+      "effects": [
+        {
+          "metric": "escalation_risk",
+          "delta": "3..5"
+        },
+        {
+          "metric": "alliance_cohesion",
+          "delta": "-8..-12"
+        },
+        {
+          "metric": "domestic_stability",
+          "delta": "-3..-5"
+        }
+      ]
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Inject;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "turn_005_missile_launch_detection",
+      "title": "MISSILE LAUNCH DETECTION - BALLISTIC TRAJECTORY",
+      "trigger": {
+        "type": "time"
+      },
+      "timing": {
+        "sceneRelative": 4,
+        "seconds": 0
+      },
+      "channel": "emergency",
+      "content": "=== EMERGENCY ALERT - HIGHEST PRIORITY ===\n\nPrime Minister, we have a FLASH message from RAF Fylingdales early warning radar.\n\nMISSILE LAUNCH DETECTED\n\nCDS (Urgent):\nPrime Minister, at 02:57 this morning, our ballistic missile early warning system \ndetected a launch from a Russian submarine in the Norwegian Sea. Initial trajectory \nanalysis indicates the missile is on a ballistic path that COULD intersect UK airspace.\n\nFlight time to potential UK impact: approximately 8-12 minutes from detection.\n\nCurrent assessment: SINGLE missile. Trajectory analysis ongoing.\n\nNSA:\nPrime Minister, this could be:\n1. An actual attack (nuclear or conventional warhead)\n2. A test launch designed to provoke a response\n3. A deliberate near-miss to demonstrate capability\n4. A technical malfunction\n\nWe have MINUTES to decide how to respond.\n\nCDS:\nPrime Minister, our options:\n\n1. HOLD FIRE - Wait for trajectory confirmation. If it's heading for UK territory, \n   we may have time for one Type-45 intercept attempt. If it's a near-miss or test, \n   we avoid escalation.\n\n2. DEFENSIVE INTERCEPT - Order Type-45 destroyers to engage if missile enters \n   UK territorial waters. This is purely defensive but uses our limited missile \n   inventory.\n\n3. IMMEDIATE RETALIATION - Authorize submarine-launched response against Russian \n   naval forces. This assumes hostile intent and commits us to military conflict.\n\nAttorney General:\nPrime Minister, under international law, we have the right to self-defence if we \nface imminent attack. However, a retaliatory strike before confirming hostile intent \ncould be legally and politically catastrophic.\n\nHome Secretary:\nPrime Minister, if this missile impacts UK territory, we need to activate emergency \ncivil defence protocols immediately. But if we do so now, we risk causing mass panic.\n\nNSA:\nPrime Minister, the next 5 minutes will determine whether we're at war.\n\n[UPDATED - 02:59]\n\nCDS:\nPrime Minister, updated trajectory analysis suggests the missile will impact in the \nNorth Sea, approximately 40 nautical miles east of Aberdeen. This appears to be a \nDELIBERATE near-miss - close enough to demonstrate capability, far enough to avoid \ndirect attack.\n\nThis is a message, Prime Minister. Russia is showing us they can strike whenever \nthey choose.\n\nHow do you respond?\n",
+      "targets": [
+        "Prime Minister"
+      ],
+      "effects": [
+        {
+          "metric": "escalation_risk",
+          "delta": "15..20"
+        },
+        {
+          "metric": "domestic_stability",
+          "delta": "-15..-20"
+        },
+        {
+          "metric": "alliance_cohesion",
+          "delta": "5..8"
+        }
+      ]
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:Inject;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "turn_006_us_demands_answers",
+      "title": "US Demands Coordination",
+      "trigger": {
+        "type": "time"
+      },
+      "timing": {
+        "sceneRelative": 5,
+        "seconds": 0
+      },
+      "channel": "briefing",
+      "content": "=== INTELLIGENCE UPDATE ===\n\nRussian naval forces have moved closer to UK territorial waters. Two additional\nSSBNs have been detected moving into firing positions. GCHQ intercepts suggest\nRussian military communications are at heightened alert levels.\n\nYour previous actions have raised concerns in Washington. The US National Security\nCouncil has been briefing the President on the UK situation, and there are questions\nabout whether the UK is coordinating adequately with NATO allies.\n\n* INCOMING SECURE CALL: US PRESIDENT *\n\nYour secure phone rings. It's the White House.\n",
+      "targets": [
+        "Prime Minister"
+      ],
+      "effects": [
+        {
+          "metric": "escalation_risk",
+          "delta": "8..12"
+        },
+        {
+          "metric": "domestic_stability",
+          "delta": "-2..-4"
+        }
+      ]
+    }
+  ]
+}

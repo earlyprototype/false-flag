@@ -29,6 +29,8 @@ EPHEMERAL_MANAGER_FIELDS = {
     "scenario_config",     # static scenario data, reloaded from disk
     "_resume_replay",        # derived by from_dict from world.phase
     "_last_pushback_costs",  # per-commit diagnostic; consumed same turn
+    "_phase_trace",          # run-capture diagnostic (interop phase_changed);
+                             # a restored session traces from restore onward
 }
 
 # DiplomaticEncounter attributes that are re-wired or re-derived on load.

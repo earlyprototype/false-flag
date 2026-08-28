@@ -1,0 +1,142 @@
+[
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
+    "@type": "Interface",
+    "displayName": "Adjudicated Decision",
+    "description": "Emergent-assessment profile: one free-form player decision and the referee's post-hoc adjudication of it. Replaces expected-vs-actual response comparison. Verdict values are False Flag's real quality vocabulary.",
+    "contents": [
+      { "@type": "Property", "name": "turn", "schema": "integer" },
+      { "@type": "Property", "name": "playerDecisionText", "schema": "string" },
+      {
+        "@type": "Property",
+        "name": "interpretation",
+        "description": "How the engine construed the free-text decision before adjudicating it.",
+        "schema": "string"
+      },
+      {
+        "@type": "Property",
+        "name": "qualityVerdict",
+        "schema": {
+          "@type": "Enum",
+          "valueSchema": "string",
+          "enumValues": [
+            { "name": "exceptional", "enumValue": "exceptional" },
+            { "name": "good", "enumValue": "good" },
+            { "name": "adequate", "enumValue": "adequate" },
+            { "name": "poor", "enumValue": "poor" },
+            { "name": "catastrophic", "enumValue": "catastrophic" }
+          ]
+        }
+      },
+      { "@type": "Property", "name": "reasoning", "schema": "string" },
+      {
+        "@type": "Property",
+        "name": "effects",
+        "description": "Adjudicated world-metric deltas (metric name to signed integer).",
+        "schema": {
+          "@type": "Map",
+          "mapKey": { "name": "metric", "schema": "string" },
+          "mapValue": { "name": "delta", "schema": "integer" }
+        }
+      },
+      {
+        "@type": "Property",
+        "name": "pushback",
+        "description": "Advisor objections raised against the decision before it was committed.",
+        "schema": {
+          "@type": "Array",
+          "elementSchema": {
+            "@type": "Object",
+            "fields": [
+              { "name": "role", "schema": "string" },
+              { "name": "concern", "schema": "string" }
+            ]
+          }
+        }
+      },
+      {
+        "@type": "Property",
+        "name": "criticalConcerns",
+        "schema": {
+          "@type": "Array",
+          "elementSchema": {
+            "@type": "Object",
+            "fields": [
+              { "name": "role", "schema": "string" },
+              { "name": "concern", "schema": "string" },
+              { "name": "recommendation", "schema": "string" }
+            ]
+          }
+        }
+      },
+      {
+        "@type": "Property",
+        "name": "overriddenObjectors",
+        "description": "Roles whose raised objection the player overrode unamended; overriding costs trust in the emergent model.",
+        "schema": { "@type": "Array", "elementSchema": "string" }
+      }
+    ]
+  },
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:falseflag:emergent:EventLedgerEntry;1",
+    "@type": "Interface",
+    "displayName": "Event Ledger Entry",
+    "description": "Emergent-assessment profile: campaign memory of one staged inject - how the thread was left, what it cost, who objected. Disposition values are False Flag's real ledger vocabulary.",
+    "contents": [
+      { "@type": "Property", "name": "turn", "schema": "integer" },
+      { "@type": "Property", "name": "title", "schema": "string" },
+      {
+        "@type": "Property",
+        "name": "disposition",
+        "schema": {
+          "@type": "Enum",
+          "valueSchema": "string",
+          "enumValues": [
+            { "name": "open", "enumValue": "open" },
+            { "name": "advanced", "enumValue": "advanced" },
+            { "name": "resolved", "enumValue": "resolved" }
+          ]
+        }
+      },
+      {
+        "@type": "Property",
+        "name": "note",
+        "description": "One line: what the player did about it.",
+        "schema": "string"
+      },
+      {
+        "@type": "Property",
+        "name": "outcome",
+        "description": "One sentence from the adjudication reasoning.",
+        "schema": "string"
+      },
+      {
+        "@type": "Property",
+        "name": "effectsDirection",
+        "schema": {
+          "@type": "Map",
+          "mapKey": { "name": "metric", "schema": "string" },
+          "mapValue": {
+            "name": "direction",
+            "schema": {
+              "@type": "Enum",
+              "valueSchema": "string",
+              "enumValues": [
+                { "name": "up", "enumValue": "up" },
+                { "name": "down", "enumValue": "down" },
+                { "name": "steady", "enumValue": "steady" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "@type": "Property",
+        "name": "objectors",
+        "schema": { "@type": "Array", "elementSchema": "string" }
+      }
+    ]
+  }
+]

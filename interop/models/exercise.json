@@ -1,0 +1,157 @@
+[
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:falseflag:Exercise;1",
+    "@type": "Interface",
+    "displayName": "Exercise",
+    "description": "Top-level container for a simulation exercise: metadata, pedagogy (optional), timeline, participants. Corresponds to the reference platform's published 'Exercise' concept.",
+    "contents": [
+      {
+        "@type": "Property",
+        "name": "metadata",
+        "description": "Name, type, duration (platform writeup); participants/sector/deployment sub-fields observed in the exercise-platform reference docs.",
+        "schema": {
+          "@type": "Object",
+          "fields": [
+            { "name": "name", "schema": "string" },
+            {
+              "name": "type",
+              "schema": {
+                "@type": "Enum",
+                "valueSchema": "string",
+                "enumValues": [
+                  { "name": "tabletop", "enumValue": "tabletop" },
+                  { "name": "drill", "enumValue": "drill" },
+                  { "name": "fullScale", "enumValue": "full-scale" }
+                ]
+              }
+            },
+            { "name": "description", "schema": "string" },
+            {
+              "name": "duration",
+              "schema": {
+                "@type": "Object",
+                "fields": [
+                  { "name": "hours", "schema": "double" },
+                  { "name": "minutes", "schema": "double" },
+                  { "name": "seconds", "schema": "double" }
+                ]
+              }
+            },
+            {
+              "name": "participants",
+              "schema": {
+                "@type": "Object",
+                "fields": [
+                  { "name": "total", "schema": "integer" },
+                  { "name": "max", "schema": "integer" }
+                ]
+              }
+            },
+            { "name": "sector", "schema": "string" },
+            { "name": "deployment", "schema": "string" },
+            { "name": "startDate", "schema": "date" },
+            { "name": "startTime", "schema": "string" }
+          ]
+        }
+      },
+      {
+        "@type": "Property",
+        "name": "assessment",
+        "description": "Assessment half of the pedagogical framework. Optional by design in this profile: False Flag adjudicates emergently rather than against declared criteria.",
+        "schema": {
+          "@type": "Object",
+          "fields": [
+            { "name": "taxonomy", "schema": "string" },
+            { "name": "methods", "schema": { "@type": "Array", "elementSchema": "string" } },
+            { "name": "competencies", "schema": { "@type": "Array", "elementSchema": "string" } }
+          ]
+        }
+      },
+      {
+        "@type": "Relationship",
+        "name": "learningObjectives",
+        "target": "dtmi:falseflag:LearningObjective;1",
+        "description": "Objectives half of the pedagogical framework. Optional by design in this profile."
+      },
+      {
+        "@type": "Relationship",
+        "name": "timeline",
+        "target": "dtmi:falseflag:Timeline;1",
+        "maxMultiplicity": 1
+      },
+      {
+        "@type": "Relationship",
+        "name": "worldReference",
+        "target": "dtmi:falseflag:WorldReference;1",
+        "maxMultiplicity": 1
+      },
+      {
+        "@type": "Relationship",
+        "name": "roles",
+        "target": "dtmi:falseflag:Role;1"
+      },
+      {
+        "@type": "Relationship",
+        "name": "participants",
+        "target": "dtmi:falseflag:Participant;1"
+      },
+      {
+        "@type": "Relationship",
+        "name": "injects",
+        "target": "dtmi:falseflag:Inject;1",
+        "description": "Inject inventory of the exercise; placement on the timeline is expressed by each inject's timing property."
+      }
+    ]
+  },
+  {
+    "@context": "dtmi:dtdl:context;3",
+    "@id": "dtmi:falseflag:LearningObjective;1",
+    "@type": "Interface",
+    "displayName": "Learning Objective",
+    "description": "One pedagogical objective. Field names follow the exercise-platform reference docs (statement, taxonomyLevel, assessmentCriteria, roles).",
+    "contents": [
+      { "@type": "Property", "name": "statement", "schema": "string" },
+      {
+        "@type": "Property",
+        "name": "taxonomyLevel",
+        "schema": {
+          "@type": "Enum",
+          "valueSchema": "string",
+          "enumValues": [
+            { "name": "remember", "enumValue": "remember" },
+            { "name": "understand", "enumValue": "understand" },
+            { "name": "apply", "enumValue": "apply" },
+            { "name": "analyse", "enumValue": "analyse" },
+            { "name": "evaluate", "enumValue": "evaluate" },
+            { "name": "create", "enumValue": "create" }
+          ]
+        }
+      },
+      {
+        "@type": "Property",
+        "name": "assessmentMethod",
+        "schema": {
+          "@type": "Enum",
+          "valueSchema": "string",
+          "enumValues": [
+            { "name": "knowledgeCheck", "enumValue": "knowledge-check" },
+            { "name": "observation", "enumValue": "observation" },
+            { "name": "documentation", "enumValue": "documentation" },
+            { "name": "debrief", "enumValue": "debrief" }
+          ]
+        }
+      },
+      {
+        "@type": "Property",
+        "name": "assessmentCriteria",
+        "schema": { "@type": "Array", "elementSchema": "string" }
+      },
+      {
+        "@type": "Property",
+        "name": "roles",
+        "schema": { "@type": "Array", "elementSchema": "string" }
+      }
+    ]
+  }
+]
