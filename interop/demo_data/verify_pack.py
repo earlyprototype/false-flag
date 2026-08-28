@@ -67,7 +67,8 @@ def main():
     for packed, raw in zip(pack["decisions"], run_telemetry["decisions"]):
         ok(packed["effects"] == raw["effects"],
            f"decision t{raw['turn']} effects diverge from run_telemetry")
-        ok(packed["qualityVerdict"] == raw["qualityVerdict"] is not None,
+        ok(raw["qualityVerdict"] is not None
+           and packed["qualityVerdict"] == raw["qualityVerdict"],
            f"decision t{raw['turn']} quality verdict missing or diverged")
         ok(packed["playerDecisionText"] == raw["playerDecisionText"],
            f"decision t{raw['turn']} player text diverged")
