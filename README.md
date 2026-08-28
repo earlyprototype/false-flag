@@ -274,6 +274,27 @@ false-flag/
 .\.venv\Scripts\python.exe -m ruff check .
 ```
 
+## The Live Control Surface
+
+A FastAPI server exposes the engine for facilitators and observers:
+
+```bash
+pip install -r requirements.txt -r api/requirements.txt
+python -m uvicorn api.server:app --port 8000
+```
+
+- **`/dataflow`** — the engine's call graph as an operable schema. A game-type
+  selector dims paths a mode never exercises; every LLM node opens live
+  reroute and prompt hot-edit controls that bite on the very next call;
+  **▶ Walkthrough** steps one turn hop by hop; **◇ DTDL** overlays the twin
+  model — each node badged with its DTDL interface, honest gaps dashed with
+  reasons, live telemetry values while a session streams.
+- **`/dashboard`** — observability panels: layer-tagged event ledger, metric
+  traces, LLM call feed, reroute matrix, inject console, prompt editor.
+
+Free exploration: click **All → mock** before **Start live demo** — the whole
+loop runs on the deterministic mock driver and spends no API credit.
+
 ## Further Documentation
 
 - **[GAME_DESCRIPTION.md](GAME_DESCRIPTION.md)**: Full premise, characters, and the world behind the crisis
@@ -282,6 +303,7 @@ false-flag/
 - **[Nuclear Command Chain](docs/handover/NUCLEAR_COMMAND_CHAIN_SYSTEM.md)**: Nuclear authority, consequences, and escalation control
 - **[Dynamic Narrative System](docs/handover/DYNAMIC_NARRATIVE_SYSTEM.md)**: The hidden-narrative engine driving emergent storytelling
 - **Engineering audit trail**: [audits/](audits/) — the engineering-review (ER) register, measurement runs, and handover notes; check here for known issues and prior investigations
+- **[DTDL twin model](interop/README.md)**: False Flag's exercise domain in DTDL v3 — model set, exporter, validators, and how it renders on the dataflow page
 
 ## Credits
 
