@@ -110,17 +110,21 @@ Accepted limits: the globe is a monoscopic picture — no stereoscopic terrain, 
 
 ## 7. Roadmap — two tracks, one gate, explicit cut lines
 
-**The 15-day competition sprint (dates landed 2026-08-28: onsite 12 Sep, final 14 Sep).** The full program below remains the honest map; what fits before the onsite, in cut-line order, is:
+**The competition sprint, as milestones (dates landed 2026-08-28: onsite 12 Sep at IMR, final 14 Sep).** Time estimates are deliberately not the unit — LLM-assisted builds routinely beat them, so the plan is named endpoints with decision points instead. Each milestone has a KEY exit (the full win) and an ACCEPTABLE exit (still demo-worthy). Visual version with the full component map: [`XR_GLOBE_COMPONENT_MAP.md`](XR_GLOBE_COMPONENT_MAP.md).
 
-| Days | Work | Notes |
+| Milestone | KEY exit | ACCEPTABLE exit |
 |---|---|---|
-| 1–2 | Phase-0 spike + the #65/#66 merge decision | Everything stacks on the merge; decide now |
-| 2–7 | **B1 — the zero-LLM truth map** | Highest demo-value week in the plan: the fleet visibly closing on the GIUK gap from real engine state, deterministic, $0 |
-| 6–11 | Reduced A1: fan-out + `/geo/stream`, globe polish, sensor ladder, watermark, **`Theatre;1` sidecar + DTMI badges** (promoted — IMR venue resonance) | |
-| 11–13 | Demo hardening: runbook, localhost/proxy, mock attract loop, one hardcoded GIUK tripwire if ahead, **pre-recorded video fallback (mandatory — the final is 2 days after the onsite)** | |
-| Deferred | B2 movement call (first stretch if ahead), full tripwire engine, fog, VR — the projector wall is the shown XR artifact; the ops room is a one-slide vision backed by the verified §6 path | |
+| **M0 · First Light** (the Phase-0 spike) | Globe attached to a live demo session: entities + one sensor shader on the projector | Static ORBAT plotted, no stream |
+| → **D0 · Commit decision** — the only abort point; the #65/#66 merge decision is made here too. Proceed, or fall back to the dashboard/dataflow demo story. | | |
+| **M1 · The Fleet Moves** (zero-LLM truth map) | Mock campaign with the red fleet advancing per turn from engine state; saves round-trip; suite green; bundle rebuilt | Hydrated static positions rendered from typed state |
+| → **D1 · Schedule check** — on schedule → M2; behind → straight to M3 (standards chrome is droppable; a safe demo is not). Manus-renewal decision also lands here. | | |
+| **M2 · Standards on the Glass** | `Theatre;1` served at `/dtdl`, live DTMI badges over the moving map, parser re-run clean | Sidecar served, badges static |
+| **M3 · Show-Safe** *(non-negotiable)* | Runbook · one-stream rule · localhost/proxy stance · attract loop tuned · cold-restart drill rehearsed · **recorded video fallback in hand** (the final is 2 days after the onsite) | — no acceptable-lite version exists |
+| → **D2 · Stretch gate** — attempt M4 only if M3 is done with ≥3 clear days to the onsite; otherwise it pauses cleanly. | | |
+| **M4 · The Cabinet Orders the Map** *(stretch)* | MOVEMENT call live end-to-end + the one deliberate re-golden commit | Orders parsed from injects only (no LLM call) |
+| **M5 · Post-competition** | Tripwire engine · fog/ISR · truth-fed daemon · VR ops room (S1 → Quest spike → S2/S3) | — |
 
-Parallel (Manus, ~20k credits ≈ $100 of agent compute; ~200–500 credits per research task): gazetteer QA dossier with sources · public platform-figures dossier for the range rings (with fictional-doctrine flags) · IMR/judge brief · rubric/logistics hunt · one-pager, deck draft, demo-video storyboard. **Manus stays off the branch** — data and collateral in, never code (golden-file determinism, re-golden discipline, and the 712-test suite make a second autonomous agent in the repo churn, not progress); and no API keys into its sandbox.
+Parallel at all times, off-branch: the **Manus queue** — role, boundaries, priority order, and ready-to-paste task briefs in [`MANUS_TASKS.md`](MANUS_TASKS.md). Credit state 60.9k as of 28 Aug with the subscription lapsing Sunday 30 Aug: **front-load the P1 tasks (gazetteer QA, IMR brief, rubric hunt) before Sunday**; renewal is decided at D1 on demonstrated usefulness, never by sacrificing quality to the budget.
 
 **Phase 0 spike stays the commitment gate** (1 day: `globe.html` against a demo session, hardcoded gazetteer, one shader — proves the projector wow-shot before any server change). The full-program map:
 
