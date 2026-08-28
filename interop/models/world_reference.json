@@ -3,7 +3,7 @@
   "@id": "dtmi:falseflag:WorldReference;1",
   "@type": "Interface",
   "displayName": "World Reference",
-  "description": "Operational context: geographic location, organisational structures, risk profiles, environmental factors (SEDL post). Free-field names follow the exercise-platform reference docs.",
+  "description": "Operational context: geographic location, organisational structures, risk profiles, environmental factors (platform writeup). Free-field names follow the exercise-platform reference docs.",
   "contents": [
     { "@type": "Property", "name": "location", "schema": "string" },
     { "@type": "Property", "name": "context", "schema": "string" },

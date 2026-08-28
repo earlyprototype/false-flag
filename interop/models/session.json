@@ -3,7 +3,7 @@
   "@id": "dtmi:falseflag:emergent:Session;1",
   "@type": "Interface",
   "displayName": "Session",
-  "description": "One run of an exercise. DTDL Telemetry models the runtime data stream (SEDL post assigns Telemetry that role); metric telemetry names are False Flag's real metric identifiers. Part of the emergent-assessment profile.",
+  "description": "One run of an exercise. DTDL Telemetry models the runtime data stream (the reference platform's writeup assigns Telemetry that role); metric telemetry names are False Flag's real metric identifiers. Part of the emergent-assessment profile.",
   "contents": [
     { "@type": "Property", "name": "startedAt", "schema": "dateTime" },
     { "@type": "Property", "name": "endedAt", "schema": "dateTime" },
