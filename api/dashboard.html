@@ -139,7 +139,7 @@
 <header>
   <div class="brand">
     <h1>FALSE FLAG · FACILITATOR DASHBOARD</h1>
-    <small>Layer-tagged event bus · EXCON control surface</small>
+    <small>Watch a session live, and step in when you need to</small>
   </div>
   <div class="sess">
     <button id="btnNew" class="primary" title="POST /game/new with facilitator:true">New facilitator session</button>
@@ -162,22 +162,19 @@
 <main>
   <!-- ============ LEDGER ============ -->
   <section class="tall">
-    <h2>Event ledger — six layers, newest first</h2>
+    <h2>Event ledger — everything happening, newest first</h2>
     <div class="body">
-      <p class="note">Every event is stamped at the bus with turn, T+ and one of six
-        layers (SITREP / INTEL / DIPLOMATIC / DOMESTIC / CABINET / REFEREE).
-        Inject channels observed in the wild — <code>briefing</code>,
-        <code>intelligence</code>, <code>emergency</code>, <code>flash_alert</code>,
-        <code>diplomatic</code>, <code>media</code>, <code>military</code> — map onto
-        those layers. REFEREE rows arrive only on facilitator sessions; a player
-        stream has them filtered server-side.</p>
+      <p class="note">A live feed of the session, colour-coded by category:
+        situation reports, intelligence, diplomatic, domestic news, cabinet-only,
+        and referee notes. Referee notes are for you only — a player never
+        sees them.</p>
       <div id="ledger"></div>
     </div>
   </section>
 
   <!-- ============ METRICS ============ -->
   <section>
-    <h2>Metric traces — hidden gauges (0–100) per turn</h2>
+    <h2>The hidden numbers — driving the story, turn by turn</h2>
     <div class="chartwrap"><svg id="chartMetrics" width="100%" height="170" viewBox="0 0 460 170" preserveAspectRatio="none"></svg></div>
     <div class="serieslabel">
       <span><span class="dot" style="background:var(--referee)"></span>escalation_risk</span>
@@ -194,21 +191,23 @@
 
   <!-- ============ LLM CALLS ============ -->
   <section>
-    <h2>LLM calls — live relay (REFEREE layer)</h2>
+    <h2>AI activity — every request as it happens</h2>
     <div class="body">
-      <p class="note">One card per router dispatch: family · tier · provider/model ·
-        latency · fallback flag. Prompt and reply bodies never cross the wire.</p>
+      <p class="note">One line per question sent to the AI: what kind of question,
+        which model answered, how long it took, and whether it had to fall back to
+        a backup. The actual questions and answers stay private — just the
+        plumbing shows here.</p>
       <div id="calls"></div>
     </div>
   </section>
 
   <!-- ============ ROUTING ============ -->
   <section>
-    <h2>Reroute matrix — 12 LLM contexts</h2>
+    <h2>Choose the AI model — for each kind of question</h2>
     <div class="body">
-      <p class="note">Runtime override per context: pin a tier, a provider, or an
-        exact model. Rows with an active override are marked. Applies to the next
-        call of that family, process-wide.</p>
+      <p class="note">Every kind of question the game asks the AI, in one table.
+        Pick a different model, provider, or an exact one to use instead — rows
+        you've changed are marked. Takes effect on whatever's asked next.</p>
       <div id="routingStatus" class="status"></div>
       <table id="routingTable">
         <thead><tr><th>context</th><th>effective</th><th>tier</th><th>model</th><th></th></tr></thead>
@@ -219,7 +218,7 @@
 
   <!-- ============ INJECT CONSOLE ============ -->
   <section>
-    <h2>Inject console — fire an event into the session</h2>
+    <h2>Send a news event into the session</h2>
     <div class="body">
       <form class="stack" id="injectForm">
         <div class="row">
@@ -253,7 +252,7 @@
 
   <!-- ============ PROMPT EDITOR ============ -->
   <section>
-    <h2>Prompt hot-edit — instruction templates</h2>
+    <h2>Edit what the AI is told</h2>
     <div class="body">
       <form class="stack" id="promptForm">
         <div class="row">
@@ -274,14 +273,12 @@
 
   <!-- ============ DTDL TWIN MODEL ============ -->
   <section>
-    <h2>Twin model — False Flag in DTDL</h2>
+    <h2>How this compares to industry-standard exercise software</h2>
     <div class="body">
-      <p class="note">The engine's exercise domain as 13 DTDL v3 interfaces
-        (<span class="mono">dtmi:falseflag</span>), validated with Microsoft's
-        official DTDLParser. The Session;1 telemetry table tracks this live
-        session — values come only from the stream, never invented. The full
-        model — every node badged, raw DTDL, captured instances — is the
-        <a href="/dataflow">data-flow page</a>'s ◇ DTDL mode.</p>
+      <p class="note">The table below shows real, live numbers from this session —
+        nothing here is guessed or made up. For the full picture (every part of
+        the engine matched up, one by one), see the
+        <a href="/dataflow">engine map</a>'s ◇ DTDL button.</p>
       <div id="dtdlTelemetry"></div>
       <div id="dtdlIfaces"></div>
       <div id="dtdlStatus" class="status"></div>
@@ -651,7 +648,7 @@ function renderDtdlLive() {
       `<td>${live}</td><td class="note">${esc(desc)}</td></tr>`;
   }).join("");
   $("dtdlTelemetry").innerHTML =
-    `<table><thead><tr><th>Session;1 telemetry</th><th>live</th><th></th></tr></thead>` +
+    `<table><thead><tr><th>what's tracked</th><th>live</th><th></th></tr></thead>` +
     `<tbody>${rows}</tbody></table>`;
 }
 
@@ -664,15 +661,15 @@ async function loadDtdl() {
       .filter(c => kindOf(c) === "Telemetry");
     renderDtdlLive();
     $("dtdlIfaces").innerHTML =
-      "<table><thead><tr><th>interface</th><th></th></tr></thead><tbody>" +
+      "<table><thead><tr><th>concept</th><th></th></tr></thead><tbody>" +
       d.interfaces.map(i => {
         const desc = typeof i.description === "string" ? i.description : "";
         return `<tr><td class="mono">${esc(String(i["@id"]).replace("dtmi:falseflag:", ""))}</td>` +
           `<td class="note">${esc(desc)}</td></tr>`;
       }).join("") + "</tbody></table>";
     setStatus("dtdlStatus",
-      `${d.counts.Interface} interfaces · ${d.counts.Property} properties · ` +
-      `${d.counts.Relationship} relationships · ${d.counts.Telemetry} telemetry`, true);
+      `${d.counts.Interface} concepts modelled · ${d.counts.Property} fields · ` +
+      `${d.counts.Relationship} links · ${d.counts.Telemetry} live measurements`, true);
   } catch (err) { setStatus("dtdlStatus", err.message, false); }
 }
 

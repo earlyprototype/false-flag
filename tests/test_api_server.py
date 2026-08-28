@@ -433,7 +433,7 @@ def test_dashboard_page_serves_the_twin_model_panel(client):
     response = client.get("/dashboard")
     assert response.status_code == 200
     body = response.text
-    assert "Twin model" in body
+    assert "industry-standard exercise software" in body
     assert "dtdlTelemetry" in body and "dtdlIfaces" in body
     assert '"/dtdl"' in body or "'/dtdl'" in body
     assert "/dataflow" in body  # links to the full ◇ DTDL view
