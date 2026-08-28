@@ -162,7 +162,7 @@ Mechanics the tree encodes: the boardroom and S1 screen are one build (the room 
 
 ## 5 · Milestones — build contents and exit tests
 
-*Node line 1 = what gets built. Node line 2 (EXIT) = the observable fact that ends the stage. Full spec: [study §7](XR_GLOBE_FEASIBILITY.md#7-the-plan--milestones-as-build-contents-and-exit-tests).*
+*This diagram is a picture of the plan, not the plan itself. The plan — with per-stage status, build checklists and done tests — is **[`PLAN.md`](../PLAN.md)** at the repository root; update it there, redraw here. Node line 1 = what gets built; node line 2 (EXIT) = the observable fact that ends the stage.*
 
 ```mermaid
 flowchart TD

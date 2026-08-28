@@ -112,34 +112,11 @@ Accepted limits: the globe is a monoscopic picture — no stereoscopic terrain, 
 
 ---
 
-## 7. The plan — milestones as build contents and exit tests
+## 7. The plan
 
-Dates: challenge started 28 Aug; onsite 12 Sep at IMR; final 14 Sep. Gates: **D0b** — the owner's "go", authorizing M0 (nothing is built yet); **D1** — schedule check after M1 (behind → skip M2, go to M3; standards chrome is droppable, a rehearsed demo is not); **D2** — schedule gate for M4 (build only with M3 complete and ≥3 clear days to the onsite; the *design* decision is already made — issue #71, closed: orders on). Every stage ships runnable on its own; the cut order under pressure is M5 → M4 → M2.
+**The plan is not in this document.** It lives at the repository root in **[`PLAN.md`](../PLAN.md)** — five stages, each with its build checklist, its done test (an observable fact), and its current status. That file is the single source; this study is the evidence behind it (why each choice, what was verified, what was rejected).
 
-**M0 · First Light** *(~1 day; consumes D0b)*
-Build: `api/globe.html` served at `GET /globe` by FileResponse (the `dashboard.html` pattern); CesiumJS; ~10 hardcoded gazetteer entries; one call to `GET /game/{id}/resources` plotting every unit at its base; attach to a live demo session's event stream (one consumer — the single-consumer queue defect is not yet fixed); one vendored sensor shader; diegetic EXERCISE chrome.
-Exit test: on the projector, a running demo session shows every unit of the order of battle plotted at its named location, and an incoming `state_update` event visibly changes the display within one turn.
-
-**M1 · The Fleet Moves** *(~1 wk)*
-Build: `models/spatial.py` (`UnitTrack`, `MovementOrder`, `SpatialState` incl. `order_log` and `fired_tripwires`); `gazetteer.yaml` (~30 sourced entries — location per issue #72); `engine/kinematics.py` (pure `advance(dt)` along authored route polylines, per-domain speed tables, zero RNG); state hydration at init and load; red doctrine route legs; `resolve_decision` advances positions once per turn and publishes a `SpatialSnapshot`; save version 2.4→2.5; play-bundle rebuild; tests: kinematics units, save→load→resume equality on positions/`order_log`/latches, gazetteer covers every unit location.
-Exit test: in a live campaign the red group's stored positions advance each turn along the authored route; save at turn 3 → load → positions byte-identical; suite at its 712-passed baseline.
-
-**M2 · Standards on the Glass** *(~1 wk)*
-Build: `interop/models/theatre.json` — `Theatre;1` + `TheatreAsset;1` (position telemetry + source-label field) as sidecar files, published versions untouched; Microsoft DTDLParser re-run with output committed; `GET /theatre` versioned snapshot endpoint (ETag); per-subscriber fan-out on the session bus with per-subscriber payload copies; globe reads `/theatre` + SSE nudge; DTMI badges bound to `/dtdl`.
-Exit test: two browser clients on one session each receive every event (fan-out defect fixed); parser reports PARSE OK with the new interface count; badges display live DTMIs over the moving map.
-
-**M3 · Show-Safe** *(~3–4 days; non-negotiable before the onsite)*
-Live-first posture — this hardens the real path, it is not a retreat to a simulated mode: written start sequence; restart drill measured under 60 s; localhost binding + authenticated proxy for anything networked; two timed projector rehearsals of the actual demo; the unattended booth-loop configuration decided *at rehearsal* as an explicit labeled choice, never a silent default; if issue #76 (real-email artifact) is in, a deliverability rehearsal; one film recorded from a real run (hardware-catastrophe contingency only — owner-ruled keep).
-Exit test: one full rehearsal executed to the written sequence with zero operator improvisation; the film file exists.
-
-**M4 · The Cabinet Orders the Map** *(~1 wk; behind D2)*
-Build: `MOVEMENT` LLM call family (derived `crc32` seed — no master-RNG draw); prompt + parser (labelled lines, ≤8 orders, terminal sentinel, whole-block discard when truncated); validation against the unit registry + gazetteer + per-unit mission legality graph; hold-on-failure with a player-visible transcript line; mock driver answers `NO_ORDERS`; inject `movements:` list parsing; spatial context block appended to the deciding calls, player-facing calls receiving the estimates rendering only; one deliberate golden-test re-baseline commit.
-Exit test: a committed decision naming a movement produces the matching entry in `order_log` and the position updates next turn; a deliberately garbled reply produces zero orders plus the visible note; goldens re-baselined exactly once.
-
-**M5 · Post-competition tier** *(each independently buildable)*
-Tripwire engine (declarative predicates evaluated at the top of `get_turn_briefing`; `PlayedEvent.kind`); fog/`intel_picture` (staleness-radius model, derived-seed noise); snapshot-fed interpolation daemon + `/geo/stream`; live-hybrid mode per issue #77 (zone boundary, environment-fact ingestion); real-email artifact per #76 if not taken at M3; VR ops room (S1 portable screen → Quest on-device spike → S2 or S3 by its result).
-
-Parallel throughout, off-branch: the Manus research queue — briefs and boundaries in [issue #70](https://github.com/earlyprototype/false-flag/issues/70); credits durable, ordering build-dependency-driven (gazetteer verification feeds M1).
+Dates: challenge started 28 Aug 2026 · onsite 12 Sep at IMR · final 14 Sep. Cut order under pressure: post-competition tier → stage 5 → stage 3. The gates are schedule instruments only — no design questions remain inside them ([#71](https://github.com/earlyprototype/false-flag/issues/71), the movement-architecture decision, is closed: orders on).
 
 ## 8. Engagement & playability
 
