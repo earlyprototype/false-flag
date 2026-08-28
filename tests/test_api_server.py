@@ -425,3 +425,15 @@ def test_dtdl_degrades_to_empty_set_when_models_are_absent(client, tmp_path, mon
     response = client.get("/dtdl")
     assert response.status_code == 200
     assert response.json()["counts"]["Interface"] == 0
+
+
+def test_dashboard_page_serves_the_twin_model_panel(client):
+    """The facilitator dashboard carries the DTDL panel: Session;1 telemetry
+    table wired to the live stream, interface list, /dtdl fetch."""
+    response = client.get("/dashboard")
+    assert response.status_code == 200
+    body = response.text
+    assert "DTDL Dashboard" in body
+    assert "dtdlTelemetry" in body and "dtdlIfaces" in body
+    assert '"/dtdl"' in body or "'/dtdl'" in body
+    assert "/dataflow" in body  # links to the full ◇ DTDL view
