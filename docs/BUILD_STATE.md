@@ -9,9 +9,9 @@
 - **Decisions recorded**: build-what's-needed framing · ops-room VR thesis · lo-fi cast/hyper-real globe · design-paced between-turn holds · dates: onsite 12 Sep at IMR, final 14 Sep · #65/#66 merged (the merge half of D0 — the commit-to-build decision gate — is done) · Manus credits (60.9k) durable, off-branch role only.
 - **D0's build half — the "go": the owner's authorization to start writing this project's first code — is NOT yet taken**: the owner chose "merge, then take stock before building." No implementation code exists yet — docs only.
 
-## The plan (short form — the mechanical milestone spec with build contents and exit tests is study §7 on PR #67)
+## The plan
 
-M0 First Light (globe page plots the order of battle from a live demo session on the projector; consumes the owner's "go" — first code of the project) → D1 schedule check → M1 The Fleet Moves (typed position records + kinematics along authored routes; exit: red group advances each turn, save→load positions identical, suite at baseline) → M2 Standards on the Glass (Theatre;1/TheatreAsset;1 sidecars + parser re-run + /theatre endpoint + bus fan-out fix; exit: two clients each receive every event, badges live) → M3 Show-Safe (live-path rehearsal hardening; exit: one rehearsal to the written sequence, film recorded) → D2 schedule gate → M4 The Cabinet Orders the Map (MOVEMENT call — design decided, #71 closed: orders on; exit: a decision naming a movement lands in order_log and moves the unit; garbled reply → zero orders + visible note) → M5 post-competition tier (tripwires, fog, daemon, live-hybrid #77, email #76, VR ops room).
+Canonical, with per-stage status and done tests: **[PLAN.md](../PLAN.md)** at the repository root. Do not restate the plan here — update PLAN.md and link to it.
 
 ## Immediate next actions (in order)
 
