@@ -41,3 +41,23 @@ Read, in order: this file → `XR_GLOBE_COMPONENT_MAP.md` (visual) → `XR_GLOBE
 ## Planned DTDL additions (documented now, built at milestone M2)
 
 The digital-twin model on `main` (13 interfaces) is not modified; new capability lands as versioned sidecar interface files auto-served by `/dtdl`. Planned: `Theatre;1` (one per session, relating the session to its map entities) and `TheatreAsset;1` (one per unit; position record as telemetry with a source label: adjudicated / simulated / estimated) — both already proven to parse clean in Microsoft's official DTDLParser (study claim 6; re-run the validator when the files land). Existing slots reused rather than extended: `WorldReference.environmentalFactors` carries live-derived environment facts (issue [#77](https://github.com/earlyprototype/false-flag/issues/77)), and the `Inject` channel/targets already describe the real-email delivery (issue [#76](https://github.com/earlyprototype/false-flag/issues/76)). Published interface versions are never edited in place.
+
+## End of session, 2026-08-28 (night) — accurate state at pause
+
+**Where the plan lives now**: `PLAN.md` at the repository root is canonical — five stages, build checklists, done tests, status table, gates, cut order. README links it from the top. The owner's brief, this file, the study (§7) and the component map (§5) all point at it; none of them restate it. **Update PLAN.md first, always.**
+
+**Repository state**
+- `main`: carries the full DTDL twin surface (PRs #65/#66/#68 merged) — `/dtdl`, the dataflow DTDL mode, the dashboard twin panel. No Situation Globe code exists yet.
+- PR #67 (`claude/vr-game-xr-simulation-feasibility-gomu1j`) — feasibility record: study v2, plain-language in-brief, component map (5 diagrams), discards register, raw audit output. Green, mergeable, draft.
+- PR #69 (`claude/xr-globe-planning`) — plan and planning docs: `PLAN.md`, README pointer, owner's brief, decision briefs, this file. Green, mergeable, marked ready for review. **Merging #69 puts PLAN.md on `main`** — the one action that makes the plan available repo-wide.
+
+**Decisions and rulings recorded tonight**
+- #71 **closed**: the AI's movement orders may move forces (validated order channel; failure holds position). Design settled; only scheduling decides when it is built (stage 5).
+- #77: live-hybrid seam confirmed as the design — per-layer real/simulated split, game reads live-derived facts as context and never as state; **boundary is spatial (a zone), never text labels**; fog carries it.
+- **Live-first build posture**: the demo runs the real system; simulated modes are CI fixtures only, never a runtime the build retreats to. Non-determinism of play is the project thesis, not a cost. Recorded demo film kept, for hardware failure only.
+- #76: real-email inject artifact, MVP-worthy.
+- Language rule: mechanical statements of what/how/why. No metaphor ("truth", "lie") anywhere in project docs.
+
+**Open, none blocking**: decisions #72 (data-file location), #73 (demo campaign cut), #74 (default visual register), #75 (Quest availability — §4 of the component map is drawn assuming yes, pending confirmation). Manus research queue #70 unfired. Nothing is built: **stage 1 needs the owner's "go"**.
+
+**Known stale**: the claude.ai artifact page predates the plan rework; refresh or retire it. The repository is the memory.
