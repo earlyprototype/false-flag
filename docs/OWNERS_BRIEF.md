@@ -24,15 +24,38 @@ Right now, between turns, the game goes quiet — the cabinet argues, and nothin
 
 *(Deep: [study, Track B — the full spec](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_FEASIBILITY.md#4a-track-b--the-authoritative-spatial-layer) · [map, diagram 2 — the order pipeline](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_COMPONENT_MAP.md#2--track-b-mechanism--how-a-position-gets-written-and-why-no-failure-path-can-write-an-invented-one) · the save-file and turn-timing behaviour were verified by running the real engine code — [findings 9 & 10](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_FEASIBILITY_IN_BRIEF.md).)*
 
-## The plan, as five moments
+## The plan — what gets built, and what tells you it's done
 
-1. **First Light** — the first working version of the map page: units from the game's force list plotted on the satellite Earth, attached to a running demo game, on the projector. *(Needs nothing but "go" — the owner's authorization to start writing this project's first code; nothing is built yet.)*
-2. **The Fleet Moves** — the position system above, minus any AI: authored routes only. The red fleet advances turn by turn; save/load keeps working. Zero running cost.
-3. **Standards on the Glass** — small live badges show the map is reading the game's Microsoft-validated digital-twin model — the moment built for the IMR room. *(Deep: [finding 6](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_FEASIBILITY_IN_BRIEF.md).)*
-4. **Show-Safe** — rehearsed run-sheet, self-playing attract mode, restart drill, and a recorded film of the demo as the fail-safe.
-5. **(Stretch, gated by decision [#71](https://github.com/earlyprototype/false-flag/issues/71) — the should-the-AI's-orders-move-your-forces question above)** **The Cabinet Orders the Map** — the AI order channel above goes live: you type "surge the carrier group north" and the ships obey.
+Five stages. Each one is usable on its own, so stopping after any of them still leaves you something to show. Every stage names the thing that gets built and the thing you can *watch happen* that proves it works. Full engineering detail: [study §7](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_FEASIBILITY.md#7-the-plan--milestones-as-build-contents-and-exit-tests); the same five as a diagram: [component map §5](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_COMPONENT_MAP.md#5--milestones--build-contents-and-exit-tests).
 
-*(Milestones with their decision gates, visually: [map, diagram 5](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_COMPONENT_MAP.md#5--milestones-and-decision-points-replaces-day-counting).)*
+**1 · First Light** *(about a day)*
+Built: a single new web page the game server hands out at `/globe`, drawing the satellite Earth; a starter list of about ten places with their coordinates; the page reads the game's existing force list and puts every unit on the map at its base; it listens to a running game's live event feed; one sensor filter; the EXERCISE marking.
+Done when: on the projector, every unit in the order of battle sits at its real location, and something happening in the game visibly changes the display.
+*Needs: your "go" — authorization to write this project's first code. Nothing is built yet.*
+
+**2 · The Fleet Moves** *(about a week)*
+Built: the position record per unit; the ~30-place coordinate table, checked against sources; the movement arithmetic that walks each unit along its route; the red fleet's authored routes; the once-per-turn update when a turn resolves; save-file version bump and the packaging rebuild that must follow it; tests.
+Done when: in a real campaign the red fleet advances every turn along its route; you save at turn three, reload, and the positions come back identical; the existing test suite still passes in full.
+*No AI involved in this stage at all. Costs nothing to run.*
+
+**3 · Standards on the Glass** *(about a week)*
+Built: two new digital-twin description files (one per session, one per unit) added alongside the thirteen already merged — never editing those; Microsoft's validator re-run and its output committed; a state endpoint the map reads; the fix that lets more than one screen watch a game at once; live model badges on the map.
+Done when: two browsers watching the same game each get every update (today one steals from the other); Microsoft's validator reports a clean parse; the badges show live model identifiers over a moving map.
+*This is the stage built for the IMR room — digital twins are their field.*
+
+**4 · Show-Safe** *(three or four days — not optional)*
+Built: a written start-to-finish sequence for running the demo; a restart drill timed under a minute; the network lockdown for anything reachable beyond your laptop; two full timed rehearsals on a projector; the unattended booth configuration decided during rehearsal as a deliberate choice; one film recorded from a real run, kept only for hardware disaster.
+Done when: you run one rehearsal start to finish following the written sequence without improvising, and the film exists.
+*This hardens the real thing. It is not a rehearsal of a fake version — that is a rule of this project.*
+
+**5 · The Cabinet Orders the Map** *(about a week — built only if stage 4 is finished with three clear days spare)*
+Built: the AI order channel described above — the extra call, the fixed order format, the checks against the unit list and coordinate table, the ignore-and-tell-the-player behaviour on anything malformed, and the one-off test-baseline refresh that follows.
+Done when: you commit a decision that names a movement and the unit moves next turn with the order recorded; and a deliberately mangled AI reply produces no movement at all plus a visible note saying so.
+*The design question here is settled — [issue #71](https://github.com/earlyprototype/false-flag/issues/71) is closed: orders on. Only the schedule decides whether it lands before the onsite.*
+
+**Afterwards** *(each buildable on its own)*: the line-crossing events, fog of war and patrol tasking, the between-turn animation, [live-hybrid mode](https://github.com/earlyprototype/false-flag/issues/77), the [real-email artifact](https://github.com/earlyprototype/false-flag/issues/76) if it hasn't landed sooner, and the VR ops room.
+
+If time runs short, the cutting order is: the afterwards tier first, then stage 5, then stage 3.
 
 ## The four open questions
 
