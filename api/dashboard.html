@@ -5,22 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>False Flag — Facilitator Dashboard</title>
 <style>
-  /* Control-room theme: one deliberate dark look, fully self-contained. */
+  /* One deliberate LIGHT look: paper situation-room. Same family as the
+     dataflow page's theme, so the two surfaces read as one product. */
   :root {
-    --bg: #0b0f14;
-    --panel: #121821;
-    --panel-2: #0e141c;
-    --line: #1f2a38;
-    --text: #d7e1ec;
-    --muted: #7c8a9a;
-    --accent: #4da3ff;
+    --bg: #eef1f5;
+    --panel: #ffffff;
+    --panel-2: #f7f9fc;
+    --line: #d7dee8;
+    --text: #1a2330;
+    --muted: #556577;
+    --accent: #1f66d0;
     /* Layer palette — the legend in the header names these. */
-    --sitrep: #4da3ff;
-    --intel: #ffb020;
-    --diplomatic: #b07aff;
-    --domestic: #2fd6c3;
-    --cabinet: #6fd649;
-    --referee: #ff5d5d;
+    --sitrep: #1f66d0;
+    --intel: #9c6500;
+    --diplomatic: #6f3bcf;
+    --domestic: #0b7f70;
+    --cabinet: #2f7d18;
+    --referee: #c22f2f;
     --mono: "Cascadia Mono", "Consolas", "SF Mono", ui-monospace, monospace;
   }
   * { box-sizing: border-box; }
@@ -30,13 +31,20 @@
   h1 { font-size: 15px; letter-spacing: .12em; }
   h2 { font-size: 11px; letter-spacing: .14em; color: var(--muted);
     text-transform: uppercase; padding: 10px 12px; border-bottom: 1px solid var(--line); }
-  button { background: #1a2432; color: var(--text); border: 1px solid #2c3b4f;
+  button { background: #ffffff; color: var(--text); border: 1px solid #c3cdd9;
     border-radius: 4px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
   button:hover { border-color: var(--accent); }
-  button.primary { background: #133157; border-color: #1f5aa0; }
-  button.danger { background: #3a1420; border-color: #74263b; }
-  input, select, textarea { background: #0d1420; color: var(--text);
-    border: 1px solid #2c3b4f; border-radius: 4px; padding: 5px 7px; font-size: 12px; }
+  button.primary { background: #e5eefb; border-color: #8db4e8; color: #14418a; }
+  button.danger { background: #fbe9ec; border-color: #dc9aa5; color: #8f1f30; }
+  button.seg.on { background: #1f66d0; border-color: #1f66d0; color: #fff; }
+  .seg { border-radius: 0; }
+  .seg:first-of-type { border-radius: 4px 0 0 4px; }
+  .seg:last-of-type { border-radius: 0 4px 4px 0; }
+  .group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .group .lbl { color: var(--muted); font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: .1em; }
+  input, select, textarea { background: #ffffff; color: var(--text);
+    border: 1px solid #c3cdd9; border-radius: 4px; padding: 5px 7px; font-size: 12px; }
   input:focus, select:focus, textarea:focus, button:focus-visible {
     outline: 1px solid var(--accent); outline-offset: 1px; }
   textarea { font-family: var(--mono); font-size: 11.5px; line-height: 1.5; }
@@ -65,7 +73,7 @@
   .chip.cabinet    { color: var(--cabinet);    border-color: var(--cabinet);    background: rgba(111,214,73,.08); }
   .chip.referee    { color: var(--referee);    border-color: var(--referee);    background: rgba(255,93,93,.08); }
   .chan { display: inline-block; font-family: var(--mono); font-size: 10px;
-    color: var(--muted); border: 1px dashed #33465e; border-radius: 3px; padding: 0 5px; }
+    color: var(--muted); border: 1px dashed #aeb9c7; border-radius: 3px; padding: 0 5px; }
 
   main { display: grid; gap: 12px; padding: 12px 16px 40px;
     grid-template-columns: minmax(430px, 1.35fr) minmax(360px, 1fr) minmax(360px, 1fr); }
@@ -85,7 +93,7 @@
   .ev .meta { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
     font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-bottom: 2px; }
   .ev .title { font-weight: 600; }
-  .ev .content { white-space: pre-wrap; color: #b9c6d4; font-size: 12px;
+  .ev .content { white-space: pre-wrap; color: #33404f; font-size: 12px;
     max-height: 130px; overflow: auto; }
   .ev.l-sitrep { border-left-color: var(--sitrep); }
   .ev.l-intel { border-left-color: var(--intel); }
@@ -138,7 +146,7 @@
 <header>
   <div class="brand">
     <h1>FALSE FLAG · FACILITATOR DASHBOARD</h1>
-    <small>Layer-tagged event bus · EXCON control surface</small>
+    <small>Watch a session live, and step in when you need to</small>
   </div>
   <div class="sess">
     <button id="btnNew" class="primary" title="POST /game/new with facilitator:true">New facilitator session</button>
@@ -147,6 +155,14 @@
     <input id="sessionInput" placeholder="…or paste a session id" spellcheck="false">
     <button id="btnAttach">Attach</button>
     <span id="sessionBadge">no session</span>
+  </div>
+  <div class="group" role="group" aria-label="Game type">
+    <span class="lbl">Game type</span>
+    <button class="seg on" data-mode="immersive">Immersive</button>
+    <button class="seg" data-mode="classic">Classic</button>
+    <button class="seg" data-mode="emergent">Emergent</button>
+    <label class="lbl" style="display:flex;align-items:center;gap:5px;cursor:pointer">
+      <input type="checkbox" id="mysteryChk"> Mystery</label>
   </div>
   <div class="legend" id="legend" title="Click a layer to show/hide it in the ledger">
     <span class="chip sitrep" data-layer="sitrep">sitrep</span>
@@ -161,22 +177,19 @@
 <main>
   <!-- ============ LEDGER ============ -->
   <section class="tall">
-    <h2>Event ledger — six layers, newest first</h2>
+    <h2>Event ledger — everything happening, newest first</h2>
     <div class="body">
-      <p class="note">Every event is stamped at the bus with turn, T+ and one of six
-        layers (SITREP / INTEL / DIPLOMATIC / DOMESTIC / CABINET / REFEREE).
-        Inject channels observed in the wild — <code>briefing</code>,
-        <code>intelligence</code>, <code>emergency</code>, <code>flash_alert</code>,
-        <code>diplomatic</code>, <code>media</code>, <code>military</code> — map onto
-        those layers. REFEREE rows arrive only on facilitator sessions; a player
-        stream has them filtered server-side.</p>
+      <p class="note">A live feed of the session, colour-coded by category:
+        situation reports, intelligence, diplomatic, domestic news, cabinet-only,
+        and referee notes. Referee notes are for you only — a player never
+        sees them.</p>
       <div id="ledger"></div>
     </div>
   </section>
 
   <!-- ============ METRICS ============ -->
   <section>
-    <h2>Metric traces — hidden gauges (0–100) per turn</h2>
+    <h2>The hidden numbers — driving the story, turn by turn</h2>
     <div class="chartwrap"><svg id="chartMetrics" width="100%" height="170" viewBox="0 0 460 170" preserveAspectRatio="none"></svg></div>
     <div class="serieslabel">
       <span><span class="dot" style="background:var(--referee)"></span>escalation_risk</span>
@@ -193,21 +206,23 @@
 
   <!-- ============ LLM CALLS ============ -->
   <section>
-    <h2>LLM calls — live relay (REFEREE layer)</h2>
+    <h2>AI activity — every request as it happens</h2>
     <div class="body">
-      <p class="note">One card per router dispatch: family · tier · provider/model ·
-        latency · fallback flag. Prompt and reply bodies never cross the wire.</p>
+      <p class="note">One line per question sent to the AI: what kind of question,
+        which model answered, how long it took, and whether it had to fall back to
+        a backup. The actual questions and answers stay private — just the
+        plumbing shows here.</p>
       <div id="calls"></div>
     </div>
   </section>
 
   <!-- ============ ROUTING ============ -->
   <section>
-    <h2>Reroute matrix — 12 LLM contexts</h2>
+    <h2>Choose the AI model — for each kind of question</h2>
     <div class="body">
-      <p class="note">Runtime override per context: pin a tier, a provider, or an
-        exact model. Rows with an active override are marked. Applies to the next
-        call of that family, process-wide.</p>
+      <p class="note">Every kind of question the game asks the AI, in one table.
+        Pick a different model, provider, or an exact one to use instead — rows
+        you've changed are marked. Takes effect on whatever's asked next.</p>
       <div id="routingStatus" class="status"></div>
       <table id="routingTable">
         <thead><tr><th>context</th><th>effective</th><th>tier</th><th>model</th><th></th></tr></thead>
@@ -218,7 +233,7 @@
 
   <!-- ============ INJECT CONSOLE ============ -->
   <section>
-    <h2>Inject console — fire an event into the session</h2>
+    <h2>Send a news event into the session</h2>
     <div class="body">
       <form class="stack" id="injectForm">
         <div class="row">
@@ -252,7 +267,7 @@
 
   <!-- ============ PROMPT EDITOR ============ -->
   <section>
-    <h2>Prompt hot-edit — instruction templates</h2>
+    <h2>Edit what the AI is told</h2>
     <div class="body">
       <form class="stack" id="promptForm">
         <div class="row">
@@ -270,6 +285,20 @@
       </form>
     </div>
   </section>
+
+  <!-- ============ DTDL TWIN MODEL ============ -->
+  <section>
+    <h2>DTDL Dashboard</h2>
+    <div class="body">
+      <p class="note">Live numbers from this session, in the same open standard
+        (DTDL) that industry exercise software is built on. For the full picture
+        — every part of the engine matched up, one by one — see the
+        <a href="/dataflow">engine map</a>'s ◇ DTDL button.</p>
+      <div id="dtdlTelemetry"></div>
+      <div id="dtdlIfaces"></div>
+      <div id="dtdlStatus" class="status"></div>
+    </div>
+  </section>
 </main>
 
 <script>
@@ -278,6 +307,7 @@
 const LAYERS = ["sitrep","intel","diplomatic","domestic","cabinet","referee"];
 const MAX_LEDGER = 400, MAX_CALLS = 80;
 let sessionId = null, source = null, facilitator = false;
+let mode = "immersive", mystery = false;
 const layerVisible = Object.fromEntries(LAYERS.map(l => [l, true]));
 // Metric history: {turn -> value} kept as ordered arrays.
 const series = { escalation_risk: [], domestic_stability: [], alliance_cohesion: [],
@@ -311,6 +341,12 @@ function setSession(id, isFacilitator) {
   $("sessionBadge").innerHTML = id
     ? `session <b>${esc(id.slice(0,8))}…</b> ${facilitator ? '<span class="facil">FACILITATOR</span>' : "player-view"}`
     : "no session";
+  // The twin-model panel's counters are explicitly labelled "this session" -
+  // without a reset here they kept counting across New/Attach/Demo, making
+  // that label false (independent review finding, 28 Aug).
+  dtdlCounts.inject_triggered = 0;
+  dtdlCounts.participant_action = 0;
+  renderDtdlLive();
   connectStream();
 }
 
@@ -326,12 +362,22 @@ function connectStream() {
    "adjudication","parse_health"].forEach(n => on(n, addLedgerRow));
   on("state_update", d => { addLedgerRow(d, "state_update"); recordMetrics(d); });
   on("llm_call", d => { addLedgerRow(d, "llm_call"); addCallCard(d); });
+  // Twin-model panel: count only what the stream actually carries. Turn
+  // injects arrive as transcript events with type "inject"; inject_fired
+  // is the facilitator console's delivery. Both are Inject deliveries.
+  on("transcript", d => {
+    if (d && d.type === "inject") { dtdlCounts.inject_triggered += 1; renderDtdlLive(); }
+  });
+  on("inject_fired", () => { dtdlCounts.inject_triggered += 1; renderDtdlLive(); });
+  on("adjudication", () => { dtdlCounts.participant_action += 1; renderDtdlLive(); });
+  on("state_update", renderDtdlLive);
   source.onerror = () => { /* EventSource auto-reconnects */ };
 }
 
 $("btnNew").onclick = async () => {
   try {
-    const d = await api("POST", "/game/new", {facilitator: true});
+    const d = await api("POST", "/game/new",
+      {facilitator: true, play_mode: mode, mystery_mode: mystery});
     setSession(d.session_id, true);
     seedFromState(d);
   } catch (e) { alert("New session failed: " + e.message); }
@@ -349,7 +395,8 @@ $("btnAttach").onclick = async () => {
 };
 $("btnDemo").onclick = async () => {
   try {
-    const d = await api("POST", "/demo/start", {turns: 5, pace_s: 2.0});
+    const d = await api("POST", "/demo/start",
+      {turns: 5, pace_s: 2.0, play_mode: mode, mystery_mode: mystery});
     setSession(d.session_id, true);
   } catch (e) { alert("Demo start failed: " + e.message); }
 };
@@ -464,7 +511,7 @@ function drawCharts() {
   { const H = 170, ymap = v => 12 + (100 - Math.max(0, Math.min(100, v))) / 100 * (H - 30);
     let g = "";
     for (const yv of [0, 50, 100])
-      g += `<line x1="${PAD}" y1="${ymap(yv)}" x2="${W-6}" y2="${ymap(yv)}" stroke="#1f2a38" stroke-width="1"/>` +
+      g += `<line x1="${PAD}" y1="${ymap(yv)}" x2="${W-6}" y2="${ymap(yv)}" stroke="${css("--line")}" stroke-width="1"/>` +
            `<text x="2" y="${ymap(yv)+3}">${yv}</text>`;
     for (let t = Math.ceil(t0); t <= t1; t++)
       g += `<text x="${xmap(t)-4}" y="${H-3}">T${t}</text>`;
@@ -478,7 +525,7 @@ function drawCharts() {
     const cas = series.casualties_mil.concat(series.casualties_civ);
     const vmax = Math.max(5, ...cas.map(p => p.v));
     const ymap = v => 8 + (vmax - v) / vmax * (H - 22);
-    let g = `<line x1="${PAD}" y1="${ymap(0)}" x2="${W-6}" y2="${ymap(0)}" stroke="#1f2a38"/>` +
+    let g = `<line x1="${PAD}" y1="${ymap(0)}" x2="${W-6}" y2="${ymap(0)}" stroke="${css("--line")}"/>` +
             `<text x="2" y="${ymap(0)+3}">0</text><text x="2" y="${ymap(vmax)+3}">${vmax}</text>`;
     g += polyline(series.casualties_mil, xmap, ymap, css("--intel"));
     g += polyline(series.casualties_civ, xmap, ymap, css("--diplomatic"));
@@ -600,10 +647,70 @@ $("promptReset").onclick = async () => {
   } catch (err) { setStatus("promptStatus", err.message, false); }
 };
 
+/* ------------------------------------------------------- DTDL twin model */
+const dtdlCounts = { inject_triggered: 0, participant_action: 0 };
+let dtdlTelemetryRows = null;  // Session;1 Telemetry contents, once fetched
+
+function renderDtdlLive() {
+  if (!dtdlTelemetryRows) return;
+  const latest = key => {
+    const arr = series[key];
+    return arr && arr.length ? arr[arr.length - 1].v : null;
+  };
+  const rows = dtdlTelemetryRows.map(t => {
+    let live;
+    if (t.name in series) {
+      const v = latest(t.name);
+      live = v === null ? "—" : `<b>${esc(v)}</b>`;
+    } else if (t.name in dtdlCounts) {
+      live = `<b>${dtdlCounts[t.name]}</b> this session`;
+    } else {
+      live = `<span class="note">captured in run exports, not streamed</span>`;
+    }
+    const desc = typeof t.description === "string" ? t.description : "";
+    return `<tr><td class="mono">${esc(t.name)}</td>` +
+      `<td>${live}</td><td class="note">${esc(desc)}</td></tr>`;
+  }).join("");
+  $("dtdlTelemetry").innerHTML =
+    `<table><thead><tr><th>what's tracked</th><th>live</th><th></th></tr></thead>` +
+    `<tbody>${rows}</tbody></table>`;
+}
+
+async function loadDtdl() {
+  try {
+    const d = await api("GET", "/dtdl");
+    const session = d.interfaces.find(i => i["@id"] === "dtmi:falseflag:emergent:Session;1");
+    const kindOf = c => Array.isArray(c["@type"]) ? c["@type"][0] : c["@type"];
+    dtdlTelemetryRows = ((session && session.contents) || [])
+      .filter(c => kindOf(c) === "Telemetry");
+    renderDtdlLive();
+    $("dtdlIfaces").innerHTML =
+      "<table><thead><tr><th>concept</th><th></th></tr></thead><tbody>" +
+      d.interfaces.map(i => {
+        const desc = typeof i.description === "string" ? i.description : "";
+        return `<tr><td class="mono">${esc(String(i["@id"]).replace("dtmi:falseflag:", ""))}</td>` +
+          `<td class="note">${esc(desc)}</td></tr>`;
+      }).join("") + "</tbody></table>";
+    setStatus("dtdlStatus",
+      `${d.counts.Interface} concepts modelled · ${d.counts.Property} fields · ` +
+      `${d.counts.Relationship} links · ${d.counts.Telemetry} live measurements`, true);
+  } catch (err) { setStatus("dtdlStatus", err.message, false); }
+}
+
+/* ------------------------------------------------------------- game type */
+// Only takes effect on the NEXT session you start (New/Demo) - it can't
+// change a session already running, same as the engine map.
+document.querySelectorAll("button.seg").forEach(b => b.onclick = () => {
+  document.querySelectorAll("button.seg").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); mode = b.dataset.mode;
+});
+$("mysteryChk").onchange = e => { mystery = e.target.checked; };
+
 /* ------------------------------------------------------------------- boot */
 loadRouting();
 loadPromptFamilies();
 drawCharts();
+loadDtdl();
 </script>
 </body>
 </html>
