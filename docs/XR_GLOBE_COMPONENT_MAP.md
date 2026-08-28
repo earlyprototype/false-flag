@@ -160,32 +160,30 @@ flowchart TD
 
 Mechanics the tree encodes: the boardroom and S1 screen are one build (the room renders; the screen is a texture fed by Cesium's canvas under the two hard conditions of study claim 11); the spike is a measurement, not a design choice — its result selects *where the pixels are made* (on the headset → S2, on the server → S3) and nothing else changes, because the room, the cast, the input path, and the data contract are identical in both outcomes.
 
-## 5 · Milestones and decision points (replaces day-counting)
+## 5 · Milestones — build contents and exit tests
+
+*Node line 1 = what gets built. Node line 2 (EXIT) = the observable fact that ends the stage. Full spec: [study §7](XR_GLOBE_FEASIBILITY.md#7-the-plan--milestones-as-build-contents-and-exit-tests).*
 
 ```mermaid
 flowchart TD
-  M0["M0 · FIRST LIGHT\nglobe attached to a live demo session\nKEY: entities + 1 shader on the projector\nACCEPTABLE: static ORBAT plot, no stream"]:::core
-  D0{"D0 · commit?\n#65/#66 merge decision\nmade here too"}:::gate
-  M1["M1 · THE FLEET MOVES\ntyped state + kinematics + doctrine legs\nKEY: red fleet advances per turn from engine state,\nsaves round-trip, suite green, bundle rebuilt\nACCEPTABLE: hydrated static positions rendered"]:::core
-  D1{"D1 · schedule check"}:::gate
-  M2["M2 · STANDARDS ON THE GLASS\nTheatre;1 served, DTMI badges live,\nparser re-run clean\nACCEPTABLE: sidecar served, badges static"]:::core
-  M3["M3 · SHOW-SAFE  (non-negotiable)\nrunbook · one-stream rule · proxy stance\nattract loop tuned · cold-restart drill\nRECORDED VIDEO FALLBACK IN HAND"]:::core
-  D2{"D2 · ≥3 clear days\nbefore the onsite\nAND M3 done?"}:::gate
-  M4["M4 · THE CABINET ORDERS THE MAP\nMOVEMENT call + re-golden commit"]:::stretch
+  D0B{"D0b · the owner's 'go'\nauthorizes the first code\n(nothing is built yet)"}:::gate
+  M0["M0 · FIRST LIGHT · ~1 day\nBUILD: api/globe.html at GET /globe (FileResponse,\ndashboard pattern) · CesiumJS · ~10 gazetteer entries ·\nplot GET /game/{id}/resources · attach 1 stream consumer ·\n1 sensor shader · diegetic EXERCISE chrome\nEXIT: every ORBAT unit plotted at its named location on\nthe projector; a state_update visibly changes the display"]:::core
+  M1["M1 · THE FLEET MOVES · ~1 wk\nBUILD: models/spatial.py · gazetteer.yaml (~30 sourced) ·\nengine/kinematics.py (pure advance, route polylines, no RNG) ·\nhydration at init+load · red doctrine legs · snapshot at\nresolve_decision · save 2.4→2.5 + bundle rebuild · tests\nEXIT: red group advances each turn along its route;\nsave@turn3 → load → positions identical; suite at 712 baseline"]:::core
+  D1{"D1 · schedule check\non schedule → M2\nbehind → skip to M3"}:::gate
+  M2["M2 · STANDARDS ON THE GLASS · ~1 wk\nBUILD: Theatre;1 + TheatreAsset;1 sidecar files (published\nversions untouched) · DTDLParser re-run committed ·\nGET /theatre (ETag) · per-subscriber bus fan-out with\nper-subscriber payload copies · DTMI badges bound to /dtdl\nEXIT: two clients on one session each receive every event;\nparser reports PARSE OK; badges live over the moving map"]:::core
+  M3["M3 · SHOW-SAFE · ~3–4 days · non-negotiable\nBUILD (hardens the live path — not a simulated retreat):\nwritten start sequence · restart drill under 60s · localhost\nbind + authenticated proxy · 2 timed projector rehearsals ·\nbooth-loop config chosen at rehearsal as a labeled decision ·\nfilm recorded from a real run (hardware contingency only)\nEXIT: one rehearsal executed to the written sequence with\nzero operator improvisation; the film file exists"]:::core
+  D2{"D2 · schedule gate only\nM3 done AND ≥3 clear days?\n(design already decided —\nissue #71 closed: orders on)"}:::gate
+  M4["M4 · THE CABINET ORDERS THE MAP · ~1 wk\nBUILD: MOVEMENT call family (derived crc32 seed) · parser\n(≤8 orders, terminal sentinel, discard on truncation) ·\nvalidation vs unit registry + gazetteer + legality graph ·\nhold-on-failure + visible line · mock returns NO_ORDERS ·\ninject movements: · spatial context block · one re-baseline\nEXIT: a decision naming a movement lands in order_log and\nmoves the unit next turn; garbled reply → 0 orders + note"]:::stretch
   ONSITE(["ONSITE · 12 Sep · IMR"]):::core
   FINAL(["FINAL · 14 Sep"]):::core
-  M5["M5 · post-competition\ntripwires engine · fog/ISR ·\nsnapshot-fed daemon · VR ops room"]:::defer
+  M5["M5 · POST-COMPETITION (each independently buildable)\ntripwire engine · fog/intel_picture · snapshot-fed daemon\n+ /geo/stream · live-hybrid mode (#77) · email artifact (#76)\n· VR ops room (§4 build order)"]:::defer
 
-  M0 --> D0
-  D0 -->|proceed| M1
-  D0 -->|abort| ALT["fall back: dashboard +\ndataflow demo story"]:::defer
-  M1 --> D1
-  D1 -->|on schedule| M2
+  D0B --> M0 --> M1 --> D1
+  D1 -->|on schedule| M2 --> M3
   D1 -->|behind| M3
-  M2 --> M3
   M3 --> D2
   D2 -->|yes| M4 --> ONSITE
-  D2 -->|no · pause M4| ONSITE
+  D2 -->|no · M4 moves to M5| ONSITE
   ONSITE --> FINAL --> M5
 
   classDef core stroke-width:3px
@@ -194,6 +192,6 @@ flowchart TD
   classDef gate stroke-width:2px
 ```
 
-Reading the gates: **D0** is the only abort point — after it, every later decision only *re-orders or pauses* work, never wastes it. **D1** protects M3: standards chrome is droppable, a safe demo is not. **D2** is the LLM-overestimation hedge you asked for — if the timeline estimates were pessimistic and M3 lands early, M4 is pre-authorized; if not, it pauses cleanly to M5 (the design is verified and waiting either way).
+Every stage ships runnable on its own; under schedule pressure the cut order is M5 → M4 → M2. The gates are schedule instruments, not design questions: **D1** protects M3 (standards chrome is droppable, a rehearsed demo is not), and **D2** only asks whether M4 fits before the onsite — its design decision was settled and closed in [issue #71](https://github.com/earlyprototype/false-flag/issues/71).
 
-Parallel at all times, off-branch: the **Manus queue** — see [issue #70](https://github.com/earlyprototype/false-flag/issues/70) (credits are durable; ordering is build-dependency-driven).
+Parallel throughout, off-branch: the Manus research queue — see [issue #70](https://github.com/earlyprototype/false-flag/issues/70) (credits durable; ordering build-dependency-driven, gazetteer verification feeding M1).
