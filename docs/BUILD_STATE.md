@@ -28,3 +28,12 @@ M0 First Light (spike: `api/globe.html` on a live demo session — now against m
 ## How to resume without the current session
 
 Read, in order: this file → `XR_GLOBE_COMPONENT_MAP.md` (visual) → `XR_GLOBE_FEASIBILITY.md` (authority; §4a is the implementation spec, §3 the verified constraints) → `XR_GLOBE_FEASIBILITY_DISCARDS.md` (what was considered and cut, so it isn't relitigated). The raw agent outputs under `audits/` answer any "why" the docs compress.
+
+## Session close, 2026-08-28 (late) — rulings landed after the sections above
+
+- **The seam (owner-confirmed)**: live-hybrid per-layer split; the game reads live-derived facts as context, never state — issue #77 is authoritative, including the **boundary-as-zone** design (no text labels on player surfaces; fog carries the reality boundary; diegetic EXERCISE chrome only where optics require) and the **live-first / no-fallback build posture** (non-determinism of play is the thesis; simulated modes are CI fixtures only; session journaling is AAR journalism, not replay-protection). Recorded demo film: **kept**, as hardware-catastrophe contingency only.
+- **Real-email inject artifact**: issue #76, MVP-worthy.
+- **N1 reframed mechanically** in issue #71 with the recommendation on record (orders on — completes the interpretation call the engine already runs and discards).
+- **Language ruling enforced repo-wide**: mechanical language only (what/how/why); truth/lie metaphors removed from all docs on both branches.
+- **Docs status at close**: study + map + in-brief + discards (PR #67) and owner's brief + this file + decision briefs (PR #69) all current. **Known stale**: the claude.ai artifact page (pre-dates the sprint-milestone rework, tonight's rulings, and the language sweep) — refresh it or retire it; the repo is the memory.
+- **Not yet done, deliberately**: no implementation code — D0b ("go") never given; Manus P1 tasks not yet fired (briefs in #70); decisions #71–#75 open with safe defaults; renewal decision open.
