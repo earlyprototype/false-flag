@@ -276,6 +276,10 @@ false-flag/
 
 ## The Live Control Surface
 
+New here? **[Read the plain-English guide](docs/CONTROL_SURFACE_GUIDE.md)** first —
+what each page is for and how to use it, no jargon. What follows is the
+quick technical reference.
+
 A FastAPI server exposes the engine for facilitators and observers:
 
 ```bash
@@ -304,6 +308,7 @@ loop runs on the deterministic mock driver and spends no API credit.
 - **[Dynamic Narrative System](docs/handover/DYNAMIC_NARRATIVE_SYSTEM.md)**: The hidden-narrative engine driving emergent storytelling
 - **Engineering audit trail**: [audits/](audits/) — the engineering-review (ER) register, measurement runs, and handover notes; check here for known issues and prior investigations
 - **[DTDL twin model](interop/README.md)**: False Flag's exercise domain in DTDL v3 — model set, exporter, validators, and how it renders on the dataflow page
+- **[Control Surface Guide](docs/CONTROL_SURFACE_GUIDE.md)**: plain-English walkthrough of `/dataflow` and `/dashboard` — what each page and control does, and when to use which
 
 ## Credits
 
