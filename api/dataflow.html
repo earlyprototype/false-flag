@@ -69,6 +69,15 @@
     height: calc(100vh - 58px); }
   svg { display: block; min-width: 1120px; width: 100%; height: auto; }
 
+  /* Narrow screens (phone): the fixed side panel would swallow the stage —
+     stack instead: schema on top, panel beneath the tapped node. */
+  @media (max-width: 760px) {
+    main { flex-direction: column; }
+    #stage { flex: none; height: 55vh; }
+    #panel { width: auto; flex: none; position: static; height: auto;
+      max-height: 45vh; border-top: 2px solid var(--line); }
+  }
+
   /* Diagram */
   .node rect { fill: #ffffff; stroke: #b9c5d4; stroke-width: 1.2; rx: 5; }
   .node text { fill: var(--text); font-size: 12px; font-weight: 600; }
