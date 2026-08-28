@@ -1,0 +1,126 @@
+{
+  "@context": "dtmi:dtdl:context;3",
+  "@id": "dtmi:falseflag:Inject;1",
+  "@type": "Interface",
+  "displayName": "Inject",
+  "description": "Event delivered to participants: trigger conditions, delivery channel, content, expected responses, assessment criteria (platform writeup). expectedResponse and assessmentCriteria are optional BY DESIGN in this profile (emergent adjudication).",
+  "schemas": [
+    {
+      "@id": "dtmi:falseflag:schema:Channel;1",
+      "@type": "Enum",
+      "displayName": "Channel",
+      "description": "Delivery channel. Values are False Flag's real episode channels, not the reference platform's media channels (email/phone/radio/SMS/PA) - vocabulary mapping is an open question.",
+      "valueSchema": "string",
+      "enumValues": [
+        { "name": "briefing", "enumValue": "briefing" },
+        { "name": "intelligence", "enumValue": "intelligence" },
+        { "name": "emergency", "enumValue": "emergency" },
+        { "name": "diplomatic", "enumValue": "diplomatic" },
+        { "name": "flash_alert", "enumValue": "flash_alert" }
+      ]
+    }
+  ],
+  "contents": [
+    { "@type": "Property", "name": "title", "schema": "string" },
+    {
+      "@type": "Property",
+      "name": "trigger",
+      "description": "Trigger conditions (platform writeup). type enum covers scheduled (time), conditional (event) and facilitator-fired delivery; the condition grammar for event triggers is unpublished, so it is a free-text field here.",
+      "schema": {
+        "@type": "Object",
+        "fields": [
+          {
+            "name": "type",
+            "schema": {
+              "@type": "Enum",
+              "valueSchema": "string",
+              "enumValues": [
+                { "name": "time", "enumValue": "time" },
+                { "name": "event", "enumValue": "event" },
+                { "name": "facilitator", "enumValue": "facilitator" }
+              ]
+            }
+          },
+          { "name": "condition", "schema": "string" }
+        ]
+      }
+    },
+    {
+      "@type": "Property",
+      "name": "timing",
+      "description": "Placement offset, field names verbatim from the exercise-platform reference docs: {phaseRelative, minutes} or {sceneRelative, seconds}. Indices are 0-based.",
+      "schema": {
+        "@type": "Object",
+        "fields": [
+          { "name": "phaseRelative", "schema": "integer" },
+          { "name": "sceneRelative", "schema": "integer" },
+          { "name": "minutes", "schema": "double" },
+          { "name": "seconds", "schema": "double" }
+        ]
+      }
+    },
+    { "@type": "Property", "name": "channel", "schema": "dtmi:falseflag:schema:Channel;1" },
+    { "@type": "Property", "name": "content", "schema": "string" },
+    {
+      "@type": "Property",
+      "name": "targets",
+      "schema": { "@type": "Array", "elementSchema": "string" }
+    },
+    {
+      "@type": "Property",
+      "name": "expectedResponse",
+      "description": "Optional BY DESIGN: False Flag exercises have no scripted expected response; play is adjudicated emergently.",
+      "schema": "string"
+    },
+    {
+      "@type": "Property",
+      "name": "assessmentCriteria",
+      "description": "Optional BY DESIGN: emergent adjudication replaces declared criteria (see AdjudicatedDecision).",
+      "schema": { "@type": "Array", "elementSchema": "string" }
+    },
+    {
+      "@type": "Property",
+      "name": "severity",
+      "schema": {
+        "@type": "Enum",
+        "valueSchema": "string",
+        "enumValues": [
+          { "name": "low", "enumValue": "low" },
+          { "name": "medium", "enumValue": "medium" },
+          { "name": "high", "enumValue": "high" }
+        ]
+      }
+    },
+    {
+      "@type": "Property",
+      "name": "effects",
+      "description": "False Flag profile extension: scripted world-metric effects. delta is a string because the source data uses ranges such as '5..8'.",
+      "schema": {
+        "@type": "Array",
+        "elementSchema": {
+          "@type": "Object",
+          "fields": [
+            { "name": "metric", "schema": "string" },
+            { "name": "delta", "schema": "string" }
+          ]
+        }
+      }
+    },
+    {
+      "@type": "Property",
+      "name": "variants",
+      "description": "Multi-role inject variants, shape verbatim from the exercise-platform reference docs.",
+      "schema": {
+        "@type": "Array",
+        "elementSchema": {
+          "@type": "Object",
+          "fields": [
+            { "name": "role", "schema": "string" },
+            { "name": "channel", "schema": "dtmi:falseflag:schema:Channel;1" },
+            { "name": "content", "schema": "string" }
+          ]
+        }
+      }
+    }
+  ]
+}

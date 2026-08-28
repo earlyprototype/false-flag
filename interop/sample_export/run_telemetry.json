@@ -1,0 +1,668 @@
+{
+  "$metadata": {
+    "$model": "dtmi:falseflag:emergent:Session;1",
+    "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md.",
+    "generatedAt": "2026-08-28T18:32:29+00:00",
+    "source": "run_record.json + run.calls.jsonl.state.jsonl"
+  },
+  "id": "session_war_game_2025_seed42",
+  "exercise": "ex_war_game_2025",
+  "startedAt": "2026-08-28T18:32:28+00:00",
+  "endedAt": "2026-08-28T18:32:29+00:00",
+  "seed": 42,
+  "playMode": "emergent",
+  "provider": "mock",
+  "turnsPlayed": 4,
+  "telemetry": {
+    "escalation_risk": [
+      {
+        "stamp": "T+0",
+        "turn": 0,
+        "value": 60
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "value": 63
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "value": 70
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "value": 75
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "value": 73
+      }
+    ],
+    "domestic_stability": [
+      {
+        "stamp": "T+0",
+        "turn": 0,
+        "value": 50
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "value": 50
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "value": 46
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "value": 41
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "value": 40
+      }
+    ],
+    "alliance_cohesion": [
+      {
+        "stamp": "T+0",
+        "turn": 0,
+        "value": 40
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "value": 48
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "value": 45
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "value": 46
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "value": 58
+      }
+    ],
+    "casualties_civ": [
+      {
+        "stamp": "T+0",
+        "turn": 0,
+        "value": 0
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "value": 0
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "value": 0
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "value": 6
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "value": 6
+      }
+    ],
+    "casualties_mil": [
+      {
+        "stamp": "T+0",
+        "turn": 0,
+        "value": 2
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "value": 2
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "value": 2
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "value": 2
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "value": 2
+      }
+    ],
+    "advisor_trust": [
+      {
+        "stamp": "T+0",
+        "turn": 0,
+        "characterId": "usa_nsa",
+        "trust": 50,
+        "relationship": "neutral"
+      },
+      {
+        "stamp": "T+0",
+        "turn": 0,
+        "characterId": "uk_foreign_sec",
+        "trust": 75,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+0",
+        "turn": 0,
+        "characterId": "uk_home_sec",
+        "trust": 70,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+0",
+        "turn": 0,
+        "characterId": "uk_cds",
+        "trust": 80,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+0",
+        "turn": 0,
+        "characterId": "uk_nsa",
+        "trust": 85,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+0",
+        "turn": 0,
+        "characterId": "uk_attorney_general",
+        "trust": 70,
+        "relationship": "neutral"
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "characterId": "usa_nsa",
+        "trust": 50,
+        "relationship": "neutral"
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "characterId": "uk_foreign_sec",
+        "trust": 75,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "characterId": "uk_home_sec",
+        "trust": 70,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "characterId": "uk_cds",
+        "trust": 80,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "characterId": "uk_nsa",
+        "trust": 85,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "characterId": "uk_attorney_general",
+        "trust": 70,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "characterId": "usa_nsa",
+        "trust": 50,
+        "relationship": "neutral"
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "characterId": "uk_foreign_sec",
+        "trust": 75,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "characterId": "uk_home_sec",
+        "trust": 70,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "characterId": "uk_cds",
+        "trust": 79,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "characterId": "uk_nsa",
+        "trust": 85,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "characterId": "uk_attorney_general",
+        "trust": 70,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "characterId": "usa_nsa",
+        "trust": 50,
+        "relationship": "neutral"
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "characterId": "uk_foreign_sec",
+        "trust": 75,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "characterId": "uk_home_sec",
+        "trust": 70,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "characterId": "uk_cds",
+        "trust": 79,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "characterId": "uk_nsa",
+        "trust": 85,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "characterId": "uk_attorney_general",
+        "trust": 70,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "characterId": "usa_nsa",
+        "trust": 50,
+        "relationship": "neutral"
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "characterId": "uk_foreign_sec",
+        "trust": 75,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "characterId": "uk_home_sec",
+        "trust": 70,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "characterId": "uk_cds",
+        "trust": 79,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "characterId": "uk_nsa",
+        "trust": 85,
+        "relationship": "allied"
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "characterId": "uk_attorney_general",
+        "trust": 70,
+        "relationship": "allied"
+      }
+    ],
+    "inject_triggered": [
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "injectId": "turn_001_cobra_briefing",
+        "title": "COBRA Emergency Meeting Convened",
+        "channel": "briefing"
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "injectId": "turn_002_submarine_provocation",
+        "title": "Russian Submarine Surfaces Near UK Waters",
+        "channel": "intelligence"
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "injectId": "turn_003_infrastructure_attack",
+        "title": "Major Power Station Explosion",
+        "channel": "emergency"
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "injectId": "turn_004_nato_consultation",
+        "title": "Emergency NATO Consultation - Article 4 Invoked",
+        "channel": "diplomatic"
+      }
+    ],
+    "participant_action": [
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "actionType": "decision",
+        "text": "Open a direct diplomatic channel to Moscow and inform NATO allies first."
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "actionType": "decision",
+        "text": "Deploy the carrier strike group to shadow the vessel and make a public statement."
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "actionType": "decision",
+        "text": "Convene the North Atlantic Council under Article 4 and hold the deployment."
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "actionType": "decision",
+        "text": "Authorise defensive patrols only, and instruct the Attorney General to review the legal basis."
+      }
+    ],
+    "phase_changed": [
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "phase": "briefing"
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "phase": "discussion"
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "phase": "decision"
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "phase": "adjudication"
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "phase": "briefing"
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "phase": "discussion"
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "phase": "decision"
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "phase": "adjudication"
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "phase": "briefing"
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "phase": "discussion"
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "phase": "decision"
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "phase": "adjudication"
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "phase": "briefing"
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "phase": "discussion"
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "phase": "decision"
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "phase": "adjudication"
+      }
+    ]
+  },
+  "decisions": [
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "decision_t1",
+      "turn": 1,
+      "playerDecisionText": "Open a direct diplomatic channel to Moscow and inform NATO allies first.",
+      "interpretation": "INTERPRETATION: Open a direct diplomatic channel to Moscow and inform NATO allies first.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (within 1 turn)\nFEASIBILITY: Feasible within current constraints",
+      "qualityVerdict": "adequate",
+      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ✓ Poland: Poland fully endorses the UK's stance and offers immediate basing and logistical support...\n  ○ United States: Washington supports the UK's measured response, but Congress will want hard evidence...\n  ○ Germany: Germany urges continued restraint and supports allied consultations, though we must weigh...",
+      "effects": {
+        "escalation_risk": 0,
+        "alliance_cohesion": 8,
+        "domestic_stability": 1
+      },
+      "pushback": [],
+      "criticalConcerns": [],
+      "overriddenObjectors": []
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "decision_t2",
+      "turn": 2,
+      "playerDecisionText": "Deploy the carrier strike group to shadow the vessel and make a public statement.",
+      "interpretation": "INTERPRETATION: Deploy the carrier strike group to shadow the vessel and make a public statement.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (within 1 turn)\nFEASIBILITY: Feasible within current constraints",
+      "qualityVerdict": "adequate",
+      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ✓ Poland: Poland fully endorses the UK's stance and offers immediate basing and logistical support...",
+      "effects": {
+        "escalation_risk": 3,
+        "alliance_cohesion": -1,
+        "domestic_stability": 0
+      },
+      "pushback": [
+        {
+          "role": "Chief of the Defence Staff",
+          "concern": "Prime Minister, HMS Prince of Wales is not at highest readiness. We can surge her immediately at reduced capability, or wait 3 turns for full readiness."
+        }
+      ],
+      "criticalConcerns": [],
+      "overriddenObjectors": [
+        "Chief of the Defence Staff"
+      ]
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "decision_t3",
+      "turn": 3,
+      "playerDecisionText": "Convene the North Atlantic Council under Article 4 and hold the deployment.",
+      "interpretation": "INTERPRETATION: Convene the North Atlantic Council under Article 4 and hold the deployment.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (within 1 turn)\nFEASIBILITY: Feasible within current constraints",
+      "qualityVerdict": "adequate",
+      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ✓ Poland: Poland fully endorses the UK's stance and offers immediate basing and logistical support...",
+      "effects": {
+        "escalation_risk": 0,
+        "alliance_cohesion": 3,
+        "domestic_stability": 1
+      },
+      "pushback": [],
+      "criticalConcerns": [],
+      "overriddenObjectors": []
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "decision_t4",
+      "turn": 4,
+      "playerDecisionText": "Authorise defensive patrols only, and instruct the Attorney General to review the legal basis.",
+      "interpretation": "INTERPRETATION: Authorise defensive patrols only, and instruct the Attorney General to review the legal basis.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (within 1 turn)\nFEASIBILITY: Feasible within current constraints",
+      "qualityVerdict": "adequate",
+      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ✓ United States: The United States stands with the United Kingdom. We are accelerating the carrier group's...\n  ✓ France: Paris stands by the United Kingdom and will consult on further measures, favouring a...\n  ✓ Poland: Warsaw urges the strongest possible allied response and will press for NATO consultations...",
+      "effects": {
+        "escalation_risk": -4,
+        "alliance_cohesion": 17,
+        "domestic_stability": 1
+      },
+      "pushback": [],
+      "criticalConcerns": [],
+      "overriddenObjectors": []
+    }
+  ],
+  "ledger": [
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "ledger_t1",
+      "turn": 1,
+      "title": "COBRA Emergency Meeting Convened",
+      "disposition": "open",
+      "note": "",
+      "outcome": "A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.",
+      "effectsDirection": {
+        "escalation_risk": "steady",
+        "alliance_cohesion": "up",
+        "domestic_stability": "up"
+      },
+      "objectors": []
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "ledger_t2",
+      "turn": 2,
+      "title": "Russian Submarine Surfaces Near UK Waters",
+      "disposition": "open",
+      "note": "",
+      "outcome": "A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.",
+      "effectsDirection": {
+        "escalation_risk": "up",
+        "alliance_cohesion": "down",
+        "domestic_stability": "steady"
+      },
+      "objectors": [
+        "Chief of the Defence Staff"
+      ]
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "ledger_t3",
+      "turn": 3,
+      "title": "Major Power Station Explosion",
+      "disposition": "open",
+      "note": "",
+      "outcome": "A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.",
+      "effectsDirection": {
+        "escalation_risk": "steady",
+        "alliance_cohesion": "up",
+        "domestic_stability": "up"
+      },
+      "objectors": []
+    },
+    {
+      "$metadata": {
+        "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
+      },
+      "id": "ledger_t4",
+      "turn": 4,
+      "title": "Emergency NATO Consultation - Article 4 Invoked",
+      "disposition": "open",
+      "note": "",
+      "outcome": "A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.",
+      "effectsDirection": {
+        "escalation_risk": "down",
+        "alliance_cohesion": "up",
+        "domestic_stability": "up"
+      },
+      "objectors": []
+    }
+  ]
+}

@@ -1131,6 +1131,125 @@ async def dataflow_page():
     return FileResponse(_DATAFLOW_PATH, media_type="text/html")
 
 
+_DTDL_MODELS_PATH = Path(__file__).resolve().parent.parent / "interop" / "models"
+
+
+@app.get("/dtdl")
+async def dtdl_models():
+    """The DTDL v3 interface set the dataflow view renders.
+
+    False Flag's exercise domain modelled in Digital Twin Definition
+    Language - the same open standard (and the same four constructs:
+    Interface, Property, Relationship, Telemetry) SEDL is built on, over
+    our own persistence rather than Azure Digital Twins. Serving it here
+    is what makes that alignment visible on the surface instead of only
+    in files.
+
+    Returns {"interfaces": [...], "counts": {...}} - an empty set rather
+    than a 500 when the model directory is absent, so the page degrades
+    to "no models found" instead of failing to load.
+    """
+    interfaces: List[Dict[str, Any]] = []
+    if _DTDL_MODELS_PATH.is_dir():
+        for path in sorted(_DTDL_MODELS_PATH.glob("*.json")):
+            try:
+                loaded = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as e:
+                print(f"DTDL model unreadable ({path.name}): {e}")
+                continue
+            for entry in (loaded if isinstance(loaded, list) else [loaded]):
+                if isinstance(entry, dict) and entry.get("@type") == "Interface":
+                    entry["_source"] = path.name
+                    interfaces.append(entry)
+
+    counts = {"Property": 0, "Relationship": 0, "Telemetry": 0, "Command": 0}
+    for iface in interfaces:
+        for content in iface.get("contents", []) or []:
+            kind = content.get("@type")
+            if isinstance(kind, list):
+                kind = next((k for k in kind if k in counts), None)
+            if kind in counts:
+                counts[kind] += 1
+
+    return {
+        "context": "dtmi:dtdl:context;3",
+        "namespace": "dtmi:falseflag",
+        "interfaces": interfaces,
+        "counts": {"Interface": len(interfaces), **counts},
+    }
+
+
+_DTDL_SAMPLE_PATH = _DTDL_MODELS_PATH.parent / "sample_export"
+
+
+def _dtdl_instance_for(dtmi: str) -> Optional[Dict[str, Any]]:
+    """A populated instance of one interface, from the real sample export.
+
+    Drawn from the committed mock-campaign export rather than hand-written
+    (owner ruling 27 Aug: examples are captured, never fabricated). Returns
+    None when the sample export or the slice is absent.
+    """
+    def _load(name: str) -> Optional[Dict[str, Any]]:
+        path = _DTDL_SAMPLE_PATH / name
+        if not path.is_file():
+            return None
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as e:
+            print(f"DTDL sample unreadable ({name}): {e}")
+            return None
+
+    ex = _load("exercise_war_game_2025.json")
+    run = _load("run_telemetry.json")
+
+    def _first(seq):
+        return seq[0] if isinstance(seq, list) and seq else None
+
+    try:
+        slices: Dict[str, Any] = {
+            "dtmi:falseflag:Exercise;1": ex,
+            "dtmi:falseflag:Timeline;1": (ex or {}).get("timeline"),
+            "dtmi:falseflag:Phase;1": _first((ex or {}).get("timeline", {}).get("phases")),
+            "dtmi:falseflag:Scenario;1": _first((_first((ex or {}).get("timeline", {}).get("phases")) or {}).get("scenarios")),
+            "dtmi:falseflag:Scene;1": _first((_first((_first((ex or {}).get("timeline", {}).get("phases")) or {}).get("scenarios")) or {}).get("scenes")),
+            "dtmi:falseflag:Inject;1": _first((ex or {}).get("injects")),
+            "dtmi:falseflag:LearningObjective;1": _first((ex or {}).get("learningObjectives")),
+            "dtmi:falseflag:Role;1": _first((ex or {}).get("roles")),
+            "dtmi:falseflag:Participant;1": _first((ex or {}).get("participants")),
+            "dtmi:falseflag:WorldReference;1": (ex or {}).get("worldReference"),
+            "dtmi:falseflag:emergent:Session;1": run,
+            "dtmi:falseflag:emergent:AdjudicatedDecision;1": _first((run or {}).get("decisions")),
+            "dtmi:falseflag:emergent:EventLedgerEntry;1": _first((run or {}).get("ledger")),
+        }
+    except (AttributeError, TypeError):
+        return None
+    return slices.get(dtmi)
+
+
+@app.get("/dtdl/{dtmi:path}")
+async def dtdl_interface(dtmi: str):
+    """One interface's raw DTDL plus a populated instance from the sample run.
+
+    404 for an unknown DTMI; "instance" is null when the sample export has
+    no slice for it, so the page renders the schema alone rather than a
+    made-up example.
+    """
+    if _DTDL_MODELS_PATH.is_dir():
+        for path in sorted(_DTDL_MODELS_PATH.glob("*.json")):
+            try:
+                loaded = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            for entry in (loaded if isinstance(loaded, list) else [loaded]):
+                if isinstance(entry, dict) and entry.get("@id") == dtmi:
+                    return {
+                        "interface": entry,
+                        "instance": _dtdl_instance_for(dtmi),
+                        "source": path.name,
+                    }
+    raise HTTPException(status_code=404, detail=f"no interface {dtmi!r}")
+
+
 @app.get("/dashboard")
 async def dashboard_page():
     """The observability + control dashboard (self-contained, no build step).

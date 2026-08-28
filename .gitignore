@@ -50,6 +50,12 @@ saves/
 # on forks that ship no key of their own.
 !docs/shared-key.example.json
 
+# interop DTDL models and worked exports are published deliberately
+# (committed 27 Aug 2026; CORRESPONDENCE.md stays local — see below)
+!interop/models/*.json
+!interop/sample_export/*.json
+!interop/demo_data/*.json
+
 # Logs
 *.log
 
@@ -101,3 +107,9 @@ docs/pyodide/
 
 # Playwright verification output
 dev-scripts/play-verify/
+
+# local-only: correspondence draft + per-machine launchers
+interop/CORRESPONDENCE.md
+dashboard.bat
+key.bat
+push57.bat

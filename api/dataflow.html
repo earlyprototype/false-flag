@@ -69,6 +69,15 @@
     height: calc(100vh - 58px); }
   svg { display: block; min-width: 1120px; width: 100%; height: auto; }
 
+  /* Narrow screens (phone): the fixed side panel would swallow the stage —
+     stack instead: schema on top, panel beneath the tapped node. */
+  @media (max-width: 760px) {
+    main { flex-direction: column; }
+    #stage { flex: none; height: 55vh; }
+    #panel { width: auto; flex: none; position: static; height: auto;
+      max-height: 45vh; border-top: 2px solid var(--line); }
+  }
+
   /* Diagram */
   .node rect { fill: #ffffff; stroke: #b9c5d4; stroke-width: 1.2; rx: 5; }
   .node text { fill: var(--text); font-size: 12px; font-weight: 600; }
@@ -112,6 +121,46 @@
     padding: 10px 12px; margin-bottom: 12px; }
   #pWalk .prog { font-family: var(--mono); font-size: 11px; color: var(--muted);
     margin-bottom: 6px; }
+
+  /* DTDL mode */
+  .node .dtmi { fill: #6f3bcf; font-size: 8.5px; font-family: var(--mono);
+    font-weight: 400; }
+  .node.dtdl-mapped rect { stroke: #6f3bcf; stroke-width: 1.8; }
+  #dtdlBar { border: 1px solid #c3a9ee; background: #f7f2ff; border-radius: 6px;
+    padding: 10px 12px; margin-bottom: 12px; }
+  #dtdlBar h3 { margin: 0 0 4px; font-size: 11px; letter-spacing: .12em;
+    text-transform: uppercase; color: #5e1ea0; }
+  #dtdlBar .std { font-family: var(--mono); font-size: 10.5px; color: #46617e; }
+  #dtdlBar .constructs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; }
+  #dtdlBar .kc { font-family: var(--mono); font-size: 10px; border-radius: 3px;
+    padding: 1px 6px; border: 1px solid #c3a9ee; color: #5e1ea0; background: #fff; }
+  #dtdlBar .note { font-size: 10.5px; color: var(--muted); margin-top: 7px; }
+  .dtdl-badge { font-family: var(--mono); font-size: 9px; fill: #6f3bcf; display: none; }
+  svg.dtdl-on .dtdl-badge { display: block; }
+  svg.dtdl-on .node.dtdl-un rect { stroke-dasharray: 3 3; }
+  svg.dtdl-on .node.dtdl-un rect, svg.dtdl-on .node.dtdl-un text { opacity: .55; }
+  #pDtdl .frow { display: flex; gap: 8px; font-size: 11.5px; margin: 3px 0; align-items: baseline; }
+  #pDtdl .fname { font-family: var(--mono); color: #6f3bcf; min-width: 118px; }
+  #pDtdl .ftype { font-family: var(--mono); font-size: 10px; color: #46617e; white-space: nowrap; }
+  #pDtdl .fdesc { color: #33404f; }
+  #pDtdl .frow.hl { background: #f7f2ff; border-radius: 4px; padding: 2px 4px; margin-left: -4px; }
+  #pDtdl details { margin-top: 9px; }
+  #pDtdl summary { cursor: pointer; font-size: 11px; color: #46617e; }
+  #pDtdl pre { font-size: 10px; background: var(--panel-2); padding: 8px; border-radius: 5px;
+    overflow: auto; max-height: 260px; margin: 6px 0 0; }
+  #pDtdl .live b { color: #0a7a3d; font-variant-numeric: tabular-nums; }
+  .iface { font-family: var(--mono); font-size: 10.5px; color: #5e1ea0;
+    word-break: break-all; }
+  table.dt { border-collapse: collapse; width: 100%; font-size: 11px;
+    margin-top: 4px; }
+  table.dt th { text-align: left; font-size: 9.5px; text-transform: uppercase;
+    letter-spacing: .1em; color: var(--muted); border-bottom: 1px solid var(--line);
+    padding: 3px 4px; }
+  table.dt td { padding: 3px 4px; border-bottom: 1px solid #eef1f5;
+    font-family: var(--mono); font-size: 10.5px; vertical-align: top; }
+  table.dt td.k { color: #6f3bcf; white-space: nowrap; }
+  table.dt tr.live td { background: #eef4fc; }
+  table.dt td .cnt { color: var(--sitrep); font-weight: 700; }
 
   @keyframes pulse {
     0% { filter: drop-shadow(0 0 0 rgba(31,102,208,0)); }
@@ -170,6 +219,7 @@
     <button id="clearAllBtn" title="Clear every runtime routing override">Clear overrides</button>
     <button id="resetLayoutBtn" title="Discard your dragged positions and restore the original layout">Reset layout</button>
     <button id="wtBtn" class="primary" title="Step through one turn of the selected game type, one hop at a time">▶ Walkthrough</button>
+    <button id="dtdlBtn" title="Show the DTDL v3 twin model behind each part of the engine">◇ DTDL</button>
   </div>
   <div class="group">
     <span id="sessBadge">no session</span>
@@ -180,6 +230,7 @@
 <main>
   <div id="stage"></div>
   <aside id="panel" aria-live="polite">
+    <div id="dtdlBar" hidden></div>
     <div id="pWalk" hidden></div>
     <h2 id="pTitle">Select a node</h2>
     <div class="anchor" id="pAnchor"></div>
@@ -188,6 +239,7 @@
       edit its prompt template — changes apply to the very next call the engine
       makes. The game-type selector dims the paths a mode never exercises.</div>
     <div id="pLayers"></div>
+    <div id="pDtdl"></div>
     <div id="pLive"></div>
     <div id="pRoute"></div>
     <div id="pPrompt"></div>
@@ -526,6 +578,14 @@ function render() {
       el("circle", {cx: n.x + n.w - 14, cy: n.y + 13, r: 10}, cc);
       el("text", {x: n.x + n.w - 14, y: n.y + 16.5, "text-anchor": "middle"}, cc).textContent = "0";
     }
+    if (DTDL_MAP[n.id]) {
+      const b = n.vertical
+        ? el("text", {x: n.x + n.w / 2, y: n.y - 6, "text-anchor": "middle",
+            "class": "dtdl-badge"}, g)
+        : el("text", {x: n.x + n.w - 2, y: n.y - 4, "text-anchor": "end",
+            "class": "dtdl-badge"}, g);
+      b.textContent = "◇ " + DTDL_MAP[n.id].short;
+    }
     // Drag to move; a press that never travels is a select-click.
     g.addEventListener("pointerdown", ev => {
       if (ev.button !== 0) return;
@@ -546,6 +606,7 @@ function render() {
 
   $("stage").replaceChildren(svg);
   applyModeFilter();
+  applyDtdl();
 }
 
 /* Full repaint: geometry plus the dynamic state a rebuild would lose
@@ -648,6 +709,7 @@ EDGES.forEach((e, i) => { EDGE_IDX[e.f + ">" + e.t] = i; });
 let wt = null;  // {steps, i} while a walkthrough is running
 
 function startWalkthrough() {
+  if (dtdlOn) exitDtdl();
   wt = {steps: WALKTHROUGH.filter(activeUnder), i: 0};
   applyWt();
 }
@@ -720,6 +782,221 @@ document.addEventListener("keydown", ev => {
   if (ev.key === "Escape") exitWalkthrough();
 });
 
+/* ---------- DTDL twin-model mode ---------- */
+/* Node → interface mapping, owner-reviewed row by row 27 Aug 2026 against
+   the verified SimexBuilder corpus (Research/PriorWork/corpus-verification-
+   2026-08-27.md). Unmapped nodes carry the reason — the honest gaps render,
+   they are not hidden. prop: the node corresponds to ONE property of the
+   interface rather than the interface itself. */
+const DTDL_MAP = {
+  msel:     {dtmi:"dtmi:falseflag:Timeline;1", short:"Timeline;1",
+             note:"contains Phase → Scenario → Scene — the standard's own three-level hierarchy"},
+  briefing: {dtmi:"dtmi:falseflag:Inject;1", short:"Inject;1"},
+  injgen:   {dtmi:"dtmi:falseflag:Inject;1", short:"Inject;1"},
+  console:  {dtmi:"dtmi:falseflag:Inject;1", short:"Inject;1"},
+  player:   {dtmi:"dtmi:falseflag:Participant;1", short:"Participant;1"},
+  advqa:    {dtmi:"dtmi:falseflag:Role;1", short:"Role;1",
+             note:"the surface where the advisor role definitions are enacted"},
+  interp:   {dtmi:"dtmi:falseflag:emergent:AdjudicatedDecision;1",
+             short:"AdjudicatedDecision.interpretation", prop:"interpretation"},
+  resolve:  {dtmi:"dtmi:falseflag:emergent:AdjudicatedDecision;1", short:"AdjudicatedDecision;1"},
+  quality:  {dtmi:"dtmi:falseflag:emergent:AdjudicatedDecision;1", short:"AdjudicatedDecision;1"},
+  pushback: {dtmi:"dtmi:falseflag:emergent:AdjudicatedDecision;1",
+             short:"AdjudicatedDecision.pushback", prop:"pushback"},
+  omissions:{dtmi:"dtmi:falseflag:emergent:AdjudicatedDecision;1",
+             short:"AdjudicatedDecision.criticalConcerns", prop:"criticalConcerns"},
+  ledger:   {dtmi:"dtmi:falseflag:emergent:EventLedgerEntry;1", short:"EventLedgerEntry;1"},
+  metrics:  {dtmi:"dtmi:falseflag:emergent:Session;1", short:"Session;1 · Telemetry"},
+  bus:      {dtmi:"dtmi:falseflag:emergent:Session;1", short:"Session;1 · Telemetry"},
+};
+const DTDL_WHY_NOT = {
+  intel: "actors", actorsim: "actors", diploconv: "actors", diploout: "actors",
+  endings: "pedagogy",
+  narrbank: "mystery", secret: "mystery", segfence: "mystery",
+};
+const DTDL_REASONS = {
+  actors: "Not modelled — simulated state-actor behaviour has no counterpart in the " +
+    "published exercise standard: their organisations are static setting entries that " +
+    "never act, and their generative-AI milestone is unshipped. A candidate for our " +
+    "emergent: extension namespace — this engine does it today.",
+  pedagogy: "Not modelled — the standard's assessment model is pedagogy (Bloom's) " +
+    "end-to-end. The endings check grades game outcome, and False Flag deliberately " +
+    "has no pedagogy.",
+  mystery: "Not modelled — hidden-narrative machinery has no counterpart in the " +
+    "published standard. An open question in our correspondence profile.",
+  internal: "Not modelled — engine-internal presentation or transport.",
+};
+
+let dtdlOn = false, dtdlData = null;
+const dtdlIfaceCache = {};
+
+async function enterDtdl() {
+  if (wt) exitWalkthrough();
+  if (!dtdlData) {
+    try { dtdlData = await (await fetch("/dtdl")).json(); }
+    catch (e) { return msg("twin model unavailable: " + e.message, true); }
+  }
+  dtdlOn = true;
+  $("dtdlBtn").classList.add("primary");
+  applyDtdl(); renderDtdlBar();
+  if (selected) selectNode(selected);
+}
+function exitDtdl() {
+  dtdlOn = false;
+  $("dtdlBtn").classList.remove("primary");
+  $("dtdlBar").hidden = true;
+  applyDtdl();
+  if (selected) selectNode(selected); else $("pDtdl").replaceChildren();
+}
+function applyDtdl() {
+  if (curSvg) curSvg.classList.toggle("dtdl-on", dtdlOn);
+  NODES.forEach(n =>
+    $("node-" + n.id).classList.toggle("dtdl-mapped", dtdlOn && !!DTDL_MAP[n.id]));
+  NODES.forEach(n =>
+    $("node-" + n.id).classList.toggle("dtdl-un", dtdlOn && !DTDL_MAP[n.id]));
+}
+function renderDtdlBar() {
+  const bar = $("dtdlBar");
+  bar.hidden = !dtdlOn;
+  if (!dtdlOn || !dtdlData) return;
+  const c = dtdlData.counts;
+  bar.replaceChildren();
+  const h = document.createElement("h3");
+  h.textContent = "◇ False Flag's twin model, in DTDL";
+  const std = document.createElement("div"); std.className = "std";
+  std.textContent = `DTDL v3 · ${dtdlData.namespace} · Interface ${c.Interface} · ` +
+    `Property ${c.Property} · Relationship ${c.Relationship} · Telemetry ${c.Telemetry}`;
+  const ks = document.createElement("div"); ks.className = "constructs";
+  [["Interface", "define component types"], ["Property", "capture attributes"],
+   ["Relationship", "express connections"], ["Telemetry", "model runtime data"]]
+    .forEach(([k, gloss]) => {
+      const s = document.createElement("span"); s.className = "kc";
+      s.textContent = k; s.title = gloss; ks.appendChild(s);
+    });
+  const note = document.createElement("div"); note.className = "note";
+  note.textContent = "Validated with Microsoft's official DTDLParser (13 interfaces, " +
+    "zero errors). Node mapping reviewed 27 Aug 2026 against the exercise platform's " +
+    "public documentation, which is pre-pilot. Badged boxes are modelled; dashed " +
+    "boxes are the honest gaps.";
+  bar.append(h, std, ks, note);
+}
+
+function dtdlSchemaText(schema) {
+  if (typeof schema === "string") return schema.replace(/^dtmi:.*:/, "");
+  if (schema && typeof schema === "object") {
+    const t = Array.isArray(schema["@type"]) ? schema["@type"][0] : schema["@type"];
+    if (t === "Enum" && Array.isArray(schema.enumValues))
+      return "enum: " + schema.enumValues.map(v => v.name).join(" | ");
+    if (t === "Object") return "object { " +
+      (schema.fields || []).map(f => f.name).join(", ") + " }";
+    if (t === "Array") return "array of " + dtdlSchemaText(schema.elementSchema);
+    if (t === "Map") return "map";
+    return t || "object";
+  }
+  return String(schema);
+}
+
+async function renderDtdl(n) {
+  const box = $("pDtdl"); box.replaceChildren();
+  if (!dtdlOn) return;
+  const sec = document.createElement("section");
+  const h = document.createElement("h3"); h.textContent = "Twin model";
+  sec.appendChild(h);
+  const map = DTDL_MAP[n.id];
+  if (!map) {
+    const p = document.createElement("div"); p.className = "hint";
+    p.textContent = DTDL_REASONS[DTDL_WHY_NOT[n.id]] || DTDL_REASONS.internal;
+    sec.appendChild(p); box.appendChild(sec); return;
+  }
+  const id = document.createElement("div"); id.className = "anchor";
+  id.textContent = map.dtmi;
+  sec.appendChild(id);
+  let d = dtdlIfaceCache[map.dtmi];
+  if (!d) {
+    try {
+      const r = await fetch("/dtdl/" + map.dtmi);
+      const body = await r.json();
+      // A 404 (or any non-2xx) still resolves fetch() and parses fine as
+      // JSON - it just isn't the shape we expect. Never cache that.
+      if (!r.ok || !body.interface) throw new Error(body.detail || r.status);
+      d = body;
+      dtdlIfaceCache[map.dtmi] = d;
+    } catch (e) {
+      const p = document.createElement("div"); p.className = "hint";
+      p.textContent = "interface unavailable: " + e.message;
+      sec.appendChild(p); box.appendChild(sec); return;
+    }
+  }
+  const iface = d.interface;
+  if (iface.description) {
+    const p = document.createElement("div"); p.className = "fdesc";
+    p.style.margin = "6px 0";
+    p.textContent = typeof iface.description === "string"
+      ? iface.description : (iface.description.en || "");
+    sec.appendChild(p);
+  }
+  if (map.note) {
+    const p = document.createElement("div"); p.className = "hint";
+    p.textContent = map.note; sec.appendChild(p);
+  }
+  const contents = iface.contents || [];
+  const kindOf = c => Array.isArray(c["@type"]) ? c["@type"][0] : c["@type"];
+  const addRows = (title, kind, extra) => {
+    const rows = contents.filter(c => kindOf(c) === kind);
+    if (!rows.length) return;
+    const hh = document.createElement("h3");
+    hh.textContent = title; hh.style.marginTop = "10px";
+    sec.appendChild(hh);
+    rows.forEach(c => {
+      const r = document.createElement("div");
+      r.className = "frow" + (map.prop && c.name === map.prop ? " hl" : "");
+      const nm = document.createElement("span"); nm.className = "fname";
+      nm.textContent = c.name;
+      const ty = document.createElement("span"); ty.className = "ftype";
+      ty.textContent = kind === "Relationship"
+        ? "→ " + String(c.target || "").replace("dtmi:falseflag:", "")
+        : dtdlSchemaText(c.schema);
+      const de = document.createElement("span"); de.className = "fdesc";
+      de.textContent = typeof c.description === "string" ? c.description : "";
+      r.append(nm, ty, de);
+      if (extra) extra(r, c);
+      sec.appendChild(r);
+    });
+  };
+  // Live values are shown only where a stream is actually attached and the
+  // event genuinely carries them — never simulated (owner ruling 27 Aug).
+  const liveMetrics = (lastState && lastState.metrics) || null;
+  addRows("Properties", "Property");
+  addRows("Telemetry", "Telemetry", (row, c) => {
+    if (map.dtmi.endsWith("Session;1") && liveMetrics && c.name in liveMetrics) {
+      const v = document.createElement("span"); v.className = "live";
+      v.innerHTML = "live <b></b>";
+      v.querySelector("b").textContent = liveMetrics[c.name];
+      row.appendChild(v);
+    }
+  });
+  addRows("Relationships", "Relationship");
+  if (map.prop) {
+    const p = document.createElement("div"); p.className = "hint";
+    p.style.marginTop = "6px";
+    p.textContent = "This node corresponds to the highlighted property.";
+    sec.appendChild(p);
+  }
+  const raw = document.createElement("details");
+  const rs = document.createElement("summary"); rs.textContent = "Raw DTDL";
+  const rp = document.createElement("pre");
+  rp.textContent = JSON.stringify(iface, null, 2);
+  raw.append(rs, rp); sec.appendChild(raw);
+  const inst = document.createElement("details");
+  const is_ = document.createElement("summary");
+  is_.textContent = "Populated instance — captured mock run, never hand-written";
+  const ip = document.createElement("pre");
+  ip.textContent = d.instance ? JSON.stringify(d.instance, null, 2)
+    : "no captured slice for this interface";
+  inst.append(is_, ip); sec.appendChild(inst);
+  box.appendChild(sec);
+}
+
 /* ---------- side panel ---------- */
 function selectNode(id) {
   if (wt) exitWalkthrough();
@@ -732,7 +1009,7 @@ function selectNode(id) {
   $("pDesc").textContent = n.desc || "";
   $("pMsg").textContent = ""; $("pMsg").className = "";
   $("pLayers").replaceChildren();
-  renderLive(n); renderRoute(n); renderPrompt(n);
+  renderDtdl(n); renderLive(n); renderRoute(n); renderPrompt(n);
 }
 
 function renderLive(n) {
@@ -907,6 +1184,7 @@ async function refreshRouting() {
 
 /* ---------- live stream ---------- */
 const lastCall = {};
+let lastState = null;
 function pulse(domId) {
   const g = $(domId); if (!g) return;
   g.classList.remove("pulse"); void g.getBoundingClientRect(); g.classList.add("pulse");
@@ -936,6 +1214,10 @@ function attach(sid) {
   es.addEventListener("state_update", ev => {
     const d = JSON.parse(ev.data);
     if (d.turn) $("turnBadge").textContent = "turn " + d.turn;
+    lastState = d;
+    if (dtdlOn && selected && DTDL_MAP[selected] &&
+        DTDL_MAP[selected].dtmi.endsWith("Session;1"))
+      renderDtdl(NODE_BY_ID[selected]);
     pulse("node-bus");
   });
   es.onerror = () => setStatus("stream lost — session gone or server down", true);
@@ -954,6 +1236,7 @@ document.querySelectorAll("button.seg").forEach(b => b.onclick = () => {
 $("mysteryChk").onchange = e => { mystery = e.target.checked;
   if (wt) startWalkthrough(); else applyModeFilter(); };
 $("wtBtn").onclick = () => wt ? exitWalkthrough() : startWalkthrough();
+$("dtdlBtn").onclick = () => dtdlOn ? exitDtdl() : enterDtdl();
 $("attachBtn").onclick = () => { const v = $("sessInput").value.trim(); if (v) attach(v); };
 $("demoBtn").onclick = async () => {
   setStatus("starting demo session…");
