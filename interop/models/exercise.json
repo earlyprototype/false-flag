@@ -9,7 +9,7 @@
       {
         "@type": "Property",
         "name": "metadata",
-        "description": "Name, type, duration (SEDL post); participants/sector/deployment sub-fields observed in SimexBuilder docs examples.",
+        "description": "Name, type, duration (SEDL post); participants/sector/deployment sub-fields observed in the exercise-platform reference docs.",
         "schema": {
           "@type": "Object",
           "fields": [
@@ -109,7 +109,7 @@
     "@id": "dtmi:falseflag:LearningObjective;1",
     "@type": "Interface",
     "displayName": "Learning Objective",
-    "description": "One pedagogical objective. Field names follow SimexBuilder docs examples (statement, taxonomyLevel, assessmentCriteria, roles).",
+    "description": "One pedagogical objective. Field names follow the exercise-platform reference docs (statement, taxonomyLevel, assessmentCriteria, roles).",
     "contents": [
       { "@type": "Property", "name": "statement", "schema": "string" },
       {

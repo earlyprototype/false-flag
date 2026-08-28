@@ -9,7 +9,7 @@
       "@id": "dtmi:falseflag:schema:Channel;1",
       "@type": "Enum",
       "displayName": "Channel",
-      "description": "Delivery channel. Values are False Flag's real episode channels, not SimexBuilder's media channels (email/phone/radio/SMS/PA) - vocabulary mapping is an open question.",
+      "description": "Delivery channel. Values are False Flag's real episode channels, not the reference platform's media channels (email/phone/radio/SMS/PA) - vocabulary mapping is an open question.",
       "valueSchema": "string",
       "enumValues": [
         { "name": "briefing", "enumValue": "briefing" },
@@ -48,7 +48,7 @@
     {
       "@type": "Property",
       "name": "timing",
-      "description": "Placement offset, field names verbatim from SimexBuilder docs examples: {phaseRelative, minutes} or {sceneRelative, seconds}. Indices are 0-based.",
+      "description": "Placement offset, field names verbatim from the exercise-platform reference docs: {phaseRelative, minutes} or {sceneRelative, seconds}. Indices are 0-based.",
       "schema": {
         "@type": "Object",
         "fields": [
@@ -109,7 +109,7 @@
     {
       "@type": "Property",
       "name": "variants",
-      "description": "Multi-role inject variants, shape verbatim from SimexBuilder docs examples.",
+      "description": "Multi-role inject variants, shape verbatim from the exercise-platform reference docs.",
       "schema": {
         "@type": "Array",
         "elementSchema": {
