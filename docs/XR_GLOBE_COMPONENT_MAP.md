@@ -1,5 +1,7 @@
 # Situation Globe — Component Map
 
+> **New here?** This is an engineering-fidelity document — dense on purpose, written for whoever builds and maintains this so nothing is lost between sessions. For the plain-language version, start with [`XR_GLOBE_FEASIBILITY_IN_BRIEF.md`](XR_GLOBE_FEASIBILITY_IN_BRIEF.md); the plan and open decisions are in the Owner's Brief (PR #69) and issues #70–#75.
+
 **Visual companion to [`XR_GLOBE_FEASIBILITY.md`](XR_GLOBE_FEASIBILITY.md).** Every box below is classified: **CORE** (solid, in the competition sprint), **STRETCH** (attempt only behind its decision gate), or **DEFERRED** (post-competition, design verified and waiting). Links under each diagram go to the study section or file that specifies the component. Milestones and decision points are in the last diagram.
 
 ---

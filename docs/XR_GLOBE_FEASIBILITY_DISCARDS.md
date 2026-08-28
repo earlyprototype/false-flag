@@ -1,5 +1,7 @@
 # XR Globe Feasibility — Discards Register
 
+> **New here?** This is an engineering-fidelity document — dense on purpose, written for whoever builds and maintains this so nothing is lost between sessions. For the plain-language version, start with [`XR_GLOBE_FEASIBILITY_IN_BRIEF.md`](XR_GLOBE_FEASIBILITY_IN_BRIEF.md); the plan and open decisions are in the Owner's Brief (PR #69) and issues #70–#75.
+
 **Everything reported by analysis agents but cut or compressed out of `XR_GLOBE_FEASIBILITY.md`, preserved for future examination.**
 
 *Companion to `docs/XR_GLOBE_FEASIBILITY.md`. Raw agent output (6 readers, 3 full designs, 3 judge verdicts, 7 verifications, 24 ideas, critique) is preserved verbatim at `audits/2026-08-28-xr-feasibility/workflow1_full_output.json`. The second analysis pass (authoritative ORBAT spatial layer + VR projected-screen workaround) is complete; its output is registered at `audits/2026-08-28-xr-feasibility/workflow2_full_output.json` (see section G).*

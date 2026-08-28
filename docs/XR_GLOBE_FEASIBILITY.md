@@ -1,5 +1,7 @@
 # Feasibility Study — The Situation Globe
 
+> **New here?** This is an engineering-fidelity document — dense on purpose, written for whoever builds and maintains this so nothing is lost between sessions. For the plain-language version, start with [`XR_GLOBE_FEASIBILITY_IN_BRIEF.md`](XR_GLOBE_FEASIBILITY_IN_BRIEF.md); the plan and open decisions are in the Owner's Brief (PR #69) and issues #70–#75.
+
 **Integrating simulated gods-eye-view GEOINT layers into FALSE FLAG as a between-turn XR data layer — with an authoritative spatial layer and a VR ops room**
 
 *Version 2, 2026-08-28. Basis: this repository at `main` (35c11c0) plus the open DTDL PRs #65/#66, and [bilawalsidhu/gods-eye-view](https://github.com/bilawalsidhu/gods-eye-view) (MIT) at commit `314a0e1`. Produced by two multi-agent analysis passes (39 agents total): pass 1 — six codebase readers, three competing presentation architectures, three-lens judging, seven adversarially-verified claims, completeness critique; pass 2, under the owner's revised **build-what's-needed** framing — three targeted engine readers, three competing authoritative-spatial-layer designs, two-lens judging, five further verified claims (two by executing probes against the real engine), completeness critique. Raw agent output: `audits/2026-08-28-xr-feasibility/`. Cut material: `XR_GLOBE_FEASIBILITY_DISCARDS.md`.*
@@ -32,7 +34,7 @@ Pass-1 claims 1–7; pass-2 claims 8–12. "Executed" = proven by running code, 
 
 | # | Claim | Verdict | Essence |
 |---|---|---|---|
-| 1 | CesiumJS can do in-headset VR today | **REFUTED** | No WebXR as of v1.144; PoC PR #11372 unmerged and unprioritized. Never build or wait on it. |
+| 1 | CesiumJS can do in-headset VR today | **REFUTED — superseded in practice** | No WebXR as of v1.144; PoC PR #11372 unmerged and unprioritized. Never build or wait on the *direct* route — but read with claim 11: the ops-room projected screen (§6) delivers the VR element with CesiumJS never touching the headset pipeline, so the practical verdict on VR is **achievable**, not blocked. |
 | 2 | Google 3D Tiles fit a demo budget; keyless fallback exists | **CONDITIONAL** | 1,000 free root queries/month is ample (billing account + caps needed). gods-eye-view hard-throws without a key; 3-line patch → keyless OSM + Re:Earth stack. Keyless photoreal also exists via Cesium ion asset 2275207. |
 | 3 | gods-eye-view layers run on locally simulated feeds | **CONDITIONAL (yes)** | Layer contract is source-agnostic; `mode:'sim'` is first-class; same-origin `/api/*` seam → zero client changes, ~1–3 days. Feeds must pass freshness/schema guards. |
 | 4 | CesiumJS embeds in the Next.js frontend | **CONDITIONAL** | The committed frontend never builds (no `package.json` in git). Zero-build `FileResponse` HTML is the only proven serving path here — use it. |
