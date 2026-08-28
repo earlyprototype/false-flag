@@ -79,7 +79,7 @@ The reconciled hybrid of the two leading pass-2 designs (the judges split 1–1 
 
 The decision points, each with an owner and an exit criterion. (Two v1 gates are struck: ~~LLM response time~~ — the window is design-paced; ~~the 30 s attract-mode pacing cap~~ — one line of our own `api/demo.py`.)
 
-1. **Competition parameters** *(external — the only true blocker)*: deadline, rubric, live-vs-video, IP rules exist nowhere in the repo; the reliability-vs-standards trade-off and the whole schedule hang on them. *Clears when the owner supplies them.*
+1. **Competition parameters** — **CLEARED 2026-08-28 (owner input)**: the challenge started 28 Aug, onsite day **12 Sep** (15 days), final **14 Sep**. The onsite venue is **Irish Manufacturing Research** — an RTO whose pillars (Digitisation/Industry 4.0, Robotics & Automation) and flagship REWIRE project run on digital twins, so the DTDL track is the venue's home turf and the `Theatre;1` sidecar + DTMI badges are promoted to sprint priority. Consequence: the full program does not fit; the §7 cut lines activate — see the 15-day sprint plan there. Rubric still unpublished as far as known; a Manus research task should hunt it.
 2. **PRs #65/#66 merge sequencing** *(dependency)*: both tracks build on the merged tree; the DTDL provenance fields need a parser re-validation run post-merge. *Clears on merge + one rebase + PARSE OK.*
 3. **Solo capacity vs. tiered scope** *(resource)*: combined honest estimate **~2–3 months part-time** (Track A 2–3 weeks at the judged 2–3× multiplier; Track B ~4–6 part-time weeks staged so every stage ships playable; re-golden churn; doctrine/gazetteer authoring — which *is* game design, 2–4 days; gazetteer QA; the Quest spike). "Two tracks" means order-independent for one person, not parallel. *Managed by the cut lines in §7, never removed.*
 4. **Security before anything leaves localhost** *(engineering — worse under Track B)*: zero auth plus unauthenticated `POST /routing` and `PUT /prompts` now guard *ground truth, facilitator teleports, and a network-reachable movement prompt* — venue wifi could literally move the fleet. Bind localhost + authenticated reverse proxy; read-only spectator mirror; the WebRTC variant's DataChannel is an input surface. *Hard gate for the truth layer.*
@@ -110,7 +110,19 @@ Accepted limits: the globe is a monoscopic picture — no stereoscopic terrain, 
 
 ## 7. Roadmap — two tracks, one gate, explicit cut lines
 
-**Phase 0 spike stays the commitment gate** (1 day: `globe.html` against a demo session, hardcoded gazetteer, one shader — proves the projector wow-shot before any server change).
+**The 15-day competition sprint (dates landed 2026-08-28: onsite 12 Sep, final 14 Sep).** The full program below remains the honest map; what fits before the onsite, in cut-line order, is:
+
+| Days | Work | Notes |
+|---|---|---|
+| 1–2 | Phase-0 spike + the #65/#66 merge decision | Everything stacks on the merge; decide now |
+| 2–7 | **B1 — the zero-LLM truth map** | Highest demo-value week in the plan: the fleet visibly closing on the GIUK gap from real engine state, deterministic, $0 |
+| 6–11 | Reduced A1: fan-out + `/geo/stream`, globe polish, sensor ladder, watermark, **`Theatre;1` sidecar + DTMI badges** (promoted — IMR venue resonance) | |
+| 11–13 | Demo hardening: runbook, localhost/proxy, mock attract loop, one hardcoded GIUK tripwire if ahead, **pre-recorded video fallback (mandatory — the final is 2 days after the onsite)** | |
+| Deferred | B2 movement call (first stretch if ahead), full tripwire engine, fog, VR — the projector wall is the shown XR artifact; the ops room is a one-slide vision backed by the verified §6 path | |
+
+Parallel (Manus, ~20k credits ≈ $100 of agent compute; ~200–500 credits per research task): gazetteer QA dossier with sources · public platform-figures dossier for the range rings (with fictional-doctrine flags) · IMR/judge brief · rubric/logistics hunt · one-pager, deck draft, demo-video storyboard. **Manus stays off the branch** — data and collateral in, never code (golden-file determinism, re-golden discipline, and the 712-test suite make a second autonomous agent in the repo churn, not progress); and no API keys into its sandbox.
+
+**Phase 0 spike stays the commitment gate** (1 day: `globe.html` against a demo session, hardcoded gazetteer, one shader — proves the projector wow-shot before any server change). The full-program map:
 
 | Stage | Track | Scope | Effort |
 |---|---|---|---|
@@ -159,7 +171,7 @@ Interrogate-the-globe under fog (gods-eye-view's LLM-agnostic action grammar + t
 
 ## 11. Owner decision checklist
 
-1. Competition parameters (gate 1) — everything is provisional until these land.
+1. ~~Competition parameters~~ — **landed 2026-08-28** (onsite 12 Sep at IMR, final 14 Sep); the §7 sprint plan is the operative schedule. Remaining sub-item: the judging rubric, if published.
 2. Merge #65/#66; then the DTDL provenance re-validation run.
 3. Tiebreak ratification: accept the TASKORD+IRONCLAD hybrid as specified, or hear the two designs separately (both preserved in full in the audit output).
 4. Downgrade silent-loss acceptance for saves (claim 9) — accept and document, or add version-aware load warnings.
