@@ -1,8 +1,8 @@
 {
   "$metadata": {
     "$model": "dtmi:falseflag:Exercise;1",
-    "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md.",
-    "generatedAt": "2026-08-27T16:45:42+00:00",
+    "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md.",
+    "generatedAt": "2026-08-28T18:32:29+00:00",
     "source": "data/scenarios/war_game_2025 (variant: standard)"
   },
   "id": "ex_war_game_2025",
@@ -24,7 +24,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:LearningObjective;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "obj_1",
       "statement": "De-escalate crisis without appearing weak"
@@ -32,7 +32,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:LearningObjective;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "obj_2",
       "statement": "Secure credible US/NATO commitment"
@@ -40,7 +40,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:LearningObjective;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "obj_3",
       "statement": "Defend critical infrastructure (Faslane, key bases, London)"
@@ -48,7 +48,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:LearningObjective;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "obj_4",
       "statement": "Avoid civilian casualties"
@@ -56,7 +56,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:LearningObjective;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "obj_5",
       "statement": "Maintain public confidence"
@@ -65,14 +65,14 @@
   "timeline": {
     "$metadata": {
       "$model": "dtmi:falseflag:Timeline;1",
-      "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+      "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
     },
     "id": "timeline_war_game_2025",
     "phases": [
       {
         "$metadata": {
           "$model": "dtmi:falseflag:Phase;1",
-          "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+          "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
         },
         "id": "phase_scripted",
         "name": "Scripted Crisis",
@@ -83,7 +83,7 @@
           {
             "$metadata": {
               "$model": "dtmi:falseflag:Scenario;1",
-              "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+              "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
             },
             "id": "scenario_false_flag_crisis",
             "name": "UK-Russia False Flag Crisis",
@@ -91,7 +91,7 @@
               {
                 "$metadata": {
                   "$model": "dtmi:falseflag:Scene;1",
-                  "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+                  "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
                 },
                 "id": "scene_turn_001",
                 "name": "COBRA Emergency Meeting Convened",
@@ -100,7 +100,7 @@
               {
                 "$metadata": {
                   "$model": "dtmi:falseflag:Scene;1",
-                  "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+                  "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
                 },
                 "id": "scene_turn_002",
                 "name": "Russian Submarine Surfaces Near UK Waters",
@@ -109,7 +109,7 @@
               {
                 "$metadata": {
                   "$model": "dtmi:falseflag:Scene;1",
-                  "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+                  "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
                 },
                 "id": "scene_turn_003",
                 "name": "Major Power Station Explosion",
@@ -118,7 +118,7 @@
               {
                 "$metadata": {
                   "$model": "dtmi:falseflag:Scene;1",
-                  "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+                  "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
                 },
                 "id": "scene_turn_004",
                 "name": "Emergency NATO Consultation - Article 4 Invoked",
@@ -127,7 +127,7 @@
               {
                 "$metadata": {
                   "$model": "dtmi:falseflag:Scene;1",
-                  "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+                  "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
                 },
                 "id": "scene_turn_005",
                 "name": "MISSILE LAUNCH DETECTION - BALLISTIC TRAJECTORY",
@@ -136,7 +136,7 @@
               {
                 "$metadata": {
                   "$model": "dtmi:falseflag:Scene;1",
-                  "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+                  "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
                 },
                 "id": "scene_turn_006",
                 "name": "US Demands Coordination",
@@ -149,7 +149,7 @@
       {
         "$metadata": {
           "$model": "dtmi:falseflag:Phase;1",
-          "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+          "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
         },
         "id": "phase_emergent",
         "name": "Emergent Escalation",
@@ -160,7 +160,7 @@
           {
             "$metadata": {
               "$model": "dtmi:falseflag:Scenario;1",
-              "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+              "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
             },
             "id": "scenario_emergent_continuation",
             "name": "Stochastic continuation",
@@ -174,7 +174,7 @@
   "worldReference": {
     "$metadata": {
       "$model": "dtmi:falseflag:WorldReference;1",
-      "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+      "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
     },
     "id": "world_war_game_2025",
     "location": "United Kingdom",
@@ -275,7 +275,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Role;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "prime_minister",
       "name": "Prime Minister",
@@ -300,7 +300,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Role;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "chief_defence_staff",
       "name": "Chief of the Defence Staff",
@@ -325,7 +325,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Role;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "national_security_advisor",
       "name": "National Security Adviser",
@@ -350,7 +350,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Role;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "home_secretary",
       "name": "Home Secretary",
@@ -375,7 +375,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Role;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "foreign_secretary",
       "name": "Foreign Secretary",
@@ -400,7 +400,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Role;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "attorney_general",
       "name": "Attorney General",
@@ -425,7 +425,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Role;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "president_russia",
       "name": "Supreme Commander",
@@ -445,7 +445,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Role;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "chief_general_staff",
       "name": "Military Operations",
@@ -465,7 +465,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Role;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "head_military_intelligence",
       "name": "Special Operations (GRU)",
@@ -485,7 +485,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Role;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "commander_northern_fleet",
       "name": "Naval Operations",
@@ -507,7 +507,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Participant;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "user_prime_minister",
       "name": "Prime Minister",
@@ -518,7 +518,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Participant;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "user_chief_defence_staff",
       "name": "Chief of the Defence Staff",
@@ -529,7 +529,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Participant;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "user_national_security_advisor",
       "name": "National Security Adviser",
@@ -540,7 +540,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Participant;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "user_home_secretary",
       "name": "Home Secretary",
@@ -551,7 +551,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Participant;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "user_foreign_secretary",
       "name": "Foreign Secretary",
@@ -562,7 +562,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Participant;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "user_attorney_general",
       "name": "Attorney General",
@@ -573,7 +573,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Participant;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "user_president_russia",
       "name": "Supreme Commander",
@@ -584,7 +584,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Participant;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "user_chief_general_staff",
       "name": "Military Operations",
@@ -595,7 +595,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Participant;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "user_head_military_intelligence",
       "name": "Special Operations (GRU)",
@@ -606,7 +606,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Participant;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "user_commander_northern_fleet",
       "name": "Naval Operations",
@@ -619,7 +619,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Inject;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "turn_001_cobra_briefing",
       "title": "COBRA Emergency Meeting Convened",
@@ -649,7 +649,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Inject;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "turn_002_submarine_provocation",
       "title": "Russian Submarine Surfaces Near UK Waters",
@@ -683,7 +683,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Inject;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "turn_003_infrastructure_attack",
       "title": "Major Power Station Explosion",
@@ -721,7 +721,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Inject;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "turn_004_nato_consultation",
       "title": "Emergency NATO Consultation - Article 4 Invoked",
@@ -755,7 +755,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Inject;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "turn_005_missile_launch_detection",
       "title": "MISSILE LAUNCH DETECTION - BALLISTIC TRAJECTORY",
@@ -789,7 +789,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:Inject;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "turn_006_us_demands_answers",
       "title": "US Demands Coordination",

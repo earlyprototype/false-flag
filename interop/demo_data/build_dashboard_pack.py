@@ -6,7 +6,7 @@ the T+ inject list, decision points, event-ledger entries, LLM call stats
 (per turn and per family), and the channel->layer mapping the dashboard
 lanes use. Key names reuse the DTDL correspondence vocabulary verbatim
 where it exists (metadata / timeline / injects / decisions / ledger /
-telemetry names; see interop/CORRESPONDENCE.md).
+telemetry names; see interop/README.md).
 
 Run from anywhere:  python interop/demo_data/build_dashboard_pack.py
 Reads its sibling files; writes dashboard_pack.json beside them.

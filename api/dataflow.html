@@ -914,7 +914,12 @@ async function renderDtdl(n) {
   let d = dtdlIfaceCache[map.dtmi];
   if (!d) {
     try {
-      d = await (await fetch("/dtdl/" + map.dtmi)).json();
+      const r = await fetch("/dtdl/" + map.dtmi);
+      const body = await r.json();
+      // A 404 (or any non-2xx) still resolves fetch() and parses fine as
+      // JSON - it just isn't the shape we expect. Never cache that.
+      if (!r.ok || !body.interface) throw new Error(body.detail || r.status);
+      d = body;
       dtdlIfaceCache[map.dtmi] = d;
     } catch (e) {
       const p = document.createElement("div"); p.className = "hint";

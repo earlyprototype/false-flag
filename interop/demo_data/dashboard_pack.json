@@ -1,7 +1,7 @@
 {
   "$metadata": {
-    "generatedAt": "2026-08-22T02:01:59+00:00",
-    "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md.",
+    "generatedAt": "2026-08-28T18:31:55+00:00",
+    "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md.",
     "source": [
       "run_record.json",
       "run_telemetry.json",
@@ -20,14 +20,14 @@
     "provider": "mock",
     "turnsRequested": 10,
     "turnsPlayed": 10,
-    "startedAt": "2026-08-22T01:58:33+00:00",
-    "endedAt": "2026-08-22T01:58:35+00:00",
+    "startedAt": "2026-08-28T18:29:04+00:00",
+    "endedAt": "2026-08-28T18:29:06+00:00",
     "scriptedTurns": 6,
     "stochasticFrom": 7,
     "ending": {
       "turn": 10,
-      "title": "THE GUNS OF OCTOBER",
-      "endingId": "war",
+      "title": "TESTED AND FOUND WANTING",
+      "endingId": "weakness",
       "verdict": "defeat"
     }
   },
@@ -96,37 +96,37 @@
       {
         "stamp": "T+4",
         "turn": 4,
-        "value": 76
+        "value": 73
       },
       {
         "stamp": "T+5",
         "turn": 5,
-        "value": 81
+        "value": 78
       },
       {
         "stamp": "T+6",
         "turn": 6,
-        "value": 83
+        "value": 80
       },
       {
         "stamp": "T+7",
         "turn": 7,
-        "value": 94
+        "value": 91
       },
       {
         "stamp": "T+8",
         "turn": 8,
-        "value": 95
+        "value": 92
       },
       {
         "stamp": "T+9",
         "turn": 9,
-        "value": 96
+        "value": 93
       },
       {
         "stamp": "T+10",
         "turn": 10,
-        "value": 100
+        "value": 97
       }
     ],
     "domestic_stability": [
@@ -138,52 +138,52 @@
       {
         "stamp": "T+1",
         "turn": 1,
-        "value": 48
+        "value": 50
       },
       {
         "stamp": "T+2",
         "turn": 2,
-        "value": 45
+        "value": 46
       },
       {
         "stamp": "T+3",
         "turn": 3,
-        "value": 40
+        "value": 41
       },
       {
         "stamp": "T+4",
         "turn": 4,
-        "value": 38
+        "value": 40
       },
       {
         "stamp": "T+5",
         "turn": 5,
-        "value": 30
+        "value": 33
       },
       {
         "stamp": "T+6",
         "turn": 6,
-        "value": 30
+        "value": 33
       },
       {
         "stamp": "T+7",
         "turn": 7,
-        "value": 23
+        "value": 26
       },
       {
         "stamp": "T+8",
         "turn": 8,
-        "value": 22
+        "value": 25
       },
       {
         "stamp": "T+9",
         "turn": 9,
-        "value": 19
+        "value": 21
       },
       {
         "stamp": "T+10",
         "turn": 10,
-        "value": 15
+        "value": 19
       }
     ],
     "alliance_cohesion": [
@@ -210,37 +210,37 @@
       {
         "stamp": "T+4",
         "turn": 4,
-        "value": 48
+        "value": 58
       },
       {
         "stamp": "T+5",
         "turn": 5,
-        "value": 64
+        "value": 78
       },
       {
         "stamp": "T+6",
         "turn": 6,
-        "value": 78
+        "value": 92
       },
       {
         "stamp": "T+7",
         "turn": 7,
-        "value": 79
+        "value": 93
       },
       {
         "stamp": "T+8",
         "turn": 8,
-        "value": 77
+        "value": 91
       },
       {
         "stamp": "T+9",
         "turn": 9,
-        "value": 84
+        "value": 98
       },
       {
         "stamp": "T+10",
         "turn": 10,
-        "value": 93
+        "value": 100
       }
     ],
     "casualties_civ": [
@@ -888,7 +888,7 @@
       "effects": {
         "escalation_risk": 0,
         "alliance_cohesion": 8,
-        "domestic_stability": 0
+        "domestic_stability": 1
       },
       "pushback": [],
       "overriddenObjectors": [],
@@ -935,9 +935,9 @@
       "interpretationSnippet": "INTERPRETATION: Authorise defensive patrols only, and instruct the Attorney General to review the legal basis.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMEL",
       "qualityVerdict": "adequate",
       "effects": {
-        "escalation_risk": -1,
-        "alliance_cohesion": 7,
-        "domestic_stability": 0
+        "escalation_risk": -4,
+        "alliance_cohesion": 17,
+        "domestic_stability": 1
       },
       "pushback": [],
       "overriddenObjectors": [],
@@ -951,8 +951,8 @@
       "qualityVerdict": "adequate",
       "effects": {
         "escalation_risk": -3,
-        "alliance_cohesion": 13,
-        "domestic_stability": 0
+        "alliance_cohesion": 17,
+        "domestic_stability": 1
       },
       "pushback": [],
       "overriddenObjectors": [],
@@ -1016,7 +1016,7 @@
       "effects": {
         "escalation_risk": -1,
         "alliance_cohesion": 7,
-        "domestic_stability": 1
+        "domestic_stability": 0
       },
       "pushback": [],
       "overriddenObjectors": [],
@@ -1029,9 +1029,9 @@
       "interpretationSnippet": "INTERPRETATION: Raise readiness across home commands and brief the Cabinet in full.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (within 1 tu",
       "qualityVerdict": "adequate",
       "effects": {
-        "escalation_risk": 0,
-        "alliance_cohesion": 7,
-        "domestic_stability": 0
+        "escalation_risk": -3,
+        "alliance_cohesion": 16,
+        "domestic_stability": 2
       },
       "pushback": [],
       "overriddenObjectors": [],
@@ -1117,7 +1117,7 @@
   "llm_calls": {
     "totals": {
       "count": 163,
-      "meanLatencyMs": 0.2,
+      "meanLatencyMs": 0.4,
       "fallbackCount": 0
     },
     "perTurn": [
@@ -1130,19 +1130,19 @@
       {
         "turn": 2,
         "count": 13,
-        "meanLatencyMs": 0.0,
+        "meanLatencyMs": 0.1,
         "fallbackCount": 0
       },
       {
         "turn": 3,
         "count": 13,
-        "meanLatencyMs": 0.4,
+        "meanLatencyMs": 0.2,
         "fallbackCount": 0
       },
       {
         "turn": 4,
         "count": 16,
-        "meanLatencyMs": 0.0,
+        "meanLatencyMs": 0.1,
         "fallbackCount": 0
       },
       {
@@ -1154,13 +1154,13 @@
       {
         "turn": 6,
         "count": 28,
-        "meanLatencyMs": 0.1,
+        "meanLatencyMs": 0.3,
         "fallbackCount": 0
       },
       {
         "turn": 7,
         "count": 14,
-        "meanLatencyMs": 0.0,
+        "meanLatencyMs": 0.6,
         "fallbackCount": 0
       },
       {
@@ -1172,13 +1172,13 @@
       {
         "turn": 9,
         "count": 17,
-        "meanLatencyMs": 0.5,
+        "meanLatencyMs": 0.4,
         "fallbackCount": 0
       },
       {
         "turn": 10,
         "count": 17,
-        "meanLatencyMs": 0.5,
+        "meanLatencyMs": 1.3,
         "fallbackCount": 0
       }
     ],
@@ -1186,19 +1186,19 @@
       {
         "family": "actor_simulation",
         "count": 22,
-        "meanLatencyMs": 0.1,
+        "meanLatencyMs": 0.0,
         "fallbackCount": 0
       },
       {
         "family": "advisor_pushback",
         "count": 10,
-        "meanLatencyMs": 0.1,
+        "meanLatencyMs": 0.2,
         "fallbackCount": 0
       },
       {
         "family": "advisor_qa",
         "count": 10,
-        "meanLatencyMs": 0.2,
+        "meanLatencyMs": 0.7,
         "fallbackCount": 0
       },
       {
@@ -1210,13 +1210,13 @@
       {
         "family": "critical_omissions",
         "count": 50,
-        "meanLatencyMs": 0.5,
+        "meanLatencyMs": 0.9,
         "fallbackCount": 0
       },
       {
         "family": "decision_interpretation",
         "count": 10,
-        "meanLatencyMs": 0.2,
+        "meanLatencyMs": 0.3,
         "fallbackCount": 0
       },
       {
@@ -1234,7 +1234,7 @@
       {
         "family": "inject_generation",
         "count": 4,
-        "meanLatencyMs": 0.2,
+        "meanLatencyMs": 0.5,
         "fallbackCount": 0
       },
       {
@@ -1252,7 +1252,7 @@
       {
         "family": "situation_summary",
         "count": 10,
-        "meanLatencyMs": 0.0,
+        "meanLatencyMs": 0.1,
         "fallbackCount": 0
       }
     ]

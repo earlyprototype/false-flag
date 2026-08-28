@@ -1,14 +1,14 @@
 {
   "$metadata": {
     "$model": "dtmi:falseflag:emergent:Session;1",
-    "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md.",
-    "generatedAt": "2026-08-22T01:58:43+00:00",
+    "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md.",
+    "generatedAt": "2026-08-28T18:29:23+00:00",
     "source": "run_record.json + run.calls.jsonl.state.jsonl"
   },
   "id": "session_war_game_2025_seed42",
   "exercise": "ex_war_game_2025",
-  "startedAt": "2026-08-22T01:58:33+00:00",
-  "endedAt": "2026-08-22T01:58:35+00:00",
+  "startedAt": "2026-08-28T18:29:04+00:00",
+  "endedAt": "2026-08-28T18:29:06+00:00",
   "seed": 42,
   "playMode": "emergent",
   "provider": "mock",
@@ -38,37 +38,37 @@
       {
         "stamp": "T+4",
         "turn": 4,
-        "value": 76
+        "value": 73
       },
       {
         "stamp": "T+5",
         "turn": 5,
-        "value": 81
+        "value": 78
       },
       {
         "stamp": "T+6",
         "turn": 6,
-        "value": 83
+        "value": 80
       },
       {
         "stamp": "T+7",
         "turn": 7,
-        "value": 94
+        "value": 91
       },
       {
         "stamp": "T+8",
         "turn": 8,
-        "value": 95
+        "value": 92
       },
       {
         "stamp": "T+9",
         "turn": 9,
-        "value": 96
+        "value": 93
       },
       {
         "stamp": "T+10",
         "turn": 10,
-        "value": 100
+        "value": 97
       }
     ],
     "domestic_stability": [
@@ -80,52 +80,52 @@
       {
         "stamp": "T+1",
         "turn": 1,
-        "value": 48
+        "value": 50
       },
       {
         "stamp": "T+2",
         "turn": 2,
-        "value": 45
+        "value": 46
       },
       {
         "stamp": "T+3",
         "turn": 3,
-        "value": 40
+        "value": 41
       },
       {
         "stamp": "T+4",
         "turn": 4,
-        "value": 38
+        "value": 40
       },
       {
         "stamp": "T+5",
         "turn": 5,
-        "value": 30
+        "value": 33
       },
       {
         "stamp": "T+6",
         "turn": 6,
-        "value": 30
+        "value": 33
       },
       {
         "stamp": "T+7",
         "turn": 7,
-        "value": 23
+        "value": 26
       },
       {
         "stamp": "T+8",
         "turn": 8,
-        "value": 22
+        "value": 25
       },
       {
         "stamp": "T+9",
         "turn": 9,
-        "value": 19
+        "value": 21
       },
       {
         "stamp": "T+10",
         "turn": 10,
-        "value": 15
+        "value": 19
       }
     ],
     "alliance_cohesion": [
@@ -152,37 +152,37 @@
       {
         "stamp": "T+4",
         "turn": 4,
-        "value": 48
+        "value": 58
       },
       {
         "stamp": "T+5",
         "turn": 5,
-        "value": 64
+        "value": 78
       },
       {
         "stamp": "T+6",
         "turn": 6,
-        "value": 78
+        "value": 92
       },
       {
         "stamp": "T+7",
         "turn": 7,
-        "value": 79
+        "value": 93
       },
       {
         "stamp": "T+8",
         "turn": 8,
-        "value": 77
+        "value": 91
       },
       {
         "stamp": "T+9",
         "turn": 9,
-        "value": 84
+        "value": 98
       },
       {
         "stamp": "T+10",
         "turn": 10,
-        "value": 93
+        "value": 100
       }
     ],
     "casualties_civ": [
@@ -896,24 +896,226 @@
         "actionType": "decision",
         "text": "Raise readiness across home commands and brief the Cabinet in full."
       }
+    ],
+    "phase_changed": [
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "phase": "briefing"
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "phase": "discussion"
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "phase": "decision"
+      },
+      {
+        "stamp": "T+1",
+        "turn": 1,
+        "phase": "adjudication"
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "phase": "briefing"
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "phase": "discussion"
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "phase": "decision"
+      },
+      {
+        "stamp": "T+2",
+        "turn": 2,
+        "phase": "adjudication"
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "phase": "briefing"
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "phase": "discussion"
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "phase": "decision"
+      },
+      {
+        "stamp": "T+3",
+        "turn": 3,
+        "phase": "adjudication"
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "phase": "briefing"
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "phase": "discussion"
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "phase": "decision"
+      },
+      {
+        "stamp": "T+4",
+        "turn": 4,
+        "phase": "adjudication"
+      },
+      {
+        "stamp": "T+5",
+        "turn": 5,
+        "phase": "briefing"
+      },
+      {
+        "stamp": "T+5",
+        "turn": 5,
+        "phase": "discussion"
+      },
+      {
+        "stamp": "T+5",
+        "turn": 5,
+        "phase": "decision"
+      },
+      {
+        "stamp": "T+5",
+        "turn": 5,
+        "phase": "adjudication"
+      },
+      {
+        "stamp": "T+6",
+        "turn": 6,
+        "phase": "briefing"
+      },
+      {
+        "stamp": "T+6",
+        "turn": 6,
+        "phase": "discussion"
+      },
+      {
+        "stamp": "T+6",
+        "turn": 6,
+        "phase": "decision"
+      },
+      {
+        "stamp": "T+6",
+        "turn": 6,
+        "phase": "adjudication"
+      },
+      {
+        "stamp": "T+7",
+        "turn": 7,
+        "phase": "briefing"
+      },
+      {
+        "stamp": "T+7",
+        "turn": 7,
+        "phase": "discussion"
+      },
+      {
+        "stamp": "T+7",
+        "turn": 7,
+        "phase": "decision"
+      },
+      {
+        "stamp": "T+7",
+        "turn": 7,
+        "phase": "adjudication"
+      },
+      {
+        "stamp": "T+8",
+        "turn": 8,
+        "phase": "briefing"
+      },
+      {
+        "stamp": "T+8",
+        "turn": 8,
+        "phase": "discussion"
+      },
+      {
+        "stamp": "T+8",
+        "turn": 8,
+        "phase": "decision"
+      },
+      {
+        "stamp": "T+8",
+        "turn": 8,
+        "phase": "adjudication"
+      },
+      {
+        "stamp": "T+9",
+        "turn": 9,
+        "phase": "briefing"
+      },
+      {
+        "stamp": "T+9",
+        "turn": 9,
+        "phase": "discussion"
+      },
+      {
+        "stamp": "T+9",
+        "turn": 9,
+        "phase": "decision"
+      },
+      {
+        "stamp": "T+9",
+        "turn": 9,
+        "phase": "adjudication"
+      },
+      {
+        "stamp": "T+10",
+        "turn": 10,
+        "phase": "briefing"
+      },
+      {
+        "stamp": "T+10",
+        "turn": 10,
+        "phase": "discussion"
+      },
+      {
+        "stamp": "T+10",
+        "turn": 10,
+        "phase": "decision"
+      },
+      {
+        "stamp": "T+10",
+        "turn": 10,
+        "phase": "adjudication"
+      }
     ]
   },
   "decisions": [
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "decision_t1",
       "turn": 1,
       "playerDecisionText": "Open a direct diplomatic channel to Moscow and inform NATO allies first.",
       "interpretation": "INTERPRETATION: Open a direct diplomatic channel to Moscow and inform NATO allies first.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (within 1 turn)\nFEASIBILITY: Feasible within current constraints",
       "qualityVerdict": "adequate",
-      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ✓ Poland: Warsaw urges the strongest possible allied response and will press for NATO consultations...\n  ○ United States: Washington supports the UK's measured response, but Congress will want hard evidence...\n  ○ Germany: Berlin supports the UK diplomatically and will coordinate within the EU, but cannot...",
+      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ✓ Poland: Poland fully endorses the UK's stance and offers immediate basing and logistical support...\n  ○ United States: Washington supports the UK's measured response, but Congress will want hard evidence...\n  ○ Germany: Germany urges continued restraint and supports allied consultations, though we must weigh...",
       "effects": {
         "escalation_risk": 0,
         "alliance_cohesion": 8,
-        "domestic_stability": 0
+        "domestic_stability": 1
       },
       "pushback": [],
       "criticalConcerns": [],
@@ -922,7 +1124,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "decision_t2",
       "turn": 2,
@@ -949,7 +1151,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "decision_t3",
       "turn": 3,
@@ -969,18 +1171,18 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "decision_t4",
       "turn": 4,
       "playerDecisionText": "Authorise defensive patrols only, and instruct the Attorney General to review the legal basis.",
       "interpretation": "INTERPRETATION: Authorise defensive patrols only, and instruct the Attorney General to review the legal basis.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (within 1 turn)\nFEASIBILITY: Feasible within current constraints",
       "qualityVerdict": "adequate",
-      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ○ United States: Washington supports the UK's measured response, but Congress will want hard evidence...\n  ○ France: France supports a firm and united European response and proposes joint naval patrols...\n  ✓ Poland: Warsaw urges the strongest possible allied response and will press for NATO consultations...",
+      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ✓ United States: The United States stands with the United Kingdom. We are accelerating the carrier group's...\n  ✓ France: Paris stands by the United Kingdom and will consult on further measures, favouring a...\n  ✓ Poland: Warsaw urges the strongest possible allied response and will press for NATO consultations...",
       "effects": {
-        "escalation_risk": -1,
-        "alliance_cohesion": 7,
-        "domestic_stability": 0
+        "escalation_risk": -4,
+        "alliance_cohesion": 17,
+        "domestic_stability": 1
       },
       "pushback": [],
       "criticalConcerns": [],
@@ -989,18 +1191,18 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "decision_t5",
       "turn": 5,
       "playerDecisionText": "Raise readiness across home commands and brief the Cabinet in full.",
       "interpretation": "INTERPRETATION: Raise readiness across home commands and brief the Cabinet in full.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (within 1 turn)\nFEASIBILITY: Feasible within current constraints",
       "qualityVerdict": "adequate",
-      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ○ United States: Washington supports the UK's measured response, but Congress will want hard evidence...\n  ✓ France: Paris stands by the United Kingdom and will consult on further measures, favouring a...\n  ✓ Poland: Warsaw urges the strongest possible allied response and will press for NATO consultations...",
+      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ✓ United States: The United States stands with the United Kingdom. We are accelerating the carrier group's...\n  ✓ France: Paris stands by the United Kingdom and will consult on further measures, favouring a...\n  ✓ Poland: Warsaw urges the strongest possible allied response and will press for NATO consultations...",
       "effects": {
         "escalation_risk": -3,
-        "alliance_cohesion": 13,
-        "domestic_stability": 0
+        "alliance_cohesion": 17,
+        "domestic_stability": 1
       },
       "pushback": [],
       "criticalConcerns": [],
@@ -1009,7 +1211,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "decision_t6",
       "turn": 6,
@@ -1029,7 +1231,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "decision_t7",
       "turn": 7,
@@ -1056,7 +1258,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "decision_t8",
       "turn": 8,
@@ -1076,18 +1278,18 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "decision_t9",
       "turn": 9,
       "playerDecisionText": "Authorise defensive patrols only, and instruct the Attorney General to review the legal basis.",
       "interpretation": "INTERPRETATION: Authorise defensive patrols only, and instruct the Attorney General to review the legal basis.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (within 1 turn)\nFEASIBILITY: Feasible within current constraints",
       "qualityVerdict": "adequate",
-      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ○ United States: Washington supports the UK's measured response, but Congress will want hard evidence...\n  ○ France: France supports a firm and united European response and proposes joint naval patrols...\n  ✓ Poland: Poland fully endorses the UK's stance and offers immediate basing and logistical support...",
+      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ○ United States: Washington supports the UK's measured response, but Congress will want hard evidence...\n  ○ France: France supports a firm and united European response and proposes joint naval patrols...\n  ✓ Poland: Warsaw urges the strongest possible allied response and will press for NATO consultations...",
       "effects": {
         "escalation_risk": -1,
         "alliance_cohesion": 7,
-        "domestic_stability": 1
+        "domestic_stability": 0
       },
       "pushback": [],
       "criticalConcerns": [],
@@ -1096,18 +1298,18 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:AdjudicatedDecision;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "decision_t10",
       "turn": 10,
       "playerDecisionText": "Raise readiness across home commands and brief the Cabinet in full.",
       "interpretation": "INTERPRETATION: Raise readiness across home commands and brief the Cabinet in full.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (within 1 turn)\nFEASIBILITY: Feasible within current constraints",
       "qualityVerdict": "adequate",
-      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ○ United States: Washington supports the UK's measured response, but Congress will want hard evidence...\n  ○ France: France supports a firm and united European response and proposes joint naval patrols...\n  ✓ Poland: Warsaw urges the strongest possible allied response and will press for NATO consultations...",
+      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ✓ United States: The United States stands with the United Kingdom. We are accelerating the carrier group's...\n  ✓ France: Paris stands by the United Kingdom and will consult on further measures, favouring a...\n  ✓ Poland: Poland fully endorses the UK's stance and offers immediate basing and logistical support...",
       "effects": {
-        "escalation_risk": 0,
-        "alliance_cohesion": 7,
-        "domestic_stability": 0
+        "escalation_risk": -3,
+        "alliance_cohesion": 16,
+        "domestic_stability": 2
       },
       "pushback": [],
       "criticalConcerns": [],
@@ -1118,7 +1320,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "ledger_t1",
       "turn": 1,
@@ -1129,14 +1331,14 @@
       "effectsDirection": {
         "escalation_risk": "steady",
         "alliance_cohesion": "up",
-        "domestic_stability": "steady"
+        "domestic_stability": "up"
       },
       "objectors": []
     },
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "ledger_t2",
       "turn": 2,
@@ -1156,7 +1358,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "ledger_t3",
       "turn": 3,
@@ -1174,7 +1376,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "ledger_t4",
       "turn": 4,
@@ -1185,14 +1387,14 @@
       "effectsDirection": {
         "escalation_risk": "down",
         "alliance_cohesion": "up",
-        "domestic_stability": "steady"
+        "domestic_stability": "up"
       },
       "objectors": []
     },
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "ledger_t5",
       "turn": 5,
@@ -1203,14 +1405,14 @@
       "effectsDirection": {
         "escalation_risk": "down",
         "alliance_cohesion": "up",
-        "domestic_stability": "steady"
+        "domestic_stability": "up"
       },
       "objectors": []
     },
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "ledger_t6",
       "turn": 6,
@@ -1228,7 +1430,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "ledger_t7",
       "turn": 7,
@@ -1248,7 +1450,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "ledger_t8",
       "turn": 8,
@@ -1266,7 +1468,7 @@
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "ledger_t9",
       "turn": 9,
@@ -1277,14 +1479,14 @@
       "effectsDirection": {
         "escalation_risk": "down",
         "alliance_cohesion": "up",
-        "domestic_stability": "up"
+        "domestic_stability": "steady"
       },
       "objectors": []
     },
     {
       "$metadata": {
         "$model": "dtmi:falseflag:emergent:EventLedgerEntry;1",
-        "profile": "False Flag interop profile - a correspondence proposal in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/CORRESPONDENCE.md."
+        "profile": "False Flag interop profile - False Flag's twin model, in our own DTDL namespace, not claimed SEDL-conformant (the SEDL specification is unpublished). See interop/README.md."
       },
       "id": "ledger_t10",
       "turn": 10,
@@ -1293,9 +1495,9 @@
       "note": "",
       "outcome": "A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.",
       "effectsDirection": {
-        "escalation_risk": "steady",
+        "escalation_risk": "down",
         "alliance_cohesion": "up",
-        "domestic_stability": "steady"
+        "domestic_stability": "up"
       },
       "objectors": []
     }
