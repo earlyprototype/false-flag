@@ -39,7 +39,7 @@
     "@id": "dtmi:falseflag:Participant;1",
     "@type": "Interface",
     "displayName": "Participant",
-    "description": "Participant configuration entry (SEDL post names the block without detail). kind distinguishes the human player seat from AI-driven seats - a False Flag design choice.",
+    "description": "Participant configuration entry (the reference platform names the block without detail in its published writeup). kind distinguishes the human player seat from AI-driven seats - a False Flag design choice.",
     "contents": [
       { "@type": "Property", "name": "name", "schema": "string" },
       { "@type": "Property", "name": "characterId", "schema": "string" },

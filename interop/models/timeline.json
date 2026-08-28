@@ -4,7 +4,7 @@
     "@id": "dtmi:falseflag:Timeline;1",
     "@type": "Interface",
     "displayName": "Timeline",
-    "description": "Container for the temporal structure (phases, scenarios, scenes). The container interface itself is a False Flag design choice; the SEDL post names only the three timeline elements.",
+    "description": "Container for the temporal structure (phases, scenarios, scenes). The container interface itself is a False Flag design choice; the reference platform's writeup names only the three timeline elements.",
     "contents": [
       { "@type": "Property", "name": "name", "schema": "string" },
       {
@@ -19,7 +19,7 @@
     "@id": "dtmi:falseflag:Phase;1",
     "@type": "Interface",
     "displayName": "Phase",
-    "description": "Major exercise stage (SEDL post). Field shapes follow the exercise-platform reference docs (name, duration{minutes}, scenarios).",
+    "description": "Major exercise stage (platform writeup). Field shapes follow the exercise-platform reference docs (name, duration{minutes}, scenarios).",
     "contents": [
       { "@type": "Property", "name": "name", "schema": "string" },
       {
@@ -46,7 +46,7 @@
     "@id": "dtmi:falseflag:Scenario;1",
     "@type": "Interface",
     "displayName": "Scenario",
-    "description": "Specific situation (SEDL post). The public record shows scenarios only as name strings; the scene decomposition below is a False Flag design choice.",
+    "description": "Specific situation (platform writeup). The public record shows scenarios only as name strings; the scene decomposition below is a False Flag design choice.",
     "contents": [
       { "@type": "Property", "name": "name", "schema": "string" },
       { "@type": "Property", "name": "description", "schema": "string" },
@@ -62,7 +62,7 @@
     "@id": "dtmi:falseflag:Scene;1",
     "@type": "Interface",
     "displayName": "Scene",
-    "description": "Detailed moment with injects (SEDL post). One False Flag game turn maps to one Scene; injects bind to scenes via Inject.timing.sceneRelative rather than a Scene-side relationship.",
+    "description": "Detailed moment with injects (platform writeup). One False Flag game turn maps to one Scene; injects bind to scenes via Inject.timing.sceneRelative rather than a Scene-side relationship.",
     "contents": [
       { "@type": "Property", "name": "name", "schema": "string" },
       {

@@ -4,12 +4,12 @@
     "@id": "dtmi:falseflag:Exercise;1",
     "@type": "Interface",
     "displayName": "Exercise",
-    "description": "Top-level container for a simulation exercise: metadata, pedagogy (optional), timeline, participants. Corresponds to the published SEDL 'Exercise' concept.",
+    "description": "Top-level container for a simulation exercise: metadata, pedagogy (optional), timeline, participants. Corresponds to the reference platform's published 'Exercise' concept.",
     "contents": [
       {
         "@type": "Property",
         "name": "metadata",
-        "description": "Name, type, duration (SEDL post); participants/sector/deployment sub-fields observed in the exercise-platform reference docs.",
+        "description": "Name, type, duration (platform writeup); participants/sector/deployment sub-fields observed in the exercise-platform reference docs.",
         "schema": {
           "@type": "Object",
           "fields": [

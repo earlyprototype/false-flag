@@ -3,7 +3,7 @@
   "@id": "dtmi:falseflag:Inject;1",
   "@type": "Interface",
   "displayName": "Inject",
-  "description": "Event delivered to participants: trigger conditions, delivery channel, content, expected responses, assessment criteria (SEDL post). expectedResponse and assessmentCriteria are optional BY DESIGN in this profile (emergent adjudication).",
+  "description": "Event delivered to participants: trigger conditions, delivery channel, content, expected responses, assessment criteria (platform writeup). expectedResponse and assessmentCriteria are optional BY DESIGN in this profile (emergent adjudication).",
   "schemas": [
     {
       "@id": "dtmi:falseflag:schema:Channel;1",
@@ -25,7 +25,7 @@
     {
       "@type": "Property",
       "name": "trigger",
-      "description": "Trigger conditions (SEDL post). type enum covers scheduled (time), conditional (event) and facilitator-fired delivery; the condition grammar for event triggers is unpublished, so it is a free-text field here.",
+      "description": "Trigger conditions (platform writeup). type enum covers scheduled (time), conditional (event) and facilitator-fired delivery; the condition grammar for event triggers is unpublished, so it is a free-text field here.",
       "schema": {
         "@type": "Object",
         "fields": [
