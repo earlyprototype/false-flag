@@ -134,33 +134,31 @@ The watch floor is a designed phase, not latency filler — the engine waits ind
 
 ---
 
-## 4 · VR shapes — one decision tree
+## 4 · VR ops room — build order, drawn assuming a Quest headset is available
+
+*(Assumption recorded 2026-08-28: drawn as if [issue #75](https://github.com/earlyprototype/false-flag/issues/75) — "is a Meta Quest VR headset available?" — answers **yes**. The issue stays open until the owner confirms; if it answers no, everything through S1 still ships for desktop-tethered headsets and demo capture — only the on-device Quest steps park.)*
 
 ```mermaid
 flowchart TD
-  Q{"Quest physically\navailable?"}:::gate
-  SPIKE{"half-day on-device spike:\nCesiumJS flat in Quest Browser\nat usable fps? (UNPROVEN)"}:::gate
-  S1["S1 · portable\nthree.js plane + CanvasTexture\nsame-task copy\ndesktop-tethered: works today"]:::defer
-  S2["S2 · Quest quality\npanel → XRQuadLayer\ncompositor-crisp text"]:::defer
-  S3["S3 · Quest safe\nserver render → WebRTC →\nvideo quad layer (~250ms)"]:::defer
-  WALL["projector war-room wall\n(the SHOWN artifact at the onsite)"]:::core
+  WALL["projector war-room wall\nCesium page full-screen\n(the SHOWN artifact at the onsite)"]:::core
+  ROOM["three.js WebXR boardroom\nworld-locked wall screens\nsprite cast from the existing\npixel-art pipeline"]:::defer
+  S1["S1 · portable screen (build first)\nCesium: useDefaultRenderLoop:false,\nrender() driven from xrSession rAF;\nsame-task canvas→texture copy @≤30Hz;\ncontroller ray → UV → synthetic pointer\nWORKS TODAY desktop-tethered"]:::defer
+  SPIKE{"half-day on-device spike:\nCesiumJS flat in Quest Browser\nat usable fps? (UNPROVEN —\nsole public evidence is a\n2021 failure report)"}:::gate
+  S2["S2 · promote the panel\nto an XRQuadLayer\n(compositor resamples once →\ncrisp text; Quest Browser ≥16.1)"]:::defer
+  S3["S3 · swap the screen source:\nserver renders Cesium →\nWebRTC H.264 → video quad layer\n(~250ms end-to-end; inputs via\nDataChannel → server-side events)"]:::defer
 
-  WALL --> Q
-  Q -->|no| WALL2["ops room stays a\none-slide vision + §6 path"]:::core
-  Q -->|yes| SPIKE
-  SPIKE -->|passes| S2
-  SPIKE -->|fails| S3
-  S2 -.-> S1
-  S3 -.-> S1
+  WALL -->|same page, same data| ROOM
+  ROOM --> S1
+  S1 --> SPIKE
+  SPIKE -->|usable fps| S2
+  SPIKE -->|unusable fps| S3
 
   classDef core stroke-width:3px
   classDef defer stroke-dasharray:2 4
   classDef gate stroke-dasharray:6 3
 ```
 
-Both hard conditions apply to every local shape: Cesium driven from `xrSession.requestAnimationFrame`, and the canvas copy in the same JS task as the render ([study §6](XR_GLOBE_FEASIBILITY.md#6-vr-the-ops-room), claim 11).
-
----
+Mechanics the tree encodes: the boardroom and S1 screen are one build (the room renders; the screen is a texture fed by Cesium's canvas under the two hard conditions of study claim 11); the spike is a measurement, not a design choice — its result selects *where the pixels are made* (on the headset → S2, on the server → S3) and nothing else changes, because the room, the cast, the input path, and the data contract are identical in both outcomes.
 
 ## 5 · Milestones and decision points (replaces day-counting)
 
