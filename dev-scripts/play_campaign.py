@@ -94,6 +94,9 @@ def _snapshot_state(gm, turn, pushback_roles=None):
         "advisors": advisors,
         "actors": actors,
         "metrics": gm.world.metrics.dict(),
+        # Real phase transitions observed this turn (engine _trace_phase);
+        # feeds the interop phase_changed telemetry stream.
+        "phases": [p for (t, p) in getattr(gm, "_phase_trace", []) if t == turn],
     }
     if pushback_roles is not None:
         entry["pushback_roles"] = pushback_roles

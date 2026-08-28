@@ -6,8 +6,8 @@
     "turns_played": 4,
     "play_mode": "emergent",
     "provider": "mock",
-    "started_at": "2026-08-22T00:42:47+00:00",
-    "ended_at": "2026-08-22T00:42:48+00:00"
+    "started_at": "2026-08-27T16:45:41+00:00",
+    "ended_at": "2026-08-27T16:45:42+00:00"
   },
   "turns": [
     {
@@ -19,11 +19,11 @@
       },
       "decision_text": "Open a direct diplomatic channel to Moscow and inform NATO allies first.",
       "interpretation": "INTERPRETATION: Open a direct diplomatic channel to Moscow and inform NATO allies first.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (within 1 turn)\nFEASIBILITY: Feasible within current constraints",
-      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ✓ Poland: Warsaw urges the strongest possible allied response and will press for NATO consultations...\n  ○ United States: Washington supports the UK's measured response, but Congress will want hard evidence...\n  ○ Germany: Berlin supports the UK diplomatically and will coordinate within the EU, but cannot...",
+      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ✓ Poland: Poland fully endorses the UK's stance and offers immediate basing and logistical support...\n  ○ United States: Washington supports the UK's measured response, but Congress will want hard evidence...\n  ○ Germany: Germany urges continued restraint and supports allied consultations, though we must weigh...",
       "effects": {
         "escalation_risk": 0,
         "alliance_cohesion": 8,
-        "domestic_stability": 0
+        "domestic_stability": 1
       },
       "pushback": [],
       "critical_concerns": [],
@@ -89,11 +89,11 @@
       },
       "decision_text": "Authorise defensive patrols only, and instruct the Attorney General to review the legal basis.",
       "interpretation": "INTERPRETATION: Authorise defensive patrols only, and instruct the Attorney General to review the legal basis.\nFORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\nRESOURCES CONSUMED: Minimal (patrol operations)\nTIMELINE: Immediate (within 1 turn)\nFEASIBILITY: Feasible within current constraints",
-      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ○ United States: Washington supports the UK's measured response, but Congress will want hard evidence...\n  ○ France: France supports a firm and united European response and proposes joint naval patrols...\n  ✓ Poland: Warsaw urges the strongest possible allied response and will press for NATO consultations...",
+      "reasoning": "Action Quality: ADEQUATE\nReasoning: A measured response that addresses the immediate situation without overcommitting forces or foreclosing diplomatic options.\n\nInternational Response:\n  ✓ United States: The United States stands with the United Kingdom. We are accelerating the carrier group's...\n  ✓ France: Paris stands by the United Kingdom and will consult on further measures, favouring a...\n  ✓ Poland: Warsaw urges the strongest possible allied response and will press for NATO consultations...",
       "effects": {
-        "escalation_risk": -1,
-        "alliance_cohesion": 7,
-        "domestic_stability": 0
+        "escalation_risk": -4,
+        "alliance_cohesion": 17,
+        "domestic_stability": 1
       },
       "pushback": [],
       "critical_concerns": [],
@@ -105,7 +105,7 @@
   "final_save": {
     "metadata": {
       "save_name": "interop_sample",
-      "timestamp": "2026-08-22T01:42:48.557533",
+      "timestamp": "2026-08-27T17:45:42.419177",
       "version": "1.0.0"
     },
     "config": {
@@ -200,9 +200,9 @@
         "scene": 5,
         "difficulty": "standard",
         "metrics": {
-          "escalation_risk": 76,
-          "domestic_stability": 38,
-          "alliance_cohesion": 48,
+          "escalation_risk": 73,
+          "domestic_stability": 40,
+          "alliance_cohesion": 58,
           "casualties_civ": 6,
           "casualties_mil": 2
         },
@@ -229,7 +229,7 @@
               "country_code": "USA",
               "full_name": "United States of America",
               "official_position": "Strong ally but requires evidence and Congressional consultation",
-              "relationship_uk": 66,
+              "relationship_uk": 69,
               "public_commitments": [],
               "true_motivations": [
                 "avoid_entanglement_without_proof",
@@ -263,7 +263,7 @@
               "country_code": "FRA",
               "full_name": "French Republic",
               "official_position": "European solidarity with UK, but diplomatic solutions preferred",
-              "relationship_uk": 49,
+              "relationship_uk": 48,
               "public_commitments": [],
               "true_motivations": [
                 "european_strategic_autonomy",
@@ -299,7 +299,7 @@
               "country_code": "DEU",
               "full_name": "Federal Republic of Germany",
               "official_position": "Solidarity with allies, but must follow proper procedures",
-              "relationship_uk": 52,
+              "relationship_uk": 51,
               "public_commitments": [],
               "true_motivations": [
                 "energy_security_paramount",
@@ -390,15 +390,15 @@
       },
       "narrative_state": {
         "hidden_metrics": {
-          "escalation_risk": 76,
-          "domestic_stability": 38,
-          "alliance_cohesion": 48,
+          "escalation_risk": 73,
+          "domestic_stability": 40,
+          "alliance_cohesion": 58,
           "casualties_civ": 6,
           "casualties_mil": 2
         },
         "previous_metrics": {
           "escalation_risk": 75,
-          "domestic_stability": 40,
+          "domestic_stability": 41,
           "alliance_cohesion": 46,
           "casualties_civ": 6,
           "casualties_mil": 2
@@ -419,7 +419,7 @@
             "effects_direction": {
               "escalation_risk": "steady",
               "alliance_cohesion": "up",
-              "domestic_stability": "steady"
+              "domestic_stability": "up"
             },
             "objectors": []
           },
@@ -460,7 +460,7 @@
             "effects_direction": {
               "escalation_risk": "down",
               "alliance_cohesion": "up",
-              "domestic_stability": "steady"
+              "domestic_stability": "up"
             },
             "objectors": []
           }
@@ -535,27 +535,21 @@
         "",
         "=== CABINET OFFICE BRIEFING ROOM A (COBRA) ===\nSunday 5th October 2025, 17:00",
         "",
-        "The National Security Adviser begins:",
+        "The National Security Adviser gestures to the wall display.",
         "",
-        "\"Prime Minister, in the past 48 hours we've experienced a series of concerning developments:",
+        "\"Prime Minister, at 16:45 this afternoon Northwood confirmed what you are\nlooking at. Fifteen Russian submarines are at sea in the North Atlantic -\nseven ballistic missile boats and eight attack boats, with two destroyers\nand four frigates in escort. They slipped out of Kola Bay seventy-two hours\nago, and they are forming up southwest of Iceland, heading for the GIUK gap.",
         "",
-        "- Two F-35 pilots were found shot dead in Norfolk on Saturday night. Police investigations are ongoing,\n  but intelligence suggests these men were likely tracked before being killed. This bears the hallmarks\n  of traditional special forces activity.",
+        "For context: on a normal day there are two to five submarines in the entire\nAtlantic, from every navy in the world combined. This is the whole of the\nNorthern Fleet, bar a single boat. We have not seen numbers like this in\npeacetime. Not even at the height of the Cold War.",
         "",
-        "- Russia has falsely accused the UK of involvement in the terrorist attack at Severomorsk naval base\n  on 1st October, which killed over 100 Russian naval personnel. GCHQ assesses with high confidence\n  that Dagestani extremists were responsible, but Moscow is using this as a pretext.",
+        "And Moscow has said nothing. No exercise notification, no statement. The\ndeployment was made in silence - and it was made to be found.",
         "",
-        "- Signals intelligence reveals a snap Russian naval exercise underway in the North Atlantic, involving\n  15 submarines (7 SSBNs, 8 SSNs), 2 destroyers, and 4 frigates. This is well above normal deployment levels.",
-        "",
-        "- GCHQ reports cyber attacks on UK businesses and government websites have increased by 65%.",
-        "",
-        "- Russian diplomatic staff and their families are departing the UK at speed.",
-        "",
-        "The National Security Council assesses this as a coordinated campaign of coercion designed to test\nNATO resolve. We must respond carefully - neither appearing weak nor provoking further escalation.",
+        "The National Security Council's preliminary assessment is that this is a\ndeliberate test: of us, and of NATO's resolve. We must respond carefully -\nneither appearing weak nor provoking further escalation. The room is yours,\nPrime Minister.\"",
         "",
         "┌───────────────────────────────────┐",
         "│ Effect: escalation_risk +3 (→ 63) │",
         "└───────────────────────────────────┘",
         "┌──────────────────────────────────────┐",
-        "│ Effect: domestic_stability -2 (→ 48) │",
+        "│ Effect: domestic_stability -1 (→ 49) │",
         "└──────────────────────────────────────┘",
         "",
         "Prime Minister: Where does NATO stand on this?",
@@ -587,9 +581,11 @@
         "",
         "CDS Assessment:\nThe submarine's position places it within striking range of several critical \ninfrastructure targets in Scotland, including Scapa Flow, Faslane naval base, and \nNorth Sea oil installations. We assess this as reconnaissance and psychological \nwarfare combined.",
         "",
-        "Home Secretary:\nPrime Minister, the public is already reacting. Social media is ablaze with speculation. \nWe're seeing panic buying reports from supermarkets in northern Scotland. Some MPs are \ncalling for immediate military response.",
+        "Home Secretary:\nPrime Minister, the public is already reacting. Social media is ablaze with speculation.\nWe're seeing panic buying reports from supermarkets in northern Scotland. Some MPs are\ncalling for immediate military response.",
         "",
-        "Foreign Secretary:\nI've just received word that the Russian Ambassador has declined our request for an \nemergency meeting. This is unprecedented. The US National Security Advisor has called \nto express concern but stopped short of offering concrete support.",
+        "And there is a second matter which, as of this evening, I no longer believe is\nseparate. Two F-35 pilots were found shot dead in Norfolk on Saturday night. Norfolk\nConstabulary and the Security Service now assess that both men were tracked for days\nbefore they were killed - that is special forces tradecraft, on British soil. Until\nthis afternoon it was a murder inquiry. With that submarine on every phone in the\ncountry, I have to treat it as part of the same picture.",
+        "",
+        "Foreign Secretary:\nI've just received word that the Russian Ambassador has declined our request for an\nemergency meeting. This is unprecedented. And Moscow has found its voice tonight in\nthe worst way: state media is accusing us of the Severomorsk attack - the bombing at\ntheir naval base last week that killed over a hundred of their sailors. GCHQ assesses\nwith high confidence that Dagestani extremists were responsible, but the Kremlin is\nbuilding a pretext. Their diplomats' families have been flying out of Heathrow since\nthis morning. The US National Security Advisor has called to express concern but\nstopped short of offering concrete support.",
         "",
         "Prime Minister, how do you wish to respond?",
         "",
@@ -597,7 +593,7 @@
         "│ Effect: escalation_risk +4 (→ 67) │",
         "└───────────────────────────────────┘",
         "┌──────────────────────────────────────┐",
-        "│ Effect: domestic_stability -3 (→ 45) │",
+        "│ Effect: domestic_stability -4 (→ 46) │",
         "└──────────────────────────────────────┘",
         "┌─────────────────────────────────────┐",
         "│ Effect: alliance_cohesion -2 (→ 46) │",
@@ -629,7 +625,7 @@
         "",
         "Immediate Impact:\n- 2 million homes without power across Yorkshire and the North East\n- Emergency services responding to multiple casualties (estimated 5-8 fatalities)\n- National Grid implementing rolling blackouts to manage load\n- Hospitals switching to backup generators",
         "",
-        "GCHQ Assessment:\nWe intercepted encrypted communications between suspected Russian intelligence \noperatives in the UK approximately 30 minutes before the explosion. The timing is \nhighly suspicious. We assess with moderate confidence this was a coordinated sabotage \noperation.",
+        "GCHQ Assessment:\nFor a week we have watched cyber attacks on UK businesses and government systems\nclimb by sixty-five percent - probing, we assessed. Then, approximately 30 minutes\nbefore the explosion, we intercepted encrypted communications between suspected\nRussian intelligence operatives in the UK. The timing is highly suspicious. We\nassess with moderate confidence this was a coordinated sabotage operation.",
         "",
         "Home Secretary:\nPrime Minister, this is a direct attack on our critical national infrastructure. We \nneed to consider invoking emergency powers. The public will demand protection. We're \nalready seeing reports of vigilante groups forming to \"protect\" other power stations.",
         "",
@@ -643,7 +639,7 @@
         "│ Effect: escalation_risk +5 (→ 75) │",
         "└───────────────────────────────────┘",
         "┌──────────────────────────────────────┐",
-        "│ Effect: domestic_stability -6 (→ 39) │",
+        "│ Effect: domestic_stability -6 (→ 40) │",
         "└──────────────────────────────────────┘",
         "┌─────────────────────────────────┐",
         "│ Effect: casualties_civ +6 (→ 6) │",
@@ -696,7 +692,7 @@
         "│ Effect: alliance_cohesion -5 (→ 41) │",
         "└─────────────────────────────────────┘",
         "┌──────────────────────────────────────┐",
-        "│ Effect: domestic_stability -2 (→ 38) │",
+        "│ Effect: domestic_stability -2 (→ 39) │",
         "└──────────────────────────────────────┘",
         "",
         "Prime Minister: What do the forces need from me?",

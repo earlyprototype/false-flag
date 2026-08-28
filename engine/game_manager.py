@@ -134,7 +134,8 @@ class GameManager:
             posture={},
             phase="briefing"
         )
-        
+        self._trace_phase("briefing")
+
         # Initialize State Actors
         try:
             from models.state_actors import load_actors_from_yaml
@@ -254,6 +255,7 @@ class GameManager:
         # phase forward for exactly this reason (cli/main.py); the headless
         # front ends (browser, API) go through here.
         self.world.phase = "discussion"
+        self._trace_phase("discussion")
 
         return inject or {}
 
@@ -503,6 +505,16 @@ class GameManager:
         """True once a terminal ending has fired."""
         return self.ending is not None
 
+    def _trace_phase(self, phase: str) -> None:
+        """Record a real turn-phase transition for run captures (interop).
+
+        Lazily created so sessions restored via from_dict trace too; never
+        serialized — the trace is capture diagnostics, not game state.
+        """
+        if not hasattr(self, "_phase_trace"):
+            self._phase_trace = []
+        self._phase_trace.append((self.world.turn, phase))
+
     def resolve_decision(self, action_text: str) -> Dict[str, Any]:
         """Commit and resolve a decision (Adjudication phase).
 
@@ -544,6 +556,9 @@ class GameManager:
             from engine.decision_phase import run_decision_pipeline
             from llm.router import generate_text, batch_generate_text
 
+            # The pipeline flips world.phase to "decision" as it starts;
+            # trace the transition here where the turn number is at hand.
+            self._trace_phase("decision")
             result = run_decision_pipeline(
                 self.world,
                 self.scenario_id,
@@ -564,6 +579,11 @@ class GameManager:
             actor_responses = result.actor_responses
             reasoning = result.reasoning
             self.transcript.extend(result.transcript)
+
+            # Effects land now — flip to "adjudication" as the CLI loop does
+            # (sim_loop), so headless captures record the real fourth phase.
+            self.world.phase = "adjudication"
+            self._trace_phase("adjudication")
 
             # Sync world metrics with narrative state (keep both in sync)
             self.world.metrics.escalation_risk = self.narrative_state.hidden_metrics.escalation_risk
@@ -589,6 +609,7 @@ class GameManager:
         # Update Phase & Turn
         self.world.turn += 1
         self.world.phase = "briefing"
+        self._trace_phase("briefing")
         self.world.scene = self.world.turn
         self.world.discussion_transcript = []
 

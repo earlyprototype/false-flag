@@ -416,6 +416,14 @@ def build_run_document(run_dir, scenario_id):
         "stamp": f"T+{t['turn']}", "turn": t["turn"],
         "actionType": "decision", "text": t["decision_text"],
     } for t in run_record["turns"]]
+    # Ninth stream: real engine phase transitions captured per state line.
+    # Old captures without a "phases" field yield an empty stream — never
+    # synthesized (owner ruling 27 Aug: no fabricated values).
+    telemetry["phase_changed"] = [
+        {"stamp": f"T+{entry['turn']}", "turn": entry["turn"], "phase": phase}
+        for entry in state_lines
+        for phase in entry.get("phases", [])
+    ]
 
     decisions = [{
         "$metadata": _meta("dtmi:falseflag:emergent:AdjudicatedDecision;1"),

@@ -87,6 +87,17 @@ def main():
                  "casualties_civ", "casualties_mil"):
         assert run["telemetry"][name], f"metric telemetry series {name!r} is empty"
 
+    # All nine declared Session;1 telemetry streams must be present AND
+    # non-empty — a declared-but-dead stream is exactly what the conformance
+    # panel must never show (owner ruling 27 Aug: wire, never fabricate).
+    assert len(run["telemetry"]) == 9, \
+        f"expected 9 telemetry streams, found {len(run['telemetry'])}"
+    assert run["telemetry"]["phase_changed"], "phase_changed stream is empty"
+    phases = {"briefing", "discussion", "decision", "adjudication"}
+    for entry in run["telemetry"]["phase_changed"]:
+        assert entry["phase"] in phases, \
+            f"phase {entry['phase']!r} not a known turn phase"
+
     assert run["ledger"], "run document has no ledger entries"
     dispositions = _enum_values("emergent_assessment.json",
                                 ":EventLedgerEntry;1", "disposition")
