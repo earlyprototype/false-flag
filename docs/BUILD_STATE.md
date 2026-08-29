@@ -1,6 +1,8 @@
 # Build State — Situation Globe (stock-take, 2026-08-28 evening)
 
-**Purpose**: single resume point. Any continuation — renewed agent session, different model, or the owner alone — starts here.
+**Start with the morning handover** if you are new to this or returning after a break: [`docs/handover/2026-08-29-SITUATION-GLOBE.md`](handover/2026-08-29-SITUATION-GLOBE.md). The plan itself is [`PLAN.md`](../PLAN.md) at the repo root.
+
+**Purpose**: single resume point for engineering state. Any continuation — renewed agent session, different model, or the owner alone — starts here.
 
 ## Where things stand
 
