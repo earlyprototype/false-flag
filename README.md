@@ -6,7 +6,9 @@ You are the UK Prime Minister. Russia has just staged an attack and blamed Brita
 
 **[Play it in your browser →](https://earlyprototype.github.io/false-flag/)** — the same engine, compiled to WebAssembly. You need a passphrase (or an OpenRouter key of your own); see [Sharing one key with playtesters](#sharing-one-key-with-playtesters-browser-build) below.
 
-**Currently building:** the Situation Globe — a live map of the crisis. The plan, its stages and their status: **[PLAN.md](PLAN.md)**.
+**Next planned build:** the Situation Globe — a live map of the crisis.
+Implementation has not started; Stage 1 awaits the owner's go. See
+**[PLAN.md](PLAN.md)**.
 
 ![Title sequence — the masthead condenses out of the fog of Operation Tuman](docs/media/title_sequence.gif)
 
@@ -323,4 +325,3 @@ MIT — see [LICENSE](LICENSE).
 ---
 
 **Ready to face the crisis? The nation is waiting for your decision.** 🇬🇧
-

@@ -1,65 +1,76 @@
-# Build State — Situation Globe (stock-take, 2026-08-28 evening)
+# Build State — Situation Globe
 
-**Start with the morning handover** if you are new to this or returning after a break: [`docs/handover/2026-08-29-SITUATION-GLOBE.md`](handover/2026-08-29-SITUATION-GLOBE.md). The plan itself is [`PLAN.md`](../PLAN.md) at the repo root.
+Current as of 30 August 2026. This file records engineering state,
+implementation constraints and known defects. The implementation plan and
+stage status live only in [`PLAN.md`](../PLAN.md).
 
-**Purpose**: single resume point for engineering state. Any continuation — renewed agent session, different model, or the owner alone — starts here.
+## Current state
 
-## Where things stand
+- PR #67 (feasibility record) and PR #69 (plan and planning documents) are
+  merged into `main`.
+- `main` also carries the 13-interface DTDL twin model, `/dtdl`, the
+  ◇ DTDL dataflow mode and the dashboard `Session;1` telemetry panel.
+- No Situation Globe implementation exists. Stage 1 awaits the owner's
+  explicit **go**.
+- The final 29 August Claude discussion added separate advisor, prompt-audit
+  and control-surface work. Its decisions and issue/branch map are in the
+  [`30 August project handover`](handover/2026-08-30-PROJECT-HANDOVER.md).
+- Movement architecture is settled by closed issue
+  [#71](https://github.com/earlyprototype/false-flag/issues/71): validated
+  textual orders may move forces; failures hold position.
+- Open, non-blocking inputs are
+  [#72](https://github.com/earlyprototype/false-flag/issues/72) data location,
+  [#73](https://github.com/earlyprototype/false-flag/issues/73) demo cut,
+  [#74](https://github.com/earlyprototype/false-flag/issues/74) visual register
+  and [#75](https://github.com/earlyprototype/false-flag/issues/75) Quest
+  availability. Their working defaults and the save-downgrade decision are in
+  [`DECISION_BRIEFS.md`](DECISION_BRIEFS.md).
+- The research queue is issue
+  [#70](https://github.com/earlyprototype/false-flag/issues/70). Its P1a
+  gazetteer dossier and arithmetic script exist on `origin/manus/issue-70`
+  but have not been reconciled into `main`; review them before firing the
+  remaining competition and technical research tasks.
 
-- **`main` now carries the full DTDL twin model**: PR #65 merged directly; PR #66 (dashboard twin panel) merged via carrier PR #68, because #66's stacked base didn't auto-retarget (its branch wasn't deleted at #65's merge — remember this for future stacked PRs). `/dtdl`, `/dtdl/{dtmi}`, the ◇ DTDL dataflow mode, and the dashboard `Session;1` telemetry panel are all live on `main`.
-- **This branch** (`claude/vr-game-xr-simulation-feasibility-gomu1j`, PR #67, draft) is synced on top of merged main and holds: the feasibility study v2 (`XR_GLOBE_FEASIBILITY.md`), the component map (`XR_GLOBE_COMPONENT_MAP.md` — 5 Mermaid diagrams, CORE/STRETCH/DEFERRED), the discards register, the Manus ops doc (`MANUS_TASKS.md`), and both raw analysis outputs under `audits/2026-08-28-xr-feasibility/`.
-- **Decisions recorded**: build-what's-needed framing · ops-room VR thesis · lo-fi cast/hyper-real globe · design-paced between-turn holds · dates: onsite 12 Sep at IMR, final 14 Sep · #65/#66 merged (the merge half of D0 — the commit-to-build decision gate — is done) · Manus credits (60.9k) durable, off-branch role only.
-- **D0's build half — the "go": the owner's authorization to start writing this project's first code — is NOT yet taken**: the owner chose "merge, then take stock before building." No implementation code exists yet — docs only.
+## Constraints already verified
 
-## The plan
+- The existing session stream is a destructive single-consumer queue. Stage 1
+  uses one consumer per session. Stage 3 must add per-subscriber fan-out and
+  copy each payload because `_stream_filter` mutates it.
+- Only gazetteer hydration and deterministic movement arithmetic may write
+  coordinates. AI output is text, then validation; failure writes nothing.
+- Spatial save state includes tracks, orders, the order log and tripwire
+  latches. Runtime mailboxes, interpolation and fog are reconstructed after
+  load. Save/load/resume equality is a required check.
+- Derived movement and fog seeds use stable `crc32`, never Python
+  `hash()` or the campaign's master random stream.
+- New Theatre capability uses sidecar DTDL interfaces. Never edit the 13
+  published interfaces; re-run Microsoft's DTDLParser when sidecars land.
+- Cesium runs in the FastAPI web surface. The GitHub Pages/Pyodide build has no
+  API server. The VR room displays or streams that surface; Cesium does not
+  enter the XR rendering pipeline.
+- Quest performance is unproven until measured on a device.
+- Any `models/world.py` edit requires
+  `python dev-scripts/build_play_bundle.py` and a committed
+  `docs/game.zip` rebuild.
+- Before anything is reachable off localhost, routing, prompt-edit and future
+  movement surfaces require authentication.
+- Sessions are never evicted today. Subscriber queues and future daemons need
+  lifecycle cleanup rather than deepening that leak.
+- `intelligence.py` currently fabricates random distances; replace that
+  before authoritative spatial state and the old intelligence path coexist.
 
-Canonical, with per-stage status and done tests: **[PLAN.md](../PLAN.md)** at the repository root. Do not restate the plan here — update PLAN.md and link to it.
+## Durable evidence
 
-## Immediate next actions (in order)
+- Technical authority: [`XR_GLOBE_FEASIBILITY.md`](XR_GLOBE_FEASIBILITY.md)
+- Plain-language findings:
+  [`XR_GLOBE_FEASIBILITY_IN_BRIEF.md`](XR_GLOBE_FEASIBILITY_IN_BRIEF.md)
+- System diagrams: [`XR_GLOBE_COMPONENT_MAP.md`](XR_GLOBE_COMPONENT_MAP.md)
+- Rejected and deferred alternatives:
+  [`XR_GLOBE_FEASIBILITY_DISCARDS.md`](XR_GLOBE_FEASIBILITY_DISCARDS.md)
+- Complete source workflows:
+  [`audits/2026-08-28-xr-feasibility/`](../audits/2026-08-28-xr-feasibility/)
+- Current resume point:
+  [`handover/2026-08-30-PROJECT-HANDOVER.md`](handover/2026-08-30-PROJECT-HANDOVER.md)
 
-1. **M0 spike** (~a day): serve `api/globe.html` at `GET /globe` (FileResponse, `dashboard.html` pattern, session-attach header cloned from it), CesiumJS from CDN, ~10 hardcoded gazetteer entries, plot the ORBAT (the scenario's order of battle — the unit list) from `GET /game/{id}/resources`, one vendored sensor shader, EXERCISE watermark. Attach to `POST /demo/start` with `WARGAME_LLM=mock`. **One `/stream` consumer per session** (known destructive-queue defect).
-2. Fire Manus P1 tasks (briefs are paste-ready in `MANUS_TASKS.md`): gazetteer QA → feeds M1; IMR brief; rubric hunt.
-3. M1 per study §4a engine-diff list; claims 8–10's conditions in the study are **normative** for the implementation (fail-to-hold, closed vocabulary, sentinel, mock `NO_ORDERS`, derived seeds, `world.posture` not `world.flags`).
-
-## Needs / open items
-
-- Owner: ratify the TASKORD+IRONCLAD hybrid (the recommended movement design — an AI call emits structured orders that are validated before anything moves; this is decision [#71](https://github.com/earlyprototype/false-flag/issues/71): should the AI's movement orders move your forces? — or hear both designs first; full specs in `audits/.../workflow2_full_output.json`); geo-pack location (`data/` vs `api/geo_data/` — issue [#72](https://github.com/earlyprototype/false-flag/issues/72): which folder the map's data files live in); demo variant (issue [#73](https://github.com/earlyprototype/false-flag/issues/73): which campaign cut the judges watch); Quest availability — whether a Meta Quest VR headset can be got (a yes/no to record in issue [#75](https://github.com/earlyprototype/false-flag/issues/75)); save downgrade-loss acceptance.
-- Agent-subscription renewal decision (~30 Aug): weighed against the stakes; this file + the study + discards register are the continuation insurance either way.
-- DTDLParser re-validation once `Theatre;1` is authored (dotnet 8 + DTDLParser 1.1.3 — the pass-2 probe recipe).
-
-## How to resume without the current session
-
-Read, in order: this file → `XR_GLOBE_COMPONENT_MAP.md` (visual) → `XR_GLOBE_FEASIBILITY.md` (authority; §4a is the implementation spec, §3 the verified constraints) → `XR_GLOBE_FEASIBILITY_DISCARDS.md` (what was considered and cut, so it isn't relitigated). The raw agent outputs under `audits/` answer any "why" the docs compress.
-
-## Session close, 2026-08-28 (late) — rulings landed after the sections above
-
-- **The seam (owner-confirmed)**: live-hybrid per-layer split; the game reads live-derived facts as context, never state — issue [#77](https://github.com/earlyprototype/false-flag/issues/77) (live-hybrid mode: real live data feeds with a carved-out game zone) is authoritative, including the **boundary-as-zone** design (no text labels on player surfaces; fog carries the reality boundary; diegetic EXERCISE chrome only where optics require) and the **live-first / no-fallback build posture** (non-determinism of play is the thesis; simulated modes are CI fixtures only; session journaling is AAR journalism, not replay-protection). Recorded demo film: **kept**, as hardware-catastrophe contingency only.
-- **Real-email inject artifact** (a game inject delivered as an actual email): issue [#76](https://github.com/earlyprototype/false-flag/issues/76), MVP-worthy.
-- **N1 (the movement-architecture decision) reframed mechanically** in issue [#71](https://github.com/earlyprototype/false-flag/issues/71) (should the AI's movement orders move your forces?) with the recommendation on record (orders on — completes the interpretation call the engine already runs and discards).
-- **Language ruling enforced repo-wide**: mechanical language only (what/how/why); truth/lie metaphors removed from all docs on both branches.
-- **Docs status at close**: study + map + in-brief + discards (PR #67) and owner's brief + this file + decision briefs (PR #69) all current. **Known stale**: the claude.ai artifact page (pre-dates the sprint-milestone rework, tonight's rulings, and the language sweep) — refresh it or retire it; the repo is the memory.
-- **Not yet done, deliberately**: no implementation code — D0b ("go" — the owner's authorization to start writing the first code, the First Light map page) never given; Manus P1 tasks not yet fired (paste-ready briefs in issue [#70](https://github.com/earlyprototype/false-flag/issues/70), the Manus research task queue); decisions [#71](https://github.com/earlyprototype/false-flag/issues/71) (should the AI's movement orders move your forces), [#72](https://github.com/earlyprototype/false-flag/issues/72) (which folder the map's data files live in), [#73](https://github.com/earlyprototype/false-flag/issues/73) (which campaign cut the judges watch), [#74](https://github.com/earlyprototype/false-flag/issues/74) (the globe's default visual register — bare satellite Earth vs the CRT filter), and [#75](https://github.com/earlyprototype/false-flag/issues/75) (is a Meta Quest VR headset available) open with safe defaults; renewal decision open.
-
-## Planned DTDL additions (documented now, built at milestone M2)
-
-The digital-twin model on `main` (13 interfaces) is not modified; new capability lands as versioned sidecar interface files auto-served by `/dtdl`. Planned: `Theatre;1` (one per session, relating the session to its map entities) and `TheatreAsset;1` (one per unit; position record as telemetry with a source label: adjudicated / simulated / estimated) — both already proven to parse clean in Microsoft's official DTDLParser (study claim 6; re-run the validator when the files land). Existing slots reused rather than extended: `WorldReference.environmentalFactors` carries live-derived environment facts (issue [#77](https://github.com/earlyprototype/false-flag/issues/77)), and the `Inject` channel/targets already describe the real-email delivery (issue [#76](https://github.com/earlyprototype/false-flag/issues/76)). Published interface versions are never edited in place.
-
-## End of session, 2026-08-28 (night) — accurate state at pause
-
-**Where the plan lives now**: `PLAN.md` at the repository root is canonical — five stages, build checklists, done tests, status table, gates, cut order. README links it from the top. The owner's brief, this file, the study (§7) and the component map (§5) all point at it; none of them restate it. **Update PLAN.md first, always.**
-
-**Repository state**
-- `main`: carries the full DTDL twin surface (PRs #65/#66/#68 merged) — `/dtdl`, the dataflow DTDL mode, the dashboard twin panel. No Situation Globe code exists yet.
-- PR #67 (`claude/vr-game-xr-simulation-feasibility-gomu1j`) — feasibility record: study v2, plain-language in-brief, component map (5 diagrams), discards register, raw audit output. Green, mergeable, draft.
-- PR #69 (`claude/xr-globe-planning`) — plan and planning docs: `PLAN.md`, README pointer, owner's brief, decision briefs, this file. Green, mergeable, marked ready for review. **Merging #69 puts PLAN.md on `main`** — the one action that makes the plan available repo-wide.
-
-**Decisions and rulings recorded tonight**
-- #71 **closed**: the AI's movement orders may move forces (validated order channel; failure holds position). Design settled; only scheduling decides when it is built (stage 5).
-- #77: live-hybrid seam confirmed as the design — per-layer real/simulated split, game reads live-derived facts as context and never as state; **boundary is spatial (a zone), never text labels**; fog carries it.
-- **Live-first build posture**: the demo runs the real system; simulated modes are CI fixtures only, never a runtime the build retreats to. Non-determinism of play is the project thesis, not a cost. Recorded demo film kept, for hardware failure only.
-- #76: real-email inject artifact, MVP-worthy.
-- Language rule: mechanical statements of what/how/why. No metaphor ("truth", "lie") anywhere in project docs.
-
-**Open, none blocking**: decisions #72 (data-file location), #73 (demo campaign cut), #74 (default visual register), #75 (Quest availability — §4 of the component map is drawn assuming yes, pending confirmation). Manus research queue #70 unfired. Nothing is built: **stage 1 needs the owner's "go"**.
-
-**Known stale**: the claude.ai artifact page predates the plan rework; refresh or retire it. The repository is the memory.
+The raw workflow files answer implementation “why” questions that the shorter
+documents compress. Do not reconstruct those decisions from chat.

@@ -1,6 +1,11 @@
 # Situation Globe — Build Plan
 
-**This file is the plan. It is the only place the plan lives.** Everywhere else either points here or draws a picture of it. If you are picking this work up — new to it, returning to it, or handing it on — read this file and nothing else is required.
+**This is the canonical Situation Globe delivery plan.** It owns the Globe's
+work order, checklists, gates, acceptance tests and status. The final 29 August
+session also established advisor, prompt-audit and control-surface work; read
+the [`30 August project handover`](docs/handover/2026-08-30-PROJECT-HANDOVER.md)
+and issues #80–#86 for those separate workstreams. Issue #80 will incorporate
+them here without changing the settled Situation Globe scope.
 
 Each stage names **what gets built** and the **done test**: an observable fact you can watch happen. A stage is not finished because it feels finished; it is finished when its done test passes.
 
@@ -21,7 +26,7 @@ Each stage names **what gets built** and the **done test**: an observable fact y
 
 **Dates**: challenge started 28 Aug 2026 · onsite 12 Sep at Irish Manufacturing Research · final 14 Sep.
 **Cut order under time pressure**: Afterwards → Stage 5 → Stage 3. Stages 1, 2 and 4 are the floor.
-**Nothing is built yet.** No stage has started; the first line of code needs the owner's authorization (see Stage 1).
+**Nothing is built yet.** No stage has started; the first line of Situation Globe code needs the owner's authorization (see Stage 1).
 
 ---
 
@@ -37,7 +42,7 @@ Each stage names **what gets built** and the **done test**: an observable fact y
 
 **Done test** — on the projector, every unit in the order of battle sits at its real location, and an event in the running game visibly changes the display.
 
-**Needs first**: the owner's **"go"** — authorization to write this project's first code.
+**Needs first**: the owner's **"go"** — authorization to write the first Situation Globe code.
 
 ---
 
@@ -123,7 +128,7 @@ Built only if Stage 4 is complete with at least three clear days before the onsi
 
 | Gate | Question | Effect |
 |---|---|---|
-| **Go** | Owner authorizes the first code | Starts Stage 1 |
+| **Go** | Owner authorizes the first Situation Globe code | Starts Stage 1 |
 | **Schedule check** (after Stage 2) | On schedule? | Yes → Stage 3 · Behind → skip to Stage 4. Standards chrome is droppable; a rehearsed demo is not |
 | **Stretch gate** (after Stage 4) | Stage 4 done and ≥3 clear days left? | Yes → Stage 5 · No → Stage 5 moves to Afterwards |
 
@@ -133,7 +138,10 @@ Gates are schedule instruments only. No design questions remain inside them.
 
 Decisions still open, each with a working default so silence never blocks a stage: [#72](https://github.com/earlyprototype/false-flag/issues/72) which folder the map's data files live in · [#73](https://github.com/earlyprototype/false-flag/issues/73) which campaign cut the judges watch · [#74](https://github.com/earlyprototype/false-flag/issues/74) the globe's default visual register · [#75](https://github.com/earlyprototype/false-flag/issues/75) whether a Meta Quest headset is available.
 
-Running alongside, off-branch: the [Manus research queue](https://github.com/earlyprototype/false-flag/issues/70) — its gazetteer verification task feeds Stage 2.
+Running alongside, off-branch: the [Manus research queue](https://github.com/earlyprototype/false-flag/issues/70).
+P1a gazetteer outputs already exist on `origin/manus/issue-70`; review and
+reconcile those files before firing the remaining tasks. Accepted gazetteer
+data feeds Stage 2.
 
 ## Where the detail lives
 
