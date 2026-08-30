@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>False Flag — Situation Globe</title>
+<!-- Pinned CesiumJS. Keyless by default: OpenStreetMap imagery over the
+     default ellipsoid, so the page renders with zero accounts and zero
+     tokens. ?ionToken=... swaps in Ion photoreal imagery when one is at
+     hand. CESIUM_BASE_URL must be set before the library loads: it is
+     where Cesium fetches its workers and assets from. -->
+<script>window.CESIUM_BASE_URL = "https://cdnjs.cloudflare.com/ajax/libs/cesium/1.132.0/";</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cesium/1.132.0/Widgets/widgets.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cesium/1.132.0/Cesium.js"></script>
+<script src="/static/thermal.shader.js"></script>
+<style>
+  /* One deliberate DARK look: ops-room glass. The dashboard and dataflow
+     pages are the light paper surfaces; this is the projected one. */
+  :root {
+    --bg: #05080c;
+    --panel: rgba(9, 14, 20, .88);
+    --line: #1d2c3a;
+    --text: #cfe0ee;
+    --muted: #6b8299;
+    --accent: #2f9fd0;
+    --live: #3fd07a;
+    --warn: #d0862f;
+    --alarm: #d04a4a;
+    --mono: "Cascadia Mono", "Consolas", "SF Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--bg);
+    color: var(--text); font: 13px/1.45 var(--mono); overflow: hidden; }
+  #cesium { position: absolute; inset: 0; }
+  .cesium-widget-credits { font-size: 10px; opacity: .45; }
+
+  /* ---------------------------------------------------- EXERCISE chrome */
+  #banner { position: absolute; top: 0; left: 0; right: 0; height: 26px; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 0 12px; background: linear-gradient(180deg, rgba(6,10,14,.96), rgba(6,10,14,.72));
+    border-bottom: 1px solid var(--line); font-size: 11px; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--muted); pointer-events: none; }
+  #banner b { color: var(--text); font-weight: 600; letter-spacing: .22em; }
+  #banner .rule { flex: 1; height: 1px; background: repeating-linear-gradient(
+    90deg, var(--line) 0 8px, transparent 8px 16px); }
+  .wm { position: absolute; z-index: 15; font-size: 10.5px; letter-spacing: .34em;
+    color: rgba(208, 74, 74, .38); text-transform: uppercase; pointer-events: none;
+    user-select: none; white-space: nowrap; }
+  #wmTL { top: 34px; left: 12px; }
+  #wmTR { top: 34px; right: 12px; }
+  #wmBL { bottom: 10px; left: 12px; }
+  #wmBR { bottom: 10px; right: 12px; }
+
+  /* ------------------------------------------------------------- panels */
+  #tray { position: absolute; top: 34px; right: 12px; width: 296px; z-index: 18;
+    max-height: calc(100% - 76px); display: flex; flex-direction: column; gap: 8px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+    backdrop-filter: blur(3px); display: flex; flex-direction: column; min-height: 0; }
+  .card h2 { margin: 0; padding: 7px 10px; font-size: 10px; font-weight: 600;
+    letter-spacing: .16em; text-transform: uppercase; color: var(--muted);
+    border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; }
+  .card .body { padding: 6px 10px 8px; overflow: auto; }
+  .row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0;
+    font-size: 11px; border-bottom: 1px dotted rgba(29,44,58,.7); }
+  .row:last-child { border-bottom: 0; }
+  .row .k { color: var(--text); }
+  .row .v { color: var(--muted); text-align: right; }
+  #unresolved .row .v { color: var(--warn); }
+  #unresolvedCard.empty { opacity: .5; }
+
+  #status { position: absolute; left: 12px; bottom: 34px; z-index: 18; width: 430px;
+    max-width: calc(100% - 330px); }
+  #status .body { font-size: 11px; color: var(--muted); }
+  #status .body b { color: var(--text); font-weight: 600; }
+  #live { padding: 6px 10px; border-top: 1px solid var(--line); font-size: 11.5px;
+    letter-spacing: .06em; color: var(--muted); }
+  #live.hit { color: var(--live); background: rgba(63, 208, 122, .12);
+    animation: flash .9s ease-out; }
+  @keyframes flash {
+    0% { background: rgba(63, 208, 122, .45); }
+    100% { background: rgba(63, 208, 122, .12); }
+  }
+  #attach { display: flex; gap: 6px; padding: 6px 10px; border-top: 1px solid var(--line); }
+  input, button { background: #0b131b; color: var(--text); border: 1px solid var(--line);
+    border-radius: 3px; padding: 4px 7px; font: 11px var(--mono); }
+  input { flex: 1; min-width: 0; }
+  button { cursor: pointer; letter-spacing: .1em; text-transform: uppercase; }
+  button:hover { border-color: var(--accent); color: #fff; }
+  button.on { border-color: var(--accent); color: #fff; background: #10293a; }
+  #tools { position: absolute; left: 12px; top: 34px; z-index: 18; display: flex; gap: 6px; }
+  .err { color: var(--alarm); }
+</style>
+</head>
+<body>
+
+<div id="cesium"></div>
+
+<div id="banner">
+  <span>Exercise <b>False Flag</b> — Situation Globe</span>
+  <span class="rule"></span>
+  <span id="bannerRight">simulated · no real forces</span>
+</div>
+<div class="wm" id="wmTL">EXERCISE EXERCISE EXERCISE</div>
+<div class="wm" id="wmTR">EXERCISE EXERCISE EXERCISE</div>
+<div class="wm" id="wmBL">EXERCISE EXERCISE EXERCISE</div>
+<div class="wm" id="wmBR">EXERCISE EXERCISE EXERCISE</div>
+
+<div id="tools">
+  <button id="btnFlir" title="Vendored FLIR sensor shader (MIT, gods-eye-view)">FLIR</button>
+  <button id="btnHome" title="Return to the theatre view">Theatre</button>
+</div>
+
+<div id="tray">
+  <div class="card" style="max-height: 46%;">
+    <h2>Order of Battle <span id="orbatCount">—</span></h2>
+    <div class="body" id="orbat"></div>
+  </div>
+  <div class="card empty" id="unresolvedCard" style="max-height: 40%;">
+    <h2>Unresolved <span id="unresolvedCount">0</span></h2>
+    <div class="body" id="unresolved"></div>
+  </div>
+</div>
+
+<div class="card" id="status">
+  <h2>Feed <span id="sessionBadge">no session</span></h2>
+  <div class="body" id="statusBody">starting…</div>
+  <div id="live">LIVE · standby · —</div>
+  <div id="attach">
+    <input id="sessionInput" placeholder="session id (?game=…)" spellcheck="false">
+    <button id="btnAttach">Attach</button>
+  </div>
+</div>
+
+<script>
+/* ===================================================================
+   False Flag — Situation Globe (Stage 1 "First Light", PLAN.md)
+
+   Reads GET /game/{id}/resources and plots every unit at its named
+   base, then follows that game's SSE stream so a live event visibly
+   moves the display.
+
+   ONE CONSUMER ONLY. /stream/{id} is a destructive single-consumer
+   queue until Stage 3's per-subscriber fan-out lands: a second reader
+   (a dashboard tab on the same session) steals events from this page.
+   =================================================================== */
+
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+
+/* ------------------------------------------------------------ gazetteer */
+/* Stage 1 is hardcoded and coarse on purpose (2dp ≈ 1 km); Stage 2 moves
+   this to a checked gazetteer.yaml (PLAN.md, issue #72). Keys cover every
+   location string the war_game_2025 order of battle actually carries, plus
+   the scenario's other named places. "International_waters" is the one name
+   in the scenario's locations: block deliberately left out - like
+   "available" and "classified" it is a status rather than a place, with no
+   centroid to plot, so anything carrying it belongs in the UNRESOLVED tray. */
+const GAZETTEER = {
+  faslane:                 { lat: 56.07, lon:  -4.82, label: "Faslane (HMNB Clyde)" },
+  portsmouth:              { lat: 50.80, lon:  -1.11, label: "Portsmouth" },
+  plymouth:                { lat: 50.39, lon:  -4.18, label: "Plymouth (Devonport)" },
+  london:                  { lat: 51.51, lon:  -0.13, label: "London" },
+  raf_marham:              { lat: 52.65, lon:   0.55, label: "RAF Marham" },
+  raf_lossiemouth:         { lat: 57.71, lon:  -3.34, label: "RAF Lossiemouth" },
+  raf_coningsby:           { lat: 53.09, lon:  -0.17, label: "RAF Coningsby" },
+  rnas_yeovilton:          { lat: 51.01, lon:  -2.64, label: "RNAS Yeovilton" },
+  orkney_islands:          { lat: 58.98, lon:  -2.96, label: "Orkney Islands" },
+  east_anglia_raf_bases:   { lat: 52.40, lon:   0.75, label: "East Anglia RAF bases", area: true },
+  uk_waters:               { lat: 55.00, lon:   0.50, label: "UK waters", area: true },
+  north_atlantic:          { lat: 58.00, lon: -20.00, label: "North Atlantic", area: true },
+  giuk_gap:                { lat: 63.00, lon: -12.00, label: "GIUK gap", area: true },
+  severomorsk:             { lat: 69.07, lon:  33.42, label: "Severomorsk" },
+};
+
+// "RAF Marham", "RAF_Marham" and "raf-marham" are the same place.
+const gazKey = s => String(s || "").trim().toLowerCase().replace(/[\s\-]+/g, "_");
+
+/* ------------------------------------------------------------ the globe */
+const ionToken = params.get("ionToken");
+if (ionToken) Cesium.Ion.defaultAccessToken = ionToken;
+
+const viewerOpts = {
+  terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+  animation: false, timeline: false, baseLayerPicker: false, geocoder: false,
+  homeButton: false, sceneModePicker: false, navigationHelpButton: false,
+  fullscreenButton: false, infoBox: false, selectionIndicator: false,
+  requestRenderMode: false,
+};
+if (!ionToken) {
+  // Keyless path: OSM tiles need no account. Its attribution stays on
+  // screen in the Cesium credit line - the tiles are used under it.
+  viewerOpts.baseLayer = new Cesium.ImageryLayer(
+    new Cesium.OpenStreetMapImageryProvider({ url: "https://tile.openstreetmap.org/" })
+  );
+}
+const viewer = new Cesium.Viewer("cesium", viewerOpts);
+viewer.scene.globe.enableLighting = false;
+viewer.scene.skyAtmosphere.show = true;
+viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#05080c");
+
+const THEATRE = Cesium.Rectangle.fromDegrees(-26.0, 47.0, 40.0, 72.0);
+const goTheatre = () => viewer.camera.flyTo({ destination: THEATRE, duration: 1.2 });
+viewer.camera.setView({ destination: THEATRE });
+$("btnHome").onclick = goTheatre;
+
+/* --------------------------------------------------- sensor post-process */
+/* One vendored MIT sensor shader (api/static/thermal.shader.js, from
+   bilawalsidhu/gods-eye-view). Off by default - the FLIR pass is a look,
+   not the reading surface - and its `time` uniform is driven per frame. */
+let flirStage = null;
+if (window.thermalShader) {
+  const u = { intensity: 0.0, time: 0.0 };
+  for (const [name, meta] of Object.entries(window.thermalShader.uniforms || {})) u[name] = meta.default;
+  flirStage = viewer.scene.postProcessStages.add(new Cesium.PostProcessStage({
+    name: "falseflag_flir",
+    fragmentShader: window.thermalShader.fragmentShader,
+    uniforms: u,
+  }));
+  flirStage.enabled = false;
+  const t0 = performance.now();
+  viewer.scene.preUpdate.addEventListener(() => {
+    if (flirStage.enabled) flirStage.uniforms.time = (performance.now() - t0) / 1000;
+  });
+  $("btnFlir").onclick = () => {
+    flirStage.enabled = !flirStage.enabled;
+    flirStage.uniforms.intensity = flirStage.enabled ? 0.75 : 0.0;
+    $("btnFlir").classList.toggle("on", flirStage.enabled);
+  };
+} else {
+  $("btnFlir").disabled = true;
+  $("btnFlir").title = "sensor shader not loaded";
+}
+
+/* ----------------------------------------------------------- unit plots */
+const BRANCH_COLOUR = {
+  naval: "#4fb0e8",
+  air: "#7fd06a",
+  land: "#d0b34a",
+};
+const plots = new Cesium.CustomDataSource("orbat");
+viewer.dataSources.add(plots);
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"]/g,
+    c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+const pretty = s => String(s || "").replace(/_/g, " ");
+
+/* Units sharing a base are fanned onto a small ring so labels stay
+   readable. The ring is display only - a unit's position is its base
+   until Stage 2 gives units real tracks. */
+function fanOffset(index, total) {
+  if (total <= 1) return [0, 0];
+  const a = (2 * Math.PI * index) / total;
+  const r = 0.055 * (1 + Math.floor(index / 8) * 0.8);
+  return [Math.cos(a) * r * 1.7, Math.sin(a) * r];
+}
+
+function plotForces(forces) {
+  plots.entities.removeAll();
+  const resolved = [], unresolved = [];
+  const byPlace = new Map();
+
+  for (const unit of forces) {
+    const place = GAZETTEER[gazKey(unit.location)];
+    if (!place) { unresolved.push(unit); continue; }
+    const key = gazKey(unit.location);
+    if (!byPlace.has(key)) byPlace.set(key, []);
+    byPlace.get(key).push(unit);
+    resolved.push(unit);
+  }
+
+  for (const [key, units] of byPlace) {
+    const place = GAZETTEER[key];
+    // The base marker itself, so an empty or fanned location still reads.
+    plots.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(place.lon, place.lat),
+      point: {
+        pixelSize: place.area ? 6 : 9,
+        color: Cesium.Color.fromCssColorString("#e8f2fa").withAlpha(place.area ? 0.5 : 0.85),
+        outlineColor: Cesium.Color.fromCssColorString("#0a1119"), outlineWidth: 2,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+      label: {
+        text: place.label.toUpperCase(),
+        font: "10px 'Cascadia Mono', Consolas, monospace",
+        fillColor: Cesium.Color.fromCssColorString("#8fa8bd"),
+        pixelOffset: new Cesium.Cartesian2(0, 14),
+        showBackground: false,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        translucencyByDistance: new Cesium.NearFarScalar(4.0e6, 1.0, 1.6e7, 0.0),
+      },
+    });
+
+    units.forEach((unit, i) => {
+      const [dLon, dLat] = fanOffset(i, units.length);
+      const colour = Cesium.Color.fromCssColorString(BRANCH_COLOUR[unit.branch] || "#c0c8d0");
+      plots.entities.add({
+        id: `unit:${unit.id}`,
+        position: Cesium.Cartesian3.fromDegrees(place.lon + dLon, place.lat + dLat),
+        point: {
+          pixelSize: 11, color: colour.withAlpha(0.95),
+          outlineColor: Cesium.Color.fromCssColorString("#03070b"), outlineWidth: 2,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+        label: {
+          text: pretty(unit.id),
+          font: "11px 'Cascadia Mono', Consolas, monospace",
+          fillColor: colour, outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          pixelOffset: new Cesium.Cartesian2(12, 0),
+          horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
+          verticalOrigin: Cesium.VerticalOrigin.CENTER,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          translucencyByDistance: new Cesium.NearFarScalar(6.0e6, 1.0, 2.4e7, 0.0),
+        },
+        description: `${esc(unit.unit_type)} · ${esc(unit.status)} · ${esc(unit.location)}`,
+      });
+    });
+  }
+
+  renderTray(resolved, unresolved);
+  return { resolved, unresolved };
+}
+
+function renderTray(resolved, unresolved) {
+  $("orbatCount").textContent = `${resolved.length} plotted`;
+  $("orbat").innerHTML = resolved.map(u => `
+    <div class="row"><span class="k">${esc(pretty(u.id))}</span>
+      <span class="v">${esc(GAZETTEER[gazKey(u.location)].label)}</span></div>`).join("")
+    || `<div class="row"><span class="v">no units plotted</span></div>`;
+
+  $("unresolvedCount").textContent = unresolved.length;
+  $("unresolvedCard").classList.toggle("empty", unresolved.length === 0);
+  // A unit whose location has no gazetteer entry is listed, never guessed
+  // onto the map - "classified" and "available" are the honest cases here.
+  $("unresolved").innerHTML = unresolved.map(u => `
+    <div class="row"><span class="k">${esc(pretty(u.id))}</span>
+      <span class="v">${esc(u.location ? pretty(u.location) : "no location")}</span></div>`).join("")
+    || `<div class="row"><span class="v">every unit resolved</span></div>`;
+}
+
+/* ------------------------------------------------------- session + feed */
+let sessionId = params.get("game") || "";
+let source = null, refetchTimer = null, lastCounts = null;
+
+function setStatus(html) { $("statusBody").innerHTML = html; }
+
+function flashLive(kind, note) {
+  const t = new Date().toTimeString().slice(0, 8);
+  const el = $("live");
+  el.textContent = `LIVE · ${kind} · ${t}${note ? " · " + note : ""}`;
+  el.classList.remove("hit");
+  void el.offsetWidth;  // restart the CSS flash on back-to-back events
+  el.classList.add("hit");
+}
+
+async function loadResources() {
+  if (!sessionId) return;
+  const res = await fetch(`/game/${encodeURIComponent(sessionId)}/resources`);
+  if (!res.ok) throw new Error(`resources ${res.status}`);
+  const data = await res.json();
+  const { resolved, unresolved } = plotForces(data.forces || []);
+  lastCounts = { forces: (data.forces || []).length, resolved: resolved.length,
+                 unresolved: unresolved.length, stockpiles: (data.stockpiles || []).length };
+  setStatus(`session <b>${esc(sessionId.slice(0, 8))}…</b><br>
+    <b>${lastCounts.forces}</b> units · <b>${lastCounts.resolved}</b> plotted ·
+    <b>${lastCounts.unresolved}</b> unresolved · ${lastCounts.stockpiles} stockpile lines<br>
+    co-located units are fanned for legibility; positions are their bases until Stage 2`);
+}
+
+// Bursts (one adjudicated turn pushes a dozen events) collapse into one
+// refetch; every event still flashes the live line.
+function scheduleRefetch() {
+  if (refetchTimer) clearTimeout(refetchTimer);
+  refetchTimer = setTimeout(() => {
+    refetchTimer = null;
+    loadResources().catch(e => flashLive("refetch failed", e.message));
+  }, 250);
+}
+
+const STREAM_EVENTS = ["transcript", "system", "state_update", "diplomacy", "intel",
+  "ending", "inject_fired", "adjudication", "parse_health", "llm_call"];
+
+function connectStream() {
+  if (source) { source.close(); source = null; }
+  if (!sessionId) return;
+  source = new EventSource(`/stream/${encodeURIComponent(sessionId)}`);
+  for (const name of STREAM_EVENTS) {
+    source.addEventListener(name, e => {
+      let d = {}; try { d = JSON.parse(e.data); } catch {}
+      flashLive(name, d.turn != null ? `turn ${d.turn}` : "");
+      scheduleRefetch();
+    });
+  }
+  source.onerror = () => { /* EventSource auto-reconnects */ };
+}
+
+async function attach(id) {
+  sessionId = id;
+  $("sessionInput").value = id;
+  $("sessionBadge").textContent = id ? `session ${id.slice(0, 8)}…` : "no session";
+  try {
+    await loadResources();
+    connectStream();
+    flashLive("attached", "watching stream");
+  } catch (e) {
+    setStatus(`<span class="err">${esc(e.message)}</span> — no such session, or the
+      server has restarted. Start one from <a style="color:var(--accent)"
+      href="/dashboard">/dashboard</a> and pass its id as <b>?game=</b>.`);
+  }
+}
+
+$("btnAttach").onclick = () => {
+  const id = $("sessionInput").value.trim();
+  if (id) { history.replaceState(null, "", `?game=${encodeURIComponent(id)}`); attach(id); }
+};
+$("sessionInput").addEventListener("keydown", e => { if (e.key === "Enter") $("btnAttach").click(); });
+
+/* The server has no list-games endpoint (only /health's session count), so
+   there is no "most recent game" to fall back to: the page says so rather
+   than guessing an id. */
+if (sessionId) {
+  attach(sessionId);
+} else {
+  fetch("/health").then(r => r.json()).then(h => {
+    setStatus(`no <b>?game=</b> in the URL, and this server exposes no list-games
+      endpoint — ${h.sessions_active} session(s) active. Paste a session id below,
+      or open <a style="color:var(--accent)" href="/dashboard">/dashboard</a> to start one.`);
+  }).catch(() => setStatus(`<span class="err">server unreachable</span>`));
+}
+</script>
+</body>
+</html>
