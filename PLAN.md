@@ -30,7 +30,7 @@ Each stage names **what gets built** and the **done test**: an observable fact y
 The globe stages above are one of two workstreams; the other is cabinet-advisor independence ([#87](https://github.com/earlyprototype/false-flag/issues/87)–[#92](https://github.com/earlyprototype/false-flag/issues/92)). This board orders everything open across both. Working rules: one engine-touching build at a time; parallel work only where no files are shared; every major task gets an issue and lands as its own PR.
 
 **Now**
-- **Stage 1 · First Light** — [#94](https://github.com/earlyprototype/false-flag/issues/94) · `IN PROGRESS`
+- **Stage 1 · First Light** — [#94](https://github.com/earlyprototype/false-flag/issues/94) · `BUILT — awaiting the projector done-test` ([PR #95](https://github.com/earlyprototype/false-flag/pull/95))
 - **Manus research queue** — [#70](https://github.com/earlyprototype/false-flag/issues/70) · owner fires; its gazetteer verification feeds Stage 2
 - **Small bounded fixes** (directed-Codex lane candidates, each its own PR, none touch Stage 1 files): the pushback-roster bug inside [#87](https://github.com/earlyprototype/false-flag/issues/87) (the Prime Minister can currently be rendered pushing back on the player) · [#91](https://github.com/earlyprototype/false-flag/issues/91) contradictory advisor-prompt instructions · the cheap items of [#92](https://github.com/earlyprototype/false-flag/issues/92) (element descriptions, zoom, view reset)
 

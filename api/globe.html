@@ -342,7 +342,7 @@ function renderTray(resolved, unresolved) {
 
 /* ------------------------------------------------------- session + feed */
 let sessionId = params.get("game") || "";
-let source = null, refetchTimer = null, lastCounts = null;
+let source = null, refetchTimer = null, lastCounts = null, attachSeq = 0;
 
 function setStatus(html) { $("statusBody").innerHTML = html; }
 
@@ -355,18 +355,24 @@ function flashLive(kind, note) {
   el.classList.add("hit");
 }
 
-async function loadResources() {
-  if (!sessionId) return;
-  const res = await fetch(`/game/${encodeURIComponent(sessionId)}/resources`);
-  if (!res.ok) throw new Error(`resources ${res.status}`);
-  const data = await res.json();
+function renderResources(id, data) {
   const { resolved, unresolved } = plotForces(data.forces || []);
   lastCounts = { forces: (data.forces || []).length, resolved: resolved.length,
                  unresolved: unresolved.length, stockpiles: (data.stockpiles || []).length };
-  setStatus(`session <b>${esc(sessionId.slice(0, 8))}…</b><br>
+  setStatus(`session <b>${esc(id.slice(0, 8))}…</b><br>
     <b>${lastCounts.forces}</b> units · <b>${lastCounts.resolved}</b> plotted ·
     <b>${lastCounts.unresolved}</b> unresolved · ${lastCounts.stockpiles} stockpile lines<br>
     co-located units are fanned for legibility; positions are their bases until Stage 2`);
+}
+
+async function loadResources() {
+  if (!sessionId) return;
+  const id = sessionId;
+  const res = await fetch(`/game/${encodeURIComponent(id)}/resources`);
+  if (!res.ok) throw new Error(`resources ${res.status}`);
+  const data = await res.json();
+  if (id !== sessionId) return;  // session switched while this response was in flight
+  renderResources(id, data);
 }
 
 // Bursts (one adjudicated turn pushes a dozen events) collapse into one
@@ -397,14 +403,22 @@ function connectStream() {
 }
 
 async function attach(id) {
-  sessionId = id;
+  const token = ++attachSeq;  // a newer attach supersedes this one
   $("sessionInput").value = id;
-  $("sessionBadge").textContent = id ? `session ${id.slice(0, 8)}…` : "no session";
   try {
-    await loadResources();
+    const res = await fetch(`/game/${encodeURIComponent(id)}/resources`);
+    if (!res.ok) throw new Error(`resources ${res.status}`);
+    const data = await res.json();
+    if (token !== attachSeq) return;  // lost the race to a later attach
+    if (source) { source.close(); source = null; }  // prior session's stream ends only on success
+    sessionId = id;
+    $("sessionBadge").textContent = `session ${id.slice(0, 8)}…`;
+    renderResources(id, data);
     connectStream();
     flashLive("attached", "watching stream");
   } catch (e) {
+    if (token !== attachSeq) return;
+    // sessionId, the badge and any prior stream stay on the previously attached session
     setStatus(`<span class="err">${esc(e.message)}</span> — no such session, or the
       server has restarted. Start one from <a style="color:var(--accent)"
       href="/dashboard">/dashboard</a> and pass its id as <b>?game=</b>.`);
