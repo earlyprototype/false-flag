@@ -197,13 +197,13 @@
       tracks the three 0–100 gauges; the bottom one counts casualties on its
       own scale. One point per turn, redrawn whenever the engine publishes a
       state update. In immersive play a player never sees these figures.</p>
-    <div class="chartwrap"><svg id="chartMetrics" width="100%" height="170" viewBox="0 0 460 170" preserveAspectRatio="none"></svg></div>
+    <div class="chartwrap"><svg id="chartMetrics" role="img" width="100%" height="170" viewBox="0 0 460 170" preserveAspectRatio="none"></svg></div>
     <div class="serieslabel">
       <span><span class="dot" style="background:var(--referee)"></span>escalation_risk</span>
       <span><span class="dot" style="background:var(--domestic)"></span>domestic_stability</span>
       <span><span class="dot" style="background:var(--sitrep)"></span>alliance_cohesion</span>
     </div>
-    <div class="chartwrap"><svg id="chartCas" width="100%" height="80" viewBox="0 0 460 80" preserveAspectRatio="none"></svg></div>
+    <div class="chartwrap"><svg id="chartCas" role="img" width="100%" height="80" viewBox="0 0 460 80" preserveAspectRatio="none"></svg></div>
     <div class="serieslabel">
       <span><span class="dot" style="background:var(--intel)"></span>casualties_mil</span>
       <span><span class="dot" style="background:var(--diplomatic)"></span>casualties_civ</span>
@@ -543,6 +543,21 @@ function polyline(points, xmap, ymap, color) {
   return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6"/>` + dots;
 }
 
+// A chart's marks say nothing to anyone not looking at them, and the axis
+// text inside it is noise read aloud. Each chart SVG is role="img", so the
+// name and description below are the whole of what it reports: what the
+// chart plots, then the most recent turn's reading. Regenerated on every
+// redraw because drawCharts replaces the SVG's entire innerHTML.
+function chartAlt(what, keys) {
+  const tail = k => { const a = series[k]; return a.length ? a[a.length - 1] : null; };
+  const read = keys.map(k => { const p = tail(k);
+    return p ? `${k.replace(/_/g, " ")} ${esc(p.v)}` : null; }).filter(Boolean);
+  const turn = keys.map(tail).filter(Boolean).map(p => p.turn).pop();
+  return `<title>${what}</title><desc>` +
+    (read.length ? `At turn ${esc(turn)}: ${read.join(", ")}.` : "No turns recorded yet.") +
+    `</desc>`;
+}
+
 function drawCharts() {
   const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   const all = Object.values(series).flat();
@@ -553,7 +568,8 @@ function drawCharts() {
 
   // Gauges 0-100
   { const H = 170, ymap = v => 12 + (100 - Math.max(0, Math.min(100, v))) / 100 * (H - 30);
-    let g = "";
+    let g = chartAlt("Hidden numbers by turn — three gauges on a 0 to 100 scale",
+      ["escalation_risk", "domestic_stability", "alliance_cohesion"]);
     for (const yv of [0, 50, 100])
       g += `<line x1="${PAD}" y1="${ymap(yv)}" x2="${W-6}" y2="${ymap(yv)}" stroke="${css("--line")}" stroke-width="1"/>` +
            `<text x="2" y="${ymap(yv)+3}">${yv}</text>`;
@@ -569,7 +585,9 @@ function drawCharts() {
     const cas = series.casualties_mil.concat(series.casualties_civ);
     const vmax = Math.max(5, ...cas.map(p => p.v));
     const ymap = v => 8 + (vmax - v) / vmax * (H - 22);
-    let g = `<line x1="${PAD}" y1="${ymap(0)}" x2="${W-6}" y2="${ymap(0)}" stroke="${css("--line")}"/>` +
+    let g = chartAlt("Casualties by turn — military and civilian, on their own scale",
+              ["casualties_mil", "casualties_civ"]) +
+            `<line x1="${PAD}" y1="${ymap(0)}" x2="${W-6}" y2="${ymap(0)}" stroke="${css("--line")}"/>` +
             `<text x="2" y="${ymap(0)+3}">0</text><text x="2" y="${ymap(vmax)+3}">${vmax}</text>`;
     g += polyline(series.casualties_mil, xmap, ymap, css("--intel"));
     g += polyline(series.casualties_civ, xmap, ymap, css("--diplomatic"));
