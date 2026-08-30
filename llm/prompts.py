@@ -293,7 +293,6 @@ def build_pushback_prompt(
             triggers = char_data.get("pushback_triggers", [])
             advisor_info.append(f"- {role}: {', '.join(triggers)}")
 
-
     advisors_str = "\n".join(advisor_info)
 
     from llm.context_builder import build_shared_context_prefix

@@ -434,6 +434,11 @@ def generate_advisor_pushback(
     player_roles = _player_role_names(initial_conditions)
     pushback_list = []
     residue = []
+    # A dropped player line can be wrapped over several lines; its tail would
+    # otherwise take the continuation branch and land in the previous
+    # advisor's message, which is the same leak the drop exists to prevent.
+    # The block stays suppressed until the next recognised advisor prefix.
+    in_player_block = False
     for line in lines:
         stripped = line.strip()
         if not stripped:
@@ -456,10 +461,16 @@ def generate_advisor_pushback(
                 message = remainder.strip()
 
         if player_line:
+            in_player_block = True
             record_miss("pushback", "player_line", stripped[:60])
             residue.append(stripped)
         elif role is not None:
+            in_player_block = False
             pushback_list.append((role, message))
+        elif in_player_block:
+            # Wrapped tail of the player-attributed line just dropped.
+            record_miss("pushback", "player_line", stripped[:60])
+            residue.append(stripped)
         elif pushback_list:
             prev_role, prev_message = pushback_list[-1]
             pushback_list[-1] = (prev_role, f"{prev_message} {stripped}".strip())

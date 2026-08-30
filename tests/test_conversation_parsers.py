@@ -186,6 +186,33 @@ def test_pm_prefixed_reply_line_yields_no_prime_minister_pushback():
     assert "not be deterred" not in messages
 
 
+def test_wrapped_pm_line_does_not_leak_into_the_previous_advisor():
+    """The tail of a dropped PM line is dropped too, not glued on.
+
+    Dropping only the prefixed line leaves its wrapped continuation to the
+    continuation branch, which appends it to the previous advisor - the same
+    "player's words in an advisor's mouth" leak, one line deeper.
+    """
+    text = (
+        "Attorney General: There is no legal basis for this action.\n"
+        "Prime Minister: I am confident this is right\n"
+        "and we will not be deterred.\n"
+        "Chief of the Defence Staff: The carrier group is not ready."
+    )
+    result = generate_advisor_pushback(
+        make_world(), "strike now", "Immediate strike.",
+        INITIAL_CONDITIONS, make_llm(text), Random(42)
+    )
+
+    roles = [role for role, _ in result]
+    assert roles == ["Attorney General", "Chief of the Defence Staff"]
+    messages = " ".join(message for _, message in result)
+    assert "not be deterred" not in messages
+    assert "confident" not in messages
+    # The advisor after the dropped block still parses normally.
+    assert "carrier group is not ready" in messages
+
+
 # --- check_critical_omissions ---
 
 def test_markdown_bold_concern_and_recommendation_parse():
