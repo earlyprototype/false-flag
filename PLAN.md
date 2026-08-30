@@ -12,7 +12,7 @@ Each stage names **what gets built** and the **done test**: an observable fact y
 
 | Stage | What it delivers | Status | Evidence |
 |---|---|---|---|
-| **1 · First Light** | The map page exists and shows the game's forces | `IN PROGRESS` — go given 30 Aug | [#94](https://github.com/earlyprototype/false-flag/issues/94) |
+| **1 · First Light** | The map page exists and shows the game's forces | `BUILT` — awaiting the projector done-test | [#94](https://github.com/earlyprototype/false-flag/issues/94) · [PR #95](https://github.com/earlyprototype/false-flag/pull/95) |
 | **2 · The Fleet Moves** | Units have real positions that advance each turn | `NOT STARTED` | — |
 | **3 · Standards on the Glass** | The map reads the digital-twin model; many screens can watch | `NOT STARTED` | — |
 | **4 · Show-Safe** | The demo runs to a written sequence without improvisation | `NOT STARTED` | — |
@@ -47,13 +47,13 @@ The globe stages above are one of two workstreams; the other is cabinet-advisor 
 
 ## Stage 1 · First Light — *about a day*
 
-**Build**
-- [ ] `api/globe.html`, served at `GET /globe` by FileResponse — the pattern `dashboard.html` already uses
-- [ ] CesiumJS satellite Earth in that page
-- [ ] ~10 starter gazetteer entries (place name → coordinates), hardcoded for now
-- [ ] Read `GET /game/{id}/resources` and plot every unit at its named base
-- [ ] Subscribe to one live game event stream (one consumer only — the multi-screen fix comes in Stage 3)
-- [ ] One vendored sensor shader; diegetic EXERCISE chrome
+**Build** — complete in [#95](https://github.com/earlyprototype/false-flag/pull/95), commit `779e585`
+- [x] `api/globe.html`, served at `GET /globe` by FileResponse — the pattern `dashboard.html` already uses
+- [x] CesiumJS satellite Earth in that page (keyless: OSM imagery, no accounts; pinned 1.132.0)
+- [x] 14 starter gazetteer entries — every order-of-battle location covered; posture strings (`available`, `classified`, no location) go to a visible UNRESOLVED tray, never an invented coordinate
+- [x] Read `GET /game/{id}/resources` and plot every unit at its named base
+- [x] Subscribe to one live game event stream (one consumer only — the multi-screen fix comes in Stage 3)
+- [x] One vendored sensor shader (MIT FLIR from gods-eye-view, licence retained); diegetic EXERCISE chrome
 
 **Done test** — on the projector, every unit in the order of battle sits at its real location, and an event in the running game visibly changes the display.
 
