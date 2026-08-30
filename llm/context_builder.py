@@ -415,19 +415,25 @@ def build_shared_context_prefix(transcript: FullTranscript,
 
     # Everything from here down changes every turn, which is why it is here
     # and not at the top.
+    #
+    # The situation is given in words, not as raw values. This dossier closes
+    # with the standing instruction never to reference 'metrics', 'scores' or
+    # 'values' (below), and printing a scoreboard directly above it left the
+    # model to guess which half of the prompt to obey - the readers of this
+    # block are the four advisor-voiced calls, none of which has any use for
+    # an integer it is forbidden to say out loud (issue #91). The prose
+    # renderer is the same one the narrator and the diplomatic assessor take.
+    from llm.prompts import _state_band_lines
     parts.extend([
         ruler,
         "CURRENT SITUATION",
         ruler,
         f"Turn: {world_state.turn}",
         f"Phase: {world_state.phase}",
-        f"Escalation Risk: {world_state.metrics.escalation_risk}/100",
-        f"Domestic Stability: {world_state.metrics.domestic_stability}/100",
-        f"Alliance Cohesion: {world_state.metrics.alliance_cohesion}/100",
-        f"Military Casualties: {world_state.metrics.casualties_mil}",
-        f"Civilian Casualties: {world_state.metrics.casualties_civ}",
         "",
     ])
+    parts.extend(_state_band_lines(world_state))
+    parts.append("")
 
     # The event ledger: one line per staged event with its disposition. It
     # belongs down here with the per-turn state - it grows every turn, so
@@ -441,12 +447,11 @@ def build_shared_context_prefix(transcript: FullTranscript,
     # The standing instruction not to talk about the numbers as numbers. The
     # decision, pushback and omissions prompts each carried this and the
     # advisor prompt did not; merging the two context shapes must not quietly
-    # drop it from four call sites. The prose bands and the intelligence-flags
-    # block that used to travel with it are gone (ER-009): the bands restated
-    # the raw values printed directly above, and the flags' only non-duplicate
-    # content — the casualty thresholds — is already present as raw counts two
-    # lines up. Imported here rather than at module scope because llm.prompts
-    # imports this module.
+    # drop it from four call sites. The intelligence-flags block that used to
+    # travel with it is still gone (ER-009): its only non-duplicate content —
+    # the casualty thresholds — is already stated in the CASUALTIES TO DATE
+    # line above. Imported here rather than at module scope because
+    # llm.prompts imports this module.
     from llm.prompts import ADVISOR_VOICE_INSTRUCTIONS
     parts.append(ADVISOR_VOICE_INSTRUCTIONS)
     parts.append("")

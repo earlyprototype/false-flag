@@ -292,7 +292,7 @@ def handle_player_question_all(
         try:
             prompts.append(build_advisor_context(
                 world, initial_conditions, char_id, question, transcript,
-                event_ledger))
+                event_ledger, fanout=True))
             prompt_ok[char_id] = True
         except Exception as e:
             record_fallback("advisor_qa", f"{char_id} {type(e).__name__}")
