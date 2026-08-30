@@ -84,6 +84,8 @@
   section .body { padding: 10px 12px; overflow: auto; }
   .tall { grid-row: span 3; }
   .note { color: var(--muted); font-size: 11px; margin: 4px 0 8px; }
+  /* A panel with no .body wrapper (the charts) still needs the gutter. */
+  section > .note { padding: 0 12px; }
   .note code { font-family: var(--mono); font-size: 10.5px; color: #a9bccf; }
 
   /* Ledger */
@@ -152,6 +154,7 @@
     <button id="btnNew" class="primary" title="POST /game/new with facilitator:true">New facilitator session</button>
     <button id="btnDemo" title="POST /demo/start — drives a mock campaign headless">Start demo campaign</button>
     <button id="btnDemoStop" title="POST /demo/{id}/stop">Stop demo</button>
+    <button id="btnResetView" title="Empty the ledger, the AI activity list and the charts — the display as it was before the last run">Reset view</button>
     <input id="sessionInput" placeholder="…or paste a session id" spellcheck="false">
     <button id="btnAttach">Attach</button>
     <span id="sessionBadge">no session</span>
@@ -190,6 +193,10 @@
   <!-- ============ METRICS ============ -->
   <section>
     <h2>The hidden numbers — driving the story, turn by turn</h2>
+    <p class="note">The five values the engine actually runs on. The top chart
+      tracks the three 0–100 gauges; the bottom one counts casualties on its
+      own scale. One point per turn, redrawn whenever the engine publishes a
+      state update. In immersive play a player never sees these figures.</p>
     <div class="chartwrap"><svg id="chartMetrics" width="100%" height="170" viewBox="0 0 460 170" preserveAspectRatio="none"></svg></div>
     <div class="serieslabel">
       <span><span class="dot" style="background:var(--referee)"></span>escalation_risk</span>
@@ -235,6 +242,10 @@
   <section>
     <h2>Send a news event into the session</h2>
     <div class="body">
+      <p class="note">Write an event and push it into the running game, the way
+        an exercise controller would. The channel decides which layer it lands
+        on; the optional effect nudges one hidden number by the delta you set.
+        It reaches the player immediately and is marked as facilitator-made.</p>
       <form class="stack" id="injectForm">
         <div class="row">
           <label>channel
@@ -269,6 +280,10 @@
   <section>
     <h2>Edit what the AI is told</h2>
     <div class="body">
+      <p class="note">The instruction template behind each kind of question,
+        editable in place. Pick a family, change the wording, save — the next
+        call of that family uses it. Keep every placeholder in braces: they are
+        filled with live game state. Reset to default restores the shipped text.</p>
       <form class="stack" id="promptForm">
         <div class="row">
           <label>family
@@ -335,18 +350,31 @@ function setStatus(id, msg, ok) {
 }
 
 /* ---------------------------------------------------------------- session */
+// Everything a run leaves on screen, emptied in one place: the ledger, the
+// AI activity list, the metric history behind both charts, and the twin-model
+// counters. Without this a second demo stacked on the first — the counters
+// kept counting (fixed once for that field alone, 28 Aug) and, worse, the new
+// session's turn 1 was appended after the old session's turn 5, so the chart
+// drew a line running backwards. Bound to the Reset view button and run on
+// every New / Attach / Demo.
+function resetView() {
+  $("ledger").replaceChildren();
+  $("calls").replaceChildren();
+  for (const arr of Object.values(series)) arr.length = 0;
+  dtdlCounts.inject_triggered = 0;
+  dtdlCounts.participant_action = 0;
+  drawCharts();
+  renderDtdlLive();
+}
+
 function setSession(id, isFacilitator) {
   sessionId = id; facilitator = !!isFacilitator;
   $("sessionInput").value = id || "";
   $("sessionBadge").innerHTML = id
     ? `session <b>${esc(id.slice(0,8))}…</b> ${facilitator ? '<span class="facil">FACILITATOR</span>' : "player-view"}`
     : "no session";
-  // The twin-model panel's counters are explicitly labelled "this session" -
-  // without a reset here they kept counting across New/Attach/Demo, making
-  // that label false (independent review finding, 28 Aug).
-  dtdlCounts.inject_triggered = 0;
-  dtdlCounts.participant_action = 0;
-  renderDtdlLive();
+  // Panels are labelled "this session"; a new session starts from empty.
+  resetView();
   connectStream();
 }
 
@@ -404,6 +432,7 @@ $("btnDemoStop").onclick = async () => {
   if (!sessionId) return;
   try { await api("POST", `/demo/${sessionId}/stop`); } catch (e) { alert(e.message); }
 };
+$("btnResetView").onclick = resetView;
 function seedFromState(d) {
   if (d && d.metrics) recordMetrics({turn: d.turn, metrics: d.metrics});
 }
@@ -454,6 +483,21 @@ function summarise(d, kind) {
   }
 }
 
+// Ledger rows print the raw stream event name; this glosses it in plain
+// English on hover so a viewer need not know the wire vocabulary.
+const KIND_GLOSS = {
+  transcript: "A line of the story as the player sees it",
+  system: "An engine notice, not part of the fiction",
+  state_update: "The hidden numbers after this turn",
+  llm_call: "One request sent to the AI",
+  adjudication: "The referee's raw verdict on a decision",
+  parse_health: "How cleanly the AI's replies were read",
+  diplomacy: "A phone call with another capital",
+  intel: "An intelligence report the player pulled",
+  inject_fired: "A news event pushed in by a facilitator",
+  ending: "The campaign's closing verdict",
+};
+
 function addLedgerRow(d, kind) {
   const layer = LAYERS.includes(d.layer) ? d.layer : "sitrep";
   const [title, content] = summarise(d, kind);
@@ -468,7 +512,7 @@ function addLedgerRow(d, kind) {
       `<span>${tplus}</span>` +
       `<span class="chip ${layer}">${layer}</span>` +
       (d.channel ? `<span class="chan">${esc(d.channel)}</span>` : "") +
-      `<span>${esc(kind)}</span>` +
+      `<span title="${esc(KIND_GLOSS[kind] || "Stream event")}">${esc(kind)}</span>` +
     `</div>` +
     `<div class="title">${esc(title)}</div>` +
     (content ? `<div class="content">${esc(content)}</div>` : "");

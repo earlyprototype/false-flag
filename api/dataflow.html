@@ -52,6 +52,8 @@
   .seg:last-of-type { border-radius: 0 4px 4px 0; }
   #sessBadge, #turnBadge, #status { font-family: var(--mono); font-size: 11px;
     color: var(--muted); }
+  #zoomLevel { font-family: var(--mono); font-size: 11px; color: var(--muted);
+    min-width: 40px; text-align: center; }
   #status.err { color: var(--referee); }
   #sessInput { width: 230px; font-family: var(--mono); font-size: 11px; }
   .chip { display: inline-block; padding: 1px 8px; border-radius: 999px;
@@ -220,6 +222,14 @@
     <button id="resetLayoutBtn" title="Discard your dragged positions and restore the original layout">Reset layout</button>
     <button id="wtBtn" class="primary" title="Step through one turn of the selected game type, one hop at a time">▶ Walkthrough</button>
     <button id="dtdlBtn" title="Show the DTDL v3 twin model behind each part of the engine">◇ DTDL</button>
+  </div>
+  <div class="group" role="group" aria-label="View">
+    <span class="lbl">View</span>
+    <button id="zoomOutBtn" title="Zoom out — smaller schema" aria-label="Zoom out">−</button>
+    <span id="zoomLevel" title="Current zoom level">100%</span>
+    <button id="zoomInBtn" title="Zoom in — bigger, readable labels; the stage scrolls" aria-label="Zoom in">+</button>
+    <button id="zoomFitBtn" title="Fit the whole schema to the window">Fit</button>
+    <button id="resetViewBtn" title="Back to the opening view: fitted zoom, nothing selected, walkthrough and DTDL off, call counters cleared">Reset view</button>
   </div>
   <div class="group">
     <span id="sessBadge">no session</span>
@@ -515,7 +525,10 @@ function beginDrag(ev, onMove, onUp) {
 }
 
 function render() {
-  const svg = el("svg", {viewBox: "0 0 1580 1044", role: "img",
+  // role="group", not "img": an img makes its whole subtree presentational,
+  // which dropped the aria-label of every node while the nodes stayed in the
+  // tab order — a keyboard user landed on ~40 unnamed stops.
+  const svg = el("svg", {viewBox: "0 0 1580 1044", role: "group",
     "aria-label": "False Flag data-flow schema"});
   curSvg = svg;
   const defs = el("defs", {}, svg);
@@ -557,9 +570,15 @@ function render() {
   });
 
   NODES.forEach(n => {
+    // The node's own prose reached mouse users only, through the side panel.
+    // Carry it in the accessible name and in a <title> the browser shows on
+    // hover, so the box explains itself wherever you meet it.
+    const blurb = [n.desc, n.ctx ? "Click to reroute or edit its prompt." : ""]
+      .filter(Boolean).join(" ");
     const g = el("g", {"class": "node " + n.kind + " clickable",
       id: "node-" + n.id, tabindex: "0", role: "button",
-      "aria-label": n.label + (n.ctx ? " — click to reroute or edit prompt" : "")}, svg);
+      "aria-label": n.label + (blurb ? " — " + blurb : "")}, svg);
+    el("title", {}, g).textContent = n.label + (blurb ? " — " + blurb : "");
     el("rect", {x: n.x, y: n.y, width: n.w, height: n.h, rx: n.kind === "store" ? 10 : 5}, g);
     if (n.vertical) {
       const t = el("text", {x: n.x + n.w/2, y: n.y + n.h/2, "text-anchor": "middle",
@@ -605,6 +624,7 @@ function render() {
   });
 
   $("stage").replaceChildren(svg);
+  applyZoom();          // the svg is rebuilt each render; re-apply the scale
   applyModeFilter();
   applyDtdl();
 }
@@ -1191,6 +1211,10 @@ function pulse(domId) {
 }
 function attach(sid) {
   if (es) { es.close(); es = null; }
+  // A new session starts from zero: drop the previous run's counters and
+  // badges rather than counting on from them.
+  clearRunState();
+  renderAll();
   sessionId = sid;
   $("sessBadge").textContent = sid ? "session " + sid.slice(0, 8) + "…" : "no session";
   if (!sid) return;
@@ -1275,6 +1299,64 @@ $("clearAllBtn").onclick = async () => {
 };
 
 $("resetLayoutBtn").onclick = resetLayout;
+
+/* ---------- zoom ----------
+   The schema is 1580 units wide but the CSS fits it to the stage, so on a
+   1440px window it draws at ~0.71 and a 12px node label lands near 8.5px.
+   Zooming sets an explicit width and lets #stage scroll; zoom === null means
+   "fit", the original responsive behaviour, which is where the page starts. */
+const VIEW_W = 1580, ZOOM_MIN = 0.5, ZOOM_MAX = 2.5, ZOOM_STEP = 0.15;
+let zoom = null;
+function effectiveZoom() {
+  if (zoom !== null) return zoom;
+  const w = curSvg ? curSvg.getBoundingClientRect().width : VIEW_W;
+  return w > 0 ? w / VIEW_W : 1;
+}
+function applyZoom() {
+  if (!curSvg) return;
+  if (zoom === null) { curSvg.style.width = ""; curSvg.style.minWidth = ""; }
+  else { curSvg.style.width = (VIEW_W * zoom) + "px"; curSvg.style.minWidth = "0"; }
+  $("zoomLevel").textContent = Math.round(effectiveZoom() * 100) + "%";
+}
+function setZoom(z) {
+  zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100));
+  applyZoom();
+}
+function fitZoom() { zoom = null; applyZoom(); }
+
+$("zoomInBtn").onclick = () => setZoom(effectiveZoom() + ZOOM_STEP);
+$("zoomOutBtn").onclick = () => setZoom(effectiveZoom() - ZOOM_STEP);
+$("zoomFitBtn").onclick = fitZoom;
+window.addEventListener("resize", () => { if (zoom === null) applyZoom(); });
+
+/* ---------- reset view ----------
+   What a demo leaves on screen. attach() never cleared the per-family call
+   counters or their drawn badges, so a second demo carried on counting the
+   first one's calls; clearRunState() is now run on every attach as well as
+   from the button. Dragged positions are deliberately left alone — that is
+   Reset layout's job. */
+const PANEL_INTRO = $("pDesc").textContent;
+function clearRunState() {
+  for (const k of Object.keys(callCounts)) delete callCounts[k];
+  for (const k of Object.keys(lastCall)) delete lastCall[k];
+  lastState = null;
+  $("turnBadge").textContent = "";
+}
+function resetView() {
+  if (wt) exitWalkthrough();
+  selected = null;          // before exitDtdl, so it does not re-render a panel
+  if (dtdlOn) exitDtdl();
+  clearRunState();
+  $("pTitle").textContent = "Select a node";
+  $("pAnchor").textContent = "";
+  $("pDesc").textContent = PANEL_INTRO;
+  ["pLayers", "pDtdl", "pLive", "pRoute", "pPrompt"].forEach(id => $(id).replaceChildren());
+  $("pMsg").textContent = ""; $("pMsg").className = "";
+  fitZoom();
+  renderAll();
+  setStatus("view reset");
+}
+$("resetViewBtn").onclick = resetView;
 
 loadLayout();
 renderAll();

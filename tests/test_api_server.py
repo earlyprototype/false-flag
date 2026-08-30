@@ -364,6 +364,25 @@ def test_dataflow_page_serves_the_operable_schema(client):
         assert mode_name in body
 
 
+def test_facilitator_pages_describe_themselves_and_reset(client):
+    """Demo affordances (issue #92): every dashboard panel carries a caption,
+    both pages can be cleared between runs, and the engine map zooms."""
+    dashboard = client.get("/dashboard").text
+    panels = dashboard.split("<main>")[1].split("</main>")[0].split("<section")[1:]
+    assert len(panels) == 7
+    for panel in panels:
+        assert 'class="note"' in panel, "a dashboard panel carries no description"
+    assert 'id="btnResetView"' in dashboard      # clears ledger, calls, charts
+    assert "KIND_GLOSS" in dashboard             # raw stream event names glossed
+
+    dataflow = client.get("/dataflow").text
+    for control in ("zoomOutBtn", "zoomInBtn", "zoomFitBtn", "resetViewBtn"):
+        assert control in dataflow
+    # role="img" makes the whole SVG subtree presentational, dropping every
+    # node's aria-label while the node groups stay in the tab order.
+    assert 'role: "img"' not in dataflow
+
+
 def test_new_game_mystery_mode_reaches_the_manager(client):
     """mystery_mode on /game/new must construct a mystery-mode manager."""
     from api import server
