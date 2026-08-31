@@ -454,11 +454,18 @@ def generate_advisor_pushback(
         if ":" in stripped:
             prefix, remainder = stripped.split(":", 1)
             candidate = _normalize_role_prefix(prefix)
-            if candidate.lower() in player_roles:
+            lowered = candidate.lower()
+            # "The Prime Minister:" names the same speaker as "Prime Minister:";
+            # match with and without the article so neither form slips past.
+            forms = (lowered, lowered[4:]) if lowered.startswith("the ") else (lowered,)
+            if any(f in player_roles for f in forms):
                 player_line = True
-            elif candidate.lower() in known_roles:
-                role = candidate
-                message = remainder.strip()
+            else:
+                for f in forms:
+                    if f in known_roles:
+                        role = candidate[4:].strip() if f != lowered else candidate
+                        message = remainder.strip()
+                        break
 
         if player_line:
             in_player_block = True
