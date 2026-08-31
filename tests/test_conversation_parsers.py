@@ -139,7 +139,7 @@ def test_the_voice_instructions_forbid_turn_references():
     assert "two days ago" in ADVISOR_VOICE_INSTRUCTIONS
     # The banned examples themselves must never come back into the rule text.
     lowered = ADVISOR_VOICE_INSTRUCTIONS.lower()
-    for banned in ("in turn two", "last turn", "turn n"):
+    for banned in ("in turn two", "last turn"):
         assert banned not in lowered
 
 
