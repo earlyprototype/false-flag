@@ -36,13 +36,16 @@ ADVISOR_VOICE_INSTRUCTIONS = "\n".join([
     "IMPORTANT: You are a real advisor in COBRA during a national crisis.",
     "Speak naturally about intelligence assessments, strategic concerns, and operational realities.",
     "Do NOT reference 'metrics', 'game mechanics', 'scores', or 'values'.",
-    # The example is spelled out in words. Written as "in Turn 2" it was the
-    # one place a forbidden game-time reference survived in the assembled
-    # prompt, which both muddied the rule and defeated any check for it
-    # (issue #91).
-    "Never say 'turn N' ('in turn two', 'last turn') - turns are game"
-    " mechanics. Refer to time in-fiction: 'two days ago', 'earlier this"
-    " week', 'since the incident began'.",
+    # The ban is stated abstractly and illustrated only by what an advisor
+    # SHOULD say. Every earlier wording quoted the forbidden forms instead -
+    # first a numbered one, then a spelled-out number and a turn-relative
+    # phrase - which left game time sitting in every assembled advisor
+    # prompt, muddying the rule and handing the model the exact phrasing to
+    # imitate (issues #91, #97). The guard is
+    # tests/test_presentation_rules._GAME_TURN_RE.
+    "Never state game time - no turn numbers and no turn-relative phrases;"
+    " turns are game mechanics. Refer to time in-fiction: 'two days ago',"
+    " 'earlier this week', 'since the incident began'.",
     "Use professional crisis management language.",
     "Write in British English throughout - British spellings (organise, defence,"
     " programme) and Whitehall usage, never American.",

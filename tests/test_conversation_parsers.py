@@ -132,7 +132,10 @@ def test_turn_references_are_rewritten_to_in_fiction_days():
 def test_the_voice_instructions_forbid_turn_references():
     from llm.prompts import ADVISOR_VOICE_INSTRUCTIONS
 
-    assert "'turn N'" in ADVISOR_VOICE_INSTRUCTIONS
+    # Stated abstractly - the rule may not quote the forms it bans (#97) -
+    # and illustrated only by the in-fiction clock this scrubber rewrites to.
+    assert "no turn numbers" in ADVISOR_VOICE_INSTRUCTIONS
+    assert "no turn-relative phrases" in ADVISOR_VOICE_INSTRUCTIONS
     assert "two days ago" in ADVISOR_VOICE_INSTRUCTIONS
 
 

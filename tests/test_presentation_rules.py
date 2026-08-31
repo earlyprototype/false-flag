@@ -17,8 +17,24 @@ from engine.game_manager import GameManager
 
 REPO = Path(__file__).resolve().parents[1]
 
-# "in Turn 2", "TURN 11" - game time, which the advisor voice forbids.
-_GAME_TURN_RE = re.compile(r"\bturn \d+\b", re.IGNORECASE)
+# "in Turn 2", "TURN 11" - game time by numeral. Kept on its own because a
+# transcript header ("=== TURN 1 ===") legitimately carries this form; only
+# instruction text is held to it.
+_NUMBERED_TURN_RE = re.compile(r"\bturn \d+\b", re.IGNORECASE)
+
+# The forms the numeral pattern misses, and the two the rule text itself
+# used to quote (issue #97): a turn number spelled out ("in turn two") and
+# turn-relative game time ("last turn"). Neither has any business appearing
+# anywhere in an advisor-voiced prompt, headers included.
+_WORDED_TURN_RE = re.compile(
+    r"\bturn (?:one|two|three|four|five|six|seven|eight|nine|ten|eleven"
+    r"|twelve)\b|\b(?:last|next|this|previous) turn\b",
+    re.IGNORECASE)
+
+# Everything the advisor voice forbids, for the instruction text that must
+# demonstrate none of it.
+_GAME_TURN_RE = re.compile(
+    _NUMBERED_TURN_RE.pattern + "|" + _WORDED_TURN_RE.pattern, re.IGNORECASE)
 
 # The standing rule that no metric may be spoken of as a number.
 _NO_VALUES_RULE = "Do NOT reference 'metrics', 'game mechanics', 'scores', or 'values'."
@@ -86,6 +102,26 @@ class TestPromptsDoNotContradictThemselves:
         assert found is None, (
             f"the voice rule demonstrates {found.group(0)!r}, the very form "
             "it bans")
+
+    def test_no_advisor_voiced_prompt_speaks_in_game_time(self):
+        """The whole assembled prompt, not just the rule that ends it.
+
+        The numeral form is exempted here alone: the transcript block heads
+        each turn "=== TURN 1 ===", which is the history's own structure and
+        not something the advisor is invited to say. The spelled-out and
+        relative forms have no such excuse - and they were exactly what the
+        rule text smuggled in (issue #97).
+        """
+        from llm.prompts import ADVISOR_VOICE_INSTRUCTIONS
+
+        voiced = {family: prompt for family, prompt in self._prompts().items()
+                  if ADVISOR_VOICE_INSTRUCTIONS in prompt}
+        assert voiced, "no prompt carries the advisor voice - fixture broken"
+        for family, prompt in voiced.items():
+            found = _WORDED_TURN_RE.search(prompt)
+            assert found is None, (
+                f"{family} speaks game time {found.group(0)!r} in a prompt "
+                "whose own rule forbids it")
 
     def test_a_prompt_that_bans_values_is_shown_none(self):
         """The four advisor-voiced calls get the situation in words."""
