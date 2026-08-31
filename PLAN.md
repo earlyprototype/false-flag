@@ -12,7 +12,7 @@ Each stage names **what gets built** and the **done test**: an observable fact y
 
 | Stage | What it delivers | Status | Evidence |
 |---|---|---|---|
-| **1 · First Light** | The map page exists and shows the game's forces | `NOT STARTED` — awaiting the owner's "go" | — |
+| **1 · First Light** | The map page exists and shows the game's forces | `BUILT` — awaiting the projector done-test | [#94](https://github.com/earlyprototype/false-flag/issues/94) · [PR #95](https://github.com/earlyprototype/false-flag/pull/95) |
 | **2 · The Fleet Moves** | Units have real positions that advance each turn | `NOT STARTED` | — |
 | **3 · Standards on the Glass** | The map reads the digital-twin model; many screens can watch | `NOT STARTED` | — |
 | **4 · Show-Safe** | The demo runs to a written sequence without improvisation | `NOT STARTED` | — |
@@ -21,23 +21,43 @@ Each stage names **what gets built** and the **done test**: an observable fact y
 
 **Dates**: challenge started 28 Aug 2026 · onsite 12 Sep at Irish Manufacturing Research · final 14 Sep.
 **Cut order under time pressure**: Afterwards → Stage 5 → Stage 3. Stages 1, 2 and 4 are the floor.
-**Nothing is built yet.** No stage has started; the first line of code needs the owner's authorization (see Stage 1).
+**Stage 1 is underway.** The owner's go was given 30 Aug 2026; work is tracked in [#94](https://github.com/earlyprototype/false-flag/issues/94) and lands as a draft PR from `claude/vr-game-xr-simulation-feasibility-gomu1j`.
+
+---
+
+## All open work — Now / Next / Later
+
+The globe stages above are one of two workstreams; the other is cabinet-advisor independence ([#87](https://github.com/earlyprototype/false-flag/issues/87)–[#92](https://github.com/earlyprototype/false-flag/issues/92)). This board orders everything open across both. Working rules: one engine-touching build at a time; parallel work only where no files are shared; every major task gets an issue and lands as its own PR.
+
+**Now**
+- **Stage 1 · First Light** — [#94](https://github.com/earlyprototype/false-flag/issues/94) · `BUILT — awaiting the projector done-test` ([PR #95](https://github.com/earlyprototype/false-flag/pull/95))
+- **Manus research queue** — [#70](https://github.com/earlyprototype/false-flag/issues/70) · owner fires; its gazetteer verification feeds Stage 2
+- **Small bounded fixes** (directed-Codex lane candidates, each its own PR, none touch Stage 1 files): the pushback-roster bug inside [#87](https://github.com/earlyprototype/false-flag/issues/87) (the Prime Minister can currently be rendered pushing back on the player) · [#91](https://github.com/earlyprototype/false-flag/issues/91) contradictory advisor-prompt instructions · the cheap items of [#92](https://github.com/earlyprototype/false-flag/issues/92) (element descriptions, zoom, view reset)
+
+**Next**
+- **Stage 2 · The Fleet Moves**, then the schedule check
+- [#87](https://github.com/earlyprototype/false-flag/issues/87) full per-advisor fan-out · [#88](https://github.com/earlyprototype/false-flag/issues/88) per-advisor private continuity + engine-readable state
+
+**Later** — post-competition unless the stretch gate opens room
+- Stages 3–5 per the gates below · [#90](https://github.com/earlyprototype/false-flag/issues/90) advisor hidden-state parity with foreign actors · [#92](https://github.com/earlyprototype/false-flag/issues/92) visual-design pass · [#76](https://github.com/earlyprototype/false-flag/issues/76) real-email inject · [#77](https://github.com/earlyprototype/false-flag/issues/77) live-hybrid mode
+
+**Decisions** — under the owner's 30 Aug "plan then go" authorization, each open decision proceeds on the working default recorded in its issue; commenting on the issue overturns the default at any time: [#72](https://github.com/earlyprototype/false-flag/issues/72) map-data folder · [#73](https://github.com/earlyprototype/false-flag/issues/73) judges' campaign cut · [#74](https://github.com/earlyprototype/false-flag/issues/74) default visual register · [#75](https://github.com/earlyprototype/false-flag/issues/75) Quest availability (assumed yes; stays open until confirmed) · [#89](https://github.com/earlyprototype/false-flag/issues/89) scope to one game type + Mystery mode (gets its own branch when that work starts)
 
 ---
 
 ## Stage 1 · First Light — *about a day*
 
-**Build**
-- [ ] `api/globe.html`, served at `GET /globe` by FileResponse — the pattern `dashboard.html` already uses
-- [ ] CesiumJS satellite Earth in that page
-- [ ] ~10 starter gazetteer entries (place name → coordinates), hardcoded for now
-- [ ] Read `GET /game/{id}/resources` and plot every unit at its named base
-- [ ] Subscribe to one live game event stream (one consumer only — the multi-screen fix comes in Stage 3)
-- [ ] One vendored sensor shader; diegetic EXERCISE chrome
+**Build** — complete in [#95](https://github.com/earlyprototype/false-flag/pull/95), commit `779e585`
+- [x] `api/globe.html`, served at `GET /globe` by FileResponse — the pattern `dashboard.html` already uses
+- [x] CesiumJS satellite Earth in that page (keyless: OSM imagery, no accounts; pinned 1.132.0)
+- [x] 14 starter gazetteer entries — every order-of-battle location covered; posture strings (`available`, `classified`, no location) go to a visible UNRESOLVED tray, never an invented coordinate
+- [x] Read `GET /game/{id}/resources` and plot every unit at its named base
+- [x] Subscribe to one live game event stream (one consumer only — the multi-screen fix comes in Stage 3)
+- [x] One vendored sensor shader (MIT FLIR from gods-eye-view, licence retained); diegetic EXERCISE chrome
 
 **Done test** — on the projector, every unit in the order of battle sits at its real location, and an event in the running game visibly changes the display.
 
-**Needs first**: the owner's **"go"** — authorization to write this project's first code.
+**Authorized**: the owner's go was given 30 Aug 2026. Tracked in [#94](https://github.com/earlyprototype/false-flag/issues/94).
 
 ---
 
