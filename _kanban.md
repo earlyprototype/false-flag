@@ -35,13 +35,13 @@
 *   [ ] PR #97: remove advisor turn leak and rebase onto main - https://github.com/earlyprototype/false-flag/pull/97 — requiring focused regression test, conflict resolution/regeneration, review.
 
 ## DOING
+*   [ ] Reconcile public Claude session into sanitised durable handover (#79) - Cloud session session_015NPEdfpJtAXR7sqKXHxQAQ is not present in local Claude JSONL files and unauthenticated retrieval is blocked. Obtain/export the public thread without copying credential text, store a sanitised durable handover under Research/System, then reconcile it against PR #67/#69 outputs. https://github.com/earlyprototype/false-flag/issues/79 — branch docs/79-session-reconciliation.
 *   [ ] PR #99: resolve review findings and restore canonical docs - https://github.com/earlyprototype/false-flag/pull/99 — align fallback semantics to the normative degradation ladder; set St Fergus confidence to medium; preserve the already-correct Stage 1 BUILT status; tests/review; report PR.
 *   [ ] Situation Globe — await owner GO, then execute PLAN.md - PLAN.md is the sole implementation plan. Keep this as one pointer; move it to TODO only when the owner explicitly authorizes Stage 1 First Light.
 
 *   [ ] In progress (keep to 1-3 items)
 
 ## REVIEW
-*   [ ] Reconcile public Claude session into sanitised durable handover (#79) - Cloud session session_015NPEdfpJtAXR7sqKXHxQAQ is not present in local Claude JSONL files and unauthenticated retrieval is blocked. Obtain/export the public thread without copying credential text, store a sanitised durable handover under Research/System, then reconcile it against PR #67/#69 outputs. https://github.com/earlyprototype/false-flag/issues/79 — branch docs/79-session-reconciliation.
 *   [ ] Audit recent Claude threads and enforce onboarding - Verify the last few Claude sessions against PLAN/docs, correct source attribution, and make AGENTS/CLAUDE point future sessions to the recent-session index.
 *   [ ] AI-completed work awaiting human approval
 

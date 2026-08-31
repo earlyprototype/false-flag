@@ -114,7 +114,7 @@
     },
     "Reconcile public Claude session into sanitised durable handover (#79) - Cloud session session_015NPEdfpJtAXR7sqKXHxQAQ is not present in local Claude JSONL files and unauthenticated retrieval is blocked. Obtain/export the public thread without copying credential text, store a sanitised durable handover under Research/System, then reconcile it against PR #67/#69 outputs. https://github.com/earlyprototype/false-flag/issues/79 \u2014 branch docs/79-session-reconciliation.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM9o",
-      "status": "Review"
+      "status": "InProgress"
     },
     "Audit recent Claude threads and enforce onboarding - Verify the last few Claude sessions against PLAN/docs, correct source attribution, and make AGENTS/CLAUDE point future sessions to the recent-session index.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM-s",
