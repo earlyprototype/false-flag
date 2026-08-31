@@ -230,7 +230,7 @@
     },
     "PR #97: remove advisor turn leak and rebase onto main - https://github.com/earlyprototype/false-flag/pull/97 \u2014 requiring focused regression test, conflict resolution/regeneration, review.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4v8CQ",
-      "status": "Review"
+      "status": "Done"
     },
     "PR #99: resolve review findings and restore canonical docs - https://github.com/earlyprototype/false-flag/pull/99 \u2014 align fallback semantics to the normative degradation ladder; set St Fergus confidence to medium; preserve the already-correct Stage 1 BUILT status; tests/review; report PR.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4v8HM",
