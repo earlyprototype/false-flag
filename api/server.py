@@ -1114,6 +1114,8 @@ async def _stream_adjudication_results(session: GameSession, result: Dict[str, A
 
 _DASHBOARD_PATH = Path(__file__).resolve().parent / "dashboard.html"
 _DATAFLOW_PATH = Path(__file__).resolve().parent / "dataflow.html"
+_GLOBE_PATH = Path(__file__).resolve().parent / "globe.html"
+_GLOBE_SHADER_PATH = Path(__file__).resolve().parent / "static" / "thermal.shader.js"
 
 
 @app.get("/dataflow")
@@ -1248,6 +1250,32 @@ async def dtdl_interface(dtmi: str):
                         "source": path.name,
                     }
     raise HTTPException(status_code=404, detail=f"no interface {dtmi!r}")
+
+
+@app.get("/globe")
+async def globe_page():
+    """The situation globe (self-contained, no build step).
+
+    CesiumJS Earth carrying the session's order of battle: every unit
+    plotted at its named base from GET /game/{id}/resources, anything
+    the gazetteer cannot place listed in an UNRESOLVED tray rather than
+    guessed onto the map. Takes ?game={session_id}; follows that
+    session's /stream as its ONE consumer (the event queue is
+    destructive single-consumer until Stage 3's fan-out).
+    """
+    if not _GLOBE_PATH.exists():
+        raise HTTPException(status_code=500, detail="globe.html missing")
+    return FileResponse(_GLOBE_PATH, media_type="text/html")
+
+
+@app.get("/static/thermal.shader.js")
+async def globe_sensor_shader():
+    """The globe's vendored FLIR post-process shader (MIT, attributed
+    in the file's header). Served as one named file rather than a
+    mounted directory so nothing else in api/static becomes public."""
+    if not _GLOBE_SHADER_PATH.exists():
+        raise HTTPException(status_code=500, detail="thermal.shader.js missing")
+    return FileResponse(_GLOBE_SHADER_PATH, media_type="application/javascript")
 
 
 @app.get("/dashboard")

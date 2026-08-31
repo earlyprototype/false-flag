@@ -364,6 +364,35 @@ def test_dataflow_page_serves_the_operable_schema(client):
         assert mode_name in body
 
 
+def test_facilitator_pages_describe_themselves_and_reset(client):
+    """Demo affordances (issue #92): every dashboard panel carries a caption,
+    both pages can be cleared between runs, and the engine map zooms."""
+    dashboard = client.get("/dashboard").text
+    panels = dashboard.split("<main>")[1].split("</main>")[0].split("<section")[1:]
+    assert len(panels) == 7
+    for panel in panels:
+        assert '<p class="note"' in panel, "a dashboard panel carries no description"
+    assert 'id="btnResetView"' in dashboard      # clears ledger, calls, charts
+    assert "KIND_GLOSS" in dashboard             # raw stream event names glossed
+
+    # The two hand-built charts are marks and axis text; role="img" mutes the
+    # axis text and chartAlt() supplies the name and the spoken reading that
+    # replace it, rebuilt on every redraw.
+    for chart in ("chartMetrics", "chartCas"):
+        opening_tag = dashboard.split(f'id="{chart}"')[1].split(">")[0]
+        assert 'role="img"' in opening_tag, f"{chart} has no text alternative"
+    assert "function chartAlt(" in dashboard
+    assert "<title>" in dashboard and "<desc>" in dashboard
+
+    dataflow = client.get("/dataflow").text
+    for control in ("zoomOutBtn", "zoomInBtn", "zoomFitBtn", "resetViewBtn"):
+        assert control in dataflow
+    # role="img" makes the whole SVG subtree presentational, dropping every
+    # node's aria-label while the node groups stay in the tab order.
+    assert 'role: "img"' not in dataflow
+    assert 'role: "group"' in dataflow
+
+
 def test_new_game_mystery_mode_reaches_the_manager(client):
     """mystery_mode on /game/new must construct a mystery-mode manager."""
     from api import server
@@ -437,3 +466,61 @@ def test_dashboard_page_serves_the_twin_model_panel(client):
     assert "dtdlTelemetry" in body and "dtdlIfaces" in body
     assert '"/dtdl"' in body or "'/dtdl'" in body
     assert "/dataflow" in body  # links to the full ◇ DTDL view
+
+
+def test_globe_page_serves_the_exercise_marked_situation_globe(client):
+    """GET /globe returns the self-contained situation globe: EXERCISE
+    chrome, the resources fetch it plots from, and the one stream it
+    consumes."""
+    response = client.get("/globe")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    body = response.text
+    assert "EXERCISE" in body
+    assert "/resources" in body and "/stream/" in body
+    assert "UNRESOLVED" in body.upper()  # the tray for unplaceable units
+
+
+def test_globe_gazetteer_covers_every_order_of_battle_location():
+    """Every named base in the scenario's order of battle has a gazetteer
+    entry, so no unit is stranded in the UNRESOLVED tray by omission.
+
+    'available' and 'classified' are force postures, not places (the SSBN
+    on continuous patrol has no plottable position by design) - they are
+    meant to reach the tray and are excluded here.
+    """
+    import re
+    import yaml
+
+    root = Path(__file__).resolve().parents[1]
+    conditions = yaml.safe_load(
+        (root / "data" / "scenarios" / "war_game_2025" / "initial_conditions.yaml")
+        .read_text(encoding="utf-8")
+    )
+    not_places = {"available", "classified"}
+    locations = {
+        unit["location"]
+        for units in conditions["uk_forces"].values()
+        for unit in units
+        if unit.get("location") and unit["location"] not in not_places
+    }
+    assert locations, "scenario carries no unit locations — recon drifted?"
+
+    page = (root / "api" / "globe.html").read_text(encoding="utf-8")
+    gazetteer = set(re.findall(r"^\s{2}([a-z_]+):\s*\{ lat:", page, re.MULTILINE))
+    assert gazetteer, "globe page exposes no gazetteer entries"
+
+    def key(name):
+        return re.sub(r"[\s\-]+", "_", name.strip().lower())
+
+    missing = {loc for loc in locations if key(loc) not in gazetteer}
+    assert not missing, f"order-of-battle locations absent from the gazetteer: {missing}"
+
+
+def test_globe_sensor_shader_is_served_with_its_licence(client):
+    """The vendored FLIR shader ships with its MIT attribution intact."""
+    response = client.get("/static/thermal.shader.js")
+    assert response.status_code == 200
+    body = response.text
+    assert "MIT License" in body and "gods-eye-view" in body
+    assert "window.thermalShader" in body
