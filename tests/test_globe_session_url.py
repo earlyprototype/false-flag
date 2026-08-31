@@ -8,7 +8,7 @@ REPO = Path(__file__).parent.parent
 GLOBE = REPO / "api" / "globe.html"
 
 
-def test_failed_attach_keeps_last_successful_session_url():
+def test_globe_attach_preserves_last_successful_session_url():
     script = r"""
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -67,6 +67,16 @@ setImmediate(() => {
   assert.equal(elements.sessionBadge.textContent, "session good-ses…");
   assert.equal(renderCalls, 0);
   assert.equal(connectCalls, 0);
+
+  context.fetch = async () => ({ ok: true, json: async () => ({}) });
+  currentUrl = "?game=good-session&ionToken=token#view";
+  historyCalls = 0;
+  vm.runInContext('attach("good-session")', context);
+
+  setImmediate(() => {
+    assert.equal(currentUrl, "?game=good-session&ionToken=token#view");
+    assert.equal(historyCalls, 0);
+  });
 });
 """
 
