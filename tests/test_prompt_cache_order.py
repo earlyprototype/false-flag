@@ -93,7 +93,7 @@ def test_transcript_comes_before_the_metrics_that_change_every_turn():
     """Slowest-changing content first is the only order a prefix cache can use."""
     block = build_shared_context_prefix(_transcript(), _world())
     assert block.index("GAME HISTORY") < block.index("CURRENT SITUATION")
-    assert block.index("assessment 1.0") < block.index("Escalation Risk:")
+    assert block.index("assessment 1.0") < block.index("THREAT ASSESSMENT:")
 
 
 def test_the_event_ledger_sits_after_the_transcript_block():
@@ -185,10 +185,15 @@ def test_the_history_header_does_not_change_as_the_campaign_grows():
 def test_a_growing_transcript_only_appends_to_the_shared_prefix():
     """Append-only is what lets one turn's cache serve the next."""
     world = _world()
-    early = build_shared_context_prefix(_transcript(turns=3), world)
+    earlier_lines = _transcript(turns=3)
+    early = build_shared_context_prefix(earlier_lines, world)
     later = build_shared_context_prefix(_transcript(turns=4), world)
-    # Everything up to the end of the earlier transcript still matches.
-    assert _shared_prefix(early, later) > len(early) * 0.8
+    # Everything up to the end of the earlier transcript still matches. Pinned
+    # against the earlier transcript's own last line rather than a fraction of
+    # the block, so the measure does not move when the fixed tail below the
+    # transcript changes length.
+    last_line = earlier_lines[-1]
+    assert _shared_prefix(early, later) >= early.index(last_line) + len(last_line)
 
 
 # --- honesty about what is actually sent ------------------------------------
@@ -356,18 +361,26 @@ def test_a_transcript_with_no_turn_headers_still_renders():
 
 # --- the dossier says each thing once (ER-009) ------------------------------
 
-def test_the_dossier_renders_the_metrics_once_not_three_times():
-    """The raw values stay; the prose bands and the flags block that restated
-    them (and the casualty counts two lines up) are gone. What survives of
-    build_world_state_summary is the standing advisor-voice instruction."""
+def test_the_dossier_renders_the_situation_once_and_in_words():
+    """One rendering, and it is the prose one.
+
+    ER-009 cut the dossier to a single rendering of the state; issue #91
+    settled which one it is. This block closes with the standing rule never
+    to reference 'values', so it prints none: the bands say the same thing
+    in the register the advisors are told to speak in. The flags block stays
+    out - its only non-duplicate content is the casualty counts, which the
+    bands already carry.
+    """
     world = _world()
     world.flags = {"risk_escalation": True}
     block = build_shared_context_prefix(_transcript(), world)
 
-    # Raw values, once.
-    assert block.count(f"Escalation Risk: {world.metrics.escalation_risk}/100") == 1
-    # The duplicate renderings are out.
-    assert "THREAT ASSESSMENT" not in block
+    # The prose situation, once.
+    assert block.count("THREAT ASSESSMENT:") == 1
+    assert block.count("CASUALTIES TO DATE:") == 1
+    # No scoreboard under the rule that forbids talking about one.
+    assert "/100" not in block
+    assert "Escalation Risk:" not in block
     assert "KEY INTELLIGENCE FLAGS" not in block
     # The deliberate carry-over survives the slimming.
     assert "Do NOT reference 'metrics', 'game mechanics', 'scores', or 'values'." in block

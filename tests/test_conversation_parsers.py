@@ -132,8 +132,15 @@ def test_turn_references_are_rewritten_to_in_fiction_days():
 def test_the_voice_instructions_forbid_turn_references():
     from llm.prompts import ADVISOR_VOICE_INSTRUCTIONS
 
-    assert "'turn N'" in ADVISOR_VOICE_INSTRUCTIONS
+    # Stated abstractly - the rule may not quote the forms it bans (#97) -
+    # and illustrated only by the in-fiction clock this scrubber rewrites to.
+    assert "no turn numbers" in ADVISOR_VOICE_INSTRUCTIONS
+    assert "no turn-relative phrases" in ADVISOR_VOICE_INSTRUCTIONS
     assert "two days ago" in ADVISOR_VOICE_INSTRUCTIONS
+    # The banned examples themselves must never come back into the rule text.
+    lowered = ADVISOR_VOICE_INSTRUCTIONS.lower()
+    for banned in ("in turn two", "last turn"):
+        assert banned not in lowered
 
 
 def test_pushback_roster_excludes_the_players_own_character():
@@ -372,3 +379,26 @@ def test_world_state_has_recent_injects_field():
     assert world.recent_injects == []
     world.recent_injects.append("Russian Submarine Surfaces Near UK Waters")
     assert world.recent_injects == ["Russian Submarine Surfaces Near UK Waters"]
+
+def test_the_prefixed_player_line_is_dropped_not_glued():
+    """'The Prime Minister:' names the player; the line and its wrapped tail must vanish."""
+    reply = (
+        "Attorney General: There is no legal basis for this action.\n"
+        "The Prime Minister: I am confident this is the right course\n"
+        "and we will not be deterred.\n"
+        "Home Secretary: Domestic unrest is a real risk."
+    )
+    out = generate_advisor_pushback(
+        make_world(), "act", "interp", INITIAL_CONDITIONS, make_llm(reply), Random(1)
+    )
+    assert [r for r, _ in out] == ["Attorney General", "Home Secretary"]
+    joined = " ".join(m for _, m in out)
+    assert "confident" not in joined and "deterred" not in joined
+
+
+def test_the_prefixed_advisor_line_is_attributed_without_the_article():
+    reply = "The Attorney General: There is no legal basis for this action."
+    out = generate_advisor_pushback(
+        make_world(), "act", "interp", INITIAL_CONDITIONS, make_llm(reply), Random(1)
+    )
+    assert out == [("Attorney General", "There is no legal basis for this action.")]

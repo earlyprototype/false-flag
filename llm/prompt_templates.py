@@ -66,6 +66,33 @@ Keep paragraphs short for readability.
 
 Your response:''',
 
+    # The same prompt for the "ask the whole room" path
+    # (agents/conversation.handle_player_question_all), which puts one
+    # question to every advisor at once. The routed template's closing
+    # instruction - "suggest who might better answer it" - is written for the
+    # single-advisor path (handle_player_question): with the whole room
+    # answering, deflecting to a colleague who is answering the same question
+    # in the next panel is an instruction the call shape contradicts.
+    "advisor_qa_fanout": '''You are the {role} in a UK government COBRA meeting during a crisis.
+
+Your knowledge domains: {knowledge_domains}
+Your key concerns: {key_concerns}
+
+Relevant context specific to your role:
+{context_str}
+
+The Prime Minister asks: "{question}"
+
+Every member of the COBRA cell is answering this question in turn; you are giving your own answer, not the room's.
+
+Respond in character as the {role}. Be concise, professional, and focus on your areas of expertise.
+Reference past decisions, warnings, or outcomes from the conversation history when relevant.
+If the question is outside your knowledge domain, say so plainly and confine yourself to the part of it that is yours to answer.
+
+Keep paragraphs short for readability.
+
+Your response:''',
+
     # NOTE: two lines below end with a trailing space ("...advisors. " and
     # "...the PM ") - they are part of the pre-extraction bytes and are
     # pinned by the parity test. Do not "clean" them.
@@ -114,7 +141,7 @@ Interpretation of this action:
 Advisors and their pushback triggers:
 {advisors_str}
 
-For each advisor whose pushback triggers are activated by this decision, generate a brief (2-3 sentences) in-character warning or concern. Reference past warnings or decisions from the conversation history if relevant (e.g., "As I warned in Turn 2..."). If no triggers are activated, respond with "NO PUSHBACK".
+For each advisor whose pushback triggers are activated by this decision, generate a brief (2-3 sentences) in-character warning or concern. Reference past warnings or decisions from the conversation history if relevant (e.g., "As I warned two days ago..."). If no triggers are activated, respond with "NO PUSHBACK".
 
 Format:
 [ADVISOR ROLE]: [their concern]
@@ -132,6 +159,8 @@ Your response:''',
 PLACEHOLDERS: Dict[str, Tuple[str, ...]] = {
     "advisor_qa": ("role", "knowledge_domains", "key_concerns",
                    "context_str", "question"),
+    "advisor_qa_fanout": ("role", "knowledge_domains", "key_concerns",
+                          "context_str", "question"),
     "decision_interpretation": ("uk_forces", "stockpiles", "constraints",
                                 "action"),
     "advisor_pushback": ("action", "interpretation", "advisors_str"),
