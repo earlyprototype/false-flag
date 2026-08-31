@@ -1,6 +1,6 @@
 # The Feasibility Study, In Brief
 
-*Plain-language version of `XR_GLOBE_FEASIBILITY.md` — for anyone meeting this work for the first time. Nothing here requires reading the technical study; every finding below links back to it if you want the deep version. The plan and open decisions live in the Owner's Brief (PR #69) and issues #70–#75.*
+*Plain-language version of `XR_GLOBE_FEASIBILITY.md` — for anyone meeting this work for the first time. Nothing here requires reading the technical study; every finding below links back to it if you want the deep version. The plan lives in [`PLAN.md`](../PLAN.md), the explanation in [the Owner's Brief](OWNERS_BRIEF.md), and the current calls and defaults in [`DECISION_BRIEFS.md`](DECISION_BRIEFS.md).*
 
 ## What was studied
 
@@ -27,6 +27,6 @@ Can FALSE FLAG gain a **live map of its war** — a satellite Earth on a big scr
 
 ## Who reads what
 
-- **Everyone, first**: this page, then the Owner's Brief (plan as five moments, the open questions — PR #69).
+- **Everyone, first**: this page, then the [Owner's Brief](OWNERS_BRIEF.md) and [`PLAN.md`](../PLAN.md).
 - **Whoever builds or maintains**: the technical study, component map, and discards register in this folder — dense on purpose, so nothing is lost between sessions.
 - **Whoever runs research tasks**: issue #70 (ready-to-paste briefs).

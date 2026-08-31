@@ -1,8 +1,8 @@
 # The Owner's Brief — the Situation Globe, in plain language
 
-*This is the translation layer. The other documents are deliberately dense — they exist so no engineer (human or AI) ever loses the thread between sessions. **This one is for you and anyone new to the project.** Plain here means mechanically concrete, not vague: every section says what actually exists, what changes it, and links to the deep version. (Deep links point at the feasibility branch until PR #67 merges, after which they're neighbours in this folder.)*
+*This is the translation layer. The other documents are deliberately dense — they exist so no engineer (human or AI) ever loses the thread between sessions. **This one is for you and anyone new to the project.** Plain here means mechanically concrete, not vague: every section says what actually exists, what changes it, and links to the deep version.*
 
-**Drill-down map**: [findings in plain language](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_FEASIBILITY_IN_BRIEF.md) · [full technical study](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_FEASIBILITY.md) · [visual component map](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_COMPONENT_MAP.md) · [decisions & tasks: issues #70–#75](https://github.com/earlyprototype/false-flag/issues) (the Manus research task queue plus the five open calls — each spelled out below) · [`BUILD_STATE.md`](BUILD_STATE.md) · [`DECISION_BRIEFS.md`](DECISION_BRIEFS.md)
+**Drill-down map**: [findings in plain language](XR_GLOBE_FEASIBILITY_IN_BRIEF.md) · [full technical study](XR_GLOBE_FEASIBILITY.md) · [visual component map](XR_GLOBE_COMPONENT_MAP.md) · [open decisions and research](https://github.com/earlyprototype/false-flag/issues) · [`BUILD_STATE.md`](BUILD_STATE.md) · [`DECISION_BRIEFS.md`](DECISION_BRIEFS.md)
 
 ---
 
@@ -12,17 +12,17 @@ Right now, between turns, the game goes quiet — the cabinet argues, and nothin
 
 ## The two parts, mechanically
 
-**1 · The screen** — a single web page, served the same way our existing dashboard is, that draws the game's state on a satellite Earth. It adds visual filters borrowed from the gods-eye-view project (clean satellite → CRT → night-vision → thermal, switched by the escalation score the game already computes), scripted camera moves when events land, and a permanent EXERCISE watermark. It only ever *displays* data; it cannot change the game. *(Deep: [study, Track A](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_FEASIBILITY.md#4-track-a--presentation-architecture) · [map, diagram 1](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_COMPONENT_MAP.md#1--system-overview--what-talks-to-what).)*
+**1 · The screen** — a single web page, served the same way our existing dashboard is, that draws the game's state on a satellite Earth. It adds visual filters borrowed from the gods-eye-view project (clean satellite → CRT → night-vision → thermal, switched by the escalation score the game already computes), scripted camera moves when events land, and a permanent EXERCISE watermark. It only ever *displays* data; it cannot change the game. *(Deep: [study, Track A](XR_GLOBE_FEASIBILITY.md#4-track-a--presentation-architecture) · [map, diagram 1](XR_GLOBE_COMPONENT_MAP.md#1--system-overview--what-talks-to-what).)*
 
 **2 · The position system** — a small new piece of game state. Concretely:
 
-- A **lookup table** of ~30 real places (Faslane, the GIUK gap, Severomorsk…) with hand-checked coordinates. This is the only place coordinates ever come from.
+- A **lookup table** of ~30 real places (Faslane, the GIUK gap, Severomorsk…) with hand-checked coordinates. Authored locations originate here; movement arithmetic derives positions between them.
 - **One new record per unit** in the saved game: latitude, longitude, heading, speed, and its current order (e.g. "transit to GIUK_gap at cruise speed").
 - Positions update at **exactly one moment each turn** — when the turn resolves — by ordinary movement arithmetic: speed × time along a pre-drawn route. No randomness, no AI, in that step.
-- The AI's only involvement (and it's optional — decision [#71](https://github.com/earlyprototype/false-flag/issues/71): should the AI's movement orders move your forces?): after a decision it may emit text orders in a fixed format, e.g. `ORDER: HMS_Prince_of_Wales | transit | GIUK_gap | cruise`. The game checks every order against the fixed unit list and the lookup table; **an unrecognised or garbled order is ignored** — that unit keeps doing what it was already doing, and a visible note says so. The AI never writes numbers; if its call fails completely, no orders are issued and everything continues on its previous course.
+- The AI's only involvement is the validated order channel settled in closed issue [#71](https://github.com/earlyprototype/false-flag/issues/71): after a decision it may emit text orders in a fixed format, e.g. `ORDER: HMS_Prince_of_Wales | transit | GIUK_gap | cruise`. The game checks every order against the fixed unit list and the lookup table; **an unrecognised or garbled order is ignored** — that unit keeps doing what it was already doing, and a visible note says so. The AI never writes numbers; if its call fails completely, zero new orders are issued — every unit carries on under its last validated orders, and the movement arithmetic still advances them (the same rule the decision record states).
 - **Consequence of this design**: a failure can leave the map *out of date*, but nothing can ever put a *made-up position* on it. That's the whole safety argument, and it's structural, not a promise.
 
-*(Deep: [study, Track B — the full spec](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_FEASIBILITY.md#4a-track-b--the-authoritative-spatial-layer) · [map, diagram 2 — the order pipeline](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_COMPONENT_MAP.md#2--track-b-mechanism--how-a-position-gets-written-and-why-no-failure-path-can-write-an-invented-one) · the save-file and turn-timing behaviour were verified by running the real engine code — [findings 9 & 10](https://github.com/earlyprototype/false-flag/blob/claude/vr-game-xr-simulation-feasibility-gomu1j/docs/XR_GLOBE_FEASIBILITY_IN_BRIEF.md).)*
+*(Deep: [study, Track B — the full spec](XR_GLOBE_FEASIBILITY.md#4a-track-b--the-authoritative-spatial-layer) · [map, diagram 2 — the order pipeline](XR_GLOBE_COMPONENT_MAP.md#2--track-b-mechanism--how-a-position-gets-written-and-why-no-failure-path-can-write-an-invented-one) · the save-file and turn-timing behaviour were verified by running the real engine code — [findings 9 & 10](XR_GLOBE_FEASIBILITY_IN_BRIEF.md).)*
 
 ## The plan
 
@@ -36,16 +36,16 @@ Stage 1 needs your **"go"** — authorization to write this project's first code
 
 Each is a GitHub issue — answer by commenting and closing; each has a safe default if you stay silent.
 
-1. **[#71 — Should the AI's orders move your forces?](https://github.com/earlyprototype/false-flag/issues/71)** (the order channel above: on, off, or read both designs first)
-2. **[#72 — Which folder do the map's data files live in?](https://github.com/earlyprototype/false-flag/issues/72)** (beside the story episodes, or a separate technical folder)
-3. **[#73 — Which campaign cut do the judges watch?](https://github.com/earlyprototype/false-flag/issues/73)** (full slow-burn vs quick-start; we can time both and pick)
-4. **[#74 — First impression: bare satellite Earth or the CRT filter?](https://github.com/earlyprototype/false-flag/issues/74)** (both ship; this sets the default)
+1. **[#72 — Which folder do the map's data files live in?](https://github.com/earlyprototype/false-flag/issues/72)** (beside the story episodes, or a separate technical folder)
+2. **[#73 — Which campaign cut do the judges watch?](https://github.com/earlyprototype/false-flag/issues/73)** (full slow-burn vs quick-start; we can time both and pick)
+3. **[#74 — First impression: bare satellite Earth or the CRT filter?](https://github.com/earlyprototype/false-flag/issues/74)** (both ship; this sets the default)
+4. **[#75 — Is a Meta Quest VR headset available?](https://github.com/earlyprototype/false-flag/issues/75)** (a plain yes/no to record on the issue)
 
-Plus one fact when you know it: **[#75 — is a Meta Quest VR headset available?](https://github.com/earlyprototype/false-flag/issues/75)** (a plain yes/no to record on the issue). And the research task queue for Manus lives in **[#70](https://github.com/earlyprototype/false-flag/issues/70)** (paste-ready briefs for the Manus research agent).
+Movement design issue [#71](https://github.com/earlyprototype/false-flag/issues/71) is closed: validated orders are on. The research task queue lives in [#70](https://github.com/earlyprototype/false-flag/issues/70).
 
 ## Glossary
 
-- **Gazetteer** — the ~30-place coordinate lookup table above; the only source of coordinates in the system.
+- **Gazetteer** — the ~30-place lookup table for authored locations; movement arithmetic derives positions between them.
 - **Digital twin / DTDL** — a Microsoft standard for describing a system as structured data. The game already models itself this way (merged today); the map becomes a display of that model. IMR's home field.
 - **Tripwire** — a line or circle on the map the game checks once per turn; a crossing becomes that turn's event.
 - **Fog of war** — players see estimates (last confirmed position + a circle that grows with staleness); the facilitator sees the stored positions.

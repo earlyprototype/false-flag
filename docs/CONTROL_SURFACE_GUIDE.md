@@ -45,7 +45,7 @@ clickable flowchart of the whole engine.
 | **Session box + Attach** | Paste in an existing game's session ID to watch it live instead of starting a new one. |
 | **Start live demo / Stop** | Runs a real automated game through the diagram so you can watch it live. |
 | **All → mock** | Switches every AI call to the free fake responder first — click this before "Start live demo" to explore for free. |
-| **Clear overrides** | Removes any model/prompt changes you've made, back to defaults. |
+| **Clear overrides** | Removes every model/routing override, back to defaults. It does **not** touch edited prompts — reset those one at a time with "Reset to default" in the box's own panel. |
 | **Reset layout** | Puts every box back in its original position (see below). |
 | **▶ Walkthrough** | A guided tour: one turn of the game, one step at a time, in plain English. Use arrow keys to move through it. |
 | **◇ DTDL** | Overlays the "twin model" — badges each matching box with the industry-standard concept it corresponds to. |
