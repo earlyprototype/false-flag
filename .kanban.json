@@ -1,0 +1,240 @@
+{
+  "schema_version": 1,
+  "repo_node_id": "R_kgDORYJOpQ",
+  "project_id": "PVT_kwHOCkn-fc4Bh_kp",
+  "board_key": "94a0b76877f44e7e8990e61054f91639",
+  "tasks": {
+    "Future / unprioritised work": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uMtI",
+      "status": "Backlog"
+    },
+    "PH-3 WebXR COBRA room - five advisors driven by speak-tags": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uMtk",
+      "status": "Backlog"
+    },
+    "PH-3 Station-based layer selection via raycast focus": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uMuI",
+      "status": "Backlog"
+    },
+    "PH-3 Diplomat-call scene switch on same embodiment pipeline": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uMuk",
+      "status": "Backlog"
+    },
+    "PH-4 Route CLI adjudication through concurrent pipeline": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uMvM",
+      "status": "Backlog"
+    },
+    "PH-4 Extend shared cache prefix to the 7 uncached call families": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uMwI",
+      "status": "Backlog"
+    },
+    "Close 3 information leaks - trust ints, threshold flags, save spoilers": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uMww",
+      "status": "Backlog"
+    },
+    "PH-3 Choose Convai route - (a) Unity V3 WebGL build vs (b) Web SDK per-turn re-target, rec (b)": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uMxU",
+      "status": "Backlog"
+    },
+    "Fix episodes README Turn 6+ TBD line - contradicts existing turn_006.yaml": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uMxw",
+      "status": "Backlog"
+    },
+    "build_play_bundle.py write index.html with newline=LF on Windows (currently CRLF)": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uMyU",
+      "status": "Backlog"
+    },
+    "Situation Globe \u2014 await owner GO, then execute PLAN.md - PLAN.md is the sole implementation plan. Keep this as one pointer; move it to TODO only when the owner explicitly authorizes Stage 1 First Light.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uMzM",
+      "status": "InProgress"
+    },
+    "Add state-actor memory for Mystery coherence - Outstanding from the prior DTDL/dashboard handover: designed during 23\u201327 Aug, not implemented. Recover the existing design before scoping; do not reinvent it.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uMzw",
+      "status": "Backlog"
+    },
+    "Ready to start, prioritised": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM0I",
+      "status": "Todo"
+    },
+    "PH-0 Prune ~17 stale/merged branches (29 Aug: 7 local + 22 remote deleted; active branches remain)": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM0g",
+      "status": "Todo"
+    },
+    "No-defaults ruling (#17, owner 27 Aug): parse failure -> bounded retry -> visible failure; defaulted fields contribute zero. Apply to actor_simulation + quality_assessment families": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM08",
+      "status": "Todo"
+    },
+    "Extend PR #61 block-deletion to the 5 remaining decision-abandon paths (#22-class, owner-ruled bugs 27 Aug) + tests; retire dead pre-#61 copy cli/main_dashboard.py": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM1g",
+      "status": "Todo"
+    },
+    "Fix CLI EOF/Ctrl-C turn loss (#18) - Route cli/main.py prompts through interruption-safe handling and verify an interrupted turn does not disappear behind bare Aborted.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM18",
+      "status": "Todo"
+    },
+    "PH-0 Verify/fix browser adjudication after PR #57 - Pyodide reported can't start new thread; verify the fallback reads the player's decision and never silently substitutes canned adjudication. Record a real browser-path check.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM2c",
+      "status": "Todo"
+    },
+    "Restore or replace missing DATA_LAYERS.md - models/layers.py and api/server.py cite DATA_LAYERS.md paragraphs, but the file is absent. Recover the intended document from prior session artifacts or replace stale references with a durable current source after understanding the fence.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM3c",
+      "status": "Todo"
+    },
+    "Rewrite the delivery plan in professional, mechanical language (#80) - https://github.com/earlyprototype/false-flag/issues/80 \u2014 branch docs/80-delivery-plan \u2014 depends #79.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM4I",
+      "status": "Todo"
+    },
+    "Generate decision pushback independently for each advisor (#81) - https://github.com/earlyprototype/false-flag/issues/81 \u2014 branch feat/81-independent-advisor-pushback.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM4w",
+      "status": "Todo"
+    },
+    "Persist advisor-specific trust and private decision memory (#82) - https://github.com/earlyprototype/false-flag/issues/82 \u2014 branch feat/82-advisor-trust-memory \u2014 depends #81.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM5o",
+      "status": "Todo"
+    },
+    "Audit runtime prompt quality and regression evidence (#83) - https://github.com/earlyprototype/false-flag/issues/83 \u2014 branch audit/83-prompt-quality-regression.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM6g",
+      "status": "Todo"
+    },
+    "Add data-flow descriptions, traceability and zoom controls (#84) - https://github.com/earlyprototype/false-flag/issues/84 \u2014 branch feat/84-dataflow-traceability-controls.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM7Q",
+      "status": "Todo"
+    },
+    "Provide a reliable demo reset across control surfaces (#85) - https://github.com/earlyprototype/false-flag/issues/85 \u2014 branch fix/85-control-surface-demo-reset.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM7w",
+      "status": "Todo"
+    },
+    "Audit control-surface visual information and accessibility (#86) - https://github.com/earlyprototype/false-flag/issues/86 \u2014 branch audit/86-control-surface-accessibility \u2014 depends #84/#85.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM8A",
+      "status": "Todo"
+    },
+    "In progress (keep to 1-3 items)": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM88",
+      "status": "InProgress"
+    },
+    "Reconcile public Claude session into sanitised durable handover (#79) - Cloud session session_015NPEdfpJtAXR7sqKXHxQAQ is not present in local Claude JSONL files and unauthenticated retrieval is blocked. Obtain/export the public thread without copying credential text, store a sanitised durable handover under Research/System, then reconcile it against PR #67/#69 outputs. https://github.com/earlyprototype/false-flag/issues/79 \u2014 branch docs/79-session-reconciliation.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM9o",
+      "status": "InProgress"
+    },
+    "Audit recent Claude threads and enforce onboarding - Verify the last few Claude sessions against PLAN/docs, correct source attribution, and make AGENTS/CLAUDE point future sessions to the recent-session index.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM-s",
+      "status": "Review"
+    },
+    "AI-completed work awaiting human approval": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM_Q",
+      "status": "Review"
+    },
+    "Capture Claude handover and reconcile current state - Recover the linked Claude session, reconcile it with current main/GitHub, correct stale handovers, and capture actionable work without duplicating PLAN.md.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM_s",
+      "status": "Done"
+    },
+    "DTDL dataflow build (PR #65): merged 28 Aug - owner browser review positive (/dataflow DTDL)": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNAM",
+      "status": "Done"
+    },
+    "Dashboard twin-model panel (PR #66): merged 28 Aug - Session;1 telemetry, game-type selector, review fixes": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNAw",
+      "status": "Done"
+    },
+    "SEDL alignment doc - False Flag scenario model mapped to SEDL (Nuwa pilot-partner artifact)": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNBU",
+      "status": "Done"
+    },
+    "After #57 merges: align or document 3 browser/terminal parity deviations (/decide with text, extra openers, bare intel)": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNBo",
+      "status": "Done"
+    },
+    "PH-0 Rewrite or retire GEMINI.md and fix GAME_DESCRIPTION.md stale claims": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNCY",
+      "status": "Done"
+    },
+    "PH-0 Annotate frozen UX/UI/WebApp trackers and link audits/ from README": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNDM",
+      "status": "Done"
+    },
+    "PH-0 Retire or repair scripts/gate_runner.py and status_board.py": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uND4",
+      "status": "Done"
+    },
+    "PH-0 Add .gitattributes (eol=lf, game.zip binary) - bundle-hash tests break on Windows checkouts": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNEQ",
+      "status": "Done"
+    },
+    "PH-0 Fix channel vocabulary drift - episodes README declares wrong channel set vs real turn YAML, and sim_loop.py colouring uses a third vocabulary": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNFQ",
+      "status": "Done"
+    },
+    "PH-0 Fix #16 second confirm discards enhanced decision (cli/main.py:1866)": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNF8",
+      "status": "Done"
+    },
+    "PH-0 Fix #22 double decision transcript on apply-recommendations branch": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNGo",
+      "status": "Done"
+    },
+    "PH-0 Update episodes README turn summaries if PR 59 merges (left stale by re-pace)": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNHA",
+      "status": "Done"
+    },
+    "PH-1 Layer enum + layer-tagged push_event extension in api/server.py": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNHY",
+      "status": "Done"
+    },
+    "PH-1 call_log to live SSE relay": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNH4",
+      "status": "Done"
+    },
+    "PH-1 Dashboard MVP page - T+ ledger, metric traces, per-call cards": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNIc",
+      "status": "Done"
+    },
+    "PH-1 Seed dashboard from play_campaign.py batch runs (conditions axis)": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNJQ",
+      "status": "Done"
+    },
+    "PH-2 Reroute matrix UI - 12 LLMContexts x provider/tier live switch": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNJo",
+      "status": "Done"
+    },
+    "PH-2 Prompt hot-edit - externalise templates with reload": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNKM",
+      "status": "Done"
+    },
+    "PH-2 Inject console - dashboard visual component; manual content authoring + trigger control (approved)": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uNLE",
+      "status": "Done"
+    },
+    "Republish strategy artifact with 22 Aug scoping ruling folded in": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uN30",
+      "status": "Done"
+    },
+    "Operable data-flow view: live schema + game-type selector + click-to-reroute/prompt-edit (owner req 1+2)": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uN4Q",
+      "status": "Done"
+    },
+    "Mystery context segregation: player-facing calls never see the secret, scrubber deleted (PR #63)": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uN5U",
+      "status": "Done"
+    },
+    "Run official DTDLParser on interop models once .NET SDK available (structural-only today)": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uN50",
+      "status": "Done"
+    },
+    "Completed, human-approved work": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uN6Y",
+      "status": "Done"
+    },
+    "Issue #100: keep Situation Globe URL on last successful session - https://github.com/earlyprototype/false-flag/issues/100 \u2014 requiring TDD, isolated branch, PR, review.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4v7_U",
+      "status": "Todo"
+    },
+    "PR #97: remove advisor turn leak and rebase onto main - https://github.com/earlyprototype/false-flag/pull/97 \u2014 requiring focused regression test, conflict resolution/regeneration, review.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4v8CQ",
+      "status": "Todo"
+    },
+    "PR #99: resolve review findings and restore canonical docs - https://github.com/earlyprototype/false-flag/pull/99 \u2014 align fallback semantics to the normative degradation ladder; set St Fergus confidence to medium; preserve the already-correct Stage 1 BUILT status; tests/review; report PR.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4v8HM",
+      "status": "InProgress"
+    }
+  }
+}

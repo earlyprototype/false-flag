@@ -113,3 +113,6 @@ interop/CORRESPONDENCE.md
 dashboard.bat
 key.bat
 push57.bat
+
+# kanbanger transient lock sidecar (never commit)
+.kanban.lock
