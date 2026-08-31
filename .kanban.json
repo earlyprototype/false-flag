@@ -226,7 +226,7 @@
     },
     "Issue #100: keep Situation Globe URL on last successful session - https://github.com/earlyprototype/false-flag/issues/100 \u2014 requiring TDD, isolated branch, PR, review.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4v7_U",
-      "status": "Todo"
+      "status": "InProgress"
     },
     "PR #97: remove advisor turn leak and rebase onto main - https://github.com/earlyprototype/false-flag/pull/97 \u2014 requiring focused regression test, conflict resolution/regeneration, review.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4v8CQ",
