@@ -1,10 +1,11 @@
 """Tests for the prompt hot-edit loader (llm/prompt_templates) and the
 byte-parity of the extracted templates.
 
-The parity gate: tests/data/prompt_parity_golden.json was captured by
-running tests/prompt_parity_fixtures.build_all_prompts() against the
-PRE-refactor inline f-string builders. With unedited templates, the
-refactored builders must reproduce those prompts byte for byte.
+The parity gate: tests/data/prompt_parity_golden.json holds the intended
+bytes of the three hot-editable families, first captured against the
+PRE-refactor inline f-string builders and re-captured once for issue #91
+(two deliberately rewritten instruction lines). With unedited templates,
+the builders must reproduce those prompts byte for byte.
 """
 
 import json
@@ -43,17 +44,24 @@ def seeded_templates():
 
 # --- byte parity ----------------------------------------------------------
 
-def test_assembled_prompts_match_pre_refactor_golden():
-    """With unedited templates the three refactored builders reproduce the
-    pre-refactor prompts exactly - the extraction changed nothing."""
-    from tests.prompt_parity_fixtures import build_all_prompts
+def test_assembled_prompts_match_golden():
+    """With unedited templates the three hot-editable families assemble to
+    exactly the golden bytes.
+
+    The golden was captured against the pre-refactor inline builders and
+    re-captured once, deliberately, for issue #91 (see
+    tests/prompt_parity_fixtures). Anything else that moves these bytes -
+    a stray edit to DEFAULTS, a changed shared prefix - fails here.
+    """
+    from tests.prompt_parity_fixtures import GOLDEN_FAMILIES, build_all_prompts
 
     golden = json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
     live = build_all_prompts()
-    assert set(live) == set(golden)
+    assert set(golden) == set(GOLDEN_FAMILIES)
+    assert set(golden) <= set(live)
     for family, expected in golden.items():
         assert live[family] == expected, (
-            f"{family}: assembled prompt diverged from the pre-refactor bytes"
+            f"{family}: assembled prompt diverged from the golden bytes"
         )
 
 
