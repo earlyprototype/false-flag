@@ -15,6 +15,7 @@
 *   [ ] build_play_bundle.py write index.html with newline=LF on Windows (currently CRLF)
 *   [ ] Add state-actor memory for Mystery coherence - Outstanding from the prior DTDL/dashboard handover: designed during 23–27 Aug, not implemented. Recover the existing design before scoping; do not reinvent it.
 *   [ ] Ruff lint: config, cleanup, then CI gate - ruff --select E9,F = 200 findings (56× F821 undefined-name — triage for latent bugs first). Add pyproject config, fix or ignore deliberately, then add the lint step to ci.yml checks job. Deferred from #102.
+*   [ ] Windows test suite: 12 environment/encoding/EOL failures - Reported by Sol 31 Aug: full suite green on Linux CI (721 passed, 3 skipped) but 12 unrelated environment/encoding/line-ending failures on Windows. Likely residue of the .gitattributes/EOL work — triage and fix or mark expected-skip on win32.
 
 ## TODO
 

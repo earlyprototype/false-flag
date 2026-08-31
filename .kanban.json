@@ -243,6 +243,10 @@
     "Ruff lint: config, cleanup, then CI gate - ruff --select E9,F = 200 findings (56\u00d7 F821 undefined-name \u2014 triage for latent bugs first). Add pyproject config, fix or ignore deliberately, then add the lint step to ci.yml checks job. Deferred from #102.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4wftY",
       "status": "Backlog"
+    },
+    "Windows test suite: 12 environment/encoding/EOL failures - Reported by Sol 31 Aug: full suite green on Linux CI (721 passed, 3 skipped) but 12 unrelated environment/encoding/line-ending failures on Windows. Likely residue of the .gitattributes/EOL work \u2014 triage and fix or mark expected-skip on win32.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4wp6s",
+      "status": "Backlog"
     }
   }
 }
