@@ -1,0 +1,165 @@
+# Stage 3 — verdict-gated auto-merge (issue #102; ported from LCCL). Arms
+# GitHub's native auto-merge for a pull request ONLY when its review returned a
+# genuine clean verdict — and disarms it the moment that stops being true.
+# GitHub itself finishes the merge later, once branch protection is satisfied
+# (CI green, the `review` check green, conversations resolved); this workflow
+# only decides whether the "auto-merge when ready" switch is flipped ON.
+#
+# SHIPS DORMANT: until "Allow auto-merge" is enabled in the repo settings, the
+# `gh pr merge --auto` call below fails harmlessly and every merge stays
+# manual. Flipping that one setting arms the stage — see issue #102.
+#
+# WHY VERDICT-GATED, NOT EVENT-GATED. anthropics/claude-code-action SELF-SKIPS
+# — posting no review — on any PR that edits claude-pr-review.yml (its guard
+# against a PR rewriting its own reviewer), and the review check's skip branch
+# goes GREEN on purpose so a human can still merge such a PR by hand. A green
+# `review` check plus an unconditionally-armed auto-merge would therefore merge
+# a PR with NO review at all (LCCL's PR #134 incident). A green check is NOT
+# sufficient evidence to auto-merge — arming keys off a *genuine PASS verdict*,
+# never the check colour.
+#
+# HOW IT KEYS OFF THE VERDICT. This workflow runs when "Claude PR Review"
+# COMPLETES (workflow_run), reads that review run's own verdict comment, and
+# classifies it with the SAME trusted base-branch classifier the review check
+# uses (.github/scripts/automerge-eligible.cjs):
+#   - genuine PASS (a real review, no CRITICAL/HIGH/MEDIUM) -> ARM.
+#   - SKIP (self-skipped, so NO verdict comment exists for this run) -> do NOT
+#     arm, and DISABLE auto-merge if an earlier run had armed it.
+#   - BLOCK / unreadable verdict -> same: do not arm; disable if armed.
+# A skipped-review PR is never auto-merged, yet stays MANUALLY mergeable by the
+# owner. No deadlock; the skip decision lives HERE, on the arming side.
+#
+# WHY workflow_run (the SECURE choice): a workflow_run-triggered job always
+# runs THIS FILE AS IT EXISTS ON THE DEFAULT BRANCH, never the PR's copy — so a
+# PR cannot edit its own arming logic, the same way the review check fetches
+# its classifier from base. There is deliberately no pull_request trigger here:
+# that would run the PR's own copy and reopen the self-modification vector.
+#
+# Assumption: private, single-owner repo, no forks. workflow_run.pull_requests
+# is populated for same-repo PRs; a head-SHA lookup is the fallback.
+name: Arm Auto-Merge
+
+on:
+  workflow_run:
+    workflows: ["Claude PR Review"]
+    types: [completed]
+
+# A newer review run on the same branch supersedes an in-flight arming evaluation.
+concurrency:
+  group: auto-merge-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+# contents: write + pull-requests: write are what `gh pr merge --auto/--disable-auto`
+# require. issues: read lets the job read the review comment back through the
+# REST issues endpoint — the same read the verdict-gate step uses.
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+jobs:
+  evaluate-and-arm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Arm on a genuine PASS verdict, else ensure not armed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # workflow_run jobs have no checkout, so `gh pr ...` needs explicit repo context.
+          GH_REPO: ${{ github.repository }}
+          REVIEW_RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          # For same-repo PRs this carries the PR number; may be empty -> SHA fallback.
+          PR_FROM_EVENT: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          set -o pipefail
+
+          # 0. Resolve the PR this review run belongs to.
+          PR="$PR_FROM_EVENT"
+          if [ -z "$PR" ]; then
+            PR="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" \
+                    --jq '[.[] | select(.state=="open")][0].number // empty' 2>/dev/null || true)"
+          fi
+          if [ -z "$PR" ]; then
+            echo "No open PR resolves from review run ${REVIEW_RUN_ID} (head ${HEAD_SHA}); nothing to arm."
+            exit 0
+          fi
+
+          # 1. Never arm a draft (GitHub forbids it anyway) or a closed/merged
+          #    PR. A draft re-evaluates here when marked ready —
+          #    claude-pr-review.yml runs on ready_for_review, producing a fresh
+          #    review run.
+          STATE="$(gh pr view "$PR" --json state --jq '.state')"
+          IS_DRAFT="$(gh pr view "$PR" --json isDraft --jq '.isDraft')"
+          BASE_REF="$(gh pr view "$PR" --json baseRefName --jq '.baseRefName')"
+          if [ "$STATE" != "OPEN" ]; then
+            echo "PR #${PR} is ${STATE}; nothing to arm."
+            exit 0
+          fi
+          if [ "$IS_DRAFT" = "true" ]; then
+            echo "PR #${PR} is a draft; auto-merge is never armed on drafts. It re-evaluates when the draft is marked ready."
+            exit 0
+          fi
+
+          # 2. Read THIS review run's verdict comment. The claude[bot] tracking
+          #    comment links to /actions/runs/<REVIEW_RUN_ID>, pinning the
+          #    verdict to exactly this run. A genuine review posts one; a
+          #    self-SKIP posts nothing, so BODY stays empty and is handled as
+          #    "not a genuine PASS" in step 3. workflow_run fires only AFTER the
+          #    review workflow has fully completed, so a real review's comment
+          #    is already present; a couple of reads cover REST list lag.
+          BODY=""
+          attempt=1
+          while [ "$attempt" -le 3 ]; do
+            gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments?per_page=100" \
+              > "$RUNNER_TEMP/pr-comments.json" 2>/dev/null || true
+            BODY="$(REVIEW_RUN_ID="$REVIEW_RUN_ID" node -e '
+              const fs = require("fs");
+              const runId = process.env.REVIEW_RUN_ID;
+              let comments = [];
+              try { comments = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/pr-comments.json", "utf8")); } catch (_) {}
+              const mine = (Array.isArray(comments) ? comments : []).filter(c =>
+                c && c.user && c.user.login === "claude[bot]" &&
+                typeof c.body === "string" && c.body.includes("/actions/runs/" + runId));
+              process.stdout.write(mine.length ? mine[mine.length - 1].body : "");
+            ')"
+            [ -n "$BODY" ] && break
+            [ "$attempt" -lt 3 ] && sleep 5
+            attempt=$((attempt + 1))
+          done
+
+          # 3. No verdict comment => the reviewer SKIPPED this run (it edits the
+          #    review workflow). A skip is NOT a clean review, so do not arm —
+          #    and if an earlier run had armed this PR, DISABLE auto-merge now.
+          #    The PR stays manually mergeable: its `review` check is green on
+          #    skip.
+          if [ -z "$BODY" ]; then
+            echo "Review run ${REVIEW_RUN_ID} for PR #${PR} produced no verdict comment — the reviewer self-skipped. Not arming; ensuring auto-merge is OFF. The owner can still merge #${PR} by hand."
+            gh pr merge "$PR" --disable-auto 2>/dev/null || echo "(auto-merge was not enabled)"
+            exit 0
+          fi
+
+          # 4. Judge the verdict with the TRUSTED BASE-branch classifier, never
+          #    the PR's own copy — a PR must not edit the code that decides
+          #    whether its review lets it merge. If the base fetch fails, fail
+          #    SAFE: do not arm.
+          GUARD="$RUNNER_TEMP/automerge-eligible.cjs"
+          if ! gh api "repos/${GITHUB_REPOSITORY}/contents/.github/scripts/automerge-eligible.cjs?ref=${BASE_REF}" \
+                 -H "Accept: application/vnd.github.raw" > "$GUARD" 2>/dev/null; then
+            echo "Could not fetch the base-branch verdict classifier — not arming (fail safe); ensuring auto-merge is OFF."
+            gh pr merge "$PR" --disable-auto 2>/dev/null || true
+            exit 0
+          fi
+
+          # 5. Arm on a genuine PASS; otherwise ensure auto-merge is OFF.
+          #    Classifier exit 0 = PASS (no CRITICAL/HIGH/MEDIUM); non-zero =
+          #    BLOCK or no verdict. On PASS native auto-merge then merges once
+          #    CI and conversation-resolution are also green. On BLOCK the
+          #    `review` check is red anyway, but never leave it armed.
+          if printf '%s' "$BODY" | node "$GUARD"; then
+            # --merge (not --squash): this repo's history is merge commits.
+            gh pr merge "$PR" --auto --merge
+            echo "PR #${PR}: review verdict PASS — auto-merge ARMED. GitHub will merge once CI is green and all conversations are resolved."
+          else
+            echo "PR #${PR}: review verdict is BLOCK (or unreadable) — not arming; ensuring auto-merge is OFF."
+            gh pr merge "$PR" --disable-auto 2>/dev/null || echo "(auto-merge was not enabled)"
+          fi
