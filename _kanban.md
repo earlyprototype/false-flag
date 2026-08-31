@@ -14,6 +14,7 @@
 *   [ ] Fix episodes README Turn 6+ TBD line - contradicts existing turn_006.yaml
 *   [ ] build_play_bundle.py write index.html with newline=LF on Windows (currently CRLF)
 *   [ ] Add state-actor memory for Mystery coherence - Outstanding from the prior DTDL/dashboard handover: designed during 23–27 Aug, not implemented. Recover the existing design before scoping; do not reinvent it.
+*   [ ] Ruff lint: config, cleanup, then CI gate - ruff --select E9,F = 200 findings (56× F821 undefined-name — triage for latent bugs first). Add pyproject config, fix or ignore deliberately, then add the lint step to ci.yml checks job. Deferred from #102.
 
 ## TODO
 
