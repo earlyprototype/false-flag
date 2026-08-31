@@ -107,6 +107,7 @@
 
 <div id="tools">
   <button id="btnFlir" title="Vendored FLIR sensor shader (MIT, gods-eye-view)">FLIR</button>
+  <button id="btnCrt" title="CRT-green resting filter — preview for decision N4 (#74)">CRT</button>
   <button id="btnHome" title="Return to the theatre view">Theatre</button>
 </div>
 
@@ -230,6 +231,42 @@ if (window.thermalShader) {
   $("btnFlir").disabled = true;
   $("btnFlir").title = "sensor shader not loaded";
 }
+
+/* CRT resting-state filter — decision N4 (#74) ruling, 31 Aug 2026: all
+   resting-default options stay live behind switches until late dev. Inline
+   approximation of the CRT phosphor look, same post-process pattern as the
+   FLIR pass above; a tuned Tuman-doctrine shader can replace the GLSL
+   in place when the aesthetics pass happens. */
+const crtStage = viewer.scene.postProcessStages.add(new Cesium.PostProcessStage({
+  name: "falseflag_crt_preview",
+  fragmentShader: `
+    uniform sampler2D colorTexture;
+    uniform float time;
+    in vec2 v_textureCoordinates;
+    void main() {
+      vec2 uv = v_textureCoordinates;
+      vec3 c = texture(colorTexture, uv).rgb;
+      float luma = dot(c, vec3(0.299, 0.587, 0.114));
+      luma = pow(luma, 0.85);
+      vec3 green = vec3(0.10, 1.0, 0.25) * luma;
+      float scan = 0.88 + 0.12 * sin(uv.y * 1200.0);
+      float flicker = 0.97 + 0.03 * sin(time * 12.0);
+      vec2 d = uv - 0.5;
+      float vig = 1.0 - 0.55 * dot(d, d) * 2.2;
+      vec3 outc = green * scan * flicker * vig + vec3(0.0, 0.035, 0.0);
+      out_FragColor = vec4(outc, 1.0);
+    }`,
+  uniforms: { time: 0.0 },
+}));
+crtStage.enabled = false;
+const crtT0 = performance.now();
+viewer.scene.preUpdate.addEventListener(() => {
+  if (crtStage.enabled) crtStage.uniforms.time = (performance.now() - crtT0) / 1000;
+});
+$("btnCrt").onclick = () => {
+  crtStage.enabled = !crtStage.enabled;
+  $("btnCrt").classList.toggle("on", crtStage.enabled);
+};
 
 /* ----------------------------------------------------------- unit plots */
 const BRANCH_COLOUR = {
