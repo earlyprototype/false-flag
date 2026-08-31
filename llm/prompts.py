@@ -275,16 +275,24 @@ def build_pushback_prompt(
     Returns:
         Formatted prompt for LLM to generate advisor warnings
     """
+    from engine.initial_conditions import PLAYER_CHARACTER_ID
+
     characters = initial_conditions.get("characters", {})
-    
-    # Build list of UK advisors and their pushback triggers
+
+    # Build list of UK advisors and their pushback triggers.
+    # The player's own character is left off the roster: they are the chair
+    # the pushback is addressed to, and listing them lets the model render
+    # the player's office objecting to the player's own decision. The same
+    # exclusion guards /askall (agents.conversation.handle_player_question_all).
     advisor_info = []
     for char_id, char_data in characters.items():
+        if char_id == PLAYER_CHARACTER_ID:
+            continue
         if isinstance(char_data, dict) and "note" not in char_data:  # UK advisors only
             role = char_data.get("role", "Advisor")
             triggers = char_data.get("pushback_triggers", [])
             advisor_info.append(f"- {role}: {', '.join(triggers)}")
-    
+
     advisors_str = "\n".join(advisor_info)
 
     from llm.context_builder import build_shared_context_prefix

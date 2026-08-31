@@ -136,6 +136,83 @@ def test_the_voice_instructions_forbid_turn_references():
     assert "two days ago" in ADVISOR_VOICE_INSTRUCTIONS
 
 
+def test_pushback_roster_excludes_the_players_own_character():
+    """The PM is the player: their office is never asked to object to itself.
+
+    The roster used to be every character lacking a 'note' key, which put the
+    Prime Minister (data/scenarios/war_game_2025/initial_conditions.yaml) in
+    the list the model is told to speak for.
+    """
+    from engine.initial_conditions import load_initial_conditions
+    from llm.prompts import build_pushback_prompt
+
+    conditions = load_initial_conditions("war_game_2025")
+    assert "prime_minister" in conditions["characters"], "fixture guard"
+
+    prompt = build_pushback_prompt(
+        make_world(), "deploy the carrier group", "Naval shadowing operation.",
+        conditions
+    )
+    roster = prompt.split("Advisors and their pushback triggers:")[1]
+    roster = roster.split("For each advisor")[0]
+
+    assert "Prime Minister" not in roster
+    # The advisors who do push back are still listed.
+    assert "Chief of the Defence Staff" in roster
+    assert "Attorney General" in roster
+
+
+def test_pm_prefixed_reply_line_yields_no_prime_minister_pushback():
+    """A PM-attributed line is dropped, not credited and not glued on.
+
+    The parser accepts 'prime minister'/'pm' prefixes, so a model that
+    ignores the roster could still put the player's own office in the
+    pushback list. Such a line takes the orphan path: recorded and dropped.
+    """
+    text = (
+        "Prime Minister: I am confident this is the right call.\n"
+        "PM: And we will not be deterred.\n"
+        "Attorney General: There is no legal basis for this action."
+    )
+    result = generate_advisor_pushback(
+        make_world(), "strike now", "Immediate strike.",
+        INITIAL_CONDITIONS, make_llm(text), Random(42)
+    )
+
+    roles = [role for role, _ in result]
+    assert roles == ["Attorney General"]
+    messages = " ".join(message for _, message in result)
+    assert "right call" not in messages
+    assert "not be deterred" not in messages
+
+
+def test_wrapped_pm_line_does_not_leak_into_the_previous_advisor():
+    """The tail of a dropped PM line is dropped too, not glued on.
+
+    Dropping only the prefixed line leaves its wrapped continuation to the
+    continuation branch, which appends it to the previous advisor - the same
+    "player's words in an advisor's mouth" leak, one line deeper.
+    """
+    text = (
+        "Attorney General: There is no legal basis for this action.\n"
+        "Prime Minister: I am confident this is right\n"
+        "and we will not be deterred.\n"
+        "Chief of the Defence Staff: The carrier group is not ready."
+    )
+    result = generate_advisor_pushback(
+        make_world(), "strike now", "Immediate strike.",
+        INITIAL_CONDITIONS, make_llm(text), Random(42)
+    )
+
+    roles = [role for role, _ in result]
+    assert roles == ["Attorney General", "Chief of the Defence Staff"]
+    messages = " ".join(message for _, message in result)
+    assert "not be deterred" not in messages
+    assert "confident" not in messages
+    # The advisor after the dropped block still parses normally.
+    assert "carrier group is not ready" in messages
+
+
 # --- check_critical_omissions ---
 
 def test_markdown_bold_concern_and_recommendation_parse():
