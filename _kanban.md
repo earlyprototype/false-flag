@@ -14,6 +14,7 @@
 *   [ ] Fix episodes README Turn 6+ TBD line - contradicts existing turn_006.yaml
 *   [ ] build_play_bundle.py write index.html with newline=LF on Windows (currently CRLF)
 *   [ ] Add state-actor memory for Mystery coherence - Outstanding from the prior DTDL/dashboard handover: designed during 23–27 Aug, not implemented. Recover the existing design before scoping; do not reinvent it.
+*   [ ] Ruff lint: config, cleanup, then CI gate - ruff --select E9,F = 200 findings (56× F821 undefined-name — triage for latent bugs first). Add pyproject config, fix or ignore deliberately, then add the lint step to ci.yml checks job. Deferred from #102.
 
 ## TODO
 
@@ -32,16 +33,17 @@
 *   [ ] Provide a reliable demo reset across control surfaces (#85) - https://github.com/earlyprototype/false-flag/issues/85 — branch fix/85-control-surface-demo-reset.
 *   [ ] Audit control-surface visual information and accessibility (#86) - https://github.com/earlyprototype/false-flag/issues/86 — branch audit/86-control-surface-accessibility — depends #84/#85.
 *   [ ] Issue #100: keep Situation Globe URL on last successful session - https://github.com/earlyprototype/false-flag/issues/100 — requiring TDD, isolated branch, PR, review.
-*   [ ] PR #97: remove advisor turn leak and rebase onto main - https://github.com/earlyprototype/false-flag/pull/97 — requiring focused regression test, conflict resolution/regeneration, review.
 
 ## DOING
+
 *   [ ] Reconcile public Claude session into sanitised durable handover (#79) - Cloud session session_015NPEdfpJtAXR7sqKXHxQAQ is not present in local Claude JSONL files and unauthenticated retrieval is blocked. Obtain/export the public thread without copying credential text, store a sanitised durable handover under Research/System, then reconcile it against PR #67/#69 outputs. https://github.com/earlyprototype/false-flag/issues/79 — branch docs/79-session-reconciliation.
 *   [ ] PR #99: resolve review findings and restore canonical docs - https://github.com/earlyprototype/false-flag/pull/99 — align fallback semantics to the normative degradation ladder; set St Fergus confidence to medium; preserve the already-correct Stage 1 BUILT status; tests/review; report PR.
 *   [ ] Situation Globe — await owner GO, then execute PLAN.md - PLAN.md is the sole implementation plan. Keep this as one pointer; move it to TODO only when the owner explicitly authorizes Stage 1 First Light.
-
 *   [ ] In progress (keep to 1-3 items)
 
 ## REVIEW
+*   [ ] PR #97: remove advisor turn leak and rebase onto main - https://github.com/earlyprototype/false-flag/pull/97 — requiring focused regression test, conflict resolution/regeneration, review.
+*   [ ] Add three-stage CI pipeline (#102) - https://github.com/earlyprototype/false-flag/issues/102 — branch ci/102-three-stage-pipeline — port LCCL checks + Claude review gate + dormant auto-merge; lint gate deferred (200 E9/F findings).
 *   [ ] Audit recent Claude threads and enforce onboarding - Verify the last few Claude sessions against PLAN/docs, correct source attribution, and make AGENTS/CLAUDE point future sessions to the recent-session index.
 *   [ ] AI-completed work awaiting human approval
 
