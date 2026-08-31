@@ -3,6 +3,13 @@
 
 ## BACKLOG
 
+*   [ ] Rewrite the delivery plan in professional, mechanical language (#80) - https://github.com/earlyprototype/false-flag/issues/80 — branch docs/80-delivery-plan — depends #79.
+*   [ ] Restore or replace missing DATA_LAYERS.md - models/layers.py and api/server.py cite DATA_LAYERS.md paragraphs, but the file is absent. Recover the intended document from prior session artifacts or replace stale references with a durable current source after understanding the fence.
+*   [ ] PH-0 Verify/fix browser adjudication after PR #57 - Pyodide reported can't start new thread; verify the fallback reads the player's decision and never silently substitutes canned adjudication. Record a real browser-path check.
+*   [ ] Fix CLI EOF/Ctrl-C turn loss (#18) - Route cli/main.py prompts through interruption-safe handling and verify an interrupted turn does not disappear behind bare Aborted.
+*   [ ] Extend PR #61 block-deletion to the 5 remaining decision-abandon paths (#22-class, owner-ruled bugs 27 Aug) + tests; retire dead pre-#61 copy cli/main_dashboard.py
+*   [ ] No-defaults ruling (#17, owner 27 Aug): parse failure -> bounded retry -> visible failure; defaulted fields contribute zero. Apply to actor_simulation + quality_assessment families
+*   [ ] Reconcile public Claude session into sanitised durable handover (#79) - Cloud session session_015NPEdfpJtAXR7sqKXHxQAQ is not present in local Claude JSONL files and unauthenticated retrieval is blocked. Obtain/export the public thread without copying credential text, store a sanitised durable handover under Research/System, then reconcile it against PR #67/#69 outputs. https://github.com/earlyprototype/false-flag/issues/79 — branch docs/79-session-reconciliation.
 *   [ ] Future / unprioritised work
 *   [ ] PH-3 WebXR COBRA room - five advisors driven by speak-tags
 *   [ ] PH-3 Station-based layer selection via raycast focus
@@ -16,37 +23,27 @@
 *   [ ] Add state-actor memory for Mystery coherence - Outstanding from the prior DTDL/dashboard handover: designed during 23–27 Aug, not implemented. Recover the existing design before scoping; do not reinvent it.
 *   [ ] Ruff lint: config, cleanup, then CI gate - ruff --select E9,F = 200 findings (56× F821 undefined-name — triage for latent bugs first). Add pyproject config, fix or ignore deliberately, then add the lint step to ci.yml checks job. Deferred from #102.
 *   [ ] Windows test suite: 12 environment/encoding/EOL failures - Reported by Sol 31 Aug: full suite green on Linux CI (721 passed, 3 skipped) but 12 unrelated environment/encoding/line-ending failures on Windows. Likely residue of the .gitattributes/EOL work — triage and fix or mark expected-skip on win32.
+*   [ ] Dashboard remaining half: a11y, reset contract, traceability (#92) - https://github.com/earlyprototype/false-flag/issues/92 — supersedes #84/#85/#86; cheap half shipped in PR #98. Remaining per issue body: accessibility pass to WCAG 2.2, full demo-reset contract across control surfaces, data-flow traceability.
 
 ## TODO
 
 *   [ ] Ready to start, prioritised
 *   [x] PH-0 Prune ~17 stale/merged branches (29 Aug: 7 local + 22 remote deleted; active branches remain)
-*   [ ] No-defaults ruling (#17, owner 27 Aug): parse failure -> bounded retry -> visible failure; defaulted fields contribute zero. Apply to actor_simulation + quality_assessment families
-*   [ ] Extend PR #61 block-deletion to the 5 remaining decision-abandon paths (#22-class, owner-ruled bugs 27 Aug) + tests; retire dead pre-#61 copy cli/main_dashboard.py
-*   [ ] Fix CLI EOF/Ctrl-C turn loss (#18) - Route cli/main.py prompts through interruption-safe handling and verify an interrupted turn does not disappear behind bare Aborted.
-*   [ ] PH-0 Verify/fix browser adjudication after PR #57 - Pyodide reported can't start new thread; verify the fallback reads the player's decision and never silently substitutes canned adjudication. Record a real browser-path check.
-*   [ ] Restore or replace missing DATA_LAYERS.md - models/layers.py and api/server.py cite DATA_LAYERS.md paragraphs, but the file is absent. Recover the intended document from prior session artifacts or replace stale references with a durable current source after understanding the fence.
-*   [ ] Rewrite the delivery plan in professional, mechanical language (#80) - https://github.com/earlyprototype/false-flag/issues/80 — branch docs/80-delivery-plan — depends #79.
-*   [ ] Generate decision pushback independently for each advisor (#81) - https://github.com/earlyprototype/false-flag/issues/81 — branch feat/81-independent-advisor-pushback.
-*   [ ] Persist advisor-specific trust and private decision memory (#82) - https://github.com/earlyprototype/false-flag/issues/82 — branch feat/82-advisor-trust-memory — depends #81.
 *   [ ] Audit runtime prompt quality and regression evidence (#83) - https://github.com/earlyprototype/false-flag/issues/83 — branch audit/83-prompt-quality-regression.
-*   [ ] Add data-flow descriptions, traceability and zoom controls (#84) - https://github.com/earlyprototype/false-flag/issues/84 — branch feat/84-dataflow-traceability-controls.
-*   [ ] Provide a reliable demo reset across control surfaces (#85) - https://github.com/earlyprototype/false-flag/issues/85 — branch fix/85-control-surface-demo-reset.
-*   [ ] Audit control-surface visual information and accessibility (#86) - https://github.com/earlyprototype/false-flag/issues/86 — branch audit/86-control-surface-accessibility — depends #84/#85.
+*   [ ] Fan out advisor pushback to one LLM call per advisor (#87) - https://github.com/earlyprototype/false-flag/issues/87 — branch feat/87-advisor-pushback-fanout — supersedes #81. Remaining after #96: per-advisor fan-out via generate_group; /ask keyword router PM-voice bug; carry-overs from #81 close: Mystery-leak tests + DTDL extend-only + browser/preview parity.
+*   [ ] Advisor private continuity and per-agent state (#88) - https://github.com/earlyprototype/false-flag/issues/88 — depends #87 — supersedes #82. Carry-overs from #82 close: preserve objector-only override charge (engine/game_manager.py:447-470, no double-charge); DTDL extend-only; private-memory isolation tests (Mystery off+on). Sentiment doc is design input, not spec.
 
 ## DOING
-*   [ ] Issue #100: keep Situation Globe URL on last successful session - https://github.com/earlyprototype/false-flag/issues/100 — requiring TDD, isolated branch, PR, review.
 
-*   [ ] Reconcile public Claude session into sanitised durable handover (#79) - Cloud session session_015NPEdfpJtAXR7sqKXHxQAQ is not present in local Claude JSONL files and unauthenticated retrieval is blocked. Obtain/export the public thread without copying credential text, store a sanitised durable handover under Research/System, then reconcile it against PR #67/#69 outputs. https://github.com/earlyprototype/false-flag/issues/79 — branch docs/79-session-reconciliation.
-*   [ ] PR #99: resolve review findings and restore canonical docs - https://github.com/earlyprototype/false-flag/pull/99 — align fallback semantics to the normative degradation ladder; set St Fergus confidence to medium; preserve the already-correct Stage 1 BUILT status; tests/review; report PR.
-*   [ ] Situation Globe — await owner GO, then execute PLAN.md - PLAN.md is the sole implementation plan. Keep this as one pointer; move it to TODO only when the owner explicitly authorizes Stage 1 First Light.
 *   [ ] In progress (keep to 1-3 items)
 
 ## REVIEW
+*   [ ] Issue #100: keep Situation Globe URL on last successful session - https://github.com/earlyprototype/false-flag/issues/100 — requiring TDD, isolated branch, PR, review.
 *   [ ] Audit recent Claude threads and enforce onboarding - Verify the last few Claude sessions against PLAN/docs, correct source attribution, and make AGENTS/CLAUDE point future sessions to the recent-session index.
 *   [ ] AI-completed work awaiting human approval
 
 ## DONE
+*   [x] PR #99: resolve review findings and restore canonical docs - https://github.com/earlyprototype/false-flag/pull/99 — align fallback semantics to the normative degradation ladder; set St Fergus confidence to medium; preserve the already-correct Stage 1 BUILT status; tests/review; report PR.
 *   [x] PR #97: remove advisor turn leak and rebase onto main - https://github.com/earlyprototype/false-flag/pull/97 — requiring focused regression test, conflict resolution/regeneration, review.
 *   [x] Add three-stage CI pipeline (#102) - https://github.com/earlyprototype/false-flag/issues/102 — branch ci/102-three-stage-pipeline — port LCCL checks + Claude review gate + dormant auto-merge; lint gate deferred (200 E9/F findings).
 *   [x] Capture Claude handover and reconcile current state - Recover the linked Claude session, reconcile it with current main/GitHub, correct stale handovers, and capture actionable work without duplicating PLAN.md.
