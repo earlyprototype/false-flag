@@ -410,7 +410,7 @@ async function attach(id) {
     if (!res.ok) throw new Error(`resources ${res.status}`);
     const data = await res.json();
     if (token !== attachSeq) return;  // lost the race to a later attach
-    history.replaceState(null, "", `?game=${encodeURIComponent(id)}`);
+    if (id !== sessionId) history.replaceState(null, "", `?game=${encodeURIComponent(id)}`);
     if (source) { source.close(); source = null; }  // prior session's stream ends only on success
     sessionId = id;
     $("sessionBadge").textContent = `session ${id.slice(0, 8)}…`;
