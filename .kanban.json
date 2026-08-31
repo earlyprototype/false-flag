@@ -235,6 +235,10 @@
     "Dashboard remaining half: a11y, reset contract, traceability (#92) - https://github.com/earlyprototype/false-flag/issues/92 \u2014 supersedes #84/#85/#86; cheap half shipped in PR #98. Remaining per issue body: accessibility pass to WCAG 2.2, full demo-reset contract across control surfaces, data-flow traceability.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4w6qg",
       "status": "Backlog"
+    },
+    "Globe manual zoom controls: +/\u2212 buttons and slider (#107) - https://github.com/earlyprototype/false-flag/issues/107 \u2014 branch feat/107-globe-zoom-controls \u2014 owner-requested input redundancy (trackpad pinch unreliable; projector rigs). PM-built small bounded fix.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4xido",
+      "status": "InProgress"
     }
   }
 }
