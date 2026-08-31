@@ -73,7 +73,7 @@ The globe stages above are one of two workstreams; the other is cabinet-advisor 
 - [ ] Save format 2.4 → 2.5, then the play-bundle rebuild that must follow any `models/world.py` edit
 - [ ] Tests: kinematics units · save→load→resume equality · gazetteer covers every unit location
 
-**Done test** — in a live campaign the red group advances every turn along its route; save at turn 3, reload, and positions are identical; the test suite is back at its 712-passed baseline.
+**Done test** — in a live campaign the red group advances every turn along its route; save at turn 3, reload, and positions are identical; the full test suite passes.
 
 **No AI is involved in this stage.** Costs nothing to run.
 
