@@ -46,7 +46,7 @@
     },
     "Situation Globe \u2014 await owner GO, then execute PLAN.md - PLAN.md is the sole implementation plan. Keep this as one pointer; move it to TODO only when the owner explicitly authorizes Stage 1 First Light.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uMzM",
-      "status": "Backlog"
+      "status": "InProgress"
     },
     "Add state-actor memory for Mystery coherence - Outstanding from the prior DTDL/dashboard handover: designed during 23\u201327 Aug, not implemented. Recover the existing design before scoping; do not reinvent it.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uMzw",
@@ -223,6 +223,18 @@
     "Completed, human-approved work": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uN6Y",
       "status": "Done"
+    },
+    "Issue #100: keep Situation Globe URL on last successful session - https://github.com/earlyprototype/false-flag/issues/100 \u2014 requiring TDD, isolated branch, PR, review.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4v7_U",
+      "status": "Todo"
+    },
+    "PR #97: remove advisor turn leak and rebase onto main - https://github.com/earlyprototype/false-flag/pull/97 \u2014 requiring focused regression test, conflict resolution/regeneration, review.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4v8CQ",
+      "status": "Todo"
+    },
+    "PR #99: resolve review findings and restore canonical docs - https://github.com/earlyprototype/false-flag/pull/99 \u2014 align fallback semantics to the normative degradation ladder; set St Fergus confidence to medium; preserve the already-correct Stage 1 BUILT status; tests/review; report PR.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4v8HM",
+      "status": "InProgress"
     }
   }
 }
