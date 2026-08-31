@@ -410,6 +410,7 @@ async function attach(id) {
     if (!res.ok) throw new Error(`resources ${res.status}`);
     const data = await res.json();
     if (token !== attachSeq) return;  // lost the race to a later attach
+    if (id !== sessionId) history.replaceState(null, "", `?game=${encodeURIComponent(id)}`);
     if (source) { source.close(); source = null; }  // prior session's stream ends only on success
     sessionId = id;
     $("sessionBadge").textContent = `session ${id.slice(0, 8)}…`;
@@ -427,7 +428,7 @@ async function attach(id) {
 
 $("btnAttach").onclick = () => {
   const id = $("sessionInput").value.trim();
-  if (id) { history.replaceState(null, "", `?game=${encodeURIComponent(id)}`); attach(id); }
+  if (id) attach(id);
 };
 $("sessionInput").addEventListener("keydown", e => { if (e.key === "Enter") $("btnAttach").click(); });
 
