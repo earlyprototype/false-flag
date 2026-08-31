@@ -38,11 +38,11 @@
 *   [ ] In progress (keep to 1-3 items)
 
 ## REVIEW
-*   [ ] Issue #100: keep Situation Globe URL on last successful session - https://github.com/earlyprototype/false-flag/issues/100 — requiring TDD, isolated branch, PR, review.
 *   [ ] Audit recent Claude threads and enforce onboarding - Verify the last few Claude sessions against PLAN/docs, correct source attribution, and make AGENTS/CLAUDE point future sessions to the recent-session index.
 *   [ ] AI-completed work awaiting human approval
 
 ## DONE
+*   [x] Issue #100: keep Situation Globe URL on last successful session - https://github.com/earlyprototype/false-flag/issues/100 — requiring TDD, isolated branch, PR, review.
 *   [x] PR #99: resolve review findings and restore canonical docs - https://github.com/earlyprototype/false-flag/pull/99 — align fallback semantics to the normative degradation ladder; set St Fergus confidence to medium; preserve the already-correct Stage 1 BUILT status; tests/review; report PR.
 *   [x] PR #97: remove advisor turn leak and rebase onto main - https://github.com/earlyprototype/false-flag/pull/97 — requiring focused regression test, conflict resolution/regeneration, review.
 *   [x] Add three-stage CI pipeline (#102) - https://github.com/earlyprototype/false-flag/issues/102 — branch ci/102-three-stage-pipeline — port LCCL checks + Claude review gate + dormant auto-merge; lint gate deferred (200 E9/F findings).
