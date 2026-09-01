@@ -96,6 +96,9 @@ _PUSHBACK_FINITE_SPEECH_LABELS = {
     if label.endswith(("ed", "s"))
     or label in {"pushed-back", "pushes-back", "said", "spoke"}
 }
+_PUSHBACK_NARRATIVE_SPEECH_LABELS = (
+    _PUSHBACK_FINITE_SPEECH_LABELS | {"told"}
+)
 _PUSHBACK_ATTRIBUTION_MODIFIERS = {
     "again", "also", "now", "quite", "still", "then", "very",
 }
@@ -260,7 +263,7 @@ def _detect_unknown_pushback_role(
     if explicit_attribution:
         return candidate
     tail = line[match.end():]
-    if _split_pushback_prefix_tail(tail) is not None:
+    if _split_pushback_prefix_tail(tail, known_roles) is not None:
         return candidate
     if _is_structural_pushback_tail(
             tail,
@@ -351,8 +354,58 @@ def _is_pushback_attribution(words: List[str]) -> bool:
     )
 
 
+def _find_pushback_failure_marker(text: str) -> Optional[str]:
+    """Return an embedded provider error or pushback sentinel."""
+    for bracket in re.finditer(r"\[", text):
+        marker = text[bracket.start():]
+        if is_error_response(marker):
+            return marker
+    if re.search(
+            r"\bNO(?:\s+|_)PUSHBACK\b[*_`]*(?=\s*(?:,|$))", text):
+        return "NO PUSHBACK"
+    return None
+
+
+def _split_pushback_narrative_tail(
+    cleaned: str,
+    known_roles: Set[str],
+) -> Optional[Tuple[str, bool, bool]]:
+    """Split an ``As the ROLE has warned, ...`` reference clause."""
+    comma = cleaned.find(",")
+    if comma <= 0:
+        return None
+    clause = cleaned[:comma]
+
+    word_matches = list(re.finditer(
+        r"[A-Za-z]+(?:-[A-Za-z]+)*", clause))
+    words = [match.group(0) for match in word_matches]
+    speech_index = next((
+        index for index, word in enumerate(words)
+        if word.lower() in _PUSHBACK_NARRATIVE_SPEECH_LABELS
+    ), None)
+    if speech_index is None or not all(
+        word.lower() in _PUSHBACK_AUXILIARIES
+        or word.lower() in _PUSHBACK_ATTRIBUTION_MODIFIERS
+        or word.lower().endswith("ly")
+        for word in words[:speech_index]
+    ):
+        return None
+    post_speech = clause[word_matches[speech_index].end():]
+    if re.search(r"[:;.!?\u2013\u2014]|\s-(?=\s|$)", clause):
+        return None
+    for as_match in re.finditer(r"\bas\b", post_speech, re.IGNORECASE):
+        candidate, _has_article = _normalize_pushback_attribution_target(
+            post_speech[as_match.end():], known_roles)
+        if (_extract_pushback_prefix(candidate, known_roles) is not None
+                or _detect_unknown_pushback_role(
+                    candidate, known_roles, explicit_attribution=True)):
+            return None
+    return cleaned[comma + 1:].lstrip("*_` \t"), False, True
+
+
 def _split_pushback_prefix_tail(
     tail: str,
+    known_roles: Set[str],
 ) -> Optional[Tuple[str, bool, bool]]:
     """Split one unambiguous speaker prefix without consuming prose."""
     cleaned = tail.strip().lstrip(")]}'\"*_`").lstrip()
@@ -370,6 +423,10 @@ def _split_pushback_prefix_tail(
             if rest and rest[0] in _PUSHBACK_SEPARATORS:
                 return rest[1:].lstrip("*_` \t"), False, False
         return None
+
+    narrative = _split_pushback_narrative_tail(cleaned, known_roles)
+    if narrative is not None:
+        return narrative
 
     # One speech-attribution token, optionally hyphenated and followed by a
     # short stage direction: ``warns:``, ``pushes-back:``, ``says (quietly):``.
@@ -423,7 +480,7 @@ def _extract_pushback_prefix(
             continue
 
         tail = line[match.end():]
-        split = _split_pushback_prefix_tail(tail)
+        split = _split_pushback_prefix_tail(tail, known_roles)
         if split is not None:
             remainder, is_direct, is_narrative_attribution = split
             return (
@@ -453,7 +510,8 @@ def _normalize_pushback_attribution_target(
     )
     if stage is not None:
         stage_text = re.sub(
-            r"^the\s+", "", strip_decoration(stage.group(1)[1:-1]),
+            r"^(?:the|our|your)\s+", "",
+            strip_decoration(stage.group(1)[1:-1]),
             count=1, flags=re.IGNORECASE)
         if (_extract_pushback_prefix(stage_text, known_roles) is None
                 and not _detect_unknown_pushback_role(
@@ -462,7 +520,7 @@ def _normalize_pushback_attribution_target(
                 _PUSHBACK_ATTRIBUTION_TRIM)
 
     article = re.match(
-        rf"^(?P<open>{_ROLE_PREFIX_OPEN})(?P<article>the)\s+",
+        rf"^(?P<open>{_ROLE_PREFIX_OPEN})(?P<article>the|our|your)\s+",
         candidate,
         re.IGNORECASE,
     )
@@ -836,18 +894,34 @@ def generate_advisor_pushback(
                 connector_stripped = undecorated
                 if narrative_line is not None:
                     connector_stripped = re.sub(
-                        r"^(?:(?:and|but)\s+|however,\s*)",
+                        r"^(?:and|but|yet|so)\s+",
                         "",
                         undecorated,
                         count=1,
                         flags=re.IGNORECASE,
                     )
+                    for separator in re.finditer(
+                            r"[,;:.!?]|\s[\u2013\u2014]\s",
+                            connector_stripped):
+                        continuation = strip_decoration(
+                            connector_stripped[separator.end():])
+                        (probe, probe_self_attributed, _probe_narrative,
+                         probe_malformed) = (
+                            _normalize_pushback_attribution_intro(
+                                continuation, known_roles)
+                        )
+                        if (probe_malformed
+                                or _extract_pushback_prefix(
+                                    probe, known_roles) is not None
+                                or _detect_unknown_pushback_role(
+                                    probe,
+                                    known_roles,
+                                    explicit_attribution=(
+                                        probe_self_attributed))):
+                            connector_stripped = continuation
+                            break
                     undecorated = strip_decoration(connector_stripped)
-                if (is_error_response(remainder)
-                        or is_error_response(connector_stripped)
-                        or is_error_response(undecorated)
-                        or is_sentinel_line(remainder, "NO PUSHBACK")
-                        or is_sentinel_line(undecorated, "NO PUSHBACK")):
+                if _find_pushback_failure_marker(remainder) is not None:
                     malformed = True
                     break
                 (candidate_line, self_attributed, narrative_as,
@@ -879,6 +953,10 @@ def generate_advisor_pushback(
                 )
                 if is_player_vocative:
                     player_vocative_seen = True
+                elif (is_own and is_narrative_attribution
+                      and not narrative_as):
+                    if narrative_line is None:
+                        narrative_line = remainder
                 elif not is_own:
                     if narrative_as and is_narrative_attribution:
                         if narrative_line is None:

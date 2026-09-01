@@ -376,6 +376,43 @@ def test_offline_pushback_is_visible_as_unavailable():
     "Speaking quietly but firmly as the Foreign Secretary, I object.",
     ("As the Foreign Secretary warned, and Speaking quietly as the Attorney "
      "General, I object."),
+    ("As the Foreign Secretary warned Speaking as the Attorney General, I "
+     "object."),
+    ("As the Foreign Secretary warned that this is reckless As Attorney "
+     "General, I object."),
+    ("As the Foreign Secretary warned, therefore, Speaking as the Attorney "
+     "General, I object."),
+    ("Chief of the Defence Staff has warned, therefore, Foreign Secretary: "
+     "I object."),
+    ("As the Foreign Secretary warned, nevertheless, "
+     "[ERROR: HTTP 429 rate limited]"),
+    ("As the Foreign Secretary warned [ERROR: HTTP 429], our allies are "
+     "uneasy."),
+    ("As the Foreign Secretary has warned **NO PUSHBACK**, our allies are "
+     "uneasy."),
+    "Speaking as our Attorney General, I object.",
+    "As our Attorney General, I object.",
+    "Speaking as your Attorney General, I object.",
+    ("As the Foreign Secretary warned me as our Attorney General, allies are "
+     "uneasy."),
+    ("As the Foreign Secretary warned, accordingly, Speaking as the Attorney "
+     "General, I object."),
+    ("As the Foreign Secretary warned, alternatively, As Attorney General, "
+     "I object."),
+    ("As the Foreign Secretary warned, even so, Foreign Secretary: I "
+     "object."),
+    ("As the Foreign Secretary warned yesterday NO PUSHBACK, our allies are "
+     "uneasy."),
+    ("Chief of the Defence Staff warned yesterday [ERROR: HTTP 429], our "
+     "allies are uneasy."),
+    ("Chief of the Defence Staff warned yesterday NO PUSHBACK, our allies "
+     "are uneasy."),
+    ("As the Foreign Secretary warned, one concern remains: Speaking as the "
+     "Attorney General, I object."),
+    ("As the Foreign Secretary warned, allies remain uneasy. Speaking as the "
+     "Attorney General, I object."),
+    ("As the Foreign Secretary warned, is this lawful? Speaking as the "
+     "Attorney General, I object."),
     "As [the Foreign Secretary] I object to this course.",
     "Speaking as (the Foreign Secretary) I object to this course.",
     "As [the Attorney General] this is unlawful.",
@@ -462,6 +499,16 @@ def test_non_role_label_remains_valid_pushback_text():
      "of Wales cannot sail safely."),
     ("As the Foreign Secretary warned, our allies are already uneasy; "
      "nuclear first-use has no legal basis."),
+    ("As the Foreign Secretary has warned, our allies are already uneasy; "
+     "nuclear first-use has no legal basis."),
+    ("As the Foreign Secretary rightly warned, our allies are already "
+     "uneasy; nuclear first-use has no legal basis."),
+    ("As the Foreign Secretary warned last week, our allies are already "
+     "uneasy; nuclear first-use has no legal basis."),
+    ("As the Foreign Secretary warned that this is reckless, our allies are "
+     "already uneasy."),
+    ("As the Attorney General told us yesterday, nuclear first-use has no "
+     "legal basis."),
     "As the Foreign Secretary warns, NATO may fracture.",
     ("As the Foreign Secretary warned, As the Attorney General advised, "
      "this is unlawful."),
@@ -485,6 +532,9 @@ def test_non_role_label_remains_valid_pushback_text():
     "As the crisis reaches the Chancellor, markets may panic.",
     ("As the general approach to escalation changes, we should adapt."),
     ("As the general concern for readiness grows, we should prepare."),
+    "There will be no pushback from NATO if we consult first.",
+    "Expect no pushback from allies after consultation.",
+    "Risk: no pushback is expected from Parliament.",
     "The Attorney General's advice notwithstanding, readiness is too low.",
     "The Attorney General's advice is clear: this is unlawful.",
     "The Home Secretary has one concern: public disorder.",
