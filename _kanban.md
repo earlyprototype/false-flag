@@ -57,6 +57,7 @@
 *   [ ] Audit recent Claude threads and enforce onboarding - Verify the last few Claude sessions against PLAN/docs, correct source attribution, and make AGENTS/CLAUDE point future sessions to the recent-session index.
 
 ## DONE
+
 *   [x] Delivery: tech element briefs for future agents (#128) - https://github.com/earlyprototype/false-flag/issues/128 — docs/tech/ fact-files: WEBXR, CESIUM, CONVAI, QUEST3, SERVER_STREAMING + index; agent-executed, PR through the gate.
 *   [x] Audit runtime prompt quality and regression evidence (#83) - https://github.com/earlyprototype/false-flag/issues/83 — branch audit/83-prompt-quality-regression.
 *   [x] Reconcile Situation Globe status docs (#109) - https://github.com/earlyprototype/false-flag/issues/109 — rescued uncommitted doc edits from the PR #99 session live on branch docs/rescue-pr99-session-edits; rebase their intent onto current truth (Stage 1 DONE, #99 merged, #72/#74 ruled) and land through the gate.
@@ -89,3 +90,4 @@
 *   [x] Operable data-flow view: live schema + game-type selector + click-to-reroute/prompt-edit (owner req 1+2)
 *   [x] Mystery context segregation: player-facing calls never see the secret, scrubber deleted (PR #63)
 *   [x] Run official DTDLParser on interop models once .NET SDK available (structural-only today)
+*   [ ] Delivery: raise review max-turns to 50 (PR #129) - https://github.com/earlyprototype/false-flag/pull/129 — merged by owner (review self-skips its own machinery). Recorded post-merge; guardrail follow-up to the #126 turn-limit incident.

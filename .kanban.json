@@ -307,6 +307,10 @@
     "Delivery: tech element briefs for future agents (#128) - https://github.com/earlyprototype/false-flag/issues/128 \u2014 docs/tech/ fact-files: WEBXR, CESIUM, CONVAI, QUEST3, SERVER_STREAMING + index; agent-executed, PR through the gate.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg450fQ",
       "status": "Done"
+    },
+    "Delivery: raise review max-turns to 50 (PR #129) - https://github.com/earlyprototype/false-flag/pull/129 \u2014 merged by owner (review self-skips its own machinery). Recorded post-merge; guardrail follow-up to the #126 turn-limit incident.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg46VMw",
+      "status": "Done"
     }
   }
 }
