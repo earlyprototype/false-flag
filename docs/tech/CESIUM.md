@@ -17,7 +17,9 @@ build step, is the live integration. Verified facts, from the file itself:
   zero tokens. The OSM attribution stays on screen in the Cesium credit line.
 - **`?ionToken=...` upgrade path.** A token passed in the URL is set as
   `Cesium.Ion.defaultAccessToken`, and Cesium Ion photoreal imagery replaces
-  the OSM tiles.
+  the OSM tiles. A URL-borne token lands in browser history, server access
+  logs and referrer headers, so use a scoped or throwaway Ion token here,
+  never a shared account credential.
 - **FLIR filter.** One vendored MIT sensor shader
   (`api/static/thermal.shader.js`, from bilawalsidhu/gods-eye-view, licence
   retained in its header) runs as a Cesium `PostProcessStage`. Off by
@@ -36,7 +38,8 @@ build step, is the live integration. Verified facts, from the file itself:
 - **Data on the globe.** Units from `GET /game/{id}/resources` plot at their
   gazetteer bases as points with labels; any location the gazetteer cannot
   place goes to a visible UNRESOLVED tray, never an invented coordinate.
-  Live updates arrive over the session's SSE stream (SERVER_STREAMING.md).
+  Live updates arrive over the session's SSE stream
+  ([SERVER_STREAMING.md](SERVER_STREAMING.md)).
 
 ## The globe on the VR routes
 
@@ -47,7 +50,8 @@ build step, is the live integration. Verified facts, from the file itself:
   itself has no WebXR mode (none as of 1.144; proof-of-concept PR #11372 in
   the CesiumJS repo is unmerged — `docs/XR_GLOBE_FEASIBILITY.md`). On this
   route the globe must render to an offscreen canvas textured onto the
-  room's monitor mesh, which needs a proof of concept. See WEBXR.md.
+  room's monitor mesh, which needs a proof of concept.
+  See [WEBXR.md](WEBXR.md).
 
 ## Decision state
 

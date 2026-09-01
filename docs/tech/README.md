@@ -6,6 +6,10 @@ re-derived in conversation. Each brief states what the element is, its role
 here, verified integration facts, constraints and risks, and the current
 decision state.
 
+Facts verified against the repo as of 1 Sep 2026 — version-pinned details
+(CesiumJS versions, Quest Browser versions, ruling dates) may age; each brief
+cites its sources so they can be re-checked.
+
 - [WEBXR.md](WEBXR.md) — browser-delivered VR: option B of open route decision #127, its strengths, and its three known weaknesses.
 - [CESIUM.md](CESIUM.md) — the globe engine: exactly how the shipped `/globe` page uses CesiumJS today, and the in-room-screen question on each VR route.
 - [CONVAI.md](CONVAI.md) — the avatar embodiment layer, never the brain: puppet mode vs conversational mode, SDK facts, and the cloud dependency.

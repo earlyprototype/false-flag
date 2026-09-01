@@ -50,10 +50,10 @@ experience; #127 decides only the engine and delivery path.
 - **Unproven on-device performance.** CesiumJS running flat in the Quest
   browser at usable framerates is unproven; the feasibility study gates the
   local in-headset variants on an on-device check. The first smoke test in
-  QUEST3.md answers exactly this.
+  [QUEST3.md](QUEST3.md) answers exactly this.
 
 ## Decision state
 
 Open — issue #127 (VR room delivery route: Unity-native or WebXR walk-in).
 No default applies; the owner rules when ready. The hardware that would prove
-either route is tracked in #75 (see QUEST3.md).
+either route is tracked in #75 (see [QUEST3.md](QUEST3.md)).
