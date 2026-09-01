@@ -25,6 +25,7 @@ hand.
 - **Quest 3S** is the budget sibling and acceptable here — #75 asks about
   any Quest headset, and [#128](https://github.com/earlyprototype/false-flag/issues/128)
   records the 3S as acceptable.
+
 ## Sourcing state
 
 Open — issue #75 ("is a Quest headset available to you?"). The owner's
