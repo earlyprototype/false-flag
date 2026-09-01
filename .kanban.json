@@ -220,10 +220,6 @@
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cOM",
       "status": "Backlog"
     },
-    "XR: choose Convai route - (a) Unity V3 WebGL build vs (b) Web SDK per-turn re-target, rec (b)": {
-      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cP4",
-      "status": "Backlog"
-    },
     "Prompts: default situation summary must preserve turn-specific continuity (#111) - https://github.com/earlyprototype/false-flag/issues/111 \u2014 audit finding": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cSA",
       "status": "Backlog"
@@ -302,6 +298,10 @@
     },
     "Globe: Manus research queue (#70) - https://github.com/earlyprototype/false-flag/issues/70 \u2014 P1a landed via PR #99; P1b/P1c/P2a/P2b/P3 unfired; owner fires": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45c0I",
+      "status": "Backlog"
+    },
+    "XR: decide the VR room delivery route (#127) - https://github.com/earlyprototype/false-flag/issues/127 \u2014 OPEN, owner rules; Unity-native room vs the owner's WebXR walk-in proposal (advisors in seats, screens load data layers). No default.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45mJw",
       "status": "Backlog"
     }
   }

@@ -22,7 +22,6 @@
 *   [ ] XR: WebXR COBRA room - five advisors driven by speak-tags
 *   [ ] XR: station-based layer selection via raycast focus
 *   [ ] XR: diplomat-call scene switch on same embodiment pipeline
-*   [ ] XR: choose Convai route - (a) Unity V3 WebGL build vs (b) Web SDK per-turn re-target, rec (b)
 *   [ ] Prompts: default situation summary must preserve turn-specific continuity (#111) - https://github.com/earlyprototype/false-flag/issues/111 — audit finding
 *   [ ] Prompts: align inject-generation instructions with the Mystery context boundary (#112) - https://github.com/earlyprototype/false-flag/issues/112 — audit finding
 *   [ ] Prompts: return parsed decision-interpretation fields to API clients (#113) - https://github.com/earlyprototype/false-flag/issues/113 — audit finding
@@ -43,6 +42,7 @@
 *   [ ] XR: live-hybrid mode (#77) - https://github.com/earlyprototype/false-flag/issues/77 — owner-confirmed design record; per-layer real/simulated seam
 *   [ ] Prompts: voice production bible (#78) - https://github.com/earlyprototype/false-flag/issues/78 — body is mojibake at source, re-paste needed
 *   [ ] Globe: Manus research queue (#70) - https://github.com/earlyprototype/false-flag/issues/70 — P1a landed via PR #99; P1b/P1c/P2a/P2b/P3 unfired; owner fires
+*   [ ] XR: decide the VR room delivery route (#127) - https://github.com/earlyprototype/false-flag/issues/127 — OPEN, owner rules; Unity-native room vs the owner's WebXR walk-in proposal (advisors in seats, screens load data layers). No default.
 
 ## TODO
 
