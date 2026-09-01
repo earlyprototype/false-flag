@@ -17,14 +17,13 @@ Canonical, with per-stage status and done tests: **[PLAN.md](../PLAN.md)** at th
 
 ## Immediate next actions (in order)
 
-1. Run Stage 1's projector done-test from `main`: every ORBAT unit appears at its named location and a live `state_update` visibly changes the globe.
-2. Finish PR #99 review and CI; merge only after human approval.
-3. Then start Stage 2 from [`PLAN.md`](../PLAN.md). The §4a degradation ladder is normative: bad lines are visibly skipped; failed calls issue zero new orders while standing orders continue and kinematics advances.
+1. Land the in-flight lanes: advisor-pushback fan-out ([#87](https://github.com/earlyprototype/false-flag/issues/87)) and the prompt-quality audit ([#83](https://github.com/earlyprototype/false-flag/issues/83)), both dispatched 1 Sep.
+2. Schedule [#89](https://github.com/earlyprototype/false-flag/issues/89) (scope to one game type + Mystery; its own branch) and start Stage 2 from [`PLAN.md`](../PLAN.md). The §4a degradation ladder is normative: bad lines are visibly skipped; failed calls issue zero new orders while standing orders continue and kinematics advances.
 
 ## Needs / open items
 
-- Open working-default decisions: geo-pack location ([#72](https://github.com/earlyprototype/false-flag/issues/72)); demo variant ([#73](https://github.com/earlyprototype/false-flag/issues/73)); default visual register ([#74](https://github.com/earlyprototype/false-flag/issues/74)); Quest availability ([#75](https://github.com/earlyprototype/false-flag/issues/75)); save downgrade-loss acceptance.
-- P1a gazetteer QA is present in PR #99; the remaining Manus queue stays in [#70](https://github.com/earlyprototype/false-flag/issues/70).
+- Open working-default decisions: demo variant ([#73](https://github.com/earlyprototype/false-flag/issues/73)); Quest availability ([#75](https://github.com/earlyprototype/false-flag/issues/75)); save downgrade-loss acceptance. Ruled and closed: geo-pack location ([#72](https://github.com/earlyprototype/false-flag/issues/72), split) and default visual register ([#74](https://github.com/earlyprototype/false-flag/issues/74), all options stay behind switches).
+- P1a gazetteer QA landed via PR #99; the remaining Manus queue stays in [#70](https://github.com/earlyprototype/false-flag/issues/70).
 - DTDLParser re-validation once `Theatre;1` is authored (dotnet 8 + DTDLParser 1.1.3 — the pass-2 probe recipe).
 
 ## How to resume without the current session

@@ -6,7 +6,7 @@
 |---|---|---|---|---|
 | N1 | Movement architecture ([#71](https://github.com/earlyprototype/false-flag/issues/71)) | **SETTLED 28 Aug — orders on** | This page, §below | Hybrid selected |
 | N2 | Geo-pack home (issue [#72](https://github.com/earlyprototype/false-flag/issues/72): which folder the map's data files live in) | **RULED 1 Sep — SPLIT** | Ruling on the closed issue | Scenario truth with the scenario, engine-derived with the tech, accounting across the seam |
-| N3 | Demo campaign variant (issue [#73](https://github.com/earlyprototype/false-flag/issues/73): which campaign cut the users watch) | M0 rehearsal | Stopwatch two mock runs (M0 produces them) | Time both, pick at M0 |
+| N3 | Demo campaign variant (issue [#73](https://github.com/earlyprototype/false-flag/issues/73): which campaign cut the users watch) | **Now timeable** — M0 is done; interacts with [#89](https://github.com/earlyprototype/false-flag/issues/89), which may drop `fast_start` | Stopwatch two mock runs against `main` | Time both, then pick |
 | N4 | Default globe register (issue [#74](https://github.com/earlyprototype/false-flag/issues/74): bare satellite Earth vs the CRT filter as the globe's default look) | **RULED 31 Aug — all options stay** | Ruling on the closed issue | Bare Earth working default; FLIR + CRT switches live (PR #106); revisit late dev |
 | — | Quest availability — is a Meta Quest VR headset available? (a yes/no to record in issue [#75](https://github.com/earlyprototype/false-flag/issues/75)) | Before the VR spike | A fact, not a reading | S3 (streamed screen) path assumed |
 | — | Save downgrade loss | B1 | Executed probe, study claim 9 | Accept + document + version bump 2.4→2.5 |

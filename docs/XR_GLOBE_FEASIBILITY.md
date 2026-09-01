@@ -116,7 +116,7 @@ Accepted limits: the globe is a monoscopic picture — no stereoscopic terrain, 
 
 **The plan is not in this document.** It lives at the repository root in **[`PLAN.md`](../PLAN.md)** — five stages, each with its build checklist, its done test (an observable fact), and its current status. That file is the single source; this study is the evidence behind it (why each choice, what was verified, what was rejected).
 
-Dates: challenge started 28 Aug 2026 · owner GO given 30 Aug · onsite 12 Sep at IMR · final 14 Sep. Stage 1 shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95) and is `BUILT — awaiting the projector done-test`; `main` also includes PRs #96 and #98. PR #99 is the current documentation/research salvage under review. Cut order under pressure: post-competition tier → stage 5 → stage 3. The gates are schedule instruments only — no design questions remain inside them ([#71](https://github.com/earlyprototype/false-flag/issues/71), the movement-architecture decision, is closed: hybrid orders on).
+Dates: challenge started 28 Aug 2026 · owner GO given 30 Aug · onsite 12 Sep at IMR · final 14 Sep. Stage 1 shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95) and is `DONE` — the projector done-test passed 31 Aug; `main` also includes PRs #96–#99 and #101–#108. Cut order under pressure: post-competition tier → stage 5 → stage 3. The gates are schedule instruments only — no design questions remain inside them ([#71](https://github.com/earlyprototype/false-flag/issues/71), the movement-architecture decision, is closed: hybrid orders on).
 
 ## 8. Engagement & playability
 
