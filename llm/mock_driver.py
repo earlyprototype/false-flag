@@ -31,9 +31,10 @@ def _stable_index(key: str, size: int) -> int:
 #   - Q&A:              "You are the {role} in a UK government COBRA meeting"
 #   - Reactions:        "You are {character.name}."
 #   - Omissions check:  "You are the UK {role} advising the Prime Minister"
-# Detection keys on that line rather than on keywords anywhere in the prompt,
-# because the surrounding context (transcript, character lists) mentions every
-# advisor by title and previously collapsed all voices into one.
+# Detection keys on a builder-owned marker emitted after editable and
+# interpolated text, rather than on arbitrary persona-like lines in the prompt.
+# The surrounding context mentions every advisor, and player text can itself
+# contain identity instructions; trusting either previously collapsed voices.
 # ---------------------------------------------------------------------------
 
 # advisor key -> aliases used in persona lines (role titles and display names)
@@ -1119,20 +1120,23 @@ def _render_inject(entry: dict, turn: int, tell: str = "") -> str:
 
 
 def _detect_advisor(prompt_lower: str):
-    """Return the advisor key explicitly addressed by a persona line, if any."""
+    """Return the advisor named by trusted builder or reaction framing."""
     selected = None
     selected_at = -1
     for key, aliases in _ADVISOR_ALIASES.items():
         for alias in aliases:
-            pattern = (
-                r"(?m)^\s*you are (?:the )?(?:uk )?(?:us )?"
-                + re.escape(alias)
-                + r"\b"
+            role = re.escape(alias)
+            patterns = (
+                r"(?m)^\s*\[advisor role:\s*(?:the )?(?:uk )?(?:us )?"
+                + role + r"\s*\]\s*$",
+                r"(?m)^\s*you are (?:the )?(?:uk )?(?:us )?" + role
+                + r"\.\s*\n\s*your relationship with the pm:",
             )
-            for match in re.finditer(pattern, prompt_lower):
-                if match.start() > selected_at:
-                    selected = key
-                    selected_at = match.start()
+            for pattern in patterns:
+                for match in re.finditer(pattern, prompt_lower):
+                    if match.start() > selected_at:
+                        selected = key
+                        selected_at = match.start()
     return selected
 
 

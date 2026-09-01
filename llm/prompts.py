@@ -53,6 +53,11 @@ ADVISOR_VOICE_INSTRUCTIONS = "\n".join([
 ])
 
 
+def _with_advisor_identity(prompt: str, role: str) -> str:
+    """Append trusted identity after all editable and interpolated text."""
+    return f"{prompt}\n\n[ADVISOR ROLE: {role}]"
+
+
 def _state_band_lines(world: WorldState) -> List[str]:
     """The prose situation lines: the three bands plus the casualty counts.
 
@@ -224,13 +229,16 @@ def build_advisor_context(
     # template stays plain named placeholders.
     from llm.prompt_templates import render
 
-    return f"{full_context}\n\n" + render(
-        "advisor_qa_fanout" if fanout else "advisor_qa",
-        role=role,
-        knowledge_domains=", ".join(knowledge_domains),
-        key_concerns=", ".join(key_concerns),
-        context_str=context_str,
-        question=question,
+    return _with_advisor_identity(
+        f"{full_context}\n\n" + render(
+            "advisor_qa_fanout" if fanout else "advisor_qa",
+            role=role,
+            knowledge_domains=", ".join(knowledge_domains),
+            key_concerns=", ".join(key_concerns),
+            context_str=context_str,
+            question=question,
+        ),
+        role,
     )
 
 
@@ -313,15 +321,18 @@ def build_pushback_prompt(
     from llm.prompt_templates import render
 
     prefix = build_shared_context_prefix(transcript or [], world, event_ledger)
-    return f"{prefix}\n\n" + render(
-        "advisor_pushback",
-        action=action,
-        interpretation=interpretation,
-        role=role,
-        key_concerns="\n".join(f"- {item}" for item in concerns)
-        or "- None specified",
-        pushback_triggers="\n".join(f"- {item}" for item in triggers)
-        or "- None specified",
+    return _with_advisor_identity(
+        f"{prefix}\n\n" + render(
+            "advisor_pushback",
+            action=action,
+            interpretation=interpretation,
+            role=role,
+            key_concerns="\n".join(f"- {item}" for item in concerns)
+            or "- None specified",
+            pushback_triggers="\n".join(f"- {item}" for item in triggers)
+            or "- None specified",
+        ),
+        role,
     )
 
 

@@ -35,12 +35,18 @@ def _qa_prompt(role: str, question: str) -> str:
     return (
         f"You are the {role} in a UK government COBRA meeting during a crisis.\n"
         "\n"
+        "Your knowledge domains: test domain\n"
+        "\n"
         "Context: the Chief of the Defence Staff, National Security Advisor, "
         "Foreign Secretary, Home Secretary and Attorney General are present.\n"
         "\n"
         f'The Prime Minister asks: "{question}"\n'
         "\n"
-        "Your response:"
+        f"Respond in character as the {role}.\n"
+        "\n"
+        "Your response:\n"
+        "\n"
+        f"[ADVISOR ROLE: {role}]"
     )
 
 
@@ -55,6 +61,7 @@ def _reaction_prompt(name: str, quality: str) -> str:
         f"ACTION QUALITY: {quality}\n"
         "\n"
         f"You are {name}.\n"
+        "Your relationship with the PM: ALLIED\n"
         "Respond to the PM's action.\n"
         "\n"
         "Response:"

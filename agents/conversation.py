@@ -69,22 +69,69 @@ _ADDRESS_RE = re.compile(
 
 _PUSHBACK_SEPARATORS = ",;:\u2013\u2014-"
 _PUSHBACK_SPEECH_LABELS = {
+    "advise", "advised", "advises", "advising",
+    "argue", "argued", "argues", "arguing",
+    "assert", "asserted", "asserting", "asserts",
+    "caution", "cautioned", "cautioning", "cautions",
+    "contend", "contended", "contending", "contends",
+    "declare", "declared", "declares", "declaring",
+    "insist", "insisted", "insisting", "insists",
+    "maintain", "maintained", "maintaining", "maintains",
+    "note", "noted", "notes", "noting",
+    "object", "objected", "objecting", "objects",
+    "observe", "observed", "observes", "observing",
     "push-back", "pushed-back", "pushes-back", "pushing-back",
+    "recommend", "recommended", "recommending", "recommends",
     "replied", "replies", "reply", "replying",
     "respond", "responded", "responding", "responds",
     "said", "say", "saying", "says",
     "speak", "speaking", "speaks", "spoke",
+    "state", "stated", "states", "stating",
+    "urge", "urged", "urges", "urging",
     "warn", "warned", "warning", "warns",
+}
+_PUSHBACK_ATTRIBUTION_MODIFIERS = {
+    "again", "also", "now", "quite", "still", "then", "very",
+}
+_PUSHBACK_AUXILIARIES = {
+    "am", "are", "can", "cannot", "could", "did", "do", "does", "had",
+    "has", "have", "is", "may", "might", "must", "shall", "should", "was",
+    "were", "will", "would",
+}
+_PUSHBACK_PREDICATE_HEADS = _PUSHBACK_AUXILIARIES | {
+    "appeared", "appears", "became", "becomes", "felt", "feels", "looked",
+    "looks", "remained", "remains", "seemed", "seems",
+}
+# Deliberately conservative: ambiguous wrapped-role text fails visibly unless
+# it clearly continues an ordinary sentence with one of these predicates.
+_PUSHBACK_ORDINARY_PREDICATES = {
+    "accepted", "accepts", "agreed", "agrees", "believed", "believes",
+    "considered", "considers", "continued", "continues", "doubted", "doubts",
+    "endorsed", "endorses", "expected", "expects", "faced", "faces",
+    "favored", "favors", "favoured", "favours", "finds", "found", "held",
+    "holds", "knew", "knows", "made", "makes", "meant", "means", "needed",
+    "needs", "opposed", "opposes", "preferred", "prefers", "questioned",
+    "questions", "rejected", "rejects", "reported", "reports", "shared",
+    "shares", "stood", "supports", "supported", "thinks", "thought", "told",
+    "understands", "understood", "wanted", "wants",
+}
+_PUSHBACK_CLAUSE_STARTERS = {
+    "a", "an", "he", "her", "his", "how", "i", "it", "no", "our", "she",
+    "that", "the", "their", "these", "they", "this", "those", "we", "what",
+    "when", "where", "which", "who", "why", "yes", "you", "your",
 }
 
 # Lowercase connectives that appear inside natural titles ("Chancellor of the
 # Exchequer", "Minister for the Armed Forces") and must not defeat the
 # title-case test in _detect_unknown_addressee.
 _TITLE_CONNECTIVES = {"of", "the", "for", "and", "to"}
+_ROLE_PREFIX_OPEN = r"(?:(?:[*_`]{1,3}|[\"'\u201c\u2018]|\(|\[)){0,2}"
+_ROLE_PREFIX_CLOSE = r"(?:(?:[*_`]{1,3}|[\"'\u201d\u2019]|\)|\])){0,2}"
 _TITLE_PREFIX_RE = re.compile(
-    r"^(?:the\s+)?"
+    rf"^(?:(?i:the)\s+)?{_ROLE_PREFIX_OPEN}"
     r"([A-Z][A-Za-z'\-]*"
     r"(?:\s+(?:of|the|for|and|to|[A-Z][A-Za-z'\-]*)){0,5})"
+    rf"{_ROLE_PREFIX_CLOSE}"
 )
 
 # The FLASH-tier pushback model sometimes leaks game time into the fiction
@@ -182,19 +229,96 @@ def _detect_unknown_pushback_role(
     ]
     if not set(significant) & _TITLE_WORDS:
         return None
-    if len(significant) >= 2:
-        return candidate
-
     tail = line[match.end():]
     if _split_pushback_prefix_tail(tail) is not None:
         return candidate
-    speech_tail = tail.strip().lstrip(")]}'\"*_`").lstrip()
-    speech_label = re.match(
-        r"^([A-Za-z]+(?:-[A-Za-z]+)*)\b", speech_tail)
-    if (speech_label is not None
-            and speech_label.group(1).lower() in _PUSHBACK_SPEECH_LABELS):
+    if _is_structural_pushback_tail(
+            tail,
+            sentence_subject=match.group(0).lower().startswith("the ")):
         return candidate
     return None
+
+
+def _is_structural_pushback_tail(
+    tail: str,
+    *,
+    sentence_subject: bool = False,
+) -> bool:
+    """Recognise speaker framing without classifying ordinary prose."""
+    cleaned = tail.strip().lstrip(")]}'\"*_`").lstrip()
+    if cleaned.startswith("."):
+        return bool(cleaned[1:].strip())
+    if cleaned.startswith(("(", "[")):
+        closing = ")" if cleaned[0] == "(" else "]"
+        end = cleaned.find(closing, 1)
+        if 0 < end <= 81:
+            cleaned = cleaned[end + 1:].lstrip("*_` \t")
+            continuation = re.match(
+                r"^([A-Za-z]+)(?:\s+([A-Za-z]+))?", cleaned)
+            if not sentence_subject or not cleaned or cleaned[0].isupper():
+                return True
+            if continuation is None:
+                return True
+            first = continuation.group(1).lower()
+            second = continuation.group(2)
+            if ("?" in cleaned
+                    or first in _PUSHBACK_CLAUSE_STARTERS
+                    or (first in _PUSHBACK_AUXILIARIES and second is not None
+                        and (second[0].isupper()
+                             or second.lower()
+                             in _PUSHBACK_CLAUSE_STARTERS))
+                    or (second is not None
+                        and first not in _PUSHBACK_PREDICATE_HEADS
+                        and second.lower() in _PUSHBACK_PREDICATE_HEADS)
+                    or (first not in _PUSHBACK_PREDICATE_HEADS
+                        and first not in _PUSHBACK_ORDINARY_PREDICATES)):
+                return True
+        else:
+            return True
+
+    label = re.match(r"^([A-Za-z]+(?:-[A-Za-z]+)*)\b", cleaned)
+    if (label is not None
+            and label.group(1).lower() in _PUSHBACK_SPEECH_LABELS):
+        return True
+
+    leading_words: List[str] = []
+    end = 0
+    for word_match in re.finditer(r"[A-Za-z]+(?:-[A-Za-z]+)*", cleaned):
+        if re.search(r"[^\s*_`]", cleaned[end:word_match.start()]):
+            break
+        word = word_match.group(0)
+        normalized = word.lower()
+        if (normalized not in _PUSHBACK_SPEECH_LABELS
+                and normalized not in _PUSHBACK_ATTRIBUTION_MODIFIERS
+                and not normalized.endswith("ly")):
+            break
+        leading_words.append(word)
+        end = word_match.end()
+    if _is_pushback_attribution(leading_words):
+        return True
+
+    separator = re.search(
+        r"[:;](?=\s|$)|[\u2013\u2014]|\s-(?=\s|$)", cleaned)
+    if (separator is None
+            or re.search(r"[,.!?]", cleaned[:separator.start()])):
+        return False
+
+    words = re.findall(
+        r"[A-Za-z]+(?:-[A-Za-z]+)*", cleaned[:separator.start()])
+    return _is_pushback_attribution(words)
+
+
+def _is_pushback_attribution(words: List[str]) -> bool:
+    """Return whether words form one speech verb plus modifiers."""
+    speech_words = [
+        word for word in words if word.lower() in _PUSHBACK_SPEECH_LABELS
+    ]
+    return len(speech_words) == 1 and all(
+        word.lower() in _PUSHBACK_SPEECH_LABELS
+        or word.lower() in _PUSHBACK_ATTRIBUTION_MODIFIERS
+        or word.lower().endswith("ly")
+        for word in words
+    )
 
 
 def _split_pushback_prefix_tail(
@@ -249,11 +373,12 @@ def _split_pushback_prefix_tail(
 def _extract_pushback_prefix(
     line: str,
     known_roles: Set[str],
-) -> Optional[Tuple[str, Optional[str], bool]]:
-    """Return a prefixed role, remainder, and direct-separator flag."""
+) -> Optional[Tuple[str, Optional[str], bool, bool]]:
+    """Return a role prefix, remainder, direct flag, and speaker flag."""
     for known_role in sorted(known_roles, key=len, reverse=True):
         match = re.match(
-            rf"^(?:the\s+)?{re.escape(known_role)}"
+            rf"^(?:the\s+)?{_ROLE_PREFIX_OPEN}{re.escape(known_role)}"
+            rf"{_ROLE_PREFIX_CLOSE}"
             r"(?=$|[\s*_`\"',.;:()\[\]{}\u2013\u2014-])",
             line,
             re.IGNORECASE,
@@ -265,8 +390,14 @@ def _extract_pushback_prefix(
         split = _split_pushback_prefix_tail(tail)
         if split is not None:
             remainder, is_direct = split
-            return known_role, remainder, is_direct
-        return known_role, None, False
+            return known_role, remainder, is_direct, True
+        return (
+            known_role, None, False,
+            _is_structural_pushback_tail(
+                tail,
+                sentence_subject=match.group(0).lower().startswith("the "),
+            ),
+        )
     return None
 
 
@@ -563,7 +694,8 @@ def generate_advisor_pushback(
             continue
 
         # Attribution always comes from the roster. Tolerate and strip a
-        # redundant self-prefix or player vocative; reject any other seat.
+        # redundant self-prefix or player vocative; reject another seat only
+        # when it is being used as structural speaker framing.
         parsed_lines = []
         malformed = False
         player_vocative_seen = False
@@ -587,7 +719,7 @@ def generate_advisor_pushback(
                         parsed_lines.append(remainder)
                     break
 
-                prefix, stripped, is_direct = prefixed
+                prefix, stripped, is_direct, is_speaker_prefix = prefixed
                 is_own = prefix in own_roles
                 is_player_vocative = (
                     prefix in player_roles
@@ -598,7 +730,13 @@ def generate_advisor_pushback(
                 )
                 if is_player_vocative:
                     player_vocative_seen = True
-                elif not is_own or (player_vocative_seen and parsed_lines):
+                elif not is_own:
+                    if not is_speaker_prefix:
+                        parsed_lines.append(remainder)
+                    else:
+                        malformed = True
+                    break
+                elif player_vocative_seen and parsed_lines:
                     malformed = True
                     break
                 if stripped is None:
