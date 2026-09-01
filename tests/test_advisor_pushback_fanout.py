@@ -324,7 +324,80 @@ def test_offline_pushback_is_visible_as_unavailable():
     "1. Foreign Secretary: This belongs to another seat.",
     "1. **Foreign Secretary** — This belongs to another seat.",
     "As Foreign Secretary, this belongs to another seat.",
+    "As Foreign Secretary I must object to this course.",
+    "As the Foreign Secretary I must object to this course.",
     "Speaking as the Foreign Secretary, this belongs to another seat.",
+    "Speaking as the Foreign Secretary warns that this is reckless.",
+    "As the Foreign Secretary (quietly) this is reckless.",
+    "As the Foreign Secretary speaking, this belongs to another seat.",
+    "As the Foreign Secretary advise, this belongs to another seat.",
+    "As the Foreign Secretary warns: This belongs to another seat.",
+    "As the Foreign Secretary insists; This belongs to another seat.",
+    "As the Foreign Secretary warns — This belongs to another seat.",
+    ("As the Foreign Secretary warned, As Attorney General, this is "
+     "unlawful."),
+    ("As the Foreign Secretary warned, Speaking as the Attorney General, "
+     "I object."),
+    ("As the Foreign Secretary warned, Attorney General: This belongs to "
+     "another seat."),
+    "As the Foreign Secretary warned, [ERROR: HTTP 429 rate limited]",
+    "As the Foreign Secretary warned, NO PUSHBACK",
+    ("As the Foreign Secretary warned, As the Attorney General advised, "
+     "Speaking as the Home Secretary, I object."),
+    ("As the Foreign Secretary warned, and Speaking as the Attorney "
+     "General, I object."),
+    ("As the Foreign Secretary warned, however, As Attorney General, I "
+     "object."),
+    ("As the Foreign Secretary warned, and **Speaking as the Attorney "
+     "General**, I object."),
+    ("As the Foreign Secretary warned, however, _Speaking as the Attorney "
+     "General_, I object."),
+    "As the Foreign Secretary warned, and [ERROR: HTTP 429 rate limited]",
+    ("As the Foreign Secretary warned, however, "
+     "**[ERROR: HTTP 429 rate limited]**"),
+    "Speaking as **the Foreign Secretary**, I object.",
+    "As **the Foreign Secretary**, I object.",
+    "Speaking **as the Foreign Secretary**, I object.",
+    ("As the Foreign Secretary warned, and Speaking as **the Attorney "
+     "General**, I object."),
+    "As [the Foreign Secretary], I object.",
+    "Speaking as (the Foreign Secretary), I object.",
+    ("As the Foreign Secretary warned, and Speaking as [the Attorney "
+     "General], I object."),
+    "Speaking (quietly) as the Foreign Secretary, I object.",
+    "Speaking [firmly] as the Foreign Secretary, I object.",
+    "As (quietly) the Foreign Secretary, I object.",
+    ("As the Foreign Secretary warned, and Speaking (quietly) as the "
+     "Attorney General, I object."),
+    "Speaking quietly as the Foreign Secretary, I object.",
+    "Speaking now as the Foreign Secretary, I object.",
+    "Speaking very firmly as the Foreign Secretary, I object.",
+    "Speaking quietly and firmly as the Foreign Secretary, I object.",
+    "Speaking quietly but firmly as the Foreign Secretary, I object.",
+    ("As the Foreign Secretary warned, and Speaking quietly as the Attorney "
+     "General, I object."),
+    "As [the Foreign Secretary] I object to this course.",
+    "Speaking as (the Foreign Secretary) I object to this course.",
+    "As [the Attorney General] this is unlawful.",
+    "As [the Chancellor], I object.",
+    "Speaking as [the Chancellor], I object.",
+    "As (the Defence Secretary), I object.",
+    "Speaking quietly as (the Admiral), I object.",
+    "As [the Unknown Advisor], I object.",
+    "As [the Chancellor] I object to this course.",
+    "Speaking as (the Defence Secretary) I object to this course.",
+    "Speaking quietly as [the Admiral] I object to this course.",
+    "As the chancellor, I object to this course.",
+    "Speaking as the defence secretary, I object to this course.",
+    "Speaking quietly as the admiral, I object to this course.",
+    "As [the chancellor] I object to this course.",
+    "Speaking as the minister of defence, I object to this course.",
+    "As the secretary of state, I object to this course.",
+    "Speaking as the chief of defence staff, I object to this course.",
+    "Speaking (quietly as the Foreign Secretary, I object.",
+    "Speaking [firmly as the Foreign Secretary, I object.",
+    "Speaking quietly) as the Foreign Secretary, I object.",
+    "Speaking (quietly)) as the Foreign Secretary, I object.",
     "As Prime Minister, this belongs to the player.",
     "Speaking as the Prime Minister, this belongs to the player.",
     "As PM, this belongs to the player.",
@@ -387,6 +460,31 @@ def test_non_role_label_remains_valid_pushback_text():
 @pytest.mark.parametrize("concern", [
     ("The Foreign Secretary is right about the alliance, but HMS Prince "
      "of Wales cannot sail safely."),
+    ("As the Foreign Secretary warned, our allies are already uneasy; "
+     "nuclear first-use has no legal basis."),
+    "As the Foreign Secretary warns, NATO may fracture.",
+    ("As the Foreign Secretary warned, As the Attorney General advised, "
+     "this is unlawful."),
+    ("As the Foreign Secretary warned, and as the Attorney General advised, "
+     "this is unlawful."),
+    "As **the Foreign Secretary** warned, NATO may fracture.",
+    "As [the Foreign Secretary] warned, NATO may fracture.",
+    ("Speaking plainly, as the Foreign Secretary warned, our allies are "
+     "uneasy."),
+    ("Speaking about alliance risk, as the Foreign Secretary warned, NATO "
+     "may fracture."),
+    ("Speaking about alliance risk as the Foreign Secretary warned, NATO "
+     "may fracture."),
+    "As a general rule, nuclear first use should be rejected.",
+    "As a general concern, escalation remains too high.",
+    ("As the general situation deteriorates, we must preserve readiness."),
+    "As the staff assessment shows, readiness is too low.",
+    ("As the chief concern remains escalation, we should consult allies."),
+    ("As the evidence reaches the Prime Minister, we should delay action."),
+    "As the situation affects staff, readiness will deteriorate.",
+    "As the crisis reaches the Chancellor, markets may panic.",
+    ("As the general approach to escalation changes, we should adapt."),
+    ("As the general concern for readiness grows, we should prepare."),
     "The Attorney General's advice notwithstanding, readiness is too low.",
     "The Attorney General's advice is clear: this is unlawful.",
     "The Home Secretary has one concern: public disorder.",
