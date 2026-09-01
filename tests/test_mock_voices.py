@@ -936,6 +936,42 @@ def test_mock_interpretation_rejects_negation_inside_a_tasking_object(action):
     assert parse_interpretation_simple(response)["forces"] == ["None specified"]
 
 
+@pytest.mark.parametrize(("action", "expected"), [
+    ("Deploy the destroyers, but not the carrier.", ["the destroyers"]),
+    ("Send the Typhoons, not the carrier.", ["the Typhoons"]),
+    ("Send the Typhoons, and not the carrier.", ["the Typhoons"]),
+    ("Send the Typhoons, other than the carrier.", ["the Typhoons"]),
+    ("Send the Typhoons, except the carrier.", ["the Typhoons"]),
+])
+def test_mock_interpretation_drops_elided_force_exclusions(action, expected):
+    driver = MockDeterministicDriver()
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == expected
+
+
+def test_mock_interpretation_reports_forces_in_verify_play_decision():
+    driver = MockDeterministicDriver()
+    action = (
+        "Reinforce the GIUK gap with P-8 coverage and keep the submarines "
+        "at sea."
+    )
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == [
+        "the GIUK gap with P-8 coverage",
+        "the submarines",
+    ]
+
+
 @pytest.mark.parametrize("connector", [
     " and instead ",
     ", and instead ",

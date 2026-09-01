@@ -1177,9 +1177,10 @@ def _extract_tasked_forces(action: str) -> str:
     action = re.sub(r"[^\S\r\n]*\r?\n[^\S\r\n]*", "; ", action)
     action = " ".join(action.split())
     tasking_verb = (
-        r"(?:activate|assign|authorise|authorize|commit|deploy|dispatch|launch|"
-        r"mobilise|mobilize|order|position|put|ready|retask|scramble|send|"
-        r"station|surge|task(?!\s+force\b)|use(?!\s+of force\b))"
+        r"(?:activate|assign|authorise|authorize|commit|deploy|detach|dispatch|"
+        r"divert|escort|keep|launch|mobilise|mobilize|move|order|position|put|"
+        r"ready|redeploy|reinforce|reroute|retask|sail|scramble|send|station|"
+        r"surge|task(?!\s+force\b)|use(?!\s+of force\b))"
     )
     negation = (
         r"(?:do not|don['’]t|will not|won['’]t|cannot|can['’]t|not(?:\s+to)?|"
@@ -1196,7 +1197,8 @@ def _extract_tasked_forces(action: str) -> str:
         rf"(?:[;.!?]+|"
         rf",\s*(?:and|but)\s+(?:(?:instead|then)\s+)?|"
         rf",\s*(?=(?:{negation}\s+)?{tasking_verb}\b)|"
-        rf"\s+(?:and|but)\s+(?:instead|then)\s+)",
+        rf"\s+(?:and|but)\s+(?:(?:instead|then)\s+)?"
+        rf"(?=(?:{negation}\s+)?{tasking_verb}\b))",
         action,
         flags=re.IGNORECASE,
     )
@@ -1210,8 +1212,6 @@ def _extract_tasked_forces(action: str) -> str:
         if not directive or directive.group("negated"):
             continue
         tasked_object = directive.group("object")
-        if re.search(rf"\b{negation}\b", tasked_object, re.IGNORECASE):
-            continue
         force_match = re.match(
             r"(.+?)(?=\s+(?:at|for|in|into|near|off|on|over|to|toward|"
             r"towards|under)\b|$)",
@@ -1220,6 +1220,13 @@ def _extract_tasked_forces(action: str) -> str:
         )
         for force in force_match.group(1).split(","):
             force = " ".join(force.split()).strip(" \"'")
+            if re.match(
+                    r"(?:not|(?:but|and)\s+not|other than|except)\b",
+                    force,
+                    re.IGNORECASE):
+                continue
+            if re.search(rf"\b{negation}\b", force, re.IGNORECASE):
+                continue
             if re.search(asset, force, re.IGNORECASE):
                 forces.append(force)
     return ", ".join(force for force in forces if force) or "None specified"
