@@ -145,8 +145,8 @@
    base, then follows that game's SSE stream so a live event visibly
    moves the display.
 
-   /stream/{id} gives this page an independent subscriber queue, so the
-   dashboard and globe can observe the same session without stealing events.
+   Live events fan out to the dashboard and globe while both are attached.
+   The pre-connect backlog goes only to the first subscriber.
    =================================================================== */
 
 const $ = id => document.getElementById(id);
