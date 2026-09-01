@@ -366,6 +366,23 @@ def test_offline_pushback_is_visible_as_unavailable():
      "concern than first use."),
     ("Prime Minister, NO PUSHBACK. No warning is graver than an unready "
      "carrier."),
+    ("NO PUSHBACK. No concerns remain here apart from the carrier being "
+     "unable to sail."),
+    ("NO PUSHBACK. No objection applies in this case unless NATO abandons "
+     "us."),
+    ("NO PUSHBACK. Nothing warrants a warning in this case apart from "
+     "nuclear first use."),
+    "NO PUSHBACK. No concern applies here the carrier cannot sail.",
+    "NO PUSHBACK. No warning is required here nuclear first use is unlawful.",
+    "NO PUSHBACK. Nothing raises an objection here the carrier is unready.",
+    ("NO PUSHBACK. No objection applies to this order the carrier cannot "
+     "sail."),
+    ("NO PUSHBACK. No reservation remains here Speaking as the Attorney "
+     "General I object."),
+    ("Chief of the Defence Staff: NO PUSHBACK. No warning is required here "
+     "nuclear first use is unlawful."),
+    ("Prime Minister, NO PUSHBACK. No concern applies here the carrier "
+     "cannot sail."),
     ("As the Foreign Secretary warned, As the Attorney General advised, "
      "Speaking as the Home Secretary, I object."),
     ("As the Foreign Secretary warned, and Speaking as the Attorney "
