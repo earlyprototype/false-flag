@@ -912,6 +912,9 @@ def test_own_role_substantive_label_is_not_truncated():
     "> **[error: HTTP 429]**",
     "**[Offline mode: No LLM response available]**",
     "Chief of the Defence Staff: **[ERROR: HTTP 429]**",
+    "Chief of the Defence Staff: \u201c[ERROR: HTTP 429]\u201d",
+    "Prime Minister, \u2018[Offline mode: No LLM response available]\u2019",
+    "\u201c[ERROR: HTTP 429]\u201d",
     "\u2014 **[ERROR: HTTP 429]**",
     "\u2013 **[Offline mode: No LLM response available]**",
 ])
