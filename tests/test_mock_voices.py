@@ -921,11 +921,28 @@ def test_mock_interpretation_excludes_common_negated_directives(negation):
     assert parse_interpretation_simple(response)["forces"] == ["P-8 patrols"]
 
 
+@pytest.mark.parametrize("action", [
+    "Order HMS Prince of Wales not to sail.",
+    "Deploy no carriers.",
+])
+def test_mock_interpretation_rejects_negation_inside_a_tasking_object(action):
+    driver = MockDeterministicDriver()
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+
+
 @pytest.mark.parametrize("connector", [
     " and instead ",
     ", and instead ",
+    " and then ",
+    ", and then ",
 ])
-def test_mock_interpretation_keeps_an_instead_directive_after_a_negated_one(
+def test_mock_interpretation_keeps_a_follow_up_directive_after_a_negated_one(
         connector):
     driver = MockDeterministicDriver()
     action = (

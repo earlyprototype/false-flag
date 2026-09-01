@@ -1182,12 +1182,8 @@ def _extract_tasked_forces(action: str) -> str:
         r"station|surge|task(?!\s+force\b)|use(?!\s+of force\b))"
     )
     negation = (
-        r"(?:do not|don['’]t|will not|won['’]t|cannot|can['’]t|not to|never|"
-        r"refuse to|without|avoid)"
-    )
-    directive_separator = (
-        r"(?:,\s*(?:(?:and|but)\s+)?(?:instead\s+)?|"
-        r"\s+(?:and|but)\s+(?:instead\s+)?)"
+        r"(?:do not|don['’]t|will not|won['’]t|cannot|can['’]t|not(?:\s+to)?|"
+        r"never|no|refuse to|without|avoid)"
     )
     asset = (
         r"(?:\b(?:HMS|RAF|RNAS|SSBNs?|SSNs?|CAP|carriers?|destroyers?|"
@@ -1196,19 +1192,33 @@ def _extract_tasked_forces(action: str) -> str:
         r"marines?|patrols?|Poseidons?|Typhoons?|Wedgetails?)\b|"
         r"\b(?:Type\s*-?\s*\d+|[PFE]\s*-?\s*\d+[A-Z]?)\b)"
     )
-    matches = re.finditer(
-        rf"(?:^|[;.!?]\s*|{directive_separator})"
-        rf"(?P<negated>{negation}\s+)?{tasking_verb}\s+"
-        rf"(?P<force>.+?)(?=\s+(?:at|for|in|into|near|off|on|over|to|toward|towards|under)\b|"
-        rf"{directive_separator}(?:{negation}\s+)?{tasking_verb}\b|[;.!?]|$)",
+    clauses = re.split(
+        rf"(?:[;.!?]+|"
+        rf",\s*(?:and|but)\s+(?:(?:instead|then)\s+)?|"
+        rf",\s*(?=(?:{negation}\s+)?{tasking_verb}\b)|"
+        rf"\s+(?:and|but)\s+(?:instead|then)\s+)",
         action,
-        re.IGNORECASE,
+        flags=re.IGNORECASE,
     )
     forces = []
-    for match in matches:
-        if match.group("negated"):
+    for clause in clauses:
+        directive = re.match(
+            rf"^(?P<negated>{negation}\s+)?{tasking_verb}\s+(?P<object>.+)$",
+            clause.strip(),
+            re.IGNORECASE,
+        )
+        if not directive or directive.group("negated"):
             continue
-        for force in match.group("force").split(","):
+        tasked_object = directive.group("object")
+        if re.search(rf"\b{negation}\b", tasked_object, re.IGNORECASE):
+            continue
+        force_match = re.match(
+            r"(.+?)(?=\s+(?:at|for|in|into|near|off|on|over|to|toward|"
+            r"towards|under)\b|$)",
+            tasked_object,
+            re.IGNORECASE,
+        )
+        for force in force_match.group(1).split(","):
             force = " ".join(force.split()).strip(" \"'")
             if re.search(asset, force, re.IGNORECASE):
                 forces.append(force)
