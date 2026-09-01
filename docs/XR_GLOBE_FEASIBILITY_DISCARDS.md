@@ -48,13 +48,13 @@ Full architectures for both losing designs are in the raw JSON (`designs[1]`, `d
 
 ### From "Twin Theatre" (scored 2nd — standards depth)
 
-**B8 · Runtime model discovery — `CUT` deliberately.** The globe fetches `GET /dtdl` at attach, then routes `twin_telemetry` by DTMI through a renderer registry (a plain dict `{dtmi → render rules}`, explicitly *not* a generic DTDL interpreter). Cut as indirection tax (+30–40%); recover if the judging story needs "the client discovered its contract from the standard at runtime" demonstrated live. Its own guard-rail: "a pure-DTMI-routed renderer for ~4 entity kinds is indirection with thin payoff — the payoff must be demonstrated, not asserted."
+**B8 · Runtime model discovery — `CUT` deliberately.** The globe fetches `GET /dtdl` at attach, then routes `twin_telemetry` by DTMI through a renderer registry (a plain dict `{dtmi → render rules}`, explicitly *not* a generic DTDL interpreter). Cut as indirection tax (+30–40%); recover if the demo story needs "the client discovered its contract from the standard at runtime" demonstrated live. Its own guard-rail: "a pure-DTMI-routed renderer for ~4 entity kinds is indirection with thin payoff — the payoff must be demonstrated, not asserted."
 
 **B9 · `GeoLocation;1` gazetteer twins — `COMPRESSED`.** Model the gazetteer as first-class twins so `Inject`/`EventLedgerEntry` reference places **by DTDL relationship instead of free text** — semantically the strongest standards move in either losing design; ~15–25 instances cover the entire scenario.
 
 **B10 · `OrbitalAsset;1 extends TheatreEntity;1` — `CUT`.** TLE line pairs as Properties; satellite twins carry no position telemetry at all (clients run SGP4). Note the judges' caveat: the claim that the local validator supports `extends` was verified only against the worktree — re-check post-merge.
 
-**B11 · `adt_bridge.py` + the recorded Azure capstone — `COMPRESSED`.** `azure-digitaltwins-core` upload of `interop/models/*.json` + live mirroring of `twin_lifecycle`/`twin_telemetry` into a real ADT instance; one recorded "same models, zero edits, running in Azure" demo as the judging capstone, never a live-demo dependency. Known transform needed: exported Relationship values are plain string ids, not ADT relationship objects.
+**B11 · `adt_bridge.py` + the recorded Azure capstone — `COMPRESSED`.** `azure-digitaltwins-core` upload of `interop/models/*.json` + live mirroring of `twin_lifecycle`/`twin_telemetry` into a real ADT instance; one recorded "same models, zero edits, running in Azure" demo as the capstone, never a live-demo dependency. Known transform needed: exported Relationship values are plain string ids, not ADT relationship objects.
 
 **B12 · Player tasking-as-advisory-text — `CUT`, now `RESURRECTED` as central.** Player clicks on the globe append advisory text to the decision free-text — deliberately non-adjudicative in the original. The build-what's-needed reframing promotes this to real spatial decision verbs; the in-flight workflow's "orders-not-positions" design is its formalization.
 
@@ -64,7 +64,7 @@ Full architectures for both losing designs are in the raw JSON (`designs[1]`, `d
 
 ## C. Judge corrections and grafts not carried into the report
 
-**C1 · `interop/CORRESPONDENCE.md` is a broken pointer — `CUT`, action item.** Referenced by `export_run.py`'s PROFILE_NOTE but absent from the PR #65/#66 worktree. Restore/merge before judging — a free credibility fix independent of all geo work.
+**C1 · `interop/CORRESPONDENCE.md` is a broken pointer — `CUT`, action item.** Referenced by `export_run.py`'s PROFILE_NOTE but absent from the PR #65/#66 worktree. Restore/merge before the onsite — a free credibility fix independent of all geo work.
 
 **C2 · `PLAYER_LAYERS` is derived — `REF`.** It's a frozenset of all non-REFEREE layers (`models/layers.py:28-30`), so if a Layer enum value is ever added, the enum addition alone suffices; there is no separate PLAYER_LAYERS edit (two designs got this wrong).
 
