@@ -19,7 +19,7 @@ Each stage names **what gets built** and the **done test**: an observable fact y
 | **5 · The Cabinet Orders the Map** | Decision text moves the forces | `NOT STARTED` — design settled ([#71](https://github.com/earlyprototype/false-flag/issues/71) closed: orders on); schedule-gated | — |
 | **Afterwards** | Line-crossing events, fog, live-hybrid, email artifact, VR ops room | `NOT STARTED` | — |
 
-**Dates**: challenge started 28 Aug 2026 · onsite 12 Sep at Irish Manufacturing Research · final 14 Sep.
+**Dates**: build started 28 Aug 2026 · onsite 12 Sep at Irish Manufacturing Research · final date 14 Sep.
 **Cut order under time pressure**: Afterwards → Stage 5 → Stage 3. Stages 1, 2 and 4 are the floor.
 **Stage 1 is DONE — the projector done-test passed 31 Aug 2026.** The owner's go was given 30 Aug 2026; implementation shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95) with follow-ups [#104](https://github.com/earlyprototype/false-flag/pull/104), [#106](https://github.com/earlyprototype/false-flag/pull/106) and [#108](https://github.com/earlyprototype/false-flag/pull/108).
 
@@ -38,7 +38,7 @@ The globe stages above are one of two workstreams; the other is cabinet-advisor 
 - **Stage 2 · The Fleet Moves**, then the schedule check
 - [#87](https://github.com/earlyprototype/false-flag/issues/87) full per-advisor fan-out · [#88](https://github.com/earlyprototype/false-flag/issues/88) per-advisor private continuity + engine-readable state
 
-**Later** — post-competition unless the stretch gate opens room
+**Later** — Afterwards tier (deferred beyond 14 Sep) unless the stretch gate opens room
 - Stages 3–5 per the gates below · [#90](https://github.com/earlyprototype/false-flag/issues/90) advisor hidden-state parity with foreign actors · [#92](https://github.com/earlyprototype/false-flag/issues/92) visual-design pass · [#76](https://github.com/earlyprototype/false-flag/issues/76) real-email inject · [#77](https://github.com/earlyprototype/false-flag/issues/77) live-hybrid mode
 
 **Decisions** — under the owner's 30 Aug "plan then go" authorization, each open decision proceeds on the working default recorded in its issue; commenting on the issue overturns the default at any time. Ruled and closed: [#72](https://github.com/earlyprototype/false-flag/issues/72) map-data folder (split, 1 Sep) · [#74](https://github.com/earlyprototype/false-flag/issues/74) default visual register (all options stay behind switches, 31 Aug). Open: [#73](https://github.com/earlyprototype/false-flag/issues/73) users' campaign cut · [#75](https://github.com/earlyprototype/false-flag/issues/75) Quest availability (assumed yes; stays open until confirmed) · [#89](https://github.com/earlyprototype/false-flag/issues/89) scope to one game type + Mystery mode (gets its own branch when that work starts)
@@ -128,7 +128,7 @@ Built only if Stage 4 is complete with at least three clear days before the onsi
 
 ---
 
-## Afterwards — post-competition, each buildable on its own
+## Afterwards — deferred beyond 14 Sep, each buildable on its own
 
 - [ ] Tripwire engine — declarative line-crossing predicates evaluated at the top of `get_turn_briefing`
 - [ ] Fog of war and patrol tasking — `engine/intel_picture.py`, staleness-radius estimates, derived-seed noise
