@@ -2,7 +2,7 @@
 
 The active runtime has twelve routed LLM families and thirteen prompt shapes. Eleven newly confirmed findings need remediation; pushback also reproduced the incompleteness already owned by #87. Every other shape passed the captured case. No production prompt text changes in this audit.
 
-`main` was refreshed through `8e7b233ed9840207958d4e22ac3ca6344f11c9f7`; both final captures ran at merged audit commit `5817398d6ae502bb07c4489f8e0747c0dd049f80` (the harness itself last changed at `7cbb797412916d4f9bd3322fdfdcf17377a97393`).
+`main` was refreshed through `5ee2bd7598fcf598422ce8e1531fbc810b322eab`; both final captures ran at merged audit commit `cd2cfc6c8dba4b3bfc2ed52d72c88038ae76c24d` (the harness itself last changed at `7cbb797412916d4f9bd3322fdfdcf17377a97393`).
 
 ## Evidence set
 
@@ -15,7 +15,7 @@ The active runtime has twelve routed LLM families and thirteen prompt shapes. El
 | Effective provider | `mock` (`MockDeterministicDriver`) |
 | Effective model | driver default (`null`); configured tier is still logged per call |
 | Main capture | [`evaluation-main.json`](evaluation-main.json): 46 calls, 23 per case, no fallback, clean parser health |
-| Pushback capture | [`evaluation-pushback.json`](evaluation-pushback.json): 2 calls, captured last at `5817398d6ae502bb07c4489f8e0747c0dd049f80` |
+| Pushback capture | [`evaluation-pushback.json`](evaluation-pushback.json): 2 calls, captured last at `cd2cfc6c8dba4b3bfc2ed52d72c88038ae76c24d` |
 | Reproducer | [`capture.py`](capture.py) |
 
 The capture stores the effective user prompt and system instruction, raw reply, configured tier, provider, model, temperature, token cap, model override, batch position and parsed/consumed value for every call. The mock route is the product's deterministic first-run route, so its output quality is production-relevant. It also makes the run free and repeatable. This evidence does **not** claim that Gemini or an OpenAI-compatible model will produce the same prose.
@@ -149,7 +149,7 @@ The inject prompt does receive base-scenario Russian objectives explicitly label
 
 - **Effective prompt:** includes the full cabinet roster and its trigger lists; the test order both surges HMS Prince of Wales at reduced readiness and prepares nuclear first use.
 - **Context:** shared player-safe dossier, the specific order and its interpretation; Mystery off/on prompts were byte-identical.
-- **Route:** `advisor_pushback`, configured Flash, effective mock/driver-default, captured last at `5817398d6ae502bb07c4489f8e0747c0dd049f80` after refreshing `origin/main` to `8e7b233ed9840207958d4e22ac3ca6344f11c9f7`.
+- **Route:** `advisor_pushback`, configured Flash, effective mock/driver-default, captured last at `cd2cfc6c8dba4b3bfc2ed52d72c88038ae76c24d` after refreshing `origin/main` to `5ee2bd7598fcf598422ce8e1531fbc810b322eab`.
 - **Observed output:** Attorney General and Foreign Secretary objected to nuclear first use; no CDS carrier-readiness objection appeared.
 - **Failure mode:** the current single shared call stops at one trigger class, so a second concrete constraint is absent from player pushback.
 - **Remediation:** existing [#87 — fan out advisor pushback](https://github.com/earlyprototype/false-flag/issues/87); no duplicate issue filed.
