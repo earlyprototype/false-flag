@@ -1195,7 +1195,8 @@ def _extract_tasked_forces(action: str) -> str:
     )
     clauses = re.split(
         rf"(?:[;.!?]+|"
-        rf",\s*(?:and|but)\s+(?:(?:instead|then)\s+)?|"
+        rf",\s*(?:and|but)\s+(?:(?:instead|then)\s+)?"
+        rf"(?=(?:{negation}\s+)?{tasking_verb}\b)|"
         rf",\s*(?=(?:{negation}\s+)?{tasking_verb}\b)|"
         rf"\s+(?:and|but)\s+(?:(?:instead|then)\s+)?"
         rf"(?=(?:{negation}\s+)?{tasking_verb}\b))",
