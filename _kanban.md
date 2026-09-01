@@ -49,9 +49,9 @@
 *   [ ] Advisor private continuity and per-agent state (#88) - https://github.com/earlyprototype/false-flag/issues/88 — depends #87 — supersedes #82. Carry-overs from #82 close: preserve objector-only override charge (engine/game_manager.py:447-470, no double-charge); DTDL extend-only; private-memory isolation tests (Mystery off+on). Sentiment doc is design input, not spec.
 
 ## DOING
-*   [ ] Audit runtime prompt quality and regression evidence (#83) - https://github.com/earlyprototype/false-flag/issues/83 — branch audit/83-prompt-quality-regression.
 
 ## REVIEW
+*   [ ] Audit runtime prompt quality and regression evidence (#83) - https://github.com/earlyprototype/false-flag/issues/83 — branch audit/83-prompt-quality-regression.
 *   [ ] Fan out advisor pushback to one LLM call per advisor (#87) - https://github.com/earlyprototype/false-flag/issues/87 — branch feat/87-advisor-pushback-fanout — supersedes #81. Remaining after #96: per-advisor fan-out via generate_group; /ask keyword router PM-voice bug; carry-overs from #81 close: Mystery-leak tests + DTDL extend-only + browser/preview parity.
 *   [ ] PH-0 Prune ~17 stale/merged branches (29 Aug: 7 local + 22 remote deleted; active branches remain)
 *   [ ] Audit recent Claude threads and enforce onboarding - Verify the last few Claude sessions against PLAN/docs, correct source attribution, and make AGENTS/CLAUDE point future sessions to the recent-session index.
