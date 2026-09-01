@@ -311,6 +311,10 @@
     "Delivery: raise review max-turns to 50 (PR #129) - https://github.com/earlyprototype/false-flag/pull/129 \u2014 merged by owner (review self-skips its own machinery). Recorded post-merge; guardrail follow-up to the #126 turn-limit incident.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg46VMw",
       "status": "Done"
+    },
+    "Advisors: identity is structural \u2014 speaker-as-data, addressee-by-selection, delete keyword router (#132) - https://github.com/earlyprototype/false-flag/issues/132 \u2014 owner principle 1 Sep; design with #88; sequence after PR #123 lands.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg47P0M",
+      "status": "Backlog"
     }
   }
 }

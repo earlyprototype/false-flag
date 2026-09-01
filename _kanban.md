@@ -43,6 +43,7 @@
 *   [ ] Prompts: voice production bible (#78) - https://github.com/earlyprototype/false-flag/issues/78 — body is mojibake at source, re-paste needed
 *   [ ] Globe: Manus research queue (#70) - https://github.com/earlyprototype/false-flag/issues/70 — P1a landed via PR #99; P1b/P1c/P2a/P2b/P3 unfired; owner fires
 *   [ ] XR: decide the VR room delivery route (#127) - https://github.com/earlyprototype/false-flag/issues/127 — OPEN, owner rules; Unity-native room vs the owner's WebXR walk-in proposal (advisors in seats, screens load data layers). No default.
+*   [ ] Advisors: identity is structural — speaker-as-data, addressee-by-selection, delete keyword router (#132) - https://github.com/earlyprototype/false-flag/issues/132 — owner principle 1 Sep; design with #88; sequence after PR #123 lands.
 
 ## TODO
 
