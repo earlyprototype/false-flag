@@ -283,21 +283,45 @@ const ZOOM_MIN_M = 2000, ZOOM_MAX_M = 20000000; // ~2 km … ~20,000 km
 const camHeight = () => viewer.camera.positionCartographic.height;
 const zFrac = h => Math.log(h / ZOOM_MIN_M) / Math.log(ZOOM_MAX_M / ZOOM_MIN_M);
 const zHeightOf = t => ZOOM_MIN_M * Math.pow(ZOOM_MAX_M / ZOOM_MIN_M, t);
-$("btnZoomIn").onclick = () => viewer.camera.zoomIn(camHeight() * 0.35);
-$("btnZoomOut").onclick = () => viewer.camera.zoomOut(camHeight() * 0.55);
+/* Buttons zoom along the view ray (feels natural when tilted), with the
+   target clamped to the range the slider can represent so the three
+   controls always agree (review finding, PR #108). */
+$("btnZoomIn").onclick = () => {
+  const h = camHeight();
+  viewer.camera.zoomIn(h - Math.max(ZOOM_MIN_M, h * 0.65));
+};
+$("btnZoomOut").onclick = () => {
+  const h = camHeight();
+  viewer.camera.zoomOut(Math.min(ZOOM_MAX_M, h * 1.55) - h);
+};
+/* The slider SETS height: setView at the camera's own lon/lat with the
+   target height, orientation preserved — never a translation along the
+   view ray, which under tilt delivers only amount*sin(pitch) of height
+   and shoves the camera sideways (review finding, PR #108). */
 const zoomSlider = $("zoomSlider");
-let sliderDriving = false;
+let sliderHeld = false; // spans frames: camera.changed fires per FRAME, not synchronously
+zoomSlider.addEventListener("pointerdown", () => { sliderHeld = true; });
+zoomSlider.addEventListener("pointerup", () => { sliderHeld = false; });
+zoomSlider.addEventListener("pointercancel", () => { sliderHeld = false; });
 zoomSlider.oninput = () => {
-  sliderDriving = true;
   // Right = closer: slider value 1000 is ZOOM_MIN_M, 0 is ZOOM_MAX_M.
-  const target = zHeightOf(1 - zoomSlider.value / 1000);
-  viewer.camera.zoomIn(camHeight() - target); // negative amount zooms out
-  sliderDriving = false;
+  const carto = viewer.camera.positionCartographic;
+  viewer.camera.setView({
+    destination: Cesium.Cartesian3.fromRadians(
+      carto.longitude, carto.latitude, zHeightOf(1 - zoomSlider.value / 1000)),
+    orientation: {
+      heading: viewer.camera.heading,
+      pitch: viewer.camera.pitch,
+      roll: viewer.camera.roll,
+    },
+  });
 };
 viewer.camera.percentageChanged = 0.01; // fine-grained 'changed' so the slider tracks
 viewer.camera.changed.addEventListener(() => {
-  if (sliderDriving) return;
-  const t = Math.max(0, Math.min(1, zFrac(camHeight())));
+  if (sliderHeld) return;
+  const h = camHeight();
+  if (!Number.isFinite(h) || h <= 0) return; // NaN would silently reset a range input
+  const t = Math.max(0, Math.min(1, zFrac(h)));
   zoomSlider.value = String(Math.round((1 - t) * 1000));
 });
 
