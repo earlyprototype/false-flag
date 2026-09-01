@@ -1163,6 +1163,23 @@ def _extract_quoted_prompt_value(
     return match.group(1) if match else None
 
 
+def _extract_tasked_forces(action: str) -> str:
+    """Return assets explicitly tasked by the submitted decision."""
+    # ponytail: explicit directives cover mock play; use the unit registry if
+    # implicit force references ever need resolving.
+    matches = re.finditer(
+        r"\b(?:activate|assign|commit|deploy|dispatch|launch|mobilise|mobilize|"
+        r"order|position|put|ready|retask|scramble|send|station|surge|task|"
+        r"use(?!\s+of force\b))\s+"
+        r"(.+?)(?=\s+(?:at|for|in|into|near|off|on|over|to|toward|towards|under)\b|"
+        r"[,;.]|$)",
+        action,
+        re.IGNORECASE,
+    )
+    forces = [" ".join(match.group(1).split()).strip(" \"'") for match in matches]
+    return ", ".join(force for force in forces if force) or "None specified"
+
+
 class MockDeterministicDriver:
     """Deterministic mock LLM driver for testing.
 
@@ -1222,8 +1239,9 @@ class MockDeterministicDriver:
                 prompt, "the prime minister has decided:", "IMPORTANT:")
             summary = " ".join(decided.split()) if decided is not None else \
                 "Deploy naval and air assets to defensive posture"
+            forces = _extract_tasked_forces(decided or "")
             return (f"INTERPRETATION: {summary}\n"
-                    "FORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\n"
+                    f"FORCES INVOLVED: {forces}\n"
                     "RESOURCES CONSUMED: Minimal (patrol operations)\n"
                     "TIMELINE: Immediate (within 1 turn)\n"
                     "FEASIBILITY: Feasible within current constraints")

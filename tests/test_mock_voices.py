@@ -746,6 +746,46 @@ def test_decision_extraction_survives_embedded_quotes():
     assert "NO PUSHBACK" not in pushback
 
 
+def test_mock_interpretation_reports_only_each_submitted_force_package():
+    driver = MockDeterministicDriver()
+    expected_by_action = {
+        ("Consult NATO allies, deploy P-8 patrols and Type 23 frigates "
+         "to track Russian submarines, strengthen cyber defences, reassure "
+         "the public, and require verified intelligence and Attorney General "
+         "approval before any use of force."):
+            ["P-8 patrols and Type 23 frigates"],
+        ("Use HMS Prince of Wales and Typhoon squadrons to reinforce "
+         "the Norwegian Sea."):
+            ["HMS Prince of Wales and Typhoon squadrons"],
+    }
+
+    actual = []
+    for action, expected in expected_by_action.items():
+        response = driver.generate_text(
+            f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+            RNG,
+        )
+        forces = parse_interpretation_simple(response)["forces"]
+        assert forces == expected
+        assert all(force in action for force in forces)
+        actual.append(forces)
+
+    assert actual[0] != actual[1]
+
+
+def test_mock_interpretation_is_honest_when_no_force_is_tasked():
+    driver = MockDeterministicDriver()
+    action = ("Require verified intelligence and Attorney General approval "
+              "before any use of force.")
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+
+
 def test_pushback_decision_extraction_survives_newlines():
     driver = MockDeterministicDriver()
     action = "Authorise nuclear\nfirst use."
