@@ -4,14 +4,6 @@
   "project_id": "PVT_kwHOCkn-fc4Bh_kp",
   "board_key": "94a0b76877f44e7e8990e61054f91639",
   "tasks": {
-    "Future / unprioritised work": {
-      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uMtI",
-      "status": "Backlog"
-    },
-    "Ready to start, prioritised": {
-      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM0I",
-      "status": "Todo"
-    },
     "PH-0 Prune ~17 stale/merged branches (29 Aug: 7 local + 22 remote deleted; active branches remain)": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM0g",
       "status": "Review"
@@ -20,16 +12,8 @@
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM6g",
       "status": "InProgress"
     },
-    "In progress (keep to 1-3 items)": {
-      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM88",
-      "status": "InProgress"
-    },
     "Audit recent Claude threads and enforce onboarding - Verify the last few Claude sessions against PLAN/docs, correct source attribution, and make AGENTS/CLAUDE point future sessions to the recent-session index.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM-s",
-      "status": "Review"
-    },
-    "AI-completed work awaiting human approval": {
-      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uM_Q",
       "status": "Review"
     },
     "Capture Claude handover and reconcile current state - Recover the linked Claude session, reconcile it with current main/GitHub, correct stale handovers, and capture actionable work without duplicating PLAN.md.": {
@@ -128,10 +112,6 @@
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uN50",
       "status": "Done"
     },
-    "Completed, human-approved work": {
-      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4uN6Y",
-      "status": "Done"
-    },
     "Issue #100: keep Situation Globe URL on last successful session - https://github.com/earlyprototype/false-flag/issues/100 \u2014 requiring TDD, isolated branch, PR, review.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4v7_U",
       "status": "Done"
@@ -163,22 +143,6 @@
     "Reconcile Situation Globe status docs (#109) - https://github.com/earlyprototype/false-flag/issues/109 \u2014 rescued uncommitted doc edits from the PR #99 session live on branch docs/rescue-pr99-session-edits; rebase their intent onto current truth (Stage 1 DONE, #99 merged, #72/#74 ruled) and land through the gate.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg44RFI",
       "status": "Done"
-    },
-    "Afterwards: WebXR COBRA room - five advisors driven by speak-tags": {
-      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45PeU",
-      "status": "Backlog"
-    },
-    "Afterwards: station-based layer selection via raycast focus": {
-      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45PhQ",
-      "status": "Backlog"
-    },
-    "Afterwards: diplomat-call scene switch on same embodiment pipeline": {
-      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45PlY",
-      "status": "Backlog"
-    },
-    "Afterwards: choose Convai route - (a) Unity V3 WebGL build vs (b) Web SDK per-turn re-target, rec (b)": {
-      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45Pnw",
-      "status": "Backlog"
     },
     "Show-Safe: verify/fix browser adjudication after PR #57 (decision #73 gates urgency) - Pyodide reported can't start new thread; verify the fallback reads the player's decision and never silently substitutes canned adjudication. Record a real browser-path check.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45PrY",
@@ -242,6 +206,102 @@
     },
     "Show-Safe: dashboard remaining half \u2014 a11y, reset contract, traceability (#92) - https://github.com/earlyprototype/false-flag/issues/92 \u2014 supersedes #84/#85/#86; cheap half shipped in PR #98. Remaining per issue body: accessibility pass to WCAG 2.2, full demo-reset contract across control surfaces, data-flow traceability.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45QbY",
+      "status": "Backlog"
+    },
+    "XR: WebXR COBRA room - five advisors driven by speak-tags": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cKo",
+      "status": "Backlog"
+    },
+    "XR: station-based layer selection via raycast focus": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cM4",
+      "status": "Backlog"
+    },
+    "XR: diplomat-call scene switch on same embodiment pipeline": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cOM",
+      "status": "Backlog"
+    },
+    "XR: choose Convai route - (a) Unity V3 WebGL build vs (b) Web SDK per-turn re-target, rec (b)": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cP4",
+      "status": "Backlog"
+    },
+    "Prompts: default situation summary must preserve turn-specific continuity (#111) - https://github.com/earlyprototype/false-flag/issues/111 \u2014 audit finding": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cSA",
+      "status": "Backlog"
+    },
+    "Prompts: align inject-generation instructions with the Mystery context boundary (#112) - https://github.com/earlyprototype/false-flag/issues/112 \u2014 audit finding": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cS0",
+      "status": "Backlog"
+    },
+    "Prompts: return parsed decision-interpretation fields to API clients (#113) - https://github.com/earlyprototype/false-flag/issues/113 \u2014 audit finding": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cUg",
+      "status": "Backlog"
+    },
+    "Prompts: remove raw markdown from deterministic inject descriptions (#114) - https://github.com/earlyprototype/false-flag/issues/114 \u2014 audit finding": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cYo",
+      "status": "Backlog"
+    },
+    "Prompts: keep campaign memory on Pro in the Recommended Hybrid preset (#115) - https://github.com/earlyprototype/false-flag/issues/115 \u2014 audit finding": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45caE",
+      "status": "Backlog"
+    },
+    "Prompts: add advisor fanout to prompt byte-parity coverage (#116) - https://github.com/earlyprototype/false-flag/issues/116 \u2014 audit finding": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cb4",
+      "status": "Backlog"
+    },
+    "Prompts: make call-log analysis verify every structured family it claims (#117) - https://github.com/earlyprototype/false-flag/issues/117 \u2014 audit finding": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cdE",
+      "status": "Backlog"
+    },
+    "Prompts: keep deterministic decision interpretation faithful to submitted forces (#119) - https://github.com/earlyprototype/false-flag/issues/119 \u2014 audit finding": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cfI",
+      "status": "Backlog"
+    },
+    "Prompts: preserve concrete asks and commitments across diplomacy calls (#120) - https://github.com/earlyprototype/false-flag/issues/120 \u2014 audit finding": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45chE",
+      "status": "Backlog"
+    },
+    "Prompts: enforce the inject output-shape and channel contract (#121) - https://github.com/earlyprototype/false-flag/issues/121 \u2014 audit finding": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45ciY",
+      "status": "Backlog"
+    },
+    "Prompts: make narrator bridges connect to the player decision (#122) - https://github.com/earlyprototype/false-flag/issues/122 \u2014 audit finding": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cj8",
+      "status": "Backlog"
+    },
+    "Delivery: scope development to one game type plus Mystery mode (#89) - https://github.com/earlyprototype/false-flag/issues/89 \u2014 full work order in the issue; own branch; crosses ~29 files; solo dispatch": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cl0",
+      "status": "Backlog"
+    },
+    "Advisors: give advisors the hidden-state model foreign actors have (#90) - https://github.com/earlyprototype/false-flag/issues/90 \u2014 item 3 overlaps #88; agree the boundary before dispatch": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cn4",
+      "status": "Backlog"
+    },
+    "Advisors: /private advisor channel (#15) - https://github.com/earlyprototype/false-flag/issues/15 \u2014 distinct from #88 private memory; neither delivers the other": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cpo",
+      "status": "Backlog"
+    },
+    "Advisors: bilateral relations rendering + newspaper front page (#11) - https://github.com/earlyprototype/false-flag/issues/11 \u2014 relations already render in intel panel; front page unbuilt": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45crg",
+      "status": "Backlog"
+    },
+    "Delivery: role packs design (#24) - https://github.com/earlyprototype/false-flag/issues/24 \u2014 long-horizon design; depends on #89 mode decision": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45ctk",
+      "status": "Backlog"
+    },
+    "Show-Safe: real-channel email inject artifact (#76) - https://github.com/earlyprototype/false-flag/issues/76 \u2014 owner-confirmed MVP-worthy demo artifact": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cvY",
+      "status": "Backlog"
+    },
+    "XR: live-hybrid mode (#77) - https://github.com/earlyprototype/false-flag/issues/77 \u2014 owner-confirmed design record; per-layer real/simulated seam": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cw0",
+      "status": "Backlog"
+    },
+    "Prompts: voice production bible (#78) - https://github.com/earlyprototype/false-flag/issues/78 \u2014 body is mojibake at source, re-paste needed": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45cyI",
+      "status": "Backlog"
+    },
+    "Globe: Manus research queue (#70) - https://github.com/earlyprototype/false-flag/issues/70 \u2014 P1a landed via PR #99; P1b/P1c/P2a/P2b/P3 unfired; owner fires": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45c0I",
       "status": "Backlog"
     }
   }

@@ -3,11 +3,6 @@
 
 ## BACKLOG
 
-*   [ ] Future / unprioritised work
-*   [ ] Afterwards: WebXR COBRA room - five advisors driven by speak-tags
-*   [ ] Afterwards: station-based layer selection via raycast focus
-*   [ ] Afterwards: diplomat-call scene switch on same embodiment pipeline
-*   [ ] Afterwards: choose Convai route - (a) Unity V3 WebGL build vs (b) Web SDK per-turn re-target, rec (b)
 *   [ ] Show-Safe: verify/fix browser adjudication after PR #57 (decision #73 gates urgency) - Pyodide reported can't start new thread; verify the fallback reads the player's decision and never silently substitutes canned adjudication. Record a real browser-path check.
 *   [ ] Delivery: concurrent CLI adjudication pipeline (#64)
 *   [ ] Delivery: extend shared cache prefix to the 7 uncached call families (#64)
@@ -24,22 +19,42 @@
 *   [ ] Delivery: ruff lint — config, cleanup, then CI gate - ruff --select E9,F = 200 findings (56× F821 undefined-name — triage for latent bugs first). Add pyproject config, fix or ignore deliberately, then add the lint step to ci.yml checks job. Deferred from #102.
 *   [ ] Show-Safe: Windows test suite — 12 environment/encoding/EOL failures - Reported by Sol 31 Aug: full suite green on Linux CI (721 passed, 3 skipped) but 12 unrelated environment/encoding/line-ending failures on Windows. Likely residue of the .gitattributes/EOL work — triage and fix or mark expected-skip on win32.
 *   [ ] Show-Safe: dashboard remaining half — a11y, reset contract, traceability (#92) - https://github.com/earlyprototype/false-flag/issues/92 — supersedes #84/#85/#86; cheap half shipped in PR #98. Remaining per issue body: accessibility pass to WCAG 2.2, full demo-reset contract across control surfaces, data-flow traceability.
+*   [ ] XR: WebXR COBRA room - five advisors driven by speak-tags
+*   [ ] XR: station-based layer selection via raycast focus
+*   [ ] XR: diplomat-call scene switch on same embodiment pipeline
+*   [ ] XR: choose Convai route - (a) Unity V3 WebGL build vs (b) Web SDK per-turn re-target, rec (b)
+*   [ ] Prompts: default situation summary must preserve turn-specific continuity (#111) - https://github.com/earlyprototype/false-flag/issues/111 — audit finding
+*   [ ] Prompts: align inject-generation instructions with the Mystery context boundary (#112) - https://github.com/earlyprototype/false-flag/issues/112 — audit finding
+*   [ ] Prompts: return parsed decision-interpretation fields to API clients (#113) - https://github.com/earlyprototype/false-flag/issues/113 — audit finding
+*   [ ] Prompts: remove raw markdown from deterministic inject descriptions (#114) - https://github.com/earlyprototype/false-flag/issues/114 — audit finding
+*   [ ] Prompts: keep campaign memory on Pro in the Recommended Hybrid preset (#115) - https://github.com/earlyprototype/false-flag/issues/115 — audit finding
+*   [ ] Prompts: add advisor fanout to prompt byte-parity coverage (#116) - https://github.com/earlyprototype/false-flag/issues/116 — audit finding
+*   [ ] Prompts: make call-log analysis verify every structured family it claims (#117) - https://github.com/earlyprototype/false-flag/issues/117 — audit finding
+*   [ ] Prompts: keep deterministic decision interpretation faithful to submitted forces (#119) - https://github.com/earlyprototype/false-flag/issues/119 — audit finding
+*   [ ] Prompts: preserve concrete asks and commitments across diplomacy calls (#120) - https://github.com/earlyprototype/false-flag/issues/120 — audit finding
+*   [ ] Prompts: enforce the inject output-shape and channel contract (#121) - https://github.com/earlyprototype/false-flag/issues/121 — audit finding
+*   [ ] Prompts: make narrator bridges connect to the player decision (#122) - https://github.com/earlyprototype/false-flag/issues/122 — audit finding
+*   [ ] Delivery: scope development to one game type plus Mystery mode (#89) - https://github.com/earlyprototype/false-flag/issues/89 — full work order in the issue; own branch; crosses ~29 files; solo dispatch
+*   [ ] Advisors: give advisors the hidden-state model foreign actors have (#90) - https://github.com/earlyprototype/false-flag/issues/90 — item 3 overlaps #88; agree the boundary before dispatch
+*   [ ] Advisors: /private advisor channel (#15) - https://github.com/earlyprototype/false-flag/issues/15 — distinct from #88 private memory; neither delivers the other
+*   [ ] Advisors: bilateral relations rendering + newspaper front page (#11) - https://github.com/earlyprototype/false-flag/issues/11 — relations already render in intel panel; front page unbuilt
+*   [ ] Delivery: role packs design (#24) - https://github.com/earlyprototype/false-flag/issues/24 — long-horizon design; depends on #89 mode decision
+*   [ ] Show-Safe: real-channel email inject artifact (#76) - https://github.com/earlyprototype/false-flag/issues/76 — owner-confirmed MVP-worthy demo artifact
+*   [ ] XR: live-hybrid mode (#77) - https://github.com/earlyprototype/false-flag/issues/77 — owner-confirmed design record; per-layer real/simulated seam
+*   [ ] Prompts: voice production bible (#78) - https://github.com/earlyprototype/false-flag/issues/78 — body is mojibake at source, re-paste needed
+*   [ ] Globe: Manus research queue (#70) - https://github.com/earlyprototype/false-flag/issues/70 — P1a landed via PR #99; P1b/P1c/P2a/P2b/P3 unfired; owner fires
 
 ## TODO
 
-*   [ ] Ready to start, prioritised
 *   [ ] Advisor private continuity and per-agent state (#88) - https://github.com/earlyprototype/false-flag/issues/88 — depends #87 — supersedes #82. Carry-overs from #82 close: preserve objector-only override charge (engine/game_manager.py:447-470, no double-charge); DTDL extend-only; private-memory isolation tests (Mystery off+on). Sentiment doc is design input, not spec.
 
 ## DOING
 *   [ ] Audit runtime prompt quality and regression evidence (#83) - https://github.com/earlyprototype/false-flag/issues/83 — branch audit/83-prompt-quality-regression.
 
-*   [ ] In progress (keep to 1-3 items)
-
 ## REVIEW
 *   [ ] Fan out advisor pushback to one LLM call per advisor (#87) - https://github.com/earlyprototype/false-flag/issues/87 — branch feat/87-advisor-pushback-fanout — supersedes #81. Remaining after #96: per-advisor fan-out via generate_group; /ask keyword router PM-voice bug; carry-overs from #81 close: Mystery-leak tests + DTDL extend-only + browser/preview parity.
 *   [ ] PH-0 Prune ~17 stale/merged branches (29 Aug: 7 local + 22 remote deleted; active branches remain)
 *   [ ] Audit recent Claude threads and enforce onboarding - Verify the last few Claude sessions against PLAN/docs, correct source attribution, and make AGENTS/CLAUDE point future sessions to the recent-session index.
-*   [ ] AI-completed work awaiting human approval
 
 ## DONE
 *   [x] Reconcile Situation Globe status docs (#109) - https://github.com/earlyprototype/false-flag/issues/109 — rescued uncommitted doc edits from the PR #99 session live on branch docs/rescue-pr99-session-edits; rebase their intent onto current truth (Stage 1 DONE, #99 merged, #72/#74 ruled) and land through the gate.
@@ -72,4 +87,3 @@
 *   [x] Operable data-flow view: live schema + game-type selector + click-to-reroute/prompt-edit (owner req 1+2)
 *   [x] Mystery context segregation: player-facing calls never see the secret, scrubber deleted (PR #63)
 *   [x] Run official DTDLParser on interop models once .NET SDK available (structural-only today)
-*   [x] Completed, human-approved work
