@@ -18,7 +18,12 @@ _DECORATION_CHARS = "*_`\"'[]()>#•–—- \t"
 
 # Leading decoration before a label: any mix of the characters above,
 # optionally with a numbered bullet ("1." / "2)") in the middle.
-_LEAD_RE = r"^[\s*_`>#•\-]*(?:\d+[.)][\s*_`>#•\-]*)?"
+_LEAD_RE = r"^[\s*_`>#•–—\-]*(?:\d+[.)][\s*_`>#•–—\-]*)?"
+
+_ERROR_RESPONSE_RE = re.compile(
+    _LEAD_RE + r'''[*_`"']*\[\s*(?:error|offline\s+mode)\s*:''',
+    re.IGNORECASE,
+)
 
 # Worded refusals ("absolutely not", "no, we will not assist"). Kept
 # deliberately broad: a refusal misread as consent inverts an outcome,
@@ -49,8 +54,7 @@ def is_error_response(value: object) -> bool:
     """True when a fan-out slot carries a driver failure marker."""
     if not isinstance(value, str):
         return False
-    cleaned = value.strip()
-    return cleaned.startswith(("[ERROR:", "[Offline mode:"))
+    return _ERROR_RESPONSE_RE.match(value) is not None
 
 
 def extract_label(line: str, label: str) -> Optional[str]:

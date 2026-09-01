@@ -1142,6 +1142,23 @@ def _extract_question(prompt: str) -> str:
     return match.group(1) if match else prompt
 
 
+def _extract_quoted_prompt_value(
+    prompt: str,
+    heading: str,
+    *following_headings: str,
+):
+    """Extract a quoted prompt field, including embedded quotes/newlines."""
+    boundaries = "|".join(
+        re.escape(following) for following in following_headings)
+    match = re.search(
+        re.escape(heading) + r'\s*"(.*?)"\s*'
+        r'(?=(?:' + boundaries + r')|\Z)',
+        prompt,
+        re.IGNORECASE | re.DOTALL,
+    )
+    return match.group(1) if match else None
+
+
 class MockDeterministicDriver:
     """Deterministic mock LLM driver for testing.
 
@@ -1197,12 +1214,9 @@ class MockDeterministicDriver:
         # Decision interpretation: echo the actual decision back as the summary
         # so the OPERATIONAL ORDER panel reflects what the player typed.
         if "interpret this action" in prompt_lower:
-            # Greedy match to the last quote on the line: decisions are a
-            # single input() line, and non-greedy truncated at any embedded
-            # double quote ('Tell the ally "stand by"; deploy...').
-            decided = re.search(r'the prime minister has decided:\s*"(.*)"', prompt,
-                                re.IGNORECASE)
-            summary = " ".join(decided.group(1).split()) if decided else \
+            decided = _extract_quoted_prompt_value(
+                prompt, "the prime minister has decided:", "IMPORTANT:")
+            summary = " ".join(decided.split()) if decided is not None else \
                 "Deploy naval and air assets to defensive posture"
             return (f"INTERPRETATION: {summary}\n"
                     "FORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\n"
@@ -1215,14 +1229,16 @@ class MockDeterministicDriver:
         # (force listings, transcript) mentions "deploy"/"carrier" on every
         # turn and would otherwise fire pushback for every decision.
         if "pushback triggers" in prompt_lower:
-            decided = re.search(r'the pm has decided:\s*"(.*)"', prompt,
-                                re.IGNORECASE)
+            decided = _extract_quoted_prompt_value(
+                prompt, "the pm has decided:",
+                "Interpretation of this action:",
+                "Advisors and their pushback triggers:")
             # Fail closed: if the decision can't be extracted, don't scan the
             # whole prompt - its context mentions deploy/carrier every turn
             # and would fire spurious pushback.
-            if not decided:
-                return "NO PUSHBACK"
-            action_text = decided.group(1).lower()
+            if decided is None:
+                return "[ERROR: Advisor response unavailable]"
+            action_text = decided.lower()
             advisor = _detect_advisor(prompt_lower)
 
             if "nuclear" in action_text:

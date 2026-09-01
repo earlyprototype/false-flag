@@ -67,10 +67,25 @@ _ADDRESS_RE = re.compile(
     r"([,;:–—-])"
 )
 
+_PUSHBACK_SEPARATORS = ",;:\u2013\u2014-"
+_PUSHBACK_SPEECH_LABELS = {
+    "push-back", "pushed-back", "pushes-back", "pushing-back",
+    "replied", "replies", "reply", "replying",
+    "respond", "responded", "responding", "responds",
+    "said", "say", "saying", "says",
+    "speak", "speaking", "speaks", "spoke",
+    "warn", "warned", "warning", "warns",
+}
+
 # Lowercase connectives that appear inside natural titles ("Chancellor of the
 # Exchequer", "Minister for the Armed Forces") and must not defeat the
 # title-case test in _detect_unknown_addressee.
 _TITLE_CONNECTIVES = {"of", "the", "for", "and", "to"}
+_TITLE_PREFIX_RE = re.compile(
+    r"^(?:the\s+)?"
+    r"([A-Z][A-Za-z'\-]*"
+    r"(?:\s+(?:of|the|for|and|to|[A-Z][A-Za-z'\-]*)){0,5})"
+)
 
 # The FLASH-tier pushback model sometimes leaks game time into the fiction
 # ("we tried this in Turn 2"). The prompt now forbids it
@@ -129,7 +144,7 @@ def _question_matches_keyword(question_lower: str, keyword: str) -> bool:
 
 
 def _known_pushback_roles(initial_conditions: Dict[str, Any]) -> Set[str]:
-    """Build role prefixes that make a per-advisor reply malformed."""
+    """Build every role prefix recognised in per-advisor pushback."""
     roles: Set[str] = set()
     for aliases in _ADVISOR_ROLE_ALIASES.values():
         roles.update(aliases)
@@ -147,6 +162,112 @@ def _known_pushback_roles(initial_conditions: Dict[str, Any]) -> Set[str]:
             roles.add(role.strip().lower())
 
     return roles
+
+
+def _detect_unknown_pushback_role(
+    line: str,
+    known_roles: Set[str],
+) -> Optional[str]:
+    """Return an unseated, title-shaped role at the start of a reply."""
+    match = _TITLE_PREFIX_RE.match(line)
+    if match is None:
+        return None
+    candidate = match.group(1).strip()
+    normalized = candidate.lower()
+    if normalized in known_roles:
+        return None
+    significant = [
+        word for word in normalized.split()
+        if word not in _TITLE_CONNECTIVES
+    ]
+    if not set(significant) & _TITLE_WORDS:
+        return None
+    if len(significant) >= 2:
+        return candidate
+
+    tail = line[match.end():]
+    if _split_pushback_prefix_tail(tail) is not None:
+        return candidate
+    speech_tail = tail.strip().lstrip(")]}'\"*_`").lstrip()
+    speech_label = re.match(
+        r"^([A-Za-z]+(?:-[A-Za-z]+)*)\b", speech_tail)
+    if (speech_label is not None
+            and speech_label.group(1).lower() in _PUSHBACK_SPEECH_LABELS):
+        return candidate
+    return None
+
+
+def _split_pushback_prefix_tail(
+    tail: str,
+) -> Optional[Tuple[str, bool]]:
+    """Split one unambiguous speaker prefix without consuming prose."""
+    cleaned = tail.strip().lstrip(")]}'\"*_`").lstrip()
+    if not cleaned or cleaned == ".":
+        return "", True
+    if cleaned[0] in _PUSHBACK_SEPARATORS:
+        return cleaned[1:].lstrip("*_` \t"), True
+
+    # A stage direction alone, e.g. ``[quietly]:``.
+    if cleaned[0] in "([":
+        closing = ")" if cleaned[0] == "(" else "]"
+        end = cleaned.find(closing, 1)
+        if 0 < end <= 81:
+            rest = cleaned[end + 1:].lstrip("*_` \t")
+            if rest and rest[0] in _PUSHBACK_SEPARATORS:
+                return rest[1:].lstrip("*_` \t"), False
+        return None
+
+    # One speech-attribution token, optionally hyphenated and followed by a
+    # short stage direction: ``warns:``, ``pushes-back:``, ``says (quietly):``.
+    index = 0
+    while index < len(cleaned) and cleaned[index].isalpha():
+        index += 1
+    while (index + 1 < len(cleaned)
+           and cleaned[index] == "-"
+           and cleaned[index + 1].isalpha()):
+        index += 1
+        while index < len(cleaned) and cleaned[index].isalpha():
+            index += 1
+    if index == 0:
+        return None
+
+    if cleaned[:index].lower() not in _PUSHBACK_SPEECH_LABELS:
+        return None
+
+    rest = cleaned[index:].lstrip()
+    if rest.startswith(("(", "[")):
+        closing = ")" if rest[0] == "(" else "]"
+        end = rest.find(closing, 1)
+        if not 0 < end <= 81:
+            return None
+        rest = rest[end + 1:].lstrip("*_` \t")
+    if rest and rest[0] in _PUSHBACK_SEPARATORS:
+        return rest[1:].lstrip("*_` \t"), False
+    return None
+
+
+def _extract_pushback_prefix(
+    line: str,
+    known_roles: Set[str],
+) -> Optional[Tuple[str, Optional[str], bool]]:
+    """Return a prefixed role, remainder, and direct-separator flag."""
+    for known_role in sorted(known_roles, key=len, reverse=True):
+        match = re.match(
+            rf"^(?:the\s+)?{re.escape(known_role)}"
+            r"(?=$|[\s*_`\"',.;:()\[\]{}\u2013\u2014-])",
+            line,
+            re.IGNORECASE,
+        )
+        if match is None:
+            continue
+
+        tail = line[match.end():]
+        split = _split_pushback_prefix_tail(tail)
+        if split is not None:
+            remainder, is_direct = split
+            return known_role, remainder, is_direct
+        return known_role, None, False
+    return None
 
 
 def handle_player_question(
@@ -422,6 +543,10 @@ def generate_advisor_pushback(
     result = []
     for (char_id, char_info), response in zip(advisors.items(), responses):
         role = char_info.get("role", "Advisor")
+        own_roles = set(_ADVISOR_ROLE_ALIASES.get(char_id, []))
+        own_roles.add(char_id.replace("_", " ").lower())
+        if role:
+            own_roles.add(role.strip().lower())
         if not isinstance(response, str):
             record_fallback("advisor_pushback", f"{char_id} malformed reply")
             result.append((role, unavailable))
@@ -437,46 +562,63 @@ def generate_advisor_pushback(
         if len(lines) == 1 and is_sentinel_line(lines[0], "NO PUSHBACK"):
             continue
 
-        # A per-advisor reply is either the bare concern or the sentinel.
-        # A role-prefixed/mixed reply is malformed; never parse its prefix
-        # into attribution or let another seat's words cross this slot.
-        has_role_prefix = False
+        # Attribution always comes from the roster. Tolerate and strip a
+        # redundant self-prefix or player vocative; reject any other seat.
+        parsed_lines = []
+        malformed = False
+        player_vocative_seen = False
         for line in lines:
-            if any(extract_label(line, known_role) is not None
-                   for known_role in known_roles):
-                has_role_prefix = True
-                break
-            candidate_line, self_attributed = re.subn(
-                r"^(?:speaking\s+)?as\s+(?:the\s+)?",
-                "",
-                strip_decoration(line),
-                count=1,
-                flags=re.IGNORECASE,
-            )
-            if _detect_unknown_addressee(candidate_line, known_roles):
-                has_role_prefix = True
-                break
-            match = _ADDRESS_RE.match(candidate_line)
-            if match is None:
-                continue
-            candidate = strip_decoration(match.group(1)).lower()
-            forms = ((candidate, candidate[4:])
-                     if candidate.startswith("the ") else (candidate,))
-            if any(form in known_roles for form in forms):
-                if (match.group(3) == "," and match.group(2) is None
-                        and not self_attributed
-                        and any(form in player_roles for form in forms)):
-                    continue
-                has_role_prefix = True
+            remainder = line
+            while remainder:
+                candidate_line, self_attributed = re.subn(
+                    r"^(?:speaking\s+)?as\s+(?:the\s+)?",
+                    "",
+                    strip_decoration(remainder),
+                    count=1,
+                    flags=re.IGNORECASE,
+                )
+                prefixed = _extract_pushback_prefix(
+                    candidate_line, known_roles)
+                if prefixed is None:
+                    if _detect_unknown_pushback_role(
+                            candidate_line, known_roles):
+                        malformed = True
+                    else:
+                        parsed_lines.append(remainder)
+                    break
+
+                prefix, stripped, is_direct = prefixed
+                is_own = prefix in own_roles
+                is_player_vocative = (
+                    prefix in player_roles
+                    and is_direct
+                    and not self_attributed
+                    and not parsed_lines
+                    and not player_vocative_seen
+                )
+                if is_player_vocative:
+                    player_vocative_seen = True
+                elif not is_own or (player_vocative_seen and parsed_lines):
+                    malformed = True
+                    break
+                if stripped is None:
+                    parsed_lines.append(remainder)
+                    remainder = ""
+                else:
+                    remainder = stripped
+
+            if malformed:
                 break
 
-        if (any(is_sentinel_line(line, "NO PUSHBACK") for line in lines)
-                or has_role_prefix):
+        if malformed or not parsed_lines or any(
+                is_error_response(line)
+                or is_sentinel_line(line, "NO PUSHBACK")
+                for line in parsed_lines):
             record_fallback("advisor_pushback", f"{char_id} malformed reply")
             result.append((role, unavailable))
             continue
 
-        result.append((role, _scrub_turn_references(cleaned)))
+        result.append((role, _scrub_turn_references("\n".join(parsed_lines))))
 
     return result
 

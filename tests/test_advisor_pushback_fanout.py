@@ -1,10 +1,14 @@
 """Independent advisor pushback regressions for issue #87."""
 
 from random import Random
+from time import perf_counter
 
 import pytest
 
-from agents.conversation import generate_advisor_pushback
+from agents.conversation import (
+    _detect_unknown_pushback_role,
+    generate_advisor_pushback,
+)
 from engine.initial_conditions import load_initial_conditions
 from llm.mock_driver import MockDeterministicDriver
 from models.narrative import NarrativeConfig
@@ -38,6 +42,17 @@ def _conditions():
 
 def _unused_single(*args, **kwargs):
     raise AssertionError("pushback should use the supplied batch fan-out")
+
+
+def test_pushback_role_detection_is_bounded_for_long_spacing():
+    reply = "Chancellor" + " " * 1600 + "warns that this is unsafe."
+
+    started = perf_counter()
+    detected = _detect_unknown_pushback_role(
+        reply, {"chief of the defence staff"})
+
+    assert detected == "Chancellor"
+    assert perf_counter() - started < 0.25
 
 
 def test_pushback_fans_out_isolated_prompts_and_uses_roster_attribution():
@@ -202,6 +217,33 @@ def test_offline_pushback_is_visible_as_unavailable():
     "Foreign Secretary, This belongs to another seat.",
     "Foreign Secretary; This belongs to another seat.",
     "Foreign Secretary says: This belongs to another seat.",
+    "Foreign Secretary warns: This belongs to another seat.",
+    "Foreign Secretary (quietly): This belongs to another seat.",
+    "[Foreign Secretary]: This belongs to another seat.",
+    "(Foreign Secretary): This belongs to another seat.",
+    '"Foreign Secretary": This belongs to another seat.',
+    "Foreign Secretary [quietly]: This belongs to another seat.",
+    "Foreign Secretary warns that this belongs to another seat.",
+    "[Defence Secretary]: This belongs to an unseated role.",
+    "(Defence Secretary): This belongs to an unseated role.",
+    "Defence Secretary warns that this belongs to an unseated role.",
+    "[Chancellor]: This belongs to an unseated role.",
+    "(Chancellor): This belongs to an unseated role.",
+    "Admiral\nThis belongs to an unseated role.",
+    "Chancellor warns that this belongs to an unseated role.",
+    "Chancellor said that this belongs to an unseated role.",
+    "Admiral replied that this belongs to an unseated role.",
+    "Commander responded that this belongs to an unseated role.",
+    "Chancellor warned that this belongs to an unseated role.",
+    "[Chancellor] said: This belongs to an unseated role.",
+    "[Chancellor] said that this belongs to an unseated role.",
+    "Admiral responding that this belongs to an unseated role.",
+    "Admiral spoke against deployment.",
+    "[Admiral] spoke: This belongs to an unseated role.",
+    "Foreign Secretary\nThis belongs to another seat.",
+    "**Foreign Secretary**\nThis belongs to another seat.",
+    "Foreign Secretary.\nThis belongs to another seat.",
+    "Prime Minister \u2014 Foreign Secretary: This belongs to another seat.",
     "Foreign Secretary speaking: This belongs to another seat.",
     "**Foreign Secretary:** This belongs to another seat.",
     "**Foreign Secretary**: This belongs to another seat.",
@@ -217,19 +259,15 @@ def test_offline_pushback_is_visible_as_unavailable():
     "Speaking as the Prime Minister, this belongs to the player.",
     "As PM, this belongs to the player.",
     "As Government Leader, this belongs to the player.",
-    "Prime Minister: This belongs to the player.",
     "PM says: This belongs to the player.",
     "PM speaks: This belongs to the player.",
     "Prime Minister speaking: This belongs to the player.",
     "Prime Minister replies: This belongs to the player.",
-    "**Prime Minister** - This belongs to the player.",
     "Defence Secretary: This belongs to an unseated role.",
-    "Military Commander: This belongs to a legacy role.",
     "Intelligence Coordinator: This belongs to a legacy role.",
     "Domestic Security: This belongs to a legacy role.",
     "Diplomatic Lead: This belongs to a legacy role.",
     "Legal Advisor: This belongs to a legacy role.",
-    "Government Leader: This belongs to a legacy player role.",
     "Unknown Advisor: This belongs to an unknown role.",
 ])
 def test_role_prefixed_cross_talk_is_visible_as_malformed(leaked):
@@ -273,13 +311,18 @@ def test_non_role_label_remains_valid_pushback_text():
 
 
 @pytest.mark.parametrize("vocative", [
-    "Prime Minister, the carrier cannot sail safely.",
-    "PM, the carrier cannot sail safely.",
-    "Government Leader, the carrier cannot sail safely.",
+    "Prime Minister, ",
+    "Prime Minister: ",
+    "Prime Minister \u2014 ",
+    "PM, ",
+    "**Prime Minister** - ",
+    "Government Leader: ",
 ])
-def test_player_role_comma_is_a_valid_vocative(vocative):
+def test_player_role_vocative_is_stripped_and_kept(vocative):
+    concern = "The carrier cannot sail safely."
+
     def batch(prompts, rng, **kwargs):
-        return [vocative] + ["NO PUSHBACK"] * (len(prompts) - 1)
+        return [vocative + concern] + ["NO PUSHBACK"] * (len(prompts) - 1)
 
     result = generate_advisor_pushback(
         _world(),
@@ -291,7 +334,154 @@ def test_player_role_comma_is_a_valid_vocative(vocative):
         llm_batch_fn=batch,
     )
 
-    assert result == [("Chief of the Defence Staff", vocative)]
+    assert result == [("Chief of the Defence Staff", concern)]
+
+
+def test_each_advisor_may_prefix_its_own_reply_without_owning_attribution():
+    conditions = _conditions()
+    concerns = [f"Own concern {i}." for i in range(len(ADVISOR_IDS))]
+
+    def batch(prompts, rng, **kwargs):
+        return [
+            f"{conditions['characters'][char_id]['role']}: {concern}"
+            for char_id, concern in zip(ADVISOR_IDS, concerns)
+        ]
+
+    result = generate_advisor_pushback(
+        _world(),
+        "Hold the current posture.",
+        "No change in posture.",
+        conditions,
+        _unused_single,
+        Random(13),
+        llm_batch_fn=batch,
+    )
+
+    assert result == [
+        (conditions["characters"][char_id]["role"], concern)
+        for char_id, concern in zip(ADVISOR_IDS, concerns)
+    ]
+
+
+def test_current_advisor_legacy_alias_is_stripped_and_kept():
+    def batch(prompts, rng, **kwargs):
+        return ["Military Commander: The carrier is not ready."] + [
+            "NO PUSHBACK"
+        ] * (len(prompts) - 1)
+
+    result = generate_advisor_pushback(
+        _world(),
+        "Deploy the carrier group.",
+        "A naval deployment.",
+        _conditions(),
+        _unused_single,
+        Random(14),
+        llm_batch_fn=batch,
+    )
+
+    assert result == [
+        ("Chief of the Defence Staff", "The carrier is not ready.")
+    ]
+
+
+@pytest.mark.parametrize("reply", [
+    "Chief of the Defence Staff:\nThe carrier is not ready.",
+    "Chief of the Defence Staff\nThe carrier is not ready.",
+    "Chief of the Defence Staff.\nThe carrier is not ready.",
+    "Chief of the Defence Staff warns: The carrier is not ready.",
+    "Chief of the Defence Staff replied: The carrier is not ready.",
+    "Chief of the Defence Staff pushes-back: The carrier is not ready.",
+    "Prime Minister:\nChief of the Defence Staff: "
+    "The carrier is not ready.",
+])
+def test_structural_own_prefix_lines_keep_the_objection(reply):
+    def batch(prompts, rng, **kwargs):
+        return [reply] + ["NO PUSHBACK"] * (len(prompts) - 1)
+
+    result = generate_advisor_pushback(
+        _world(),
+        "Deploy the carrier group.",
+        "A naval deployment.",
+        _conditions(),
+        _unused_single,
+        Random(15),
+        llm_batch_fn=batch,
+    )
+
+    assert result == [
+        ("Chief of the Defence Staff", "The carrier is not ready.")
+    ]
+
+
+def test_unsupported_own_role_sentence_is_not_truncated():
+    concern = (
+        "Chief of the Defence Staff warns that readiness is low, "
+        "and the carrier cannot sail."
+    )
+
+    def batch(prompts, rng, **kwargs):
+        return [concern] + ["NO PUSHBACK"] * (len(prompts) - 1)
+
+    result = generate_advisor_pushback(
+        _world(),
+        "Deploy the carrier group.",
+        "A naval deployment.",
+        _conditions(),
+        _unused_single,
+        Random(18),
+        llm_batch_fn=batch,
+    )
+
+    assert result == [("Chief of the Defence Staff", concern)]
+
+
+def test_own_role_substantive_label_is_not_truncated():
+    concern = (
+        "Chief of the Defence Staff readiness: low; "
+        "the carrier cannot sail."
+    )
+
+    def batch(prompts, rng, **kwargs):
+        return [concern] + ["NO PUSHBACK"] * (len(prompts) - 1)
+
+    result = generate_advisor_pushback(
+        _world(),
+        "Deploy the carrier group.",
+        "A naval deployment.",
+        _conditions(),
+        _unused_single,
+        Random(19),
+        llm_batch_fn=batch,
+    )
+
+    assert result == [("Chief of the Defence Staff", concern)]
+
+
+@pytest.mark.parametrize("failed", [
+    "**[ERROR: Advisor response unavailable]**",
+    "> **[error: HTTP 429]**",
+    "**[Offline mode: No LLM response available]**",
+    "Chief of the Defence Staff: **[ERROR: HTTP 429]**",
+    "\u2014 **[ERROR: HTTP 429]**",
+    "\u2013 **[Offline mode: No LLM response available]**",
+])
+def test_decorated_failure_markers_remain_visible_errors(failed):
+    def batch(prompts, rng, **kwargs):
+        return [failed] + ["NO PUSHBACK"] * (len(prompts) - 1)
+
+    result = generate_advisor_pushback(
+        _world(),
+        "Hold the current posture.",
+        "No change in posture.",
+        _conditions(),
+        _unused_single,
+        Random(16),
+        llm_batch_fn=batch,
+    )
+
+    assert result == [
+        ("Chief of the Defence Staff", "[ERROR: Advisor response unavailable]")
+    ]
 
 
 def test_mock_carrier_objection_survives_player_vocative():
@@ -309,7 +499,46 @@ def test_mock_carrier_objection_survives_player_vocative():
 
     assert len(result) == 1
     assert result[0][0] == "Chief of the Defence Staff"
-    assert result[0][1].startswith("Prime Minister,")
+    assert result[0][1].startswith("HMS Prince of Wales")
+    assert not result[0][1].startswith("Prime Minister")
+
+
+def test_mock_multiline_decision_keeps_nuclear_objections_visible():
+    driver = MockDeterministicDriver()
+
+    result = generate_advisor_pushback(
+        _world(),
+        "Authorise nuclear\nfirst use.",
+        "A nuclear first-use order.",
+        _conditions(),
+        driver.generate_text,
+        Random(17),
+        llm_batch_fn=driver.batch_generate_text,
+    )
+
+    assert [role for role, _concern in result] == [
+        "Foreign Secretary",
+        "Attorney General",
+    ]
+    assert all(not concern.startswith("[ERROR:") for _role, concern in result)
+
+
+def test_failed_pushback_stays_visible_but_out_of_model_facing_transcript():
+    from engine.decision_phase import format_decision_transcript
+
+    failed = "**[ERROR: Advisor response unavailable]**"
+    pushback = [
+        ("Chief of the Defence Staff", failed),
+        ("Attorney General", "A real legal objection."),
+    ]
+
+    transcript = "\n".join(format_decision_transcript(
+        "Hold the current posture.", "No change in posture.", pushback, []))
+
+    assert pushback[0][1] == failed
+    assert failed not in transcript
+    assert "One or more advisor responses were unavailable." in transcript
+    assert "Attorney General: A real legal objection." in transcript
 
 
 def test_mock_persona_detection_ignores_shared_transcript_roles():

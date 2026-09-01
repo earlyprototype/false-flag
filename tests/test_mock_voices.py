@@ -737,3 +737,23 @@ def test_decision_extraction_survives_embedded_quotes():
         f'Check pushback triggers. THE PM HAS DECIDED: "{action}"\n', Random(1))
     # 'nuclear' sits after the embedded quote - truncation would miss it
     assert "NO PUSHBACK" not in pushback
+
+
+def test_pushback_decision_extraction_survives_newlines():
+    driver = MockDeterministicDriver()
+    action = "Authorise nuclear\nfirst use."
+
+    pushback = driver.generate_text(
+        f'Check pushback triggers. THE PM HAS DECIDED: "{action}"\n', RNG)
+
+    assert "NO PUSHBACK" not in pushback
+    assert "nuclear first-use" in pushback
+
+
+def test_pushback_decision_extraction_failure_is_visible():
+    driver = MockDeterministicDriver()
+
+    pushback = driver.generate_text(
+        "Check pushback triggers without a decision block.", RNG)
+
+    assert pushback == "[ERROR: Advisor response unavailable]"

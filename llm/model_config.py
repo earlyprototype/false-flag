@@ -179,7 +179,7 @@ class ModelConfig:
             LLMContext.ADVISOR_QA: 3,           # 2-5 questions
             LLMContext.DECISION_INTERPRETATION: 1,
             LLMContext.ADVISOR_PUSHBACK: 5,
-            LLMContext.CRITICAL_OMISSIONS: 1,
+            LLMContext.CRITICAL_OMISSIONS: 5,
             LLMContext.INJECT_GENERATION: 0.5,  # Only after turn 6
             LLMContext.DIPLOMACY_CONVERSATION: 1.5,  # If used
             LLMContext.DIPLOMACY_OUTCOME: 0.5,  # If used
