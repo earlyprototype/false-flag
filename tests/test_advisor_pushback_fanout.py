@@ -345,6 +345,8 @@ def test_offline_pushback_is_visible_as_unavailable():
     "As the Foreign Secretary warned, [ERROR: HTTP 429 rate limited]",
     "As the Foreign Secretary warned, NO PUSHBACK",
     "As the Foreign Secretary warned, “NO PUSHBACK”",
+    "As the Foreign Secretary warned, “NO PUSHBACK ”",
+    "As the Foreign Secretary warned, “NO PUSHBACK ’",
     "(NO PUSHBACK",
     "NO PUSHBACK)",
     "[NO PUSHBACK",
