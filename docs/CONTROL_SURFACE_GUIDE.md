@@ -1,13 +1,12 @@
 # The live control surface — a plain-English guide
 
 Two web pages, one small server. Both look inside a running (or simulated)
-game. Start it:
+game. Install the supported dependency set, then start it:
 
 ```bash
+pip install -r requirements.txt -r api/requirements.txt
 python -m uvicorn api.server:app --port 8000
 ```
-
-or double-click `dashboard.bat` in the repo root.
 
 - **`/dataflow`** — the engine's map. For understanding how the game is
   built, watching it run step by step, and tweaking AI behaviour.
