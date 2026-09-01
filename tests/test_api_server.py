@@ -126,6 +126,66 @@ def test_briefing_refused_while_mandatory_call_is_live(client):
     assert decided.status_code == 409
 
 
+def test_interpret_decision_returns_each_advisor_pushback(client, monkeypatch):
+    """The HTTP preview must not drop the engine's per-advisor results."""
+    from api import server
+
+    created = _new_game(client)
+    manager = server.sessions[created["session_id"]].manager
+    pushback = [
+        {"role": "Chief of the Defence Staff", "concern": "Fleet concern."},
+        {"role": "Attorney General", "concern": "Legal concern."},
+    ]
+
+    monkeypatch.setattr(manager, "interpret_decision", lambda _action: {
+        "interpretation": "A test interpretation.",
+        "critical_concerns": [],
+        "pushback": pushback,
+        "raw_transcript": [],
+    })
+
+    response = client.post("/game/decision/interpret", json={
+        "session_id": created["session_id"],
+        "action_text": "Test the transport.",
+    })
+
+    assert response.status_code == 200
+    assert response.json()["pushback"] == pushback
+
+
+def test_direct_commit_returns_each_advisor_pushback(client, monkeypatch):
+    """Skipping preview must not hide the committed per-advisor results."""
+    from api import server
+
+    created = _new_game(client)
+    manager = server.sessions[created["session_id"]].manager
+    pushback = [
+        {"role": "Chief of the Defence Staff", "concern": "Fleet concern."},
+        {"role": "Attorney General", "concern": "Legal concern."},
+    ]
+    result = {
+        "interpretation": "A test interpretation.",
+        "reasoning": "",
+        "effects": {},
+        "pushback": pushback,
+        "critical_concerns": [],
+        "advisor_reactions": [],
+        "international_reactions": [],
+        "ending": None,
+        "error": None,
+    }
+    monkeypatch.setattr(manager, "resolve_decision", lambda _action: result)
+
+    response = client.post("/game/decision/commit", json={
+        "session_id": created["session_id"],
+        "action_text": "Test the direct commit transport.",
+        "user_choice": "confirm",
+    })
+
+    assert response.status_code == 200
+    assert response.json()["pushback"] == pushback
+
+
 # --- Scene-setting probe -------------------------------------------------
 
 def _drain_events(session):

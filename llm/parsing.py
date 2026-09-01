@@ -14,11 +14,25 @@ from typing import Optional, Sequence
 
 # Decoration characters found around labels and values: markdown emphasis,
 # backticks, quotes, brackets, blockquote/heading markers, and list bullets.
-_DECORATION_CHARS = "*_`\"'[]()>#•–—- \t"
+_DECORATION_CHARS = (
+    "*_`\"'[]()>#- \t"
+    "\u2022\u2013\u2014\u2018\u2019\u201c\u201d"
+)
 
 # Leading decoration before a label: any mix of the characters above,
 # optionally with a numbered bullet ("1." / "2)") in the middle.
-_LEAD_RE = r"^[\s*_`>#•\-]*(?:\d+[.)][\s*_`>#•\-]*)?"
+_LEAD_DECORATION_RE = (
+    r"\s*_`\"'>#\u2022\u2013\u2014\u2018\u2019\u201c\u201d\-"
+)
+_LEAD_RE = (
+    rf"^[{_LEAD_DECORATION_RE}]*"
+    rf"(?:\d+[.)][{_LEAD_DECORATION_RE}]*)?"
+)
+
+_ERROR_RESPONSE_RE = re.compile(
+    _LEAD_RE + r"\[\s*(?:error|offline\s+mode)\s*:",
+    re.IGNORECASE,
+)
 
 # Worded refusals ("absolutely not", "no, we will not assist"). Kept
 # deliberately broad: a refusal misread as consent inverts an outcome,
@@ -41,7 +55,15 @@ def strip_decoration(text: str) -> str:
     Unlike the old role-prefix normaliser this also removes leading hyphens
     and bullet glyphs, so "- Military Commander" reads as the role it names.
     """
+    text = re.sub(_LEAD_RE, "", text, count=1)
     return text.strip().strip(_DECORATION_CHARS).strip()
+
+
+def is_error_response(value: object) -> bool:
+    """True when a fan-out slot carries a driver failure marker."""
+    if not isinstance(value, str):
+        return False
+    return _ERROR_RESPONSE_RE.match(value) is not None
 
 
 def extract_label(line: str, label: str) -> Optional[str]:

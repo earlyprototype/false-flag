@@ -94,6 +94,7 @@ def capture(turns, seed, out_dir):
     pc = _load_play_campaign()
     from engine.game_manager import GameManager
     from llm import call_log
+    from llm.parsing import is_error_response
 
     call_log.reset()
     started_at = _now()
@@ -112,7 +113,10 @@ def capture(turns, seed, out_dir):
         gm.process_question(pc.QUESTIONS[turn % len(pc.QUESTIONS)])
         decision = pc.DECISIONS[turn % len(pc.DECISIONS)]
         interp = gm.interpret_decision(decision)
-        pushback_roles = [p["role"] for p in interp.get("pushback", [])]
+        pushback_roles = [
+            p["role"] for p in interp.get("pushback", [])
+            if not is_error_response(p.get("concern"))
+        ]
         result = gm.resolve_decision(decision)
         pc._dump_state(gm, turn, pushback_roles)
         turn_records.append({

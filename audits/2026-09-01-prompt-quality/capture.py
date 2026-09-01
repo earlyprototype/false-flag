@@ -100,7 +100,7 @@ EXPECTED_MAIN_PATH_COUNTS = {
     "diplomacy_outcome": 1,
     "inject_yaml": 1,
 }
-EXPECTED_PUSHBACK_PATH_COUNTS = {"advisor_pushback": 1}
+EXPECTED_PUSHBACK_PATH_COUNTS = {"advisor_pushback": 5}
 REQUEST_FIELDS = (
     "system_instruction",
     "temperature",

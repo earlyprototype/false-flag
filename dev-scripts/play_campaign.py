@@ -35,6 +35,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from llm.parsing import is_error_response
+
 QUESTIONS = [
     "What is the current threat assessment?",
     "Where does NATO stand on this?",
@@ -335,7 +337,10 @@ def main():
         # (and the decision-family rows in analyse_call_log.py) to reflect
         # the single run.
         interp = gm.interpret_decision(decision)
-        pushback_roles = [p["role"] for p in interp.get("pushback", [])]
+        pushback_roles = [
+            p["role"] for p in interp.get("pushback", [])
+            if not is_error_response(p.get("concern"))
+        ]
         if pushback_roles:
             print(f"     [pushback] interpretation drew pushback from "
                   f"{', '.join(pushback_roles)}; committing unamended (ER-013)")

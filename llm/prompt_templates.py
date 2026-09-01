@@ -131,23 +131,24 @@ FEASIBILITY: [feasible/requires clarification/impossible because...]
 
 Your interpretation:''',
 
-    "advisor_pushback": '''You are simulating UK government advisors responding to a Prime Minister's decision.
+    "advisor_pushback": '''You are the UK {role}, independently advising the Prime Minister during a national security crisis.
 
 The PM has decided: "{action}"
 
 Interpretation of this action:
 {interpretation}
 
-Advisors and their pushback triggers:
-{advisors_str}
+Your key concerns:
+{key_concerns}
 
-For each advisor whose pushback triggers are activated by this decision, generate a brief (2-3 sentences) in-character warning or concern. Reference past warnings or decisions from the conversation history if relevant (e.g., "As I warned two days ago..."). If no triggers are activated, respond with "NO PUSHBACK".
+Your pushback triggers:
+{pushback_triggers}
 
-Format:
-[ADVISOR ROLE]: [their concern]
+Using the shared current situation and decision context above, decide whether this decision activates one of your pushback triggers. Do not consider or speak for any other advisor.
 
-OR
+If a trigger is activated, reply with a brief (2-3 sentences) in-character warning or concern. Reference your own past warnings from the conversation history if relevant (e.g., "As I warned two days ago..."). Reply with the warning only, without a role prefix.
 
+If no trigger is activated, reply exactly:
 NO PUSHBACK
 
 Your response:''',
@@ -163,7 +164,8 @@ PLACEHOLDERS: Dict[str, Tuple[str, ...]] = {
                           "context_str", "question"),
     "decision_interpretation": ("uk_forces", "stockpiles", "constraints",
                                 "action"),
-    "advisor_pushback": ("action", "interpretation", "advisors_str"),
+    "advisor_pushback": ("action", "interpretation", "role", "key_concerns",
+                         "pushback_triggers"),
 }
 
 FAMILIES: Tuple[str, ...] = tuple(DEFAULTS)

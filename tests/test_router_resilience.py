@@ -16,6 +16,7 @@ import pytest
 
 from llm import router
 from llm.mock_driver import MockDeterministicDriver
+from llm.model_config import LLMContext
 
 
 @pytest.fixture(autouse=True)
@@ -82,6 +83,60 @@ def test_batch_always_failing_driver_falls_back_to_mock(monkeypatch):
 
     expected = MockDeterministicDriver().batch_generate_text(prompts, Random(42))
     assert results == expected
+
+
+def test_failed_pushback_batch_returns_error_slots_not_mock_advice(monkeypatch):
+    monkeypatch.setattr(
+        router, "_get_text_driver", lambda model_name=None: AlwaysFailingDriver())
+
+    results = router.batch_generate_text(
+        ["First advisor prompt", "Second advisor prompt"],
+        Random(42),
+        show_spinner=False,
+        context=LLMContext.ADVISOR_PUSHBACK,
+    )
+
+    assert len(results) == 2
+    assert all(result.startswith("[ERROR:") for result in results)
+
+
+def test_failed_single_pushback_call_returns_error_not_mock_advice(monkeypatch):
+    monkeypatch.setattr(
+        router, "_get_text_driver", lambda model_name=None: AlwaysFailingDriver())
+
+    result = router.generate_text(
+        "Advisor pushback prompt",
+        Random(42),
+        show_spinner=False,
+        context=LLMContext.ADVISOR_PUSHBACK,
+    )
+
+    assert result.startswith("[ERROR:")
+
+
+def test_live_provider_init_fallback_does_not_fabricate_pushback(monkeypatch):
+    monkeypatch.setenv("WARGAME_LLM", "gemini")
+    monkeypatch.setattr(
+        router,
+        "_construct_text_driver",
+        lambda provider, model_name=None: MockDeterministicDriver(),
+    )
+
+    single = router.generate_text(
+        "Advisor pushback prompt",
+        Random(42),
+        show_spinner=False,
+        context=LLMContext.ADVISOR_PUSHBACK,
+    )
+    batch = router.batch_generate_text(
+        ["First advisor prompt", "Second advisor prompt"],
+        Random(42),
+        show_spinner=False,
+        context=LLMContext.ADVISOR_PUSHBACK,
+    )
+
+    assert single.startswith("[ERROR:")
+    assert all(result.startswith("[ERROR:") for result in batch)
 
 
 def test_transient_failure_retries_once_and_succeeds(monkeypatch):

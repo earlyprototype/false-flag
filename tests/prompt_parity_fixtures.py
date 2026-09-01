@@ -3,11 +3,10 @@
 The golden file (tests/data/prompt_parity_golden.json) holds the intended
 text of the three hot-editable families. It was first captured against the
 PRE-refactor builders (the inline f-string templates) to prove the move to
-data/prompts/*.txt changed nothing; it was re-captured once, for issue #91,
-when two lines were deliberately rewritten (the pushback prompt's worked
-example and the advisor-voice rule about the metric figures). Any other
-change to those bytes is drift, and tests/test_prompt_templates.py fails on
-it.
+data/prompts/*.txt changed nothing. It was deliberately re-captured for
+issue #91's presentation fixes and issue #87's per-advisor pushback prompt.
+Any other change to those bytes is drift, and
+tests/test_prompt_templates.py fails on it.
 
 build_all_prompts also assembles the builders the golden does not pin, so
 tests/test_presentation_rules.py can check every prompt against the rules
@@ -114,7 +113,7 @@ def build_all_prompts() -> Dict[str, str]:
         ),
         "advisor_pushback": build_pushback_prompt(
             world, action, "The PM intends a naval shadowing operation.",
-            conditions, transcript, event_ledger=None,
+            conditions, "chief_defence_staff", transcript, event_ledger=None,
         ),
         "advisor_qa_fanout": build_advisor_context(
             world, conditions, "chief_defence_staff",

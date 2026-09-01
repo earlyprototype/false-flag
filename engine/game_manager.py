@@ -21,6 +21,7 @@ from engine.scenario_loader import (
     load_narrative_configs,
 )
 from engine.sim_loop import run_turn_briefing, run_turn_decision, run_turn_discussion  # noqa: F401 (run_turn_decision: preview path)
+from llm.parsing import is_error_response
 
 # Environment flag to disable Rich output in engine modules
 os.environ["WARGAME_RICH_UI"] = "false"
@@ -397,8 +398,12 @@ class GameManager:
 
         # Remember who objected to exactly this text: overriding them
         # unamended at commit time has a trust cost (ER-013).
+        objectors = [
+            role for role, concern in pushback
+            if not is_error_response(concern)
+        ]
         self._pending_pushback = (
-            (action_text, [role for role, _ in pushback]) if pushback else None
+            (action_text, objectors) if objectors else None
         )
 
         # And remember everything the preview produced, keyed by the exact
@@ -426,13 +431,10 @@ class GameManager:
             "timeline": "Immediate" # Placeholder
         }
 
-    # The pushback parser returns whichever name the model used. The roster
-    # now carries the cabinet titles themselves, so a model answering in those
-    # matches directly; this maps the abstracted persona names it may still
-    # reach for ("Military Commander") onto the same seat. Without that bridge
-    # most objections matched nothing and overriding the cabinet stayed free -
-    # the first instrumented live run showed five of six objector names
-    # missing the roster (ER-073). Mirrors
+    # New pushback is attributed from the roster, so it carries cabinet titles.
+    # Saved previews from older versions may still contain abstract persona
+    # names ("Military Commander"); this bridge keeps their trust cost attached
+    # to the same seat (ER-073). Mirrors
     # cli/display_utils._ROLE_DISPLAY_TITLES (engine cannot import from cli).
     _PERSONA_ROLE_TITLES = {
         "military commander": "chief of the defence staff",

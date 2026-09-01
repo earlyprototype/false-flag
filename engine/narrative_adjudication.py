@@ -26,6 +26,7 @@ from llm.parsing import (
     extract_label,
     find_float,
     find_signed_int,
+    is_error_response,
     match_enum,
     strip_decoration,
 )
@@ -97,10 +98,15 @@ def _objector_roles(pushback) -> List[str]:
     for item in pushback or []:
         if isinstance(item, dict):
             role = item.get("role", "")
+            concern = item.get("concern", "")
         elif isinstance(item, (tuple, list)) and item:
             role = item[0]
+            concern = item[1] if len(item) > 1 else ""
         else:
             role = item
+            concern = ""
+        if is_error_response(concern):
+            continue
         role = str(role).strip()
         if role:
             roles.append(role)
