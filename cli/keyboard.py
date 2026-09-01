@@ -6,8 +6,8 @@ strategies, picked at runtime:
 - Windows console: msvcrt kbhit/getch (as before, plus a small sleep so the
   wait loop no longer spins at 100% CPU).
 - POSIX terminal: termios/tty cbreak mode with a select() timeout.
-- Non-interactive stdin (pipes, CI, some IDE consoles): fall back to a plain
-  input() line read so scripted runs never hang waiting for a keypress.
+- Non-interactive stdin (pipes, CI, some IDE consoles): return immediately
+  without consuming redirected input, preserving scripted lines for prompts.
 """
 
 import sys
@@ -64,11 +64,17 @@ def key_pressed(keys=(" ",)) -> bool:
 def wait_for_key(prompt: str = "Press SPACE (or Enter) to continue...", keys=(" ",)) -> None:
     """Block until one of `keys` is pressed.
 
-    On non-interactive stdin, reads a line instead so piped input and CI
-    runs proceed rather than soft-locking.
+    On non-interactive stdin, returns immediately without consuming input, so
+    piped lines remain available to the game's real prompts.
     """
     print("")
     print(prompt)
+
+    if not _stdin_is_tty():
+        # Piped/redirected input (scripts, CI): don't block and don't consume
+        # stdin — lines belong to the game's real prompts, not pacing gates.
+        print("")
+        return
 
     if _WINDOWS:
         while True:
@@ -81,12 +87,6 @@ def wait_for_key(prompt: str = "Press SPACE (or Enter) to continue...", keys=(" 
                 except AttributeError:
                     pass
             time.sleep(0.02)
-
-    if not _stdin_is_tty():
-        # Piped/redirected input (scripts, CI): don't block and don't consume
-        # stdin — lines belong to the game's real prompts, not pacing gates.
-        print("")
-        return
 
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)

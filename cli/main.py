@@ -137,6 +137,30 @@ def wait_for_space(prompt: str = "Press SPACE (or Enter) to continue...") -> Non
     wait_for_key(prompt)
 
 
+def _end_session() -> None:
+    """Close the session in fiction on EOF/Ctrl-C with exit code 0."""
+    COLORS = theme_manager.get_colors()
+    console.print("")
+    console.print(f"[{COLORS['muted']}]SIGNAL LOST — secure line closed.[/{COLORS['muted']}]")
+    raise typer.Exit(0)
+
+
+def _prompt(text: str, **kwargs) -> str:
+    """typer.prompt that ends the session cleanly on EOF/Ctrl-C."""
+    try:
+        return typer.prompt(text, **kwargs)
+    except (typer.Abort, EOFError):
+        _end_session()
+
+
+def _confirm(text: str, **kwargs) -> bool:
+    """typer.confirm that ends the session cleanly on EOF/Ctrl-C."""
+    try:
+        return typer.confirm(text, **kwargs)
+    except (typer.Abort, EOFError):
+        _end_session()
+
+
 def display_critical_concerns_with_selection(critical_concerns: list) -> tuple:
     """Display critical concerns and let player select which to address.
     
@@ -175,14 +199,14 @@ def display_critical_concerns_with_selection(critical_concerns: list) -> tuple:
     console.print(f"  [{COLORS['primary']}]D[/{COLORS['primary']}] - Return to discussion phase")
     console.print("")
     
-    choice = typer.prompt("Choose", type=str).strip().upper()
+    choice = _prompt("Choose", type=str).strip().upper()
     
     if choice == "A":
         return ('A', list(range(len(critical_concerns))))
     elif choice == "S":
         console.print("")
         console.print("Enter concern numbers separated by spaces (e.g., '1 3')")
-        selection = typer.prompt("Select").strip()
+        selection = _prompt("Select").strip()
         try:
             indices = [int(x) - 1 for x in selection.split()]
             valid_indices = [i for i in indices if 0 <= i < len(critical_concerns)]
@@ -287,7 +311,7 @@ def run_decision_phase(world, scenario: str, rng: Random, root: Path,
 
         typer.echo("")
 
-        action = typer.prompt("Decision>", default=pending_decision, show_default=False).strip()
+        action = _prompt("Decision>", default=pending_decision, show_default=False).strip()
         pending_decision = ""
 
         if action.lower() == "cancel":
@@ -323,7 +347,7 @@ def run_decision_phase(world, scenario: str, rng: Random, root: Path,
         display_decision_summary(action, interpretation, show_details=False)
 
         # Option to see full details
-        see_details = typer.prompt(
+        see_details = _prompt(
             "Press Enter to continue (or type 'details' for the full interpretation)",
             default="", show_default=False
         ).strip().lower()
@@ -364,7 +388,7 @@ def run_decision_phase(world, scenario: str, rng: Random, root: Path,
                 console.print("")
 
                 # Confirm
-                confirm = typer.confirm("Proceed with enhanced decision?", default=True)
+                confirm = _confirm("Proceed with enhanced decision?", default=True)
 
                 if not confirm:
                     console.print("")
@@ -397,7 +421,7 @@ def run_decision_phase(world, scenario: str, rng: Random, root: Path,
                     console.print(f"[{COLORS['warning']}]{SYMBOLS['warning']} Warning: Critical concerns remain.[/{COLORS['warning']}]")
                     console.print("")
                     # Let player proceed or go back
-                    cont = typer.confirm("Proceed anyway?", default=False)
+                    cont = _confirm("Proceed anyway?", default=False)
                     if not cont:
                         # Issue #16: keep the enhanced decision in hand -
                         # the next Decision> prompt re-offers it instead of
@@ -427,7 +451,7 @@ def run_decision_phase(world, scenario: str, rng: Random, root: Path,
             console.print(f"  [{COLORS['primary']}]A[/{COLORS['primary']}] - Amend the decision (re-enter decision text)")
             console.print(f"  [{COLORS['primary']}]C[/{COLORS['primary']}] - Cancel and return to discussion")
             typer.echo("")
-            choice = typer.prompt("Choose [P/A/C]", default="P", show_default=False).strip().upper()
+            choice = _prompt("Choose [P/A/C]", default="P", show_default=False).strip().upper()
             if choice == "A":
                 # Amend: re-prompt for decision text without returning
                 # to the discussion phase. The notice is deferred so it
@@ -504,7 +528,7 @@ def select_scenario_variant(scenario_id: str) -> str:
     console.print("")
     while True:
         try:
-            choice = typer.prompt("Select scenario (enter number)", type=int, default=1)
+            choice = _prompt("Select scenario (enter number)", type=int, default=1)
             if 1 <= choice <= len(scenarios):
                 selected_key = scenarios[choice - 1][0]
                 selected_name = scenarios[choice - 1][1].get("name", selected_key)
@@ -516,7 +540,7 @@ def select_scenario_variant(scenario_id: str) -> str:
                 return selected_key
             else:
                 console.print(f"[{COLORS['danger']}]Please enter a number between 1 and {len(scenarios)}[/{COLORS['danger']}]")
-        except (ValueError, KeyboardInterrupt):
+        except ValueError:
             console.print(f"[{COLORS['danger']}]Invalid input. Please enter a number.[/{COLORS['danger']}]")
 
 
@@ -578,7 +602,7 @@ def select_play_mode() -> str:
     
     while True:
         try:
-            choice = typer.prompt("Select gameplay mode (enter number)", type=int, default=2)
+            choice = _prompt("Select gameplay mode (enter number)", type=int, default=2)
             if 1 <= choice <= len(modes):
                 selected_key = modes[choice - 1][0]
                 selected_name = modes[choice - 1][1]['name']
@@ -590,7 +614,7 @@ def select_play_mode() -> str:
                 return selected_key
             else:
                 console.print(f"[{COLORS['danger']}]Please enter a number between 1 and {len(modes)}[/{COLORS['danger']}]")
-        except (ValueError, KeyboardInterrupt):
+        except ValueError:
             console.print(f"[{COLORS['danger']}]Invalid input. Please enter a number.[/{COLORS['danger']}]")
 
 
@@ -660,7 +684,7 @@ def select_difficulty(scenario_id: str) -> str:
     # Get user selection
     while True:
         try:
-            choice = typer.prompt("Select difficulty (enter number)", type=int, default=1)
+            choice = _prompt("Select difficulty (enter number)", type=int, default=1)
             if 1 <= choice <= len(difficulties):
                 selected_key = difficulties[choice - 1][0]
                 selected_name = difficulties[choice - 1][1].get("name", selected_key)
@@ -672,7 +696,7 @@ def select_difficulty(scenario_id: str) -> str:
                 return selected_key
             else:
                 console.print(f"[{COLORS['danger']}]Please enter a number between 1 and {len(difficulties)}[/{COLORS['danger']}]")
-        except (ValueError, KeyboardInterrupt):
+        except ValueError:
             console.print(f"[{COLORS['danger']}]Invalid input. Please enter a number.[/{COLORS['danger']}]")
 
 
@@ -715,7 +739,7 @@ def select_narrative(scenario_id: str, rng: Random) -> Optional[NarrativeConfig]
     # Get user selection
     while True:
         try:
-            choice = typer.prompt("Select game type (enter number)", type=int, default=1)
+            choice = _prompt("Select game type (enter number)", type=int, default=1)
             if choice == 1:
                 # Original Story Mode - no secret narrative
                 console.print("")
@@ -741,7 +765,7 @@ def select_narrative(scenario_id: str, rng: Random) -> Optional[NarrativeConfig]
                     return None
             else:
                 console.print(f"[{COLORS['danger']}]Please enter 1 or 2[/{COLORS['danger']}]")
-        except (ValueError, KeyboardInterrupt):
+        except ValueError:
             console.print(f"[{COLORS['danger']}]Invalid input. Please enter a number.[/{COLORS['danger']}]")
 
 
@@ -1109,7 +1133,7 @@ def play(
             rng,
             root,
             transcript,
-            get_player_input=lambda prompt: typer.prompt(prompt).strip(),
+            get_player_input=lambda prompt: _prompt(prompt).strip(),
             turn_filename=turn_filename,
             silent_effects=is_turn1_intro or play_mode != "classic",  # Hide raw-number effect boxes for Turn 1 intro and non-classic modes
             # Always suppress the in-function panel: the screen is cleared right
@@ -1269,7 +1293,7 @@ def play(
             while True:
                 # default="" stops click's internal re-prompt on empty input,
                 # which rendered a doubled ">: >: " prompt on one line
-                user_input = typer.prompt(">", default="", show_default=False).strip()
+                user_input = _prompt(">", default="", show_default=False).strip()
 
                 if not user_input:
                     if not sys.stdin.isatty():
@@ -1311,7 +1335,7 @@ def play(
                     console.print("  4. Slate (Black/White Monochrome)")
                     typer.echo("")
                 
-                    theme_choice = typer.prompt("Select theme (1-4)").strip()
+                    theme_choice = _prompt("Select theme (1-4)").strip()
                     theme_map = {"1": "standard", "2": "defcon1", "3": "retro", "4": "slate"}
                 
                     if theme_choice in theme_map:
@@ -1450,7 +1474,7 @@ def play(
                         rng=rng,
                         root_path=root,
                         full_transcript=transcript,
-                        get_player_input=lambda prompt: typer.prompt(prompt).strip(),
+                        get_player_input=lambda prompt: _prompt(prompt).strip(),
                         print_fn=typer.echo,  # Print in real-time
                         # Immersive/emergent hide metrics everywhere else; the
                         # call's closing line follows the same rule
@@ -2178,7 +2202,7 @@ def play(
                     typer.echo(line)
             typer.echo("")
 
-            if typer.confirm("Continue playing open-ended (no further win/lose checks)?", default=False):
+            if _confirm("Continue playing open-ended (no further win/lose checks)?", default=False):
                 endings_disabled = True
                 typer.echo("")
             else:

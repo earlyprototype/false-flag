@@ -41,11 +41,6 @@ from types import SimpleNamespace
 
 import pytest
 
-pytestmark = pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="Piped-stdin input model differs on Windows (msvcrt consumes keys)",
-)
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SAVES_DIR = REPO_ROOT / "saves"
 AUTOSAVE = SAVES_DIR / "war_game_2025_autosave.json"
@@ -75,12 +70,13 @@ def _run_game(stdin_text, extra_args=()):
     """Run `python -m cli.main play` headlessly with scripted stdin."""
     env = dict(os.environ)
     env["WARGAME_LLM"] = "mock"  # force deterministic mock driver
+    env["PYTHONIOENCODING"] = "utf-8"
     started = time.monotonic()
     result = subprocess.run(
         [sys.executable, "-m", "cli.main", "play", *extra_args],
         input=stdin_text,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
         cwd=str(REPO_ROOT),
         env=env,
         timeout=SUBPROCESS_TIMEOUT,
