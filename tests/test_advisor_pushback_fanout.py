@@ -167,10 +167,11 @@ def test_failed_and_malformed_pushback_slots_are_visible_without_cross_talk():
         "Foreign Secretary",
         "Attorney General",
     ]
-    for _role, message in result[1:]:
-        assert "unavailable" in message.lower()
-        assert "HTTP 429" not in message
-        assert "belongs to another seat" not in message
+    assert result[1:] == [
+        ("Home Secretary", "[ERROR: Advisor response unavailable]"),
+        ("Foreign Secretary", "[ERROR: Advisor response malformed]"),
+        ("Attorney General", "[ERROR: Advisor response malformed]"),
+    ]
 
 
 def test_whole_pushback_batch_failure_is_visible_for_every_advisor():
@@ -530,7 +531,7 @@ def test_role_prefixed_cross_talk_is_visible_as_malformed(leaked):
     )
 
     assert result == [
-        ("Chief of the Defence Staff", "[ERROR: Advisor response unavailable]")
+        ("Chief of the Defence Staff", "[ERROR: Advisor response malformed]")
     ]
 
 
@@ -705,6 +706,12 @@ def test_each_advisor_may_prefix_its_own_reply_without_owning_attribution():
     "NO PUSHBACK\nNo trigger is activated.",
     "NO PUSHBACK. None of my listed concerns applies.",
     "NO PUSHBACK. Nothing raises an objection under my remit.",
+    "NO PUSHBACK. I have no concerns.",
+    "NO PUSHBACK — no trigger is activated.",
+    "NO PUSHBACK (no trigger activated)",
+    "NO PUSHBACK. Nothing triggers a concern.",
+    "NO PUSHBACK. No trigger applies to this order.",
+    "NO PUSHBACK. No concerns arise.",
 ])
 def test_leading_or_tolerated_prefixed_no_pushback_remains_a_sentinel(reply):
     before = parse_health.snapshot()["fallbacks"].get("advisor_pushback", 0)
