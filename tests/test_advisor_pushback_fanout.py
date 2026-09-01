@@ -13,6 +13,7 @@ from agents.conversation import (
     handle_player_question_all,
 )
 from engine.initial_conditions import load_initial_conditions
+from llm import parse_health
 from llm.mock_driver import MockDeterministicDriver
 from models.narrative import NarrativeConfig
 from models.world import Metrics, WorldState
@@ -634,6 +635,60 @@ def test_each_advisor_may_prefix_its_own_reply_without_owning_attribution():
         (conditions["characters"][char_id]["role"], concern)
         for char_id, concern in zip(ADVISOR_IDS, concerns)
     ]
+
+
+@pytest.mark.parametrize("reply", [
+    "Chief of the Defence Staff: NO PUSHBACK",
+    "Prime Minister, NO PUSHBACK",
+])
+def test_tolerated_prefix_keeps_no_pushback_as_a_sentinel(reply):
+    before = parse_health.snapshot()["fallbacks"].get("advisor_pushback", 0)
+
+    def batch(prompts, rng, **kwargs):
+        return [reply] + ["NO PUSHBACK"] * (len(prompts) - 1)
+
+    result = generate_advisor_pushback(
+        _world(),
+        "Hold the current posture.",
+        "No change in posture.",
+        _conditions(),
+        _unused_single,
+        Random(31),
+        llm_batch_fn=batch,
+    )
+
+    assert result == []
+    assert (
+        parse_health.snapshot()["fallbacks"].get("advisor_pushback", 0)
+        == before
+    )
+
+
+def test_all_advisors_may_prefix_no_pushback_without_false_outage():
+    conditions = _conditions()
+    before = parse_health.snapshot()["fallbacks"].get("advisor_pushback", 0)
+
+    def batch(prompts, rng, **kwargs):
+        return [
+            f"{conditions['characters'][char_id]['role']}: NO PUSHBACK"
+            for char_id in ADVISOR_IDS
+        ]
+
+    result = generate_advisor_pushback(
+        _world(),
+        "Hold the current posture.",
+        "No change in posture.",
+        conditions,
+        _unused_single,
+        Random(32),
+        llm_batch_fn=batch,
+    )
+
+    assert result == []
+    assert (
+        parse_health.snapshot()["fallbacks"].get("advisor_pushback", 0)
+        == before
+    )
 
 
 def test_current_advisor_legacy_alias_is_stripped_and_kept():
