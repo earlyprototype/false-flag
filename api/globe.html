@@ -145,9 +145,8 @@
    base, then follows that game's SSE stream so a live event visibly
    moves the display.
 
-   ONE CONSUMER ONLY. /stream/{id} is a destructive single-consumer
-   queue until Slice 1's per-subscriber fan-out lands: a second reader
-   (a dashboard tab on the same session) steals events from this page.
+   Live events fan out to the dashboard and globe while both are attached.
+   The pre-connect backlog goes only to the first subscriber.
    =================================================================== */
 
 const $ = id => document.getElementById(id);
