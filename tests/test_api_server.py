@@ -479,6 +479,8 @@ def test_globe_page_serves_the_exercise_marked_situation_globe(client):
     assert "EXERCISE" in body
     assert "/resources" in body and "/stream/" in body
     assert "UNRESOLVED" in body.upper()  # the tray for unplaceable units
+    # Manual zoom redundancy (#107): buttons and slider must keep shipping.
+    assert "btnZoomIn" in body and "btnZoomOut" in body and "zoomSlider" in body
 
 
 def test_globe_gazetteer_covers_every_order_of_battle_location():

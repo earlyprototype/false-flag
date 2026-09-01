@@ -88,6 +88,8 @@
   button:hover { border-color: var(--accent); color: #fff; }
   button.on { border-color: var(--accent); color: #fff; background: #10293a; }
   #tools { position: absolute; left: 12px; top: 34px; z-index: 18; display: flex; gap: 6px; }
+  #tools input[type=range] { width: 110px; align-self: center; background: transparent;
+    border: 0; padding: 0; accent-color: var(--accent); }
   .err { color: var(--alarm); }
 </style>
 </head>
@@ -109,6 +111,9 @@
   <button id="btnFlir" title="Vendored FLIR sensor shader (MIT, gods-eye-view)">FLIR</button>
   <button id="btnCrt" title="CRT-green resting filter — preview for decision N4 (#74)">CRT</button>
   <button id="btnHome" title="Return to the theatre view">Theatre</button>
+  <button id="btnZoomOut" title="Zoom out (#107)" aria-label="Zoom out">&minus;</button>
+  <input id="zoomSlider" type="range" min="0" max="1000" title="Zoom" aria-label="Zoom level">
+  <button id="btnZoomIn" title="Zoom in (#107)" aria-label="Zoom in">+</button>
 </div>
 
 <div id="tray">
@@ -267,6 +272,66 @@ $("btnCrt").onclick = () => {
   crtStage.enabled = !crtStage.enabled;
   $("btnCrt").classList.toggle("on", crtStage.enabled);
 };
+
+/* ----------------------------------------------------- manual zoom (#107) */
+/* On-screen zoom redundancy: trackpad pinch is unreliable on some demo
+   laptops and projector rigs need controls that don't depend on input
+   hardware. Zoom moves along the view ray (camera.zoomIn), so a tilted
+   camera never snaps; the slider maps camera height on a log scale and
+   tracks native wheel/pinch zoom too. Display-only. */
+const ZOOM_MIN_M = 2000, ZOOM_MAX_M = 20000000; // ~2 km … ~20,000 km
+const camHeight = () => viewer.camera.positionCartographic.height;
+const zFrac = h => Math.log(h / ZOOM_MIN_M) / Math.log(ZOOM_MAX_M / ZOOM_MIN_M);
+const zHeightOf = t => ZOOM_MIN_M * Math.pow(ZOOM_MAX_M / ZOOM_MIN_M, t);
+/* Buttons zoom along the view ray (feels natural when tilted), with the
+   target clamped to the range the slider can represent so the three
+   controls always agree (review finding, PR #108). */
+/* Amounts are floored at zero: outside the range the clamp would go
+   negative, and Cesium moves a negative amount the OPPOSITE way — the
+   + button must never zoom out (review, PR #108). At the bound the
+   button is simply a no-op. */
+$("btnZoomIn").onclick = () => {
+  const h = camHeight();
+  viewer.camera.zoomIn(Math.max(0, h - Math.max(ZOOM_MIN_M, h * 0.65)));
+};
+$("btnZoomOut").onclick = () => {
+  const h = camHeight();
+  viewer.camera.zoomOut(Math.max(0, Math.min(ZOOM_MAX_M, h * 1.55) - h));
+};
+/* The slider SETS height: setView at the camera's own lon/lat with the
+   target height, orientation preserved — never a translation along the
+   view ray, which under tilt delivers only amount*sin(pitch) of height
+   and shoves the camera sideways (review finding, PR #108). */
+const zoomSlider = $("zoomSlider");
+let sliderHeld = false; // spans frames: camera.changed fires per FRAME, not synchronously
+zoomSlider.addEventListener("pointerdown", () => { sliderHeld = true; });
+zoomSlider.addEventListener("pointerup", () => { sliderHeld = false; });
+zoomSlider.addEventListener("pointercancel", () => { sliderHeld = false; });
+// A release the input never sees (lost pointer) must still clear the
+// flag, or the slider stops tracking wheel zoom for the session.
+window.addEventListener("pointerup", () => { sliderHeld = false; });
+zoomSlider.oninput = () => {
+  // Right = closer: slider value 1000 is ZOOM_MIN_M, 0 is ZOOM_MAX_M.
+  const carto = viewer.camera.positionCartographic;
+  viewer.camera.setView({
+    destination: Cesium.Cartesian3.fromRadians(
+      carto.longitude, carto.latitude, zHeightOf(1 - zoomSlider.value / 1000)),
+    orientation: {
+      heading: viewer.camera.heading,
+      pitch: viewer.camera.pitch,
+      roll: viewer.camera.roll,
+    },
+  });
+};
+function syncZoomSlider() {
+  const h = camHeight();
+  if (!Number.isFinite(h) || h <= 0) return; // NaN would silently reset a range input
+  const t = Math.max(0, Math.min(1, zFrac(h)));
+  zoomSlider.value = String(Math.round((1 - t) * 1000));
+}
+viewer.camera.percentageChanged = 0.01; // fine-grained 'changed' so the slider tracks
+viewer.camera.changed.addEventListener(() => { if (!sliderHeld) syncZoomSlider(); });
+syncZoomSlider(); // initial thumb from the real camera, not a magic number in the markup
 
 /* ----------------------------------------------------------- unit plots */
 const BRANCH_COLOUR = {

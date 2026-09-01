@@ -36,6 +36,7 @@
 ## DOING
 
 *   [ ] In progress (keep to 1-3 items)
+*   [ ] Globe manual zoom controls: +/− buttons and slider (#107) - https://github.com/earlyprototype/false-flag/issues/107 — branch feat/107-globe-zoom-controls — owner-requested input redundancy (trackpad pinch unreliable; projector rigs). PM-built small bounded fix.
 
 ## REVIEW
 *   [ ] Audit recent Claude threads and enforce onboarding - Verify the last few Claude sessions against PLAN/docs, correct source attribution, and make AGENTS/CLAUDE point future sessions to the recent-session index.
