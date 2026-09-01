@@ -879,6 +879,24 @@ def generate_advisor_pushback(
         lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
         if len(lines) == 1 and is_sentinel_line(lines[0], "NO PUSHBACK"):
             continue
+        if len(lines) == 1:
+            (candidate, self_attributed, _narrative_as,
+             malformed_intro) = _normalize_pushback_attribution_intro(
+                strip_decoration(lines[0]), known_roles)
+            prefixed = None if malformed_intro else _extract_pushback_prefix(
+                candidate, known_roles)
+            if prefixed is not None:
+                (prefix, stripped, is_direct, _is_speaker_prefix,
+                 is_narrative_attribution) = prefixed
+                is_player_vocative = (
+                    prefix in player_roles and is_direct
+                    and not self_attributed)
+                if (stripped is not None
+                        and is_sentinel_line(stripped, "NO PUSHBACK")
+                        and (is_player_vocative
+                             or (prefix in own_roles
+                                 and not is_narrative_attribution))):
+                    continue
 
         # Attribution always comes from the roster. Tolerate and strip a
         # redundant self-prefix or player vocative; reject another seat only
