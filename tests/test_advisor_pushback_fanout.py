@@ -354,6 +354,18 @@ def test_offline_pushback_is_visible_as_unavailable():
     ("Chief of the Defence Staff: NO PUSHBACK. No carrier can deploy safely "
      "at this readiness."),
     "Prime Minister, NO PUSHBACK. Nothing justifies nuclear first use.",
+    "NO PUSHBACK. No warning systems are operational.",
+    "NO PUSHBACK. No concerns have been addressed.",
+    "NO PUSHBACK. No objection can be ignored safely.",
+    "NO PUSHBACK. Nothing in the warning reached Northwood.",
+    "NO PUSHBACK. Nothing raises greater concern than nuclear first use.",
+    "NO PUSHBACK. No objection is more serious than nuclear first use.",
+    ("NO PUSHBACK. None of my reservations is stronger than carrier "
+     "unreadiness."),
+    ("Chief of the Defence Staff: NO PUSHBACK. Nothing triggers greater "
+     "concern than first use."),
+    ("Prime Minister, NO PUSHBACK. No warning is graver than an unready "
+     "carrier."),
     ("As the Foreign Secretary warned, As the Attorney General advised, "
      "Speaking as the Home Secretary, I object."),
     ("As the Foreign Secretary warned, and Speaking as the Attorney "
@@ -654,6 +666,8 @@ def test_each_advisor_may_prefix_its_own_reply_without_owning_attribution():
     "NO PUSHBACK, no trigger is activated.",
     "NO PUSHBACK. No trigger is activated.",
     "NO PUSHBACK\nNo trigger is activated.",
+    "NO PUSHBACK. None of my listed concerns applies.",
+    "NO PUSHBACK. Nothing raises an objection under my remit.",
 ])
 def test_leading_or_tolerated_prefixed_no_pushback_remains_a_sentinel(reply):
     before = parse_health.snapshot()["fallbacks"].get("advisor_pushback", 0)
