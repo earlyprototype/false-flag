@@ -348,6 +348,12 @@ def test_offline_pushback_is_visible_as_unavailable():
     "NO PUSHBACK\nThe carrier cannot sail.",
     "Chief of the Defence Staff: NO PUSHBACK, but the carrier cannot sail.",
     "Prime Minister, NO PUSHBACK. However, the carrier cannot sail.",
+    "NO PUSHBACK. No carrier can deploy safely at this readiness.",
+    "NO PUSHBACK. Nothing justifies nuclear first use.",
+    "NO PUSHBACK. None of our allies will support this.",
+    ("Chief of the Defence Staff: NO PUSHBACK. No carrier can deploy safely "
+     "at this readiness."),
+    "Prime Minister, NO PUSHBACK. Nothing justifies nuclear first use.",
     ("As the Foreign Secretary warned, As the Attorney General advised, "
      "Speaking as the Home Secretary, I object."),
     ("As the Foreign Secretary warned, and Speaking as the Attorney "
