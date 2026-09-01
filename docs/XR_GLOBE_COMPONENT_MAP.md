@@ -2,7 +2,7 @@
 
 > **New here?** This is an engineering-fidelity document — dense on purpose, written for whoever builds and maintains this so nothing is lost between sessions. For the plain-language version, start with [`XR_GLOBE_FEASIBILITY_IN_BRIEF.md`](XR_GLOBE_FEASIBILITY_IN_BRIEF.md); the plan is [`PLAN.md`](../PLAN.md), the explanation is [the Owner's Brief](OWNERS_BRIEF.md), and the current calls and defaults are in [`DECISION_BRIEFS.md`](DECISION_BRIEFS.md).
 
-**Visual companion to [`XR_GLOBE_FEASIBILITY.md`](XR_GLOBE_FEASIBILITY.md).** Every box below is classified: **CORE** (solid, in the sprint), **STRETCH** (attempt only behind its decision gate), or **DEFERRED** (Afterwards tier — beyond 14 Sep, design verified and waiting). Links under each diagram go to the study section or file that specifies the component. Milestones and decision points are in the last diagram.
+**Visual companion to [`XR_GLOBE_FEASIBILITY.md`](XR_GLOBE_FEASIBILITY.md).** Every box below is classified: **CORE** (solid, in the sprint), **STRETCH** (attempt only behind its decision gate), or **DEFERRED** (Afterwards tier — design verified and waiting; no schedule ruled). Links under each diagram go to the study section or file that specifies the component. Milestones and decision points are in the last diagram.
 
 ---
 

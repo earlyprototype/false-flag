@@ -38,7 +38,7 @@ The globe stages above are one of two workstreams; the other is cabinet-advisor 
 - **Stage 2 · The Fleet Moves**, then the schedule check
 - [#87](https://github.com/earlyprototype/false-flag/issues/87) full per-advisor fan-out · [#88](https://github.com/earlyprototype/false-flag/issues/88) per-advisor private continuity + engine-readable state
 
-**Later** — not before 14 Sep unless the stretch gate opens room
+**Later** — sequenced after Now and Next; the stretch gate can pull items forward. No timing has been ruled — the owner schedules.
 - Stages 3–5 per the gates below · [#90](https://github.com/earlyprototype/false-flag/issues/90) advisor hidden-state parity with foreign actors · [#92](https://github.com/earlyprototype/false-flag/issues/92) visual-design pass · [#76](https://github.com/earlyprototype/false-flag/issues/76) real-email inject · [#77](https://github.com/earlyprototype/false-flag/issues/77) live-hybrid mode
 
 **Decisions** — under the owner's 30 Aug "plan then go" authorization, each open decision proceeds on the working default recorded in its issue; commenting on the issue overturns the default at any time. Ruled and closed: [#72](https://github.com/earlyprototype/false-flag/issues/72) map-data folder (split, 1 Sep) · [#74](https://github.com/earlyprototype/false-flag/issues/74) default visual register (all options stay behind switches, 31 Aug). Open: [#73](https://github.com/earlyprototype/false-flag/issues/73) users' campaign cut · [#75](https://github.com/earlyprototype/false-flag/issues/75) Quest availability (assumed yes; stays open until confirmed) · [#89](https://github.com/earlyprototype/false-flag/issues/89) scope to one game type + Mystery mode (gets its own branch when that work starts)
@@ -128,7 +128,7 @@ Built only if Stage 4 is complete with at least three clear days before the onsi
 
 ---
 
-## Afterwards — deferred beyond 14 Sep, each buildable on its own
+## Afterwards — each buildable on its own, scheduled only by the owner
 
 - [ ] Tripwire engine — declarative line-crossing predicates evaluated at the top of `get_turn_briefing`
 - [ ] Fog of war and patrol tasking — `engine/intel_picture.py`, staleness-radius estimates, derived-seed noise
