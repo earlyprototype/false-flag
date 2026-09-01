@@ -14,14 +14,23 @@ from typing import Optional, Sequence
 
 # Decoration characters found around labels and values: markdown emphasis,
 # backticks, quotes, brackets, blockquote/heading markers, and list bullets.
-_DECORATION_CHARS = "*_`\"'[]()>#•–—- \t"
+_DECORATION_CHARS = (
+    "*_`\"'[]()>#- \t"
+    "\u2022\u2013\u2014\u2018\u2019\u201c\u201d"
+)
 
 # Leading decoration before a label: any mix of the characters above,
 # optionally with a numbered bullet ("1." / "2)") in the middle.
-_LEAD_RE = r"^[\s*_`>#•–—\-]*(?:\d+[.)][\s*_`>#•–—\-]*)?"
+_LEAD_DECORATION_RE = (
+    r"\s*_`\"'>#\u2022\u2013\u2014\u2018\u2019\u201c\u201d\-"
+)
+_LEAD_RE = (
+    rf"^[{_LEAD_DECORATION_RE}]*"
+    rf"(?:\d+[.)][{_LEAD_DECORATION_RE}]*)?"
+)
 
 _ERROR_RESPONSE_RE = re.compile(
-    _LEAD_RE + r'''[*_`"']*\[\s*(?:error|offline\s+mode)\s*:''',
+    _LEAD_RE + r"\[\s*(?:error|offline\s+mode)\s*:",
     re.IGNORECASE,
 )
 

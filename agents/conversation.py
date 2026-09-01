@@ -4,8 +4,9 @@ Replaces the old hardcoded AdvisorProposal system with free-form Q&A.
 """
 
 import re
-from typing import Any, Dict, List, Optional, Set, Tuple
+import unicodedata
 from random import Random
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from models.world import WorldState
 from llm.prompts import (
@@ -68,6 +69,37 @@ _ADDRESS_RE = re.compile(
 )
 
 _PUSHBACK_SEPARATORS = ",;:\u2013\u2014-"
+_NO_PUSHBACK_PATTERN = (
+    r"(?<![A-Za-z0-9])NO(?:\s+|_)PUSHBACK(?![A-Za-z0-9])")
+_PUSHBACK_SENTINEL_WRAPPERS = {
+    "(": ")", "[": "]", "\"": "\"", "'": "'", "`": "`",
+    "\u201c": "\u201d", "\u2018": "\u2019",
+    "*": "*", "**": "**", "***": "***",
+    "_": "_", "__": "__", "___": "___",
+}
+_PUSHBACK_SENTINEL_OPENERS = {
+    char for wrapper in _PUSHBACK_SENTINEL_WRAPPERS for char in wrapper
+}
+_PUSHBACK_SENTINEL_DECORATION = _PUSHBACK_SENTINEL_OPENERS | {
+    char
+    for wrapper in _PUSHBACK_SENTINEL_WRAPPERS.values()
+    for char in wrapper
+}
+# Invisible non-Cf ranges rejected at this plain-text protocol boundary.
+_INVISIBLE_UNICODE_RANGES = (
+    (0x034F, 0x034F),
+    (0x115F, 0x1160),
+    (0x17B4, 0x17B5),
+    (0x180B, 0x180D),
+    (0x180F, 0x180F),
+    (0x2065, 0x2065),
+    (0x2800, 0x2800),
+    (0x3164, 0x3164),
+    (0xFE00, 0xFE0F),
+    (0xFFA0, 0xFFA0),
+    (0xFFF0, 0xFFF8),
+    (0xE0000, 0xE0FFF),
+)
 _PUSHBACK_ATTRIBUTION_TRIM = " \t*_`\"'\u2018\u2019\u201c\u201d"
 _PUSHBACK_SPEECH_LABELS = {
     "advise", "advised", "advises", "advising",
@@ -360,20 +392,49 @@ def _find_pushback_failure_marker(text: str) -> Optional[str]:
         marker = text[bracket.start():]
         if is_error_response(marker):
             return marker
-    if re.search(
-            r"\bNO(?:\s+|_)PUSHBACK\b[*_`]*(?=\s*(?:,|$))", text):
-        return "NO PUSHBACK"
+    sentinel = re.search(_NO_PUSHBACK_PATTERN, text)
+    if sentinel is not None:
+        suffix = text[sentinel.end():].lstrip()
+        while suffix and suffix[0] in _PUSHBACK_SENTINEL_DECORATION:
+            suffix = suffix[1:].lstrip()
+        if not suffix or not suffix[0].isalnum():
+            return "NO PUSHBACK"
     return None
+
+
+def _has_invisible_unicode(text: str) -> bool:
+    """Return whether invisible Unicode formatting can alter visible text."""
+    for char in text:
+        if unicodedata.category(char) == "Cf":
+            return True
+        codepoint = ord(char)
+        if any(start <= codepoint <= end
+               for start, end in _INVISIBLE_UNICODE_RANGES):
+            return True
+    return False
 
 
 def _split_leading_pushback_sentinel(text: str) -> Optional[str]:
     """Return text after a leading no-pushback sentinel, if present."""
-    cleaned = strip_decoration(text)
-    match = re.match(
-        r"^NO(?:\s+|_)PUSHBACK\b", cleaned, re.IGNORECASE)
+    cleaned = re.sub(
+        r"^(?:(?:[-\u2013\u2014>#\u2022]|\d+[.)])\s+)",
+        "", text.strip(), count=1)
+    match = re.search(_NO_PUSHBACK_PATTERN, cleaned, re.IGNORECASE)
     if match is None:
         return None
-    return cleaned[match.end():].strip()
+    prefix = cleaned[:match.start()].strip()
+    tail = cleaned[match.end():].strip()
+    if prefix:
+        close = _PUSHBACK_SENTINEL_WRAPPERS.get(prefix)
+        if close is None:
+            return None
+        if tail.startswith(close):
+            tail = tail[len(close):]
+        elif tail.endswith(close):
+            tail = tail[:-len(close)]
+        else:
+            return None
+    return tail.strip()
 
 
 def _is_no_pushback_rationale_clause(clause: str) -> bool:
@@ -394,13 +455,18 @@ def _is_no_pushback_rationale_clause(clause: str) -> bool:
         "objection", "objections", "reservation", "reservations",
         "warning", "warnings",
     }
+    modifiers = {
+        "the", "my", "our", "your", "any", "listed", "stated",
+        "relevant", "applicable", "current", "active", "remaining",
+        "known", "identified",
+    }
     def has_only_context(rest: List[str]) -> bool:
         if not rest:
             return True
         return re.fullmatch(
             r"(?:here|"
             r"(?:for|in|by|to|on) (?:this|the) "
-            r"(?:decision|action|proposal|course|case|situation)|"
+            r"(?:decision|action|proposal|course|case|situation|order)|"
             r"(?:under|within) (?:my|our|this|the) "
             r"(?:remit|criteria|rules|scope))",
             " ".join(rest),
@@ -413,11 +479,6 @@ def _is_no_pushback_rationale_clause(clause: str) -> bool:
         ), None)
         if subject is None:
             return False
-        modifiers = {
-            "the", "my", "our", "your", "any", "listed", "stated",
-            "relevant", "applicable", "current", "active", "remaining",
-            "known", "identified",
-        }
         prefix = words[1:subject]
         if words[0] == "no":
             if any(word not in modifiers for word in prefix):
@@ -428,7 +489,11 @@ def _is_no_pushback_rationale_clause(clause: str) -> bool:
         predicate = words[subject + 1:]
         if not predicate:
             return False
-        if predicate[0] in {"apply", "applies", "exist", "exists", "remain", "remains"}:
+        if predicate[0] in {
+                "apply", "applies", "arise", "arises", "exist", "exists",
+                "remain", "remains"}:
+            return has_only_context(predicate[1:])
+        if predicate[0] in {"activated", "triggered"}:
             return has_only_context(predicate[1:])
         if (len(predicate) >= 2
                 and predicate[0] in {"is", "are", "was", "were"}
@@ -443,30 +508,44 @@ def _is_no_pushback_rationale_clause(clause: str) -> bool:
             return has_only_context(predicate[3:])
         return False
 
-    if words[0] == "nothing":
+    if words[0] == "i" and words[1:3] in (["have", "no"], ["see", "no"]):
         subject = next((
-            index for index, word in enumerate(words[1:9], start=1)
+            index for index, word in enumerate(words[3:9], start=3)
             if word in protocol_terms
         ), None)
-        prefix = words[1:subject] if subject is not None else []
-        if prefix[:1] == ["here"]:
-            prefix = prefix[1:]
+        return (
+            subject is not None
+            and all(word in modifiers for word in words[3:subject])
+            and has_only_context(words[subject + 1:])
+        )
+
+    if words[0] == "nothing":
         actions = {
             "raise", "raises", "trigger", "triggers", "warrant",
             "warrants", "create", "creates", "constitute", "constitutes",
         }
+        cursor = 1
+        if words[cursor:cursor + 1] == ["here"]:
+            cursor += 1
+        if cursor >= len(words) or words[cursor] not in actions:
+            return False
+        cursor += 1
+        if words[cursor:cursor + 1] in (["a"], ["an"], ["any"]):
+            cursor += 1
         return (
-            subject is not None
-            and bool(prefix)
-            and prefix[0] in actions
-            and prefix[1:] in ([], ["a"], ["an"], ["any"])
-            and has_only_context(words[subject + 1:])
+            cursor < len(words)
+            and words[cursor] in protocol_terms
+            and has_only_context(words[cursor + 1:])
         )
     return False
 
 
 def _is_no_pushback_rationale(text: str) -> bool:
     """Accept only explicit absence/non-applicability rationale."""
+    text = re.sub(r"^[,.\-\u2013\u2014]+\s*", "", text.strip())
+    wrapped = re.fullmatch(r"\((.*)\)[,.]?", text, re.DOTALL)
+    if wrapped is not None:
+        text = wrapped.group(1).strip()
     if re.fullmatch(r"[A-Za-z\s,.]*", text) is None:
         return False
     clauses = [
@@ -965,6 +1044,7 @@ def generate_advisor_pushback(
         context=LLMContext.ADVISOR_PUSHBACK)
     
     unavailable = "[ERROR: Advisor response unavailable]"
+    malformed_response = "[ERROR: Advisor response malformed]"
     known_roles = _known_pushback_roles(initial_conditions)
     player_roles = set(_ADVISOR_ROLE_ALIASES.get(PLAYER_CHARACTER_ID, []))
     player = get_character_info(initial_conditions, PLAYER_CHARACTER_ID) or {}
@@ -979,9 +1059,14 @@ def generate_advisor_pushback(
             own_roles.add(role.strip().lower())
         if not isinstance(response, str):
             record_fallback("advisor_pushback", f"{char_id} malformed reply")
-            result.append((role, unavailable))
+            result.append((role, malformed_response))
             continue
         cleaned = response.strip()
+
+        if _has_invisible_unicode(cleaned):
+            record_fallback("advisor_pushback", f"{char_id} malformed reply")
+            result.append((role, malformed_response))
+            continue
 
         if not cleaned or is_error_response(cleaned):
             record_fallback("advisor_pushback", f"{char_id} failed reply")
@@ -991,6 +1076,7 @@ def generate_advisor_pushback(
         lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
         sentinel_tail = (
             _split_leading_pushback_sentinel(lines[0]) if lines else None)
+        prefixed_response = None
         if sentinel_tail is None and lines:
             (candidate, self_attributed, _narrative_as,
              malformed_intro) = _normalize_pushback_attribution_intro(
@@ -1007,13 +1093,36 @@ def generate_advisor_pushback(
                         and (is_player_vocative
                              or (prefix in own_roles
                                  and not is_narrative_attribution))):
-                    sentinel_tail = _split_leading_pushback_sentinel(stripped)
+                    prefixed_response = stripped
+                    sentinel = re.search(
+                        _NO_PUSHBACK_PATTERN, stripped, re.IGNORECASE)
+                    if (sentinel is not None
+                            and all(
+                                char.isspace()
+                                or char in _PUSHBACK_SENTINEL_OPENERS
+                                for char in stripped[:sentinel.start()])):
+                        raw_sentinel = re.search(
+                            _NO_PUSHBACK_PATTERN, lines[0], re.IGNORECASE)
+                        if raw_sentinel is not None:
+                            raw_start = raw_sentinel.start()
+                            while (raw_start > 0
+                                   and (lines[0][raw_start - 1].isspace()
+                                        or lines[0][raw_start - 1]
+                                        in _PUSHBACK_SENTINEL_OPENERS)):
+                                raw_start -= 1
+                            sentinel_tail = _split_leading_pushback_sentinel(
+                                lines[0][raw_start:])
+        if (prefixed_response is not None
+                and is_error_response(prefixed_response)):
+            record_fallback("advisor_pushback", f"{char_id} failed reply")
+            result.append((role, unavailable))
+            continue
         if sentinel_tail is not None:
             rationale = "\n".join([sentinel_tail, *lines[1:]]).strip()
             if _is_no_pushback_rationale(rationale):
                 continue
             record_fallback("advisor_pushback", f"{char_id} malformed reply")
-            result.append((role, unavailable))
+            result.append((role, malformed_response))
             continue
 
         # Attribution always comes from the roster. Tolerate and strip a
@@ -1120,7 +1229,7 @@ def generate_advisor_pushback(
                 or is_sentinel_line(line, "NO PUSHBACK")
                 for line in parsed_lines):
             record_fallback("advisor_pushback", f"{char_id} malformed reply")
-            result.append((role, unavailable))
+            result.append((role, malformed_response))
             continue
 
         result.append((role, _scrub_turn_references("\n".join(parsed_lines))))
