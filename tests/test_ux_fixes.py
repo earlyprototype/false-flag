@@ -671,7 +671,10 @@ def test_play_eof_at_discussion_closes_session_cleanly(tmp_path):
     assert result.returncode == 0, (
         f"EOF run exited {result.returncode}:\n{out[-3000:]}")
     assert "SIGNAL LOST — secure line closed." in out
-    assert "Aborted." not in out
+    assert "DISCUSSION" in out
+    assert out.index("DISCUSSION") < out.index(
+        "SIGNAL LOST — secure line closed.")
+    assert "Aborted!" not in out
     assert "campaign is preserved in the last autosave" not in out.lower()
 
 
