@@ -12,11 +12,11 @@ Each stage names **what gets built** and the **done test**: an observable fact y
 
 | Stage | What it delivers | Status | Evidence |
 |---|---|---|---|
-| **1 · First Light** | The map page exists and shows the game's forces | `DONE` — projector done-test passed 31 Aug 2026 | [#94](https://github.com/earlyprototype/false-flag/issues/94) · [PR #95](https://github.com/earlyprototype/false-flag/pull/95) · [PR #104](https://github.com/earlyprototype/false-flag/pull/104) |
-| **2 · The Fleet Moves** | Units have real positions that advance each turn | `NOT STARTED` | — |
-| **3 · Standards on the Glass** | The map reads the digital-twin model; many screens can watch | `NOT STARTED` | — |
-| **4 · Show-Safe** | The demo runs to a written sequence without improvisation | `NOT STARTED` | — |
-| **5 · The Cabinet Orders the Map** | Decision text moves the forces | `NOT STARTED` — design settled ([#71](https://github.com/earlyprototype/false-flag/issues/71) closed: orders on); schedule-gated | — |
+| **1 · Globe Display** | The map page exists and shows the game's forces | `DONE` — projector done-test passed 31 Aug 2026 | [#94](https://github.com/earlyprototype/false-flag/issues/94) · [PR #95](https://github.com/earlyprototype/false-flag/pull/95) · [PR #104](https://github.com/earlyprototype/false-flag/pull/104) |
+| **2 · Spatial State and Kinematics** | Units have real positions that advance each turn | `NOT STARTED` | — |
+| **3 · Theatre API and Multi-Client Streaming** | The map reads the digital-twin model; many screens can watch | `NOT STARTED` | — |
+| **4 · Demo Operations and Reliability** | The demo runs to a written sequence without improvisation | `NOT STARTED` | — |
+| **5 · Validated Movement Orders** | Decision text moves the forces | `NOT STARTED` — design settled ([#71](https://github.com/earlyprototype/false-flag/issues/71) closed: orders on); schedule-gated | — |
 | **Afterwards** | Line-crossing events, fog, live-hybrid, email artifact, VR ops room | `NOT STARTED` | — |
 
 **Dates**: build started 28 Aug 2026 · onsite 12 Sep at Irish Manufacturing Research · final date 14 Sep.
@@ -30,12 +30,12 @@ Each stage names **what gets built** and the **done test**: an observable fact y
 The globe stages above are one of two workstreams; the other is cabinet-advisor independence ([#87](https://github.com/earlyprototype/false-flag/issues/87)–[#92](https://github.com/earlyprototype/false-flag/issues/92)). This board orders everything open across both. Working rules: one engine-touching build at a time; parallel work only where no files are shared; every major task gets an issue and lands as its own PR.
 
 **Now**
-- **Stage 1 · First Light** — [#94](https://github.com/earlyprototype/false-flag/issues/94) · `DONE — projector done-test passed 31 Aug 2026` ([PR #95](https://github.com/earlyprototype/false-flag/pull/95), URL fix [PR #104](https://github.com/earlyprototype/false-flag/pull/104))
+- **Stage 1 · Globe Display** — [#94](https://github.com/earlyprototype/false-flag/issues/94) · `DONE — projector done-test passed 31 Aug 2026` ([PR #95](https://github.com/earlyprototype/false-flag/pull/95), URL fix [PR #104](https://github.com/earlyprototype/false-flag/pull/104))
 - **Manus research queue** — [#70](https://github.com/earlyprototype/false-flag/issues/70) · owner fires; its gazetteer verification feeds Stage 2
 - **Small bounded fixes** (directed-Codex lane candidates, each its own PR, none touch Stage 1 files): the pushback-roster bug inside [#87](https://github.com/earlyprototype/false-flag/issues/87) (the Prime Minister can currently be rendered pushing back on the player) · [#91](https://github.com/earlyprototype/false-flag/issues/91) contradictory advisor-prompt instructions · the cheap items of [#92](https://github.com/earlyprototype/false-flag/issues/92) (element descriptions, zoom, view reset)
 
 **Next**
-- **Stage 2 · The Fleet Moves**, then the schedule check
+- **Stage 2 · Spatial State and Kinematics**, then the schedule check
 - [#87](https://github.com/earlyprototype/false-flag/issues/87) full per-advisor fan-out · [#88](https://github.com/earlyprototype/false-flag/issues/88) per-advisor private continuity + engine-readable state
 
 **Later** — sequenced after Now and Next; the stretch gate can pull items forward. No timing has been ruled — the owner schedules.
@@ -45,7 +45,9 @@ The globe stages above are one of two workstreams; the other is cabinet-advisor 
 
 ---
 
-## Stage 1 · First Light — *about a day*
+## Stage 1 · Globe Display — *about a day*
+
+*Technical scope: serve a read-only Cesium globe that plots scenario resources and responds to live session events.*
 
 **Build** — complete in [#95](https://github.com/earlyprototype/false-flag/pull/95), commit `779e585`
 - [x] `api/globe.html`, served at `GET /globe` by FileResponse — the pattern `dashboard.html` already uses
@@ -61,7 +63,9 @@ The globe stages above are one of two workstreams; the other is cabinet-advisor 
 
 ---
 
-## Stage 2 · The Fleet Moves — *about a week*
+## Stage 2 · Spatial State and Kinematics — *about a week*
+
+*Technical scope: persist unit tracks and advance them once per turn along authored routes using deterministic kinematics.*
 
 **Build**
 - [ ] `models/spatial.py` — `UnitTrack`, `MovementOrder`, `SpatialState` (including `order_log` and the fired-tripwire latch set)
@@ -79,7 +83,9 @@ The globe stages above are one of two workstreams; the other is cabinet-advisor 
 
 ---
 
-## Stage 3 · Standards on the Glass — *about a week*
+## Stage 3 · Theatre API and Multi-Client Streaming — *about a week*
+
+*Technical scope: publish versioned DTDL theatre state and fan out each permitted session event to every subscribed display.*
 
 **Build**
 - [ ] `interop/models/theatre.json` — `Theatre;1` (one per session) and `TheatreAsset;1` (one per unit; position as telemetry with a source label), as **new sidecar files**; the 13 merged interfaces are never edited
@@ -94,7 +100,9 @@ The globe stages above are one of two workstreams; the other is cabinet-advisor 
 
 ---
 
-## Stage 4 · Show-Safe — *three to four days · not optional*
+## Stage 4 · Demo Operations and Reliability — *three to four days · not optional*
+
+*Technical scope: secure, rehearse, measure and record the real onsite demo path and its recovery procedure.*
 
 Hardens the **real** path. It is not a rehearsal of a simulated stand-in — that is a rule of this project.
 
@@ -111,7 +119,9 @@ Hardens the **real** path. It is not a rehearsal of a simulated stand-in — tha
 
 ---
 
-## Stage 5 · The Cabinet Orders the Map — *about a week · schedule-gated*
+## Stage 5 · Validated Movement Orders — *about a week · schedule-gated*
+
+*Technical scope: translate decision text into bounded, validated movement orders without allowing LLM output to write coordinates.*
 
 Built only if Stage 4 is complete with at least three clear days before the onsite. **The design question is closed** — [#71](https://github.com/earlyprototype/false-flag/issues/71): orders on. Only the calendar decides whether it lands before 12 Sep.
 

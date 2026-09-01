@@ -16,7 +16,7 @@ For whoever picks this up: the owner, or a fresh session. Two minutes of reading
 
 ## Waiting on the owner
 
-1. **The "go"** — authorization to write this project's first code (Stage 1, First Light). This is the only thing blocking build work.
+1. **The "go"** — authorization to write this project's first code (Stage 1, Globe Display). This is the only thing blocking build work.
 2. **Merge PR #69** — puts `PLAN.md` and the README pointer on `main`, where anyone in the repo finds the plan immediately. One click.
 3. **Four open decisions**, each with a working default so silence blocks nothing: [#72](https://github.com/earlyprototype/false-flag/issues/72) data-file location · [#73](https://github.com/earlyprototype/false-flag/issues/73) demo campaign cut · [#74](https://github.com/earlyprototype/false-flag/issues/74) default visual register · [#75](https://github.com/earlyprototype/false-flag/issues/75) Quest headset available (the VR diagram is drawn assuming yes).
 4. **Fire the [Manus research queue](https://github.com/earlyprototype/false-flag/issues/70)** when convenient — its gazetteer verification task feeds Stage 2. Credits don't expire.

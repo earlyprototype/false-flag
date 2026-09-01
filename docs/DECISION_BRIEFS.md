@@ -1,6 +1,6 @@
 # Decision Briefs — what each open call needs, when it's due, and the default
 
-*Companion to `BUILD_STATE.md`. Principle: no decision is due before the milestone that needs it; every decision has a safe default. The owner gave GO on 30 Aug; M0 (First Light) shipped in PR #95 and is `DONE` — the projector done-test passed 31 Aug. B1 (the build stage every movement design shares: the position system with no AI) requires none of the remaining open decisions.*
+*Companion to `BUILD_STATE.md`. Principle: no decision is due before the milestone that needs it; every decision has a safe default. The owner gave GO on 30 Aug; M0 (Globe Display) shipped in PR #95 and is `DONE` — the projector done-test passed 31 Aug. B1 (the build stage every movement design shares: the position system with no AI) requires none of the remaining open decisions.*
 
 | # | Decision | Due at | Context source | Default if silent |
 |---|---|---|---|---|
@@ -21,7 +21,7 @@ All three designs share ~80% of the build — `models/spatial.py`, `engine/kinem
 
 **IRONCLAD pure (zero-LLM)** — no movement call at all; units follow authored doctrine and posture templates only. **You get**: perfect determinism, zero parse surface, the red fleet's dread-clock advance intact. **You pay**: the player's spatial intent is silently dropped every turn — geography is watchable, never playable. Honest fallback position; also exactly what the hybrid degrades to when its LLM call fails, so choosing it later loses nothing already built.
 
-**TASKORD pure** — the hybrid minus the legality graph, readiness, and route polylines. Saves a few days; loses the pieces that keep red honest and make the map feel inhabited. Only worth it under extreme schedule pressure — and D1's (the schedule-check decision gate's) cut goes to M2 (Standards on the Glass — the digital-twin standards badges) / M3 (Show-Safe) first anyway.
+**TASKORD pure** — the hybrid minus the legality graph, readiness, and route polylines. Saves a few days; loses the pieces that keep red honest and make the map feel inhabited. Only worth it under extreme schedule pressure — and D1's (the schedule-check decision gate's) cut goes to M2 (Theatre API and Multi-Client Streaming — the digital-twin standards badges) / M3 (Demo Operations and Reliability) first anyway.
 
 **Ruling**: use the hybrid validated-order channel. Scheduling decides whether
 it lands before 12 Sep; the architecture is not open.

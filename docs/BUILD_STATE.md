@@ -7,7 +7,7 @@
 ## Where things stand
 
 - **`main` includes PRs #95–#99 and #101–#108.** It carries the full DTDL twin surface, the Stage 1 Situation Globe implementation (plus the URL fix #104, CRT filter #106, and manual zoom #108), the advisor-prompt and pushback fixes (#96/#97), the dashboard usability changes (#98), the P1a research salvage (#99), the in-repo kanban board (#101), and the three-stage CI pipeline with the verdict-gated review (#103).
-- **Stage 1 · First Light is `DONE`** — the owner ran the projector done-test on 31 Aug and it passed ([#94](https://github.com/earlyprototype/false-flag/issues/94), closed). The owner gave GO on 30 Aug; implementation shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95).
+- **Stage 1 · Globe Display is `DONE`** — the owner ran the projector done-test on 31 Aug and it passed ([#94](https://github.com/earlyprototype/false-flag/issues/94), closed). The owner gave GO on 30 Aug; implementation shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95).
 - **Movement architecture is settled.** [#71](https://github.com/earlyprototype/false-flag/issues/71) selected the hybrid validated-order channel; only scheduling remains.
 - **In flight**: advisor-pushback fan-out ([#87](https://github.com/earlyprototype/false-flag/issues/87)) and the prompt-quality audit ([#83](https://github.com/earlyprototype/false-flag/issues/83)), dispatched 1 Sep on parallel lanes.
 

@@ -90,7 +90,7 @@ all fixed before merge. No false blocks so far.
 
 ## 3 · State at handover (1 Sep 2026)
 
-**Stage 1 · First Light is DONE** — projector done-test passed 31 Aug
+**Stage 1 · Globe Display is DONE** — projector done-test passed 31 Aug
 (#94 closed; PLAN.md current). The globe has FLIR + CRT filter switches
 (#74 ruling: all options stay live) and manual zoom controls (#107/#108).
 

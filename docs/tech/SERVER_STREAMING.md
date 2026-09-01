@@ -41,7 +41,7 @@ Practical consequence: attach at most one live surface per session. A second
 tab does not error — each consumer silently receives only a subset of the
 events, which presents as a flaky page.
 
-**The planned fix is Stage 3 of PLAN.md** ("Standards on the Glass", status
+**The planned fix is Stage 3 of PLAN.md** ("Theatre API and Multi-Client Streaming", status
 NOT STARTED): per-subscriber fan-out on the session event bus, with
 per-subscriber payload copies. Its done test is exactly this limit removed —
 two browsers on the same session each receive every event.
