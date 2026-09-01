@@ -1163,6 +1163,90 @@ def _extract_quoted_prompt_value(
     return match.group(1) if match else None
 
 
+def _extract_tasked_forces(action: str) -> str:
+    """Return assets explicitly tasked by the submitted decision."""
+    # ponytail: this deliberately recognises only directive clauses containing
+    # a finite vocabulary of obvious military assets. Unknown euphemisms fail
+    # closed; use the unit registry if that ceiling ever needs lifting.
+    action = re.sub(
+        r"((?:\band|\bor)|,)[^\S\r\n]*\r?\n[^\S\r\n]*",
+        r"\1 ",
+        action,
+        flags=re.IGNORECASE,
+    )
+    action = re.sub(r"[^\S\r\n]*\r?\n[^\S\r\n]*", "; ", action)
+    action = " ".join(action.split())
+    tasking_verb = (
+        r"(?:activate|assign|authorise|authorize|commit|deploy|detach|dispatch|"
+        r"divert|escort|keep|launch|mobilise|mobilize|move|order|position|put|"
+        r"ready|redeploy|reinforce|reroute|retask|sail|scramble|send|station|"
+        r"surge|task(?!\s+force\b)|use(?!\s+of force\b))"
+    )
+    negation = (
+        r"(?:do not|don['’]t|will not|won['’]t|cannot|can['’]t|not(?:\s+to)?|"
+        r"never|no|refuse to|without|avoid)"
+    )
+    action = re.sub(
+        rf"\b(?P<negated>{negation}),\s*under any circumstances,\s*"
+        rf"(?P<verb>{tasking_verb})\b",
+        r"\g<negated> \g<verb>",
+        action,
+        flags=re.IGNORECASE,
+    )
+    asset = (
+        r"(?:\b(?:HMS|RAF|RNAS|SSBNs?|SSNs?|CAP|carriers?|destroyers?|"
+        r"frigates?|submarines?|squadrons?|aircraft|jets?|fighters?|"
+        r"helicopters?|drones?|warships?|ships?|fleet|forces|troops?|"
+        r"marines?|patrols?|Poseidons?|Typhoons?|Wedgetails?)\b|"
+        r"\b(?:Type\s*-?\s*\d+|[PFE]\s*-?\s*\d+[A-Z]?)\b)"
+    )
+    clauses = re.split(
+        rf"(?:[;.!?]+|"
+        rf",\s*(?:and|but)\s+(?:(?:instead|then)\s+)?"
+        rf"(?=(?:{negation}\s+)?{tasking_verb}\b)|"
+        rf",\s*(?=(?:{negation}\s+)?{tasking_verb}\b)|"
+        rf"\s+(?:and|but)\s+(?:(?:instead|then)\s+)?"
+        rf"(?=(?:{negation}\s+)?{tasking_verb}\b))",
+        action,
+        flags=re.IGNORECASE,
+    )
+    forces = []
+    for clause in clauses:
+        directive = re.match(
+            rf"^(?P<negated>{negation}\s+)?{tasking_verb}\s+(?P<object>.+)$",
+            clause.strip(),
+            re.IGNORECASE,
+        )
+        if not directive or directive.group("negated"):
+            continue
+        tasked_object = directive.group("object")
+        force_match = re.match(
+            r"(.+?)(?=\s+(?:at|for|in|into|near|off|on|over|to|toward|"
+            r"towards|under)\b|$)",
+            tasked_object,
+            re.IGNORECASE,
+        )
+        for force in force_match.group(1).split(","):
+            force = " ".join(force.split()).strip(" \"'")
+            force = re.split(
+                rf"\s+(?:(?:but|and)\s+(?:{negation}|except|other\s+than)|"
+                r"without|except|other\s+than)\b",
+                force,
+                maxsplit=1,
+                flags=re.IGNORECASE,
+            )[0].strip()
+            if re.match(
+                    r"(?:not|(?:but|and)\s+not|other than|except)\b",
+                    force,
+                    re.IGNORECASE):
+                continue
+            if re.search(rf"\b{negation}\b", force, re.IGNORECASE):
+                continue
+            if re.search(asset, force, re.IGNORECASE):
+                forces.append(force)
+    return ", ".join(force for force in forces if force) or "None specified"
+
+
 class MockDeterministicDriver:
     """Deterministic mock LLM driver for testing.
 
@@ -1220,10 +1304,12 @@ class MockDeterministicDriver:
         if "interpret this action" in prompt_lower:
             decided = _extract_quoted_prompt_value(
                 prompt, "the prime minister has decided:", "IMPORTANT:")
-            summary = " ".join(decided.split()) if decided is not None else \
+            normalised_decision = " ".join((decided or "").split())
+            summary = normalised_decision if decided is not None else \
                 "Deploy naval and air assets to defensive posture"
+            forces = _extract_tasked_forces(decided or "")
             return (f"INTERPRETATION: {summary}\n"
-                    "FORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\n"
+                    f"FORCES INVOLVED: {forces}\n"
                     "RESOURCES CONSUMED: Minimal (patrol operations)\n"
                     "TIMELINE: Immediate (within 1 turn)\n"
                     "FEASIBILITY: Feasible within current constraints")

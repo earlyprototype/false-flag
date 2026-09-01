@@ -746,6 +746,335 @@ def test_decision_extraction_survives_embedded_quotes():
     assert "NO PUSHBACK" not in pushback
 
 
+def test_mock_interpretation_reports_only_each_submitted_force_package():
+    driver = MockDeterministicDriver()
+    expected_by_action = {
+        ("Consult NATO allies, deploy P-8 patrols and Type 23 frigates "
+         "to track Russian submarines, strengthen cyber defences, reassure "
+         "the public, and require verified intelligence and Attorney General "
+         "approval before any use of force."):
+            ["P-8 patrols and Type 23 frigates"],
+        ("Use HMS Prince of Wales and Typhoon squadrons to reinforce "
+         "the Norwegian Sea."):
+            ["HMS Prince of Wales and Typhoon squadrons"],
+    }
+
+    actual = []
+    for action, expected in expected_by_action.items():
+        response = driver.generate_text(
+            f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+            RNG,
+        )
+        forces = parse_interpretation_simple(response)["forces"]
+        assert forces == expected
+        assert all(force in action for force in forces)
+        actual.append(forces)
+
+    assert actual[0] != actual[1]
+
+
+def test_mock_interpretation_is_honest_when_no_force_is_tasked():
+    driver = MockDeterministicDriver()
+    action = ("Require verified intelligence and Attorney General approval "
+              "before any use of force.")
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+
+
+def test_mock_interpretation_keeps_a_multiline_force_package():
+    driver = MockDeterministicDriver()
+    action = ("Deploy P-8 patrols and\nType 23 frigates to track Russian "
+              "submarines.")
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == [
+        "P-8 patrols and Type 23 frigates"]
+
+
+def test_mock_interpretation_keeps_comma_separated_force_packages():
+    driver = MockDeterministicDriver()
+    action = ("Deploy Type 45 destroyers, Type 23 frigates and P-8 patrols "
+              "to monitor the GIUK gap.")
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == [
+        "Type 45 destroyers", "Type 23 frigates and P-8 patrols"]
+
+
+def test_mock_interpretation_keeps_an_oxford_comma_force_package():
+    driver = MockDeterministicDriver()
+    action = (
+        "Deploy Type-45 destroyers, P-8 patrols, and Typhoons to the North "
+        "Sea."
+    )
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == [
+        "Type-45 destroyers",
+        "P-8 patrols",
+        "and Typhoons",
+    ]
+
+
+def test_mock_interpretation_keeps_coordinated_force_directives():
+    driver = MockDeterministicDriver()
+    action = (
+        "Deploy Type 45 destroyers to the GIUK gap and scramble Typhoons "
+        "over the North Sea."
+    )
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == [
+        "Type 45 destroyers", "Typhoons"]
+
+
+def test_mock_interpretation_does_not_task_a_negated_force():
+    driver = MockDeterministicDriver()
+    action = "Do not deploy the carrier; consult NATO allies."
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+
+
+def test_mock_interpretation_excludes_a_negated_directive_after_a_comma():
+    driver = MockDeterministicDriver()
+    action = "Deploy P-8 patrols, but do not send the carrier."
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["P-8 patrols"]
+
+
+def test_mock_interpretation_keeps_a_positive_directive_after_a_negated_one():
+    driver = MockDeterministicDriver()
+    action = "Do not deploy the carrier, but send P-8 patrols to Iceland."
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["P-8 patrols"]
+
+
+@pytest.mark.parametrize("action", [
+    "Use diplomatic channels to press Moscow.",
+    "Order an intelligence review.",
+    "Send aid to Norway.",
+    "Authorise a nuclear strike on the Russian task force.",
+    "Use force only in self-defence.",
+    "Authorise force only if attacked.",
+])
+def test_mock_interpretation_rejects_directives_without_named_assets(action):
+    driver = MockDeterministicDriver()
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+
+
+def test_mock_interpretation_accepts_an_authorised_named_asset():
+    driver = MockDeterministicDriver()
+    action = "Authorise HMS Prince of Wales to sail north."
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == [
+        "HMS Prince of Wales"]
+
+
+@pytest.mark.parametrize(("action", "expected"), [
+    (
+        "Authorise defensive patrols only, and instruct the Attorney General "
+        "to review the legal basis.",
+        ["defensive patrols only"],
+    ),
+    (
+        "Authorize P-8 coverage over the Norwegian Sea.",
+        ["P-8 coverage"],
+    ),
+])
+def test_mock_interpretation_accepts_canonical_authorise_forms(action, expected):
+    driver = MockDeterministicDriver()
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == expected
+
+
+@pytest.mark.parametrize("negation", [
+    "will not",
+    "won't",
+    "cannot",
+    "can't",
+    "not to",
+])
+def test_mock_interpretation_excludes_common_negated_directives(negation):
+    driver = MockDeterministicDriver()
+    action = f"Deploy P-8 patrols, but {negation} send the carrier."
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["P-8 patrols"]
+
+
+@pytest.mark.parametrize("action", [
+    "Order HMS Prince of Wales not to sail.",
+    "Deploy no carriers.",
+])
+def test_mock_interpretation_rejects_negation_inside_a_tasking_object(action):
+    driver = MockDeterministicDriver()
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+
+
+@pytest.mark.parametrize("action", [
+    "Do not, under any circumstances, deploy the carrier.",
+    "Never, under any circumstances, launch the SSBNs.",
+])
+def test_mock_interpretation_rejects_emphatic_negated_directives(action):
+    driver = MockDeterministicDriver()
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+
+
+@pytest.mark.parametrize(("action", "expected"), [
+    ("Deploy the destroyers, but not the carrier.", ["the destroyers"]),
+    ("Send the Typhoons, not the carrier.", ["the Typhoons"]),
+    ("Send the Typhoons, and not the carrier.", ["the Typhoons"]),
+    ("Send the Typhoons, other than the carrier.", ["the Typhoons"]),
+    ("Send the Typhoons, except the carrier.", ["the Typhoons"]),
+    ("Deploy the destroyers but not the carrier.", ["the destroyers"]),
+    ("Send the Typhoons but no carriers.", ["the Typhoons"]),
+    ("Deploy the destroyers but do not fire.", ["the destroyers"]),
+    ("Deploy the carrier group without escorts.", ["the carrier group"]),
+])
+def test_mock_interpretation_drops_elided_force_exclusions(action, expected):
+    driver = MockDeterministicDriver()
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == expected
+
+
+def test_mock_interpretation_reports_forces_in_verify_play_decision():
+    driver = MockDeterministicDriver()
+    action = (
+        "Reinforce the GIUK gap with P-8 coverage and keep the submarines "
+        "at sea."
+    )
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == [
+        "the GIUK gap with P-8 coverage",
+        "the submarines",
+    ]
+
+
+@pytest.mark.parametrize("connector", [
+    " and instead ",
+    ", and instead ",
+    " and then ",
+    ", and then ",
+])
+def test_mock_interpretation_keeps_a_follow_up_directive_after_a_negated_one(
+        connector):
+    driver = MockDeterministicDriver()
+    action = (
+        f"Do not deploy the carrier{connector}scramble Typhoons over the "
+        "North Sea."
+    )
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["Typhoons"]
+
+
+def test_mock_interpretation_does_not_treat_task_force_as_a_tasking_verb():
+    driver = MockDeterministicDriver()
+    action = "Task force readiness remains unchanged."
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+
+
+def test_mock_interpretation_ends_a_force_directive_at_a_newline():
+    driver = MockDeterministicDriver()
+    action = "Send the carrier group north\nBrief the Commons this afternoon."
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == [
+        "the carrier group north"]
+
+
 def test_pushback_decision_extraction_survives_newlines():
     driver = MockDeterministicDriver()
     action = "Authorise nuclear\nfirst use."
