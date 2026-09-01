@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "phase": "pushback",
+  "captured_at_utc": "2026-09-01T11:41:03.336714+00:00",
+  "git_head": "cd2cfc6c8dba4b3bfc2ed52d72c88038ae76c24d",
+  "config": {
+    "scenario_id": "war_game_2025",
+    "variant": "standard",
+    "difficulty": "standard",
+    "play_mode": "immersive",
+    "seed": 0,
+    "mystery_mode_cases": [
+      false,
+      true
+    ]
+  },
+  "required_paths": [
+    "advisor_pushback"
+  ],
+  "required_families": [
+    "advisor_pushback"
+  ],
+  "parse_health": {
+    "misses": {},
+    "fallbacks": {},
+    "truncations": {},
+    "residue": {}
+  },
+  "cases": [
+    {
+      "case": "mystery_off",
+      "config": {
+        "scenario_id": "war_game_2025",
+        "variant": "standard",
+        "difficulty": "standard",
+        "play_mode": "immersive",
+        "seed": 0,
+        "mystery_mode": false
+      },
+      "selected_narrative_id": null,
+      "outputs": {
+        "advisor_pushback": [
+          [
+            "Attorney General",
+            "Prime Minister, nuclear first-use without imminent existential threat violates our legal framework and would fracture NATO immediately."
+          ],
+          [
+            "Foreign Secretary",
+            "This would end US support and isolate us internationally."
+          ]
+        ]
+      }
+    },
+    {
+      "case": "mystery_on",
+      "config": {
+        "scenario_id": "war_game_2025",
+        "variant": "standard",
+        "difficulty": "standard",
+        "play_mode": "immersive",
+        "seed": 0,
+        "mystery_mode": true
+      },
+      "selected_narrative_id": "CHINA_PROXY_WAR",
+      "outputs": {
+        "advisor_pushback": [
+          [
+            "Attorney General",
+            "Prime Minister, nuclear first-use without imminent existential threat violates our legal framework and would fracture NATO immediately."
+          ],
+          [
+            "Foreign Secretary",
+            "This would end US support and isolate us internationally."
+          ]
+        ]
+      }
+    }
+  ],
+  "records": [
+    {
+      "ts": 1788262863.334,
+      "seq": 1,
+      "case": "mystery_off",
+      "mystery_mode": false,
+      "narrative_id": "none",
+      "path": "advisor_pushback",
+      "turn": 1,
+      "family": "advisor_pushback",
+      "tier": "flash",
+      "provider": "mock",
+      "model": null,
+      "prompt": "============================================================\nUK CRISIS WARGAME - SHARED BRIEFING DOSSIER\n============================================================\nThe material below is the same for every member of the COBRA cell.\nYour own role and instructions follow it.\n\n============================================================\nGAME HISTORY - everything that has happened, in order. Where any of it has been elided for length, the elision is marked inline.\n============================================================\n\n============================================================\nTURN 1\n============================================================\n\n\n=== COBRA EMERGENCY MEETING CONVENED ===\n\n=== CABINET OFFICE BRIEFING ROOM A (COBRA) ===\nSunday 5th October 2025, 17:00\n\nThe National Security Adviser gestures to the wall display.\n\n\"Prime Minister, at 16:45 this afternoon Northwood confirmed what you are\nlooking at. Fifteen Russian submarines are at sea in the North Atlantic -\nseven ballistic missile boats and eight attack boats, with two destroyers\nand four frigates in escort. They slipped out of Kola Bay seventy-two hours\nago, and they are forming up southwest of Iceland, heading for the GIUK gap.\n\nFor context: on a normal day there are two to five submarines in the entire\nAtlantic, from every navy in the world combined. This is the whole of the\nNorthern Fleet, bar a single boat. We have not seen numbers like this in\npeacetime. Not even at the height of the Cold War.\n\nAnd Moscow has said nothing. No exercise notification, no statement. The\ndeployment was made in silence - and it was made to be found.\n\nThe National Security Council's preliminary assessment is that this is a\ndeliberate test: of us, and of NATO's resolve. We must respond carefully -\nneither appearing weak nor provoking further escalation. The room is yours,\nPrime Minister.\"\n\n┌───────────────────────────────────┐\n│ Effect: escalation_risk +3 (→ 63) │\n└───────────────────────────────────┘\n┌──────────────────────────────────────┐\n│ Effect: domestic_stability -1 (→ 49) │\n└──────────────────────────────────────┘\n\n\n============================================================\nCURRENT SITUATION\n============================================================\nTurn: 1\nPhase: discussion\n\nTHREAT ASSESSMENT: HIGH risk of further Russian escalation\nDOMESTIC SITUATION: Public sentiment is uncertain; infrastructure security concerns\nALLIANCE STATUS: NATO cohesion appears fragile (particular concern: US Article 5 commitment)\n\nCASUALTIES TO DATE: 2 military personnel, 0 civilians\n\n============================================================\nEVENTS ALREADY PLAYED - do not re-introduce these\n============================================================\nTurn 1 | COBRA Emergency Meeting Convened | OPEN\n\nIMPORTANT: You are a real advisor in COBRA during a national crisis.\nSpeak naturally about intelligence assessments, strategic concerns, and operational realities.\nDo NOT reference 'metrics', 'game mechanics', 'scores', or 'values'.\nNever state game time - no turn numbers and no turn-relative phrases; turns are game mechanics. Refer to time in-fiction: 'two days ago', 'earlier this week', 'since the incident began'.\nUse professional crisis management language.\nWrite in British English throughout - British spellings (organise, defence, programme) and Whitehall usage, never American.\nWrite in plain text only - no markdown: no asterisks or **bold**, no # headings, no bullet markers, no numbered lists. Prose and labelled lines only.\n\n\nYou are simulating UK government advisors responding to a Prime Minister's decision.\n\nThe PM has decided: \"Deploy HMS Prince of Wales immediately at reduced readiness and prepare a nuclear first-use option.\"\n\nInterpretation of this action:\nThe Prime Minister orders the carrier surged before full readiness and directs officials to prepare a nuclear first-use option immediately.\n\nAdvisors and their pushback triggers:\n- Chief of the Defence Staff: Militarily implausible actions (e.g., deploying unavailable assets), Operations beyond UK capability (e.g., sustained high-intensity ops), Actions that waste limited munitions\n- National Security Adviser: Actions based on unverified intelligence, Decisions ignoring cyber vulnerabilities, Responses that telegraph UK intentions\n- Home Secretary: Military actions that risk civilian casualties, Decisions that ignore infrastructure vulnerabilities, Public messaging that causes panic\n- Foreign Secretary: Actions that violate international law, Military responses without diplomatic cover, Decisions that isolate UK from allies\n- Attorney General: Actions that violate Geneva Conventions, Use of force without legal justification, Nuclear first-use without extreme justification\n\nFor each advisor whose pushback triggers are activated by this decision, generate a brief (2-3 sentences) in-character warning or concern. Reference past warnings or decisions from the conversation history if relevant (e.g., \"As I warned two days ago...\"). If no triggers are activated, respond with \"NO PUSHBACK\".\n\nFormat:\n[ADVISOR ROLE]: [their concern]\n\nOR\n\nNO PUSHBACK\n\nYour response:",
+      "reply": "Attorney General: Prime Minister, nuclear first-use without imminent existential threat violates our legal framework and would fracture NATO immediately.\nForeign Secretary: This would end US support and isolate us internationally.",
+      "finish_reason": null,
+      "latency_ms": 0,
+      "fallback": false,
+      "batch_index": null,
+      "batch_size": null,
+      "system_instruction": null,
+      "temperature": null,
+      "max_tokens": null,
+      "model_override": null,
+      "parsed_output": [
+        [
+          "Attorney General",
+          "Prime Minister, nuclear first-use without imminent existential threat violates our legal framework and would fracture NATO immediately."
+        ],
+        [
+          "Foreign Secretary",
+          "This would end US support and isolate us internationally."
+        ]
+      ]
+    },
+    {
+      "ts": 1788262863.337,
+      "seq": 2,
+      "case": "mystery_on",
+      "mystery_mode": true,
+      "narrative_id": "CHINA_PROXY_WAR",
+      "path": "advisor_pushback",
+      "turn": 1,
+      "family": "advisor_pushback",
+      "tier": "flash",
+      "provider": "mock",
+      "model": null,
+      "prompt": "============================================================\nUK CRISIS WARGAME - SHARED BRIEFING DOSSIER\n============================================================\nThe material below is the same for every member of the COBRA cell.\nYour own role and instructions follow it.\n\n============================================================\nGAME HISTORY - everything that has happened, in order. Where any of it has been elided for length, the elision is marked inline.\n============================================================\n\n============================================================\nTURN 1\n============================================================\n\n\n=== COBRA EMERGENCY MEETING CONVENED ===\n\n=== CABINET OFFICE BRIEFING ROOM A (COBRA) ===\nSunday 5th October 2025, 17:00\n\nThe National Security Adviser gestures to the wall display.\n\n\"Prime Minister, at 16:45 this afternoon Northwood confirmed what you are\nlooking at. Fifteen Russian submarines are at sea in the North Atlantic -\nseven ballistic missile boats and eight attack boats, with two destroyers\nand four frigates in escort. They slipped out of Kola Bay seventy-two hours\nago, and they are forming up southwest of Iceland, heading for the GIUK gap.\n\nFor context: on a normal day there are two to five submarines in the entire\nAtlantic, from every navy in the world combined. This is the whole of the\nNorthern Fleet, bar a single boat. We have not seen numbers like this in\npeacetime. Not even at the height of the Cold War.\n\nAnd Moscow has said nothing. No exercise notification, no statement. The\ndeployment was made in silence - and it was made to be found.\n\nThe National Security Council's preliminary assessment is that this is a\ndeliberate test: of us, and of NATO's resolve. We must respond carefully -\nneither appearing weak nor provoking further escalation. The room is yours,\nPrime Minister.\"\n\n┌───────────────────────────────────┐\n│ Effect: escalation_risk +3 (→ 63) │\n└───────────────────────────────────┘\n┌──────────────────────────────────────┐\n│ Effect: domestic_stability -1 (→ 49) │\n└──────────────────────────────────────┘\n\n\n============================================================\nCURRENT SITUATION\n============================================================\nTurn: 1\nPhase: discussion\n\nTHREAT ASSESSMENT: HIGH risk of further Russian escalation\nDOMESTIC SITUATION: Public sentiment is uncertain; infrastructure security concerns\nALLIANCE STATUS: NATO cohesion appears fragile (particular concern: US Article 5 commitment)\n\nCASUALTIES TO DATE: 2 military personnel, 0 civilians\n\n============================================================\nEVENTS ALREADY PLAYED - do not re-introduce these\n============================================================\nTurn 1 | COBRA Emergency Meeting Convened | OPEN\n\nIMPORTANT: You are a real advisor in COBRA during a national crisis.\nSpeak naturally about intelligence assessments, strategic concerns, and operational realities.\nDo NOT reference 'metrics', 'game mechanics', 'scores', or 'values'.\nNever state game time - no turn numbers and no turn-relative phrases; turns are game mechanics. Refer to time in-fiction: 'two days ago', 'earlier this week', 'since the incident began'.\nUse professional crisis management language.\nWrite in British English throughout - British spellings (organise, defence, programme) and Whitehall usage, never American.\nWrite in plain text only - no markdown: no asterisks or **bold**, no # headings, no bullet markers, no numbered lists. Prose and labelled lines only.\n\n\nYou are simulating UK government advisors responding to a Prime Minister's decision.\n\nThe PM has decided: \"Deploy HMS Prince of Wales immediately at reduced readiness and prepare a nuclear first-use option.\"\n\nInterpretation of this action:\nThe Prime Minister orders the carrier surged before full readiness and directs officials to prepare a nuclear first-use option immediately.\n\nAdvisors and their pushback triggers:\n- Chief of the Defence Staff: Militarily implausible actions (e.g., deploying unavailable assets), Operations beyond UK capability (e.g., sustained high-intensity ops), Actions that waste limited munitions\n- National Security Adviser: Actions based on unverified intelligence, Decisions ignoring cyber vulnerabilities, Responses that telegraph UK intentions\n- Home Secretary: Military actions that risk civilian casualties, Decisions that ignore infrastructure vulnerabilities, Public messaging that causes panic\n- Foreign Secretary: Actions that violate international law, Military responses without diplomatic cover, Decisions that isolate UK from allies\n- Attorney General: Actions that violate Geneva Conventions, Use of force without legal justification, Nuclear first-use without extreme justification\n\nFor each advisor whose pushback triggers are activated by this decision, generate a brief (2-3 sentences) in-character warning or concern. Reference past warnings or decisions from the conversation history if relevant (e.g., \"As I warned two days ago...\"). If no triggers are activated, respond with \"NO PUSHBACK\".\n\nFormat:\n[ADVISOR ROLE]: [their concern]\n\nOR\n\nNO PUSHBACK\n\nYour response:",
+      "reply": "Attorney General: Prime Minister, nuclear first-use without imminent existential threat violates our legal framework and would fracture NATO immediately.\nForeign Secretary: This would end US support and isolate us internationally.",
+      "finish_reason": null,
+      "latency_ms": 0,
+      "fallback": false,
+      "batch_index": null,
+      "batch_size": null,
+      "system_instruction": null,
+      "temperature": null,
+      "max_tokens": null,
+      "model_override": null,
+      "parsed_output": [
+        [
+          "Attorney General",
+          "Prime Minister, nuclear first-use without imminent existential threat violates our legal framework and would fracture NATO immediately."
+        ],
+        [
+          "Foreign Secretary",
+          "This would end US support and isolate us internationally."
+        ]
+      ]
+    }
+  ]
+}
