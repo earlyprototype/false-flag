@@ -850,6 +850,36 @@ def test_mock_interpretation_keeps_a_positive_directive_after_a_negated_one():
     assert parse_interpretation_simple(response)["forces"] == ["P-8 patrols"]
 
 
+@pytest.mark.parametrize("action", [
+    "Use diplomatic channels to press Moscow.",
+    "Order an intelligence review.",
+    "Send aid to Norway.",
+    "Authorise a nuclear strike on the Russian task force.",
+])
+def test_mock_interpretation_rejects_directives_without_named_assets(action):
+    driver = MockDeterministicDriver()
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+
+
+def test_mock_interpretation_accepts_an_authorised_named_asset():
+    driver = MockDeterministicDriver()
+    action = "Authorise HMS Prince of Wales to sail north."
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == [
+        "HMS Prince of Wales"]
+
+
 def test_pushback_decision_extraction_survives_newlines():
     driver = MockDeterministicDriver()
     action = "Authorise nuclear\nfirst use."

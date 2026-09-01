@@ -1165,28 +1165,37 @@ def _extract_quoted_prompt_value(
 
 def _extract_tasked_forces(action: str) -> str:
     """Return assets explicitly tasked by the submitted decision."""
-    # ponytail: explicit directives cover mock play; use the unit registry if
-    # implicit force references ever need resolving.
+    # ponytail: this deliberately recognises only directive clauses containing
+    # a finite vocabulary of obvious military assets. Unknown euphemisms fail
+    # closed; use the unit registry if that ceiling ever needs lifting.
     tasking_verb = (
-        r"(?:activate|assign|commit|deploy|dispatch|launch|mobilise|mobilize|"
-        r"order|position|put|ready|retask|scramble|send|station|surge|task|"
-        r"use(?!\s+of force\b))"
+        r"(?:activate|assign|authorise|authorize|commit|deploy|dispatch|launch|"
+        r"mobilise|mobilize|order|position|put|ready|retask|scramble|send|"
+        r"station|surge|task|use(?!\s+of force\b))"
     )
     negation = r"(?:do not|don['’]t|never|refuse to|without|avoid)"
+    asset = (
+        r"(?:\b(?:HMS|RAF|RNAS|SSBNs?|SSNs?|CAP|carriers?|destroyers?|"
+        r"frigates?|submarines?|squadrons?|aircraft|jets?|fighters?|"
+        r"helicopters?|drones?|warships?|ships?|fleet|forces?|troops?|"
+        r"marines?|patrols?|Poseidons?|Typhoons?|Wedgetails?)\b|"
+        r"\b(?:Type\s*-?\s*\d+|[PFE]\s*-?\s*\d+[A-Z]?)\b)"
+    )
     matches = re.finditer(
-        rf"\b{tasking_verb}\s+"
-        rf"(.+?)(?=\s+(?:at|for|in|into|near|off|on|over|to|toward|towards|under)\b|"
+        rf"(?:^|[;.!?]\s*|,\s*(?:(?:and|but)\s+)?)"
+        rf"(?P<negated>{negation}\s+)?{tasking_verb}\s+"
+        rf"(?P<force>.+?)(?=\s+(?:at|for|in|into|near|off|on|over|to|toward|towards|under)\b|"
         rf",\s*(?:(?:and|but)\s+)?(?:{negation}\s+)?{tasking_verb}\b|[;.]|$)",
         action,
         re.IGNORECASE,
     )
     forces = []
     for match in matches:
-        if re.search(
-                rf"\b{negation}\s*$",
-                action[:match.start()], re.IGNORECASE):
+        if match.group("negated"):
             continue
-        forces.append(" ".join(match.group(1).split()).strip(" \"'"))
+        force = " ".join(match.group("force").split()).strip(" \"'")
+        if re.search(asset, force, re.IGNORECASE):
+            forces.append(force)
     return ", ".join(force for force in forces if force) or "None specified"
 
 
