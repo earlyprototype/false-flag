@@ -1168,12 +1168,27 @@ def _extract_tasked_forces(action: str) -> str:
     # ponytail: this deliberately recognises only directive clauses containing
     # a finite vocabulary of obvious military assets. Unknown euphemisms fail
     # closed; use the unit registry if that ceiling ever needs lifting.
+    action = re.sub(
+        r"((?:\band|\bor)|,)[^\S\r\n]*\r?\n[^\S\r\n]*",
+        r"\1 ",
+        action,
+        flags=re.IGNORECASE,
+    )
+    action = re.sub(r"[^\S\r\n]*\r?\n[^\S\r\n]*", "; ", action)
+    action = " ".join(action.split())
     tasking_verb = (
         r"(?:activate|assign|authorise|authorize|commit|deploy|dispatch|launch|"
         r"mobilise|mobilize|order|position|put|ready|retask|scramble|send|"
-        r"station|surge|task|use(?!\s+of force\b))"
+        r"station|surge|task(?!\s+force\b)|use(?!\s+of force\b))"
     )
-    negation = r"(?:do not|don['’]t|never|refuse to|without|avoid)"
+    negation = (
+        r"(?:do not|don['’]t|will not|won['’]t|cannot|can['’]t|not to|never|"
+        r"refuse to|without|avoid)"
+    )
+    directive_separator = (
+        r"(?:,\s*(?:(?:and|but)\s+)?(?:instead\s+)?|"
+        r"\s+(?:and|but)\s+(?:instead\s+)?)"
+    )
     asset = (
         r"(?:\b(?:HMS|RAF|RNAS|SSBNs?|SSNs?|CAP|carriers?|destroyers?|"
         r"frigates?|submarines?|squadrons?|aircraft|jets?|fighters?|"
@@ -1182,10 +1197,10 @@ def _extract_tasked_forces(action: str) -> str:
         r"\b(?:Type\s*-?\s*\d+|[PFE]\s*-?\s*\d+[A-Z]?)\b)"
     )
     matches = re.finditer(
-        rf"(?:^|[;.!?]\s*|,\s*(?:(?:and|but)\s+)?)"
+        rf"(?:^|[;.!?]\s*|{directive_separator})"
         rf"(?P<negated>{negation}\s+)?{tasking_verb}\s+"
         rf"(?P<force>.+?)(?=\s+(?:at|for|in|into|near|off|on|over|to|toward|towards|under)\b|"
-        rf",\s*(?:(?:and|but)\s+)?(?:{negation}\s+)?{tasking_verb}\b|[;.]|$)",
+        rf"{directive_separator}(?:{negation}\s+)?{tasking_verb}\b|[;.!?]|$)",
         action,
         re.IGNORECASE,
     )
@@ -1193,9 +1208,10 @@ def _extract_tasked_forces(action: str) -> str:
     for match in matches:
         if match.group("negated"):
             continue
-        force = " ".join(match.group("force").split()).strip(" \"'")
-        if re.search(asset, force, re.IGNORECASE):
-            forces.append(force)
+        for force in match.group("force").split(","):
+            force = " ".join(force.split()).strip(" \"'")
+            if re.search(asset, force, re.IGNORECASE):
+                forces.append(force)
     return ", ".join(force for force in forces if force) or "None specified"
 
 
@@ -1259,7 +1275,7 @@ class MockDeterministicDriver:
             normalised_decision = " ".join((decided or "").split())
             summary = normalised_decision if decided is not None else \
                 "Deploy naval and air assets to defensive posture"
-            forces = _extract_tasked_forces(normalised_decision)
+            forces = _extract_tasked_forces(decided or "")
             return (f"INTERPRETATION: {summary}\n"
                     f"FORCES INVOLVED: {forces}\n"
                     "RESOURCES CONSUMED: Minimal (patrol operations)\n"

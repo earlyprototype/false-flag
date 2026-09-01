@@ -880,6 +880,92 @@ def test_mock_interpretation_accepts_an_authorised_named_asset():
         "HMS Prince of Wales"]
 
 
+@pytest.mark.parametrize(("action", "expected"), [
+    (
+        "Authorise defensive patrols only, and instruct the Attorney General "
+        "to review the legal basis.",
+        ["defensive patrols only"],
+    ),
+    (
+        "Authorize P-8 coverage over the Norwegian Sea.",
+        ["P-8 coverage"],
+    ),
+])
+def test_mock_interpretation_accepts_canonical_authorise_forms(action, expected):
+    driver = MockDeterministicDriver()
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == expected
+
+
+@pytest.mark.parametrize("negation", [
+    "will not",
+    "won't",
+    "cannot",
+    "can't",
+    "not to",
+])
+def test_mock_interpretation_excludes_common_negated_directives(negation):
+    driver = MockDeterministicDriver()
+    action = f"Deploy P-8 patrols, but {negation} send the carrier."
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["P-8 patrols"]
+
+
+@pytest.mark.parametrize("connector", [
+    " and instead ",
+    ", and instead ",
+])
+def test_mock_interpretation_keeps_an_instead_directive_after_a_negated_one(
+        connector):
+    driver = MockDeterministicDriver()
+    action = (
+        f"Do not deploy the carrier{connector}scramble Typhoons over the "
+        "North Sea."
+    )
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["Typhoons"]
+
+
+def test_mock_interpretation_does_not_treat_task_force_as_a_tasking_verb():
+    driver = MockDeterministicDriver()
+    action = "Task force readiness remains unchanged."
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+
+
+def test_mock_interpretation_ends_a_force_directive_at_a_newline():
+    driver = MockDeterministicDriver()
+    action = "Send the carrier group north\nBrief the Commons this afternoon."
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == [
+        "the carrier group north"]
+
+
 def test_pushback_decision_extraction_survives_newlines():
     driver = MockDeterministicDriver()
     action = "Authorise nuclear\nfirst use."
