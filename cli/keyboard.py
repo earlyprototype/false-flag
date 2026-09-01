@@ -70,6 +70,12 @@ def wait_for_key(prompt: str = "Press SPACE (or Enter) to continue...", keys=(" 
     print("")
     print(prompt)
 
+    if not _stdin_is_tty():
+        # Piped/redirected input (scripts, CI): don't block and don't consume
+        # stdin — lines belong to the game's real prompts, not pacing gates.
+        print("")
+        return
+
     if _WINDOWS:
         while True:
             if msvcrt.kbhit():
@@ -81,12 +87,6 @@ def wait_for_key(prompt: str = "Press SPACE (or Enter) to continue...", keys=(" 
                 except AttributeError:
                     pass
             time.sleep(0.02)
-
-    if not _stdin_is_tty():
-        # Piped/redirected input (scripts, CI): don't block and don't consume
-        # stdin — lines belong to the game's real prompts, not pacing gates.
-        print("")
-        return
 
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)

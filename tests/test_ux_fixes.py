@@ -38,6 +38,55 @@ def _plain(text: str) -> str:
     return _ANSI_RE.sub("", text)
 
 
+def test_wait_for_key_skips_windows_key_loop_when_stdin_is_piped(monkeypatch):
+    import cli.keyboard as keyboard
+
+    def fail_if_polled():
+        raise AssertionError("redirected stdin entered the Windows key loop")
+
+    monkeypatch.setattr(keyboard, "_WINDOWS", True)
+    monkeypatch.setattr(keyboard, "_stdin_is_tty", lambda: False)
+    monkeypatch.setattr(
+        keyboard, "msvcrt", SimpleNamespace(kbhit=fail_if_polled), raising=False)
+
+    keyboard.wait_for_key()
+
+
+@pytest.mark.parametrize(
+    "menu_name",
+    [
+        "select_scenario_variant",
+        "select_play_mode",
+        "select_difficulty",
+        "select_narrative",
+    ],
+)
+def test_setup_menus_do_not_retry_keyboard_interrupt(monkeypatch, menu_name):
+    import cli.main as main
+
+    monkeypatch.setattr(main.typer, "clear", lambda: None)
+    monkeypatch.setattr(
+        main,
+        "list_available_scenarios",
+        lambda _scenario: [("standard", {"name": "Standard"})],
+    )
+    errors = iter([KeyboardInterrupt(), AssertionError("setup prompt retried")])
+
+    def interrupt_then_fail(*_args, **_kwargs):
+        raise next(errors)
+
+    monkeypatch.setattr(main.typer, "prompt", interrupt_then_fail)
+
+    menus = {
+        "select_scenario_variant": lambda: main.select_scenario_variant("war_game_2025"),
+        "select_play_mode": main.select_play_mode,
+        "select_difficulty": lambda: main.select_difficulty("war_game_2025"),
+        "select_narrative": lambda: main.select_narrative("war_game_2025", Random(42)),
+    }
+    with pytest.raises(KeyboardInterrupt):
+        menus[menu_name]()
+
+
 def _world(cohesion=40, turn=1):
     return WorldState(
         turn=turn,
@@ -570,10 +619,6 @@ def test_play_offers_to_resume_autosave_when_interactive(monkeypatch):
         assert loaded["path"].name == "war_game_2025_autosave.json"
 
 
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="Piped-stdin input model differs on Windows (msvcrt consumes keys)",
-)
 def test_play_skips_resume_prompt_when_stdin_piped():
     """With piped stdin the resume confirm would silently eat the first queued
     command, so non-interactive runs must skip the offer and start a new
@@ -584,12 +629,13 @@ def test_play_skips_resume_prompt_when_stdin_piped():
     with _autosave_fixture():
         env = dict(os.environ)
         env["WARGAME_LLM"] = "mock"
+        env["PYTHONIOENCODING"] = "utf-8"
         result = subprocess.run(
             [sys.executable, "-m", "cli.main", "play"],
             # Four numeric setup menus, then quit at the first discussion
             # prompt (confirming "Leave the crisis room?")
             input="1\n1\n1\n1\n/quit\ny\n",
-            capture_output=True, text=True, cwd=str(root), env=env,
+            capture_output=True, encoding="utf-8", cwd=str(root), env=env,
             timeout=480,
         )
         out = _plain(result.stdout + result.stderr)
@@ -601,6 +647,32 @@ def test_play_skips_resume_prompt_when_stdin_piped():
         # ...and the first queued line reached the scenario menu (a new
         # campaign starts, so the setup menus are all shown)
         assert "SELECT SCENARIO" in out
+
+
+def test_play_eof_at_discussion_closes_session_cleanly(tmp_path):
+    import os
+    import subprocess
+
+    env = dict(os.environ)
+    env["WARGAME_LLM"] = "mock"
+    env["WARGAME_SAVE_ROOT"] = str(tmp_path)
+    env["PYTHONIOENCODING"] = "utf-8"
+    result = subprocess.run(
+        [sys.executable, "-m", "cli.main", "play"],
+        input="1\n1\n1\n1\n",
+        capture_output=True,
+        encoding="utf-8",
+        cwd=str(root),
+        env=env,
+        timeout=480,
+    )
+    out = _plain(result.stdout + result.stderr)
+
+    assert result.returncode == 0, (
+        f"EOF run exited {result.returncode}:\n{out[-3000:]}")
+    assert "SIGNAL LOST — secure line closed." in out
+    assert "Aborted." not in out
+    assert "campaign is preserved in the last autosave" not in out.lower()
 
 
 # --- Dashboard SITREP labels (defect 12c) -----------------------------------
