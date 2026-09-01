@@ -400,6 +400,9 @@ def test_offline_pushback_is_visible_as_unavailable():
     "NO PUSHBACK. No - concern is present.",
     "Chief of the Defence Staff: NO PUSHBACK. No -- objection is present.",
     "Prime Minister, NO PUSHBACK. No - warning is triggered.",
+    "NO PUSHBACK. No concern is present?!",
+    "Chief of the Defence Staff: NO PUSHBACK. None of my objections applies?",
+    "Prime Minister, NO PUSHBACK. Nothing raises a warning?!",
     ("As the Foreign Secretary warned, As the Attorney General advised, "
      "Speaking as the Home Secretary, I object."),
     ("As the Foreign Secretary warned, and Speaking as the Attorney "
