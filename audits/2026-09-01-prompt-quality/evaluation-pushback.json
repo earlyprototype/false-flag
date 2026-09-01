@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "phase": "pushback",
-  "captured_at_utc": "2026-09-01T10:18:31.689252+00:00",
-  "git_head": "39ca53fa1f4db0f203cbec84c9a41b74f9087278",
+  "captured_at_utc": "2026-09-01T10:35:25.320348+00:00",
+  "git_head": "7863234a4f2951bb3b9174dbef865e8428a457aa",
   "config": {
     "scenario_id": "war_game_2025",
     "variant": "standard",
@@ -32,7 +32,6 @@
         "mystery_mode": false
       },
       "selected_narrative_id": null,
-      "briefing_title": "COBRA Emergency Meeting Convened",
       "outputs": {
         "advisor_pushback": [
           [
@@ -57,7 +56,6 @@
         "mystery_mode": true
       },
       "selected_narrative_id": "CHINA_PROXY_WAR",
-      "briefing_title": "COBRA Emergency Meeting Convened",
       "outputs": {
         "advisor_pushback": [
           [
@@ -74,12 +72,11 @@
   ],
   "records": [
     {
-      "ts": 1788257911.686,
+      "ts": 1788258925.318,
       "seq": 1,
       "case": "mystery_off",
       "mystery_mode": false,
       "narrative_id": "none",
-      "git_head": "39ca53fa1f4db0f203cbec84c9a41b74f9087278",
       "path": "advisor_pushback",
       "turn": 1,
       "family": "advisor_pushback",
@@ -93,8 +90,6 @@
       "fallback": false,
       "batch_index": null,
       "batch_size": null,
-      "context": "advisor_pushback",
-      "raw_reply": "Attorney General: Prime Minister, nuclear first-use without imminent existential threat violates our legal framework and would fracture NATO immediately.\nForeign Secretary: This would end US support and isolate us internationally.",
       "parsed_output": [
         [
           "Attorney General",
@@ -107,12 +102,11 @@
       ]
     },
     {
-      "ts": 1788257911.689,
+      "ts": 1788258925.32,
       "seq": 2,
       "case": "mystery_on",
       "mystery_mode": true,
       "narrative_id": "CHINA_PROXY_WAR",
-      "git_head": "39ca53fa1f4db0f203cbec84c9a41b74f9087278",
       "path": "advisor_pushback",
       "turn": 1,
       "family": "advisor_pushback",
@@ -126,8 +120,6 @@
       "fallback": false,
       "batch_index": null,
       "batch_size": null,
-      "context": "advisor_pushback",
-      "raw_reply": "Attorney General: Prime Minister, nuclear first-use without imminent existential threat violates our legal framework and would fracture NATO immediately.\nForeign Secretary: This would end US support and isolate us internationally.",
       "parsed_output": [
         [
           "Attorney General",
