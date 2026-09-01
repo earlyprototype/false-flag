@@ -710,6 +710,8 @@ def test_each_advisor_may_prefix_its_own_reply_without_owning_attribution():
     "NO PUSHBACK. I have no concerns.",
     "NO PUSHBACK — no trigger is activated.",
     "NO PUSHBACK (no trigger activated)",
+    "Chief of the Defence Staff: NO PUSHBACK (no trigger activated)",
+    "Prime Minister, NO PUSHBACK (no trigger activated)",
     "NO PUSHBACK. Nothing triggers a concern.",
     "NO PUSHBACK. No trigger applies to this order.",
     "NO PUSHBACK. No concerns arise.",
