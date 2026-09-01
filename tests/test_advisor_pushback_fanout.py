@@ -386,6 +386,10 @@ def test_offline_pushback_is_visible_as_unavailable():
     "NO PUSHBACK. No action is safe if objections remain.",
     "NO PUSHBACK. No strike is lawful if concerns remain.",
     "NO PUSHBACK. No carrier can sail if warnings remain.",
+    "NO PUSHBACK. 核攻撃は違法です No concern applies.",
+    ("Chief of the Defence Staff: NO PUSHBACK. НАТО распадется "
+     "No concern applies."),
+    "Prime Minister, NO PUSHBACK. No concern applies 核攻撃は違法です",
     ("As the Foreign Secretary warned, As the Attorney General advised, "
      "Speaking as the Home Secretary, I object."),
     ("As the Foreign Secretary warned, and Speaking as the Attorney "
