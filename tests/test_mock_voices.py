@@ -814,6 +814,22 @@ def test_mock_interpretation_keeps_comma_separated_force_packages():
         "Type 45 destroyers", "Type 23 frigates and P-8 patrols"]
 
 
+def test_mock_interpretation_keeps_coordinated_force_directives():
+    driver = MockDeterministicDriver()
+    action = (
+        "Deploy Type 45 destroyers to the GIUK gap and scramble Typhoons "
+        "over the North Sea."
+    )
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == [
+        "Type 45 destroyers", "Typhoons"]
+
+
 def test_mock_interpretation_does_not_task_a_negated_force():
     driver = MockDeterministicDriver()
     action = "Do not deploy the carrier; consult NATO allies."
