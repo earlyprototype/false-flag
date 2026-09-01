@@ -1,5 +1,9 @@
 # Gemini 2.5 Pro Hybrid System - Implementation Report
 
+> **Historical November 2025 provider proposal.** Model availability, pricing,
+> status and estimates below are not current. See
+> [LLM_PROVIDERS.md](../LLM_PROVIDERS.md).
+
 **Feature**: Strategic use of Gemini 2.5 Pro for high-value LLM tasks  
 **Status**: 🔲 Proposed - Not Yet Implemented  
 **Priority**: P2 - Medium (Quality enhancement)  

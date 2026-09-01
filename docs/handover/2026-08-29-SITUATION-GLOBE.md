@@ -1,5 +1,9 @@
 # Handover — Situation Globe, morning of 29 Aug 2026
 
+> **Historical snapshot.** Globe Display has since shipped and the sequence,
+> dates, live-data position and VR status below are superseded by
+> [`PLAN.md`](../../PLAN.md) and [`BUILD_STATE.md`](../BUILD_STATE.md).
+
 For whoever picks this up: the owner, or a fresh session. Two minutes of reading. Nothing needs reconstructing from chat logs.
 
 ## Read in this order

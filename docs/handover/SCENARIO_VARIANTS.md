@@ -1,5 +1,8 @@
 # Scenario Variants System
 
+> **Historical November 2025 feature snapshot.** Verify current behaviour
+> against the code and [BUILD_STATE.md](../BUILD_STATE.md).
+
 ## Overview
 
 The wargame now supports multiple scenario variants with different pacing and complexity levels. Players can choose their preferred experience at game start through an interactive menu.

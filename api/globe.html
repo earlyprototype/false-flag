@@ -6,8 +6,8 @@
 <title>False Flag — Situation Globe</title>
 <!-- Pinned CesiumJS. Keyless by default: OpenStreetMap imagery over the
      default ellipsoid, so the page renders with zero accounts and zero
-     tokens. ?ionToken=... swaps in Ion photoreal imagery when one is at
-     hand. CESIUM_BASE_URL must be set before the library loads: it is
+     tokens. ?ionToken=... lets Viewer use Cesium ion's default world
+     imagery. CESIUM_BASE_URL must be set before the library loads: it is
      where Cesium fetches its workers and assets from. -->
 <script>window.CESIUM_BASE_URL = "https://cdnjs.cloudflare.com/ajax/libs/cesium/1.132.0/";</script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cesium/1.132.0/Widgets/widgets.css">
@@ -139,14 +139,14 @@
 
 <script>
 /* ===================================================================
-   False Flag — Situation Globe (Stage 1 "Globe Display", PLAN.md)
+   False Flag — Situation Globe (shipped display foundation, PLAN.md)
 
    Reads GET /game/{id}/resources and plots every unit at its named
    base, then follows that game's SSE stream so a live event visibly
    moves the display.
 
    ONE CONSUMER ONLY. /stream/{id} is a destructive single-consumer
-   queue until Stage 3's per-subscriber fan-out lands: a second reader
+   queue until Slice 1's per-subscriber fan-out lands: a second reader
    (a dashboard tab on the same session) steals events from this page.
    =================================================================== */
 
@@ -154,8 +154,9 @@ const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 
 /* ------------------------------------------------------------ gazetteer */
-/* Stage 1 is hardcoded and coarse on purpose (2dp ≈ 1 km); Stage 2 moves
-   this to a checked gazetteer.yaml (PLAN.md, issue #72). Keys cover every
+/* The shipped foundation is hardcoded and coarse on purpose (2dp ≈ 1 km);
+   the Spatial Decision Loop moves this to a checked gazetteer.yaml
+   (PLAN.md, issue #72). Keys cover every
    location string the war_game_2025 order of battle actually carries, plus
    the scenario's other named places. "International_waters" is the one name
    in the scenario's locations: block deliberately left out - like
@@ -350,7 +351,7 @@ const pretty = s => String(s || "").replace(/_/g, " ");
 
 /* Units sharing a base are fanned onto a small ring so labels stay
    readable. The ring is display only - a unit's position is its base
-   until Stage 2 gives units real tracks. */
+   until the Spatial Decision Loop gives units real tracks. */
 function fanOffset(index, total) {
   if (total <= 1) return [0, 0];
   const a = (2 * Math.PI * index) / total;
@@ -464,7 +465,7 @@ function renderResources(id, data) {
   setStatus(`session <b>${esc(id.slice(0, 8))}…</b><br>
     <b>${lastCounts.forces}</b> units · <b>${lastCounts.resolved}</b> plotted ·
     <b>${lastCounts.unresolved}</b> unresolved · ${lastCounts.stockpiles} stockpile lines<br>
-    co-located units are fanned for legibility; positions are their bases until Stage 2`);
+    co-located units are fanned for legibility; positions remain at bases until spatial tracks are implemented`);
 }
 
 async function loadResources() {

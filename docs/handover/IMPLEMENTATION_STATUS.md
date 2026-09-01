@@ -1,4 +1,7 @@
 # Implementation Status - False Flag Wargame
+
+> **Historical snapshot — 8 November 2025.** Do not use this file for current
+> completion claims. See [BUILD_STATE.md](../BUILD_STATE.md).
 **Last Updated**: November 8, 2025  
 **Build**: Dynamic Narrative System - Phase 3 Complete  
 

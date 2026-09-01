@@ -1,5 +1,8 @@
 # Nuclear Command Chain & Authority System
 
+> **Historical November 2025 proposal.** Priority, gaps and estimates below are
+> not current. See [BUILD_STATE.md](../BUILD_STATE.md).
+
 **Feature**: Realistic nuclear command structure and consequences  
 **Status**: 🔴 Critical Gap - Discovered via playtesting  
 **Priority**: P0 - Game-Breaking Issue  

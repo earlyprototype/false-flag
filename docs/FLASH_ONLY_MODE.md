@@ -1,5 +1,10 @@
 # Flash-Only Mode Implementation
 
+> **Historical implementation record — 13 November 2025.** The flag and code
+> change described here may still be useful, but every fixed quota, speed,
+> timing and “free tier” claim below is obsolete. Check the provider dashboard
+> and current [LLM Providers Guide](LLM_PROVIDERS.md) before use.
+
 **Date:** 13 November 2025  
 **Status:** ✅ Complete
 

@@ -1,5 +1,10 @@
 # Available Google/Gemini Models via API
 
+> **Historical API snapshot — 27 October 2025.** Model names and availability
+> change; do not use this as a current compatibility list. See
+> [`docs/LLM_PROVIDERS.md`](../docs/LLM_PROVIDERS.md) and the provider's current
+> API response.
+
 **Last Updated:** 2025-10-27  
 **API Endpoint:** `https://generativelanguage.googleapis.com/v1beta/models`
 

@@ -1,5 +1,9 @@
 # Image Generation - Final Status & Solution
 
+> **Historical provider snapshot — 27 October 2025.** Its Gemini quotas,
+> pricing and “final” recommendation are not current. Use the actual script and
+> maintained [`tools/README.md`](tools/README.md).
+
 **Date:** 2025-10-27  
 **Status:** ✅ Code Fixed | ❌ API Quota Exhausted
 

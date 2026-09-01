@@ -1,174 +1,296 @@
-# Situation Globe — Build Plan
+# Situation Globe and Ops Room — Build Plan
 
-**This file is the plan. It is the only place the plan lives.** Everywhere else either points here or draws a picture of it. If you are picking this work up — new to it, returning to it, or handing it on — read this file and nothing else is required.
+**This is the canonical implementation plan.** It describes what is built, what
+comes next, and the observable test that completes each slice. Supporting
+documents explain the evidence; they do not define a competing sequence.
 
-Each stage names **what gets built** and the **done test**: an observable fact you can watch happen. A stage is not finished because it feels finished; it is finished when its done test passes.
+## Product centre
 
-**Keep this file current**: when a stage completes, set its status to `DONE`, put the commit or PR in Evidence, and tick its build items. When something changes, change it here first.
+FALSE FLAG remains the AI wargame described in the
+[README's session walkthrough](README.md#what-happens-in-a-session): a
+multi-turn crisis in which the player questions five cabinet advisers, handles
+diplomatic pressure, makes a free-form decision, receives pushback, and lives
+with the adjudicated consequences.
 
----
+The Situation Globe, live context and VR operations room deepen that same
+campaign. They are not a replacement game, a generic agent demonstration, or
+a dashboard product.
 
-## Status
+The end-to-end acceptance path is one authentic turn:
 
-| Stage | What it delivers | Status | Evidence |
+1. A crisis briefing arrives, including bounded live context where relevant.
+2. The player questions the five cabinet advisers and receives distinct advice.
+3. A diplomatic encounter or other campaign pressure may interrupt.
+4. The player makes a free-form decision and answers any pushback.
+5. The engine interprets and adjudicates the decision.
+6. Campaign consequences update the same session, globe and VR room.
+7. The next turn continues from the resulting state.
+
+Owner ruling, 1 September 2026: implementation estimates do not decide scope or
+cut features. Work is sequenced by dependencies and observable done tests.
+
+## Current status
+
+| Item | What it delivers | Status | Evidence |
 |---|---|---|---|
-| **1 · Globe Display** | The map page exists and shows the game's forces | `DONE` — projector done-test passed 31 Aug 2026 | [#94](https://github.com/earlyprototype/false-flag/issues/94) · [PR #95](https://github.com/earlyprototype/false-flag/pull/95) · [PR #104](https://github.com/earlyprototype/false-flag/pull/104) |
-| **2 · Spatial State and Kinematics** | Units have real positions that advance each turn | `NOT STARTED` | — |
-| **3 · Theatre API and Multi-Client Streaming** | The map reads the digital-twin model; many screens can watch | `NOT STARTED` | — |
-| **4 · Demo Operations and Reliability** | The demo runs to a written sequence without improvisation | `NOT STARTED` | — |
-| **5 · Validated Movement Orders** | Decision text moves the forces | `NOT STARTED` — design settled ([#71](https://github.com/earlyprototype/false-flag/issues/71) closed: orders on); schedule-gated | — |
-| **Afterwards** | Line-crossing events, fog, live-hybrid, email artifact, VR ops room | `NOT STARTED` | — |
+| **Globe Display** | Read-only Cesium globe showing scenario resources | `DONE` — projector test passed 31 Aug 2026 | [Issue #94](https://github.com/earlyprototype/false-flag/issues/94) · [PR #95](https://github.com/earlyprototype/false-flag/pull/95) · [PR #104](https://github.com/earlyprototype/false-flag/pull/104) |
+| **1 · Multi-client Session Streaming** | One played campaign observed reliably by several surfaces | `NOT STARTED` | — |
+| **2 · Spatial Decision Loop** | Campaign forces move from authored state and validated player orders | `NOT STARTED` — movement design settled | [Issue #71](https://github.com/earlyprototype/false-flag/issues/71) |
+| **3 · Live Context Integration** | Real external context appears around, and may inform, the fictional exercise | `NOT STARTED` — boundary and live-first posture settled | [Issue #77](https://github.com/earlyprototype/false-flag/issues/77) |
+| **4 · Quest Ops-Room Display** | The existing game is present inside a WebXR operations room | `NOT STARTED` — build order settled; device availability open | [WebXR brief](docs/tech/WEBXR.md) · [Issue #75](https://github.com/earlyprototype/false-flag/issues/75) |
+| **5 · Demonstration Reliability and Submission** | The authentic game turn can be launched, shown, recovered and submitted | `NOT STARTED`; reliability work runs throughout | — |
 
-**Dates**: build started 28 Aug 2026 · onsite 12 Sep at Irish Manufacturing Research · final date 14 Sep.
-**Cut order under time pressure**: Afterwards → Stage 5 → Stage 3. Stages 1, 2 and 4 are the floor.
-**Stage 1 is DONE — the projector done-test passed 31 Aug 2026.** The owner's go was given 30 Aug 2026; implementation shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95) with follow-ups [#104](https://github.com/earlyprototype/false-flag/pull/104), [#106](https://github.com/earlyprototype/false-flag/pull/106) and [#108](https://github.com/earlyprototype/false-flag/pull/108).
+Slice 1 is the shared dependency. Once its session contract is stable, spatial,
+live-data and VR work may proceed independently; the numbers show integration
+order, not elapsed-time estimates.
 
----
+## Completed foundation — Globe Display
 
-## All open work — Now / Next / Later
+*Technical descriptor: serve a read-only Cesium globe that plots scenario
+resources and responds to events from one API session.*
 
-The globe stages above are one of two workstreams; the other is cabinet-advisor independence ([#87](https://github.com/earlyprototype/false-flag/issues/87)–[#92](https://github.com/earlyprototype/false-flag/issues/92)). This board orders everything open across both. Working rules: one engine-touching build at a time; parallel work only where no files are shared; every major task gets an issue and lands as its own PR.
+Completed in [PR #95](https://github.com/earlyprototype/false-flag/pull/95),
+with follow-ups in PRs
+[#104](https://github.com/earlyprototype/false-flag/pull/104),
+[#106](https://github.com/earlyprototype/false-flag/pull/106) and
+[#108](https://github.com/earlyprototype/false-flag/pull/108).
 
-**Now**
-- **Stage 1 · Globe Display** — [#94](https://github.com/earlyprototype/false-flag/issues/94) · `DONE — projector done-test passed 31 Aug 2026` ([PR #95](https://github.com/earlyprototype/false-flag/pull/95), URL fix [PR #104](https://github.com/earlyprototype/false-flag/pull/104))
-- **Manus research queue** — [#70](https://github.com/earlyprototype/false-flag/issues/70) · owner fires; its gazetteer verification feeds Stage 2
-- **Small bounded fixes** (directed-Codex lane candidates, each its own PR, none touch Stage 1 files): the pushback-roster bug inside [#87](https://github.com/earlyprototype/false-flag/issues/87) (the Prime Minister can currently be rendered pushing back on the player) · [#91](https://github.com/earlyprototype/false-flag/issues/91) contradictory advisor-prompt instructions · the cheap items of [#92](https://github.com/earlyprototype/false-flag/issues/92) (element descriptions, zoom, view reset)
+Current limits are explicit:
 
-**Next**
-- **Stage 2 · Spatial State and Kinematics**, then the schedule check
-- [#87](https://github.com/earlyprototype/false-flag/issues/87) full per-advisor fan-out · [#88](https://github.com/earlyprototype/false-flag/issues/88) per-advisor private continuity + engine-readable state
+- It plots UK forces at authored base locations; it does not yet show moving
+  red-force tracks.
+- An event refreshes the display but does not yet move a unit.
+- The session stream is destructive and safe for only one subscriber.
+- No external live feed or XR room exists yet.
 
-**Later** — sequenced after Now and Next; the stretch gate can pull items forward. No timing has been ruled — the owner schedules.
-- Stages 3–5 per the gates below · [#90](https://github.com/earlyprototype/false-flag/issues/90) advisor hidden-state parity with foreign actors · [#92](https://github.com/earlyprototype/false-flag/issues/92) visual-design pass · [#76](https://github.com/earlyprototype/false-flag/issues/76) real-email inject · [#77](https://github.com/earlyprototype/false-flag/issues/77) live-hybrid mode
+## 1 · Multi-client Session Streaming
 
-**Decisions** — under the owner's 30 Aug "plan then go" authorization, each open decision proceeds on the working default recorded in its issue; commenting on the issue overturns the default at any time. Ruled and closed: [#72](https://github.com/earlyprototype/false-flag/issues/72) map-data folder (split, 1 Sep) · [#74](https://github.com/earlyprototype/false-flag/issues/74) default visual register (all options stay behind switches, 31 Aug). Open: [#73](https://github.com/earlyprototype/false-flag/issues/73) users' campaign cut · [#75](https://github.com/earlyprototype/false-flag/issues/75) Quest availability (assumed yes; stays open until confirmed) · [#89](https://github.com/earlyprototype/false-flag/issues/89) scope to one game type + Mystery mode (gets its own branch when that work starts)
+*Technical descriptor: give every subscriber an independent event delivery
+path and expose session-scoped snapshots to the player, dashboard, globe and
+VR room.*
 
----
+### Build
 
-## Stage 1 · Globe Display — *about a day*
+- [ ] Select one API-backed player: either restore and complete the checked-in
+      Next client or port one maintained client onto the API. Do not build both.
+      The chosen client must run each later turn through
+      `POST /game/{session_id}/briefing`; the current Next source omits that
+      call and cannot yet play a complete campaign.
+- [ ] Replace the single destructive session queue with per-subscriber queues;
+      copy each payload before audience filtering.
+- [ ] Scope theatre snapshots and view permissions to a game session.
+- [ ] Publish a versioned theatre snapshot with an ETag; use SSE as change
+      notification rather than as the only state store.
+- [ ] Prove the selected player uses the same API session observed by the
+      dashboard and globe. Do not claim that the terminal CLI or static
+      Pyodide build is attached until it actually is.
+- [ ] Keep REFEREE data server-filtered and require authentication before any
+      control surface leaves localhost.
+- [ ] Add a regression check in which two subscribers receive every event.
+- [ ] Add the `Theatre;1` and `TheatreAsset;1` DTDL sidecars without modifying
+      the 13 published interfaces; re-run Microsoft's DTDL parser.
 
-*Technical scope: serve a read-only Cesium globe that plots scenario resources and responds to live session events.*
+### Done test
 
-**Build** — complete in [#95](https://github.com/earlyprototype/false-flag/pull/95), commit `779e585`
-- [x] `api/globe.html`, served at `GET /globe` by FileResponse — the pattern `dashboard.html` already uses
-- [x] CesiumJS satellite Earth in that page (keyless: OSM imagery, no accounts; pinned 1.132.0)
-- [x] 14 starter gazetteer entries — every order-of-battle location covered; posture strings (`available`, `classified`, no location) go to a visible UNRESOLVED tray, never an invented coordinate
-- [x] Read `GET /game/{id}/resources` and plot every unit at its named base
-- [x] Subscribe to one live game event stream (one consumer only — the multi-screen fix comes in Stage 3)
-- [x] One vendored sensor shader (MIT FLIR from gods-eye-view, licence retained); diegetic EXERCISE chrome
+A real API-played campaign, dashboard and globe share one session ID; two
+simultaneous subscribers each receive every permitted event; reconnecting from
+the snapshot restores the current display.
 
-**Done test** — on the projector, every unit in the order of battle sits at its real location, and an event in the running game visibly changes the display.
+## 2 · Spatial Decision Loop
 
-**Authorized**: the owner's go was given 30 Aug 2026. Tracked in [#94](https://github.com/earlyprototype/false-flag/issues/94).
+*Technical descriptor: persist unit tracks, advance authored routes with pure
+kinematics, and translate decision text into validated orders that visibly
+change the campaign.*
 
----
+### Build
 
-## Stage 2 · Spatial State and Kinematics — *about a week*
+- [ ] Add `UnitTrack`, `MovementOrder` and `SpatialState`, including standing
+      orders, bounded order history and fired-tripwire latches.
+- [ ] Hydrate scenario units from sourced gazetteer entries at new game and
+      load.
+- [ ] Advance positions once per turn along authored route polylines with
+      deterministic, zero-RNG kinematics.
+- [ ] Publish the resulting snapshot to the theatre endpoint and interpolate
+      only for display between authoritative turn boundaries.
+- [ ] Add the bounded movement-order call settled in
+      [issue #71](https://github.com/earlyprototype/false-flag/issues/71): the
+      model emits unit, mission, named destination and speed band; it never
+      emits coordinates.
+- [ ] Validate every order against the unit registry, gazetteer and mission
+      legality rules. Bad or incomplete output creates no new order, visibly
+      reports the miss, and leaves the last standing order active.
+- [ ] Evaluate authored spatial tripwires at the start of the next briefing so
+      movement can become campaign news.
+- [ ] Persist and verify tracks, orders and tripwire state across save, load and
+      resume; rebuild the browser play bundle after any `WorldState` change.
 
-*Technical scope: persist unit tracks and advance them once per turn along authored routes using deterministic kinematics.*
+### Done test
 
-**Build**
-- [ ] `models/spatial.py` — `UnitTrack`, `MovementOrder`, `SpatialState` (including `order_log` and the fired-tripwire latch set)
-- [ ] `gazetteer.yaml` — ~30 entries, each coordinate checked against a source (file location: [#72](https://github.com/earlyprototype/false-flag/issues/72))
-- [ ] `engine/kinematics.py` — pure `advance(dt)` along authored route polylines, per-domain speed tables, no randomness
-- [ ] Position hydration at game start and at load
-- [ ] Red fleet's authored route legs
-- [ ] `resolve_decision` advances positions once per turn and publishes a snapshot
-- [ ] Save format 2.4 → 2.5, then the play-bundle rebuild that must follow any `models/world.py` edit
-- [ ] Tests: kinematics units · save→load→resume equality · gazetteer covers every unit location
+During an authentic turn, a free-form player decision produces a validated
+order, the intended unit moves, the globe shows that consequence, and the next
+briefing can react to a crossed boundary. A deliberately malformed model reply
+moves nothing new and reports the failure. Save/load/resume preserves the same
+positions and standing orders.
 
-**Done test** — in a live campaign the red group advances every turn along its route; save at turn 3, reload, and positions are identical; the full test suite passes.
+## 3 · Live Context Integration
 
-**No AI is involved in this stage.** Costs nothing to run.
+*Technical descriptor: ingest bounded real-world feeds into separate Cesium
+layers and adviser context without allowing external data to mutate game
+state.*
 
----
+### Build
 
-## Stage 3 · Theatre API and Multi-Client Streaming — *about a week*
+- [ ] Resolve campaign-clock coherence before live observations enter adviser
+      prompts: move the campaign date to "now," treat current conditions as an
+      explicitly present-day exercise baseline, or keep them spectator-only.
+      Record the owner choice; do not let September 2026 weather masquerade as
+      an October 2025 observation.
+- [ ] Weather first: sample current conditions at checked scenario gazetteer
+      points through Open-Meteo, cache them, display observation time and
+      source health, and—if the clock ruling permits—place the bounded summary
+      in `WorldReference.environmentalFactors` with its temporal framing.
+- [ ] Add one bounded civilian-flight layer outside the exercise-zone polygon.
+      Select the provider only after its current data terms permit the intended
+      demo use.
+- [ ] Keep real and fictional entities in independent Cesium data sources.
+- [ ] Apply the owner-set boundary from
+      [issue #77](https://github.com/earlyprototype/false-flag/issues/77): real
+      context outside the exercise zone; simulated campaign layers own the
+      consequential picture inside it; fog carries the transition on the
+      player surface.
+- [ ] External data may inform adviser context but never write gauges,
+      positions, orders or outcomes.
+- [ ] Record provider, observation time, ingestion time and availability for
+      the after-action journal.
+- [ ] Use recorded external responses only in automated tests. There is no
+      silent runtime fallback: an unavailable or stale source is shown as
+      unavailable or stale.
+- [ ] Preserve every required provider and map attribution.
 
-*Technical scope: publish versioned DTDL theatre state and fan out each permitted session event to every subscribed display.*
+### Done test
 
-**Build**
-- [ ] `interop/models/theatre.json` — `Theatre;1` (one per session) and `TheatreAsset;1` (one per unit; position as telemetry with a source label), as **new sidecar files**; the 13 merged interfaces are never edited
-- [ ] Microsoft DTDLParser re-run, its output committed
-- [ ] `GET /theatre` — versioned snapshot endpoint with ETag
-- [ ] Per-subscriber fan-out on the session event bus, with per-subscriber payload copies
-- [ ] Globe reads `/theatre` plus stream notifications; DTMI badges bound to `/dtdl`
+Current weather changes a visible environmental layer and obeys the recorded
+campaign-clock rule; when adviser use is permitted, the response states the
+correct temporal framing and game state remains unchanged. Live civilian
+tracks remain outside the exercise zone. Disconnecting either provider
+produces an explicit source-health failure rather than fabricated live data.
 
-**Done test** — two browsers on the same session each receive every event (today one steals from the other); the parser reports PARSE OK with the new interface count; live model identifiers show over a moving map.
+## 4 · Quest Ops-Room Display
 
-*This is the stage built for the IMR room — digital twins are their field.*
+*Technical descriptor: put the existing campaign surfaces into a portable
+three.js/WebXR room, measure the real headset, then select a local quad layer or
+a streamed screen source.*
 
----
+### Build
 
-## Stage 4 · Demo Operations and Reliability — *three to four days · not optional*
+- [ ] Build the portable room and world-locked screen first. The room uses the
+      existing game session, transcript and globe; it does not create another
+      simulation.
+- [ ] Use the existing stylised art direction for adviser presence and keep
+      dialogue driven by real transcript events.
+- [ ] Measure the portable build on the available Quest: frame rate, frame
+      time, thermal behaviour, text legibility, input latency and recovery
+      after headset sleep.
+- [ ] If local globe rendering meets the recorded device budget, promote the
+      screen to an `XRQuadLayer` for legibility.
+- [ ] If it does not, keep the same room and use a server-rendered H.264/WebRTC
+      video source on a media quad layer; return input through an authenticated
+      data channel.
+- [ ] Provide captions, a flicker-free visual mode and a motion-comfort mode.
 
-*Technical scope: secure, rehearse, measure and record the real onsite demo path and its recovery procedure.*
+### Done test
 
-Hardens the **real** path. It is not a rehearsal of a simulated stand-in — that is a rule of this project.
+On the Quest, the player can enter the room, read the situation screen, hear or
+read the real cabinet exchange, and watch the same campaign consequence shown
+on the projector. The recorded measurements—not preference—identify the local
+quad-layer or streamed-source path.
 
-**Build**
-- [ ] Written start-to-finish demo sequence
-- [ ] Restart drill, measured under 60 seconds
-- [ ] Localhost binding plus authenticated proxy for anything reachable off the machine
-- [ ] Two timed projector rehearsals of the actual demo
-- [ ] Unattended booth-loop configuration decided **at rehearsal**, as a labelled choice, never a silent default
-- [ ] If the email artifact ([#76](https://github.com/earlyprototype/false-flag/issues/76)) is in by then: a deliverability rehearsal
-- [ ] One film recorded from a real run — hardware-catastrophe contingency only
+## 5 · Demonstration Reliability and Submission
 
-**Done test** — one rehearsal executed start to finish against the written sequence with zero operator improvisation, and the film file exists.
+*Technical descriptor: secure, rehearse, measure, recover and present one full
+FALSE FLAG turn using the real game path.*
 
----
+This work starts alongside Slice 1 and continues as the build changes.
 
-## Stage 5 · Validated Movement Orders — *about a week · schedule-gated*
+### Build
 
-*Technical scope: translate decision text into bounded, validated movement orders without allowing LLM output to write coordinates.*
+- [ ] Write the authentic-turn sequence from briefing through the next-turn
+      consequence; the dashboard is supporting evidence, not the product.
+- [ ] Keep the launch and recovery procedure reproducible on the demonstration
+      machine; measure restart rather than guessing it.
+- [ ] Bind control surfaces safely and authenticate anything reachable beyond
+      localhost.
+- [ ] Rehearse the real network path and a source-unavailable state.
+- [ ] Record a real run as hardware-failure contingency, clearly marked as an
+      exercise recording.
+- [ ] Demonstrate the agent roles through the existing game: distinct advice,
+      disagreement, memory, pushback, human authority and adjudicated
+      consequences.
+- [ ] Obtain and record mentor approval for FALSE FLAG as an alternative
+      Challenge entry unless an organiser maps it to an official statement;
+      evidence the real user, credible buyer or commissioner, current cost of
+      the problem and why an agentic approach is justified.
+- [ ] Capture named playtester or mentor feedback and retain sources for every
+      customer, competitor and commercial claim used in the presentation.
+- [ ] Support the challenge presentation with evidence of the game already
+      built and a clearly identified 28 Aug–13 Sep contribution; do not present
+      pre-existing work as new.
+- [ ] Prepare the editable presentation and demo link required by the official
+      participant playbook.
 
-Built only if Stage 4 is complete with at least three clear days before the onsite. **The design question is closed** — [#71](https://github.com/earlyprototype/false-flag/issues/71): orders on. Only the calendar decides whether it lands before 12 Sep.
+### Done test
 
-**Build**
-- [ ] `MOVEMENT` call family, seeded from a derived `crc32` (never a draw from the master RNG)
-- [ ] Prompt and parser: labelled lines, ≤8 orders, terminal sentinel, whole block discarded if the reply is truncated
-- [ ] Validation against the unit registry, the gazetteer, and the per-unit mission legality graph
-- [ ] Hold-on-failure with a player-visible transcript line; mock driver answers `NO_ORDERS`
-- [ ] Inject `movements:` list parsing
-- [ ] Spatial context block on the deciding calls; player-facing calls receive the estimates view only
-- [ ] One deliberate golden-test re-baseline commit
+The complete turn runs from the written sequence without operator invention;
+the recovery procedure works; the recording exists; and the editable deck plus
+demo link are ready for submission.
 
-**Done test** — a committed decision naming a movement produces the matching `order_log` entry and the unit moves next turn; a deliberately garbled reply produces zero orders plus the visible note.
+## Challenge facts — external constraints, not scope estimates
 
----
+- Build period: 28 August–13 September 2026.
+- Final submission: 13 September 2026 at 14:00 Irish time.
+- Regional demonstration at Irish Manufacturing Research: 14 September 2026;
+  seven-minute presentation followed by three minutes of questions.
+- Theme: **AI & Agents: Strategy, Processes and Roles**.
+- Team eligibility: 4–9 members including one team leader. Confirm the
+  registered team still complies; the formation deadline has passed.
+- Judging covers the problem and customer, the working solution, commercial
+  focus, and effective and responsible use of AI.
 
-## Afterwards — each buildable on its own, scheduled only by the owner
+Theme fit is not entry approval. The playbook requires an official Challenge
+statement or a mentor-approved alternative; the catalogue requires a wildcard
+to identify a real user, buyer or commissioning body, current problem cost and
+why agentic AI is justified. Those are open compliance gates, not claims to
+invent for the deck.
 
-- [ ] Tripwire engine — declarative line-crossing predicates evaluated at the top of `get_turn_briefing`
-- [ ] Fog of war and patrol tasking — `engine/intel_picture.py`, staleness-radius estimates, derived-seed noise
-- [ ] Between-turn animation — snapshot-fed interpolation daemon and `/geo/stream`
-- [ ] Live-hybrid mode ([#77](https://github.com/earlyprototype/false-flag/issues/77)) — real live feeds with a carved-out game zone
-- [ ] Real-email inject artifact ([#76](https://github.com/earlyprototype/false-flag/issues/76)), if not taken at Stage 4
-- [ ] VR ops room — portable screen build, then the on-device measurement, then quad-layer or streamed source
+The official sources are the
+[2026 Participant Playbook](https://docs.google.com/document/d/1bYT1itRT6h0YU4i8uGbEUK78dJYa6z561qSe6tjSkNs/edit?usp=sharing),
+[2026 Challenge Catalogue](https://docs.google.com/document/d/1D2rQhMPmqIFsCMyi_QPxVJCQQQYZ_phuHkdfz69UoX8/edit?usp=sharing),
+and [AICC event page](https://www.aicc.co/events/2026/september-2026/techireland-national-ai-challenge-2026).
 
----
+## Technical references
 
-## Gates
+- [Owner ruling: live-hybrid boundary and live-first operation](https://github.com/earlyprototype/false-flag/issues/77)
+- [Owner ruling: validated movement orders](https://github.com/earlyprototype/false-flag/issues/71)
+- [God's Eye View at the analysed commit](https://github.com/bilawalsidhu/gods-eye-view/tree/314a0e1)
+- [God's Eye View data-source and attribution register at the analysed commit](https://github.com/bilawalsidhu/gods-eye-view/blob/314a0e1/DATA_SOURCES.md)
+- [Open-Meteo licence](https://open-meteo.com/en/license)
+- [OpenSky terms of use](https://opensky-network.org/about/terms-of-use)
+- [WebXR Layers specification](https://immersive-web.github.io/layers/)
+- [Microsoft DTDL parser](https://github.com/digitaltwinconsortium/DTDLParser)
 
-| Gate | Question | Effect |
-|---|---|---|
-| **Go** | Owner authorizes the first code | Starts Stage 1 |
-| **Schedule check** (after Stage 2) | On schedule? | Yes → Stage 3 · Behind → skip to Stage 4. Standards chrome is droppable; a rehearsed demo is not |
-| **Stretch gate** (after Stage 4) | Stage 4 done and ≥3 clear days left? | Yes → Stage 5 · No → Stage 5 moves to Afterwards |
+## Other owner-scheduled capabilities
 
-Gates are schedule instruments only. No design questions remain inside them.
+These remain recorded without an agent-assigned date or cut ruling:
 
-## Open questions and parallel work
+- Real-channel email inject — [issue #76](https://github.com/earlyprototype/false-flag/issues/76).
+- Voice production — [issue #78](https://github.com/earlyprototype/false-flag/issues/78).
+- Further visual-design controls — [issue #92](https://github.com/earlyprototype/false-flag/issues/92).
 
-Decisions still open, each with a working default so silence never blocks a stage: [#73](https://github.com/earlyprototype/false-flag/issues/73) which campaign cut the users watch · [#75](https://github.com/earlyprototype/false-flag/issues/75) whether a Meta Quest headset is available. Ruled and closed: [#72](https://github.com/earlyprototype/false-flag/issues/72) map-data folder (split) · [#74](https://github.com/earlyprototype/false-flag/issues/74) visual register (all options stay behind switches).
+## Supporting documents
 
-Running alongside, off-branch: the [Manus research queue](https://github.com/earlyprototype/false-flag/issues/70) — its gazetteer verification task feeds Stage 2.
-
-## Where the detail lives
-
-- **Why each choice** — the feasibility study and its twelve verified findings: `docs/XR_GLOBE_FEASIBILITY.md`, plain-language version `docs/XR_GLOBE_FEASIBILITY_IN_BRIEF.md`
-- **The picture** — `docs/XR_GLOBE_COMPONENT_MAP.md` (what talks to what, how a position gets written, the turn cycle, the VR build order, these stages as a diagram)
-- **What the game gains, in plain language** — `docs/OWNERS_BRIEF.md`
-- **Session-to-session engineering state** — `docs/BUILD_STATE.md`
-- **What was considered and cut** — `docs/XR_GLOBE_FEASIBILITY_DISCARDS.md`
+- [Current engineering state](docs/BUILD_STATE.md)
+- [Plain-language owner brief](docs/OWNERS_BRIEF.md)
+- [Technical feasibility evidence](docs/XR_GLOBE_FEASIBILITY.md)
+- [Current component map](docs/XR_GLOBE_COMPONENT_MAP.md)
+- [Technology briefs](docs/tech/README.md)
+- [Historical handovers](docs/handover/README.md)

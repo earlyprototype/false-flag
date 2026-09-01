@@ -1,12 +1,22 @@
 # Feasibility Study — The Situation Globe
 
-> **New here?** This is an engineering-fidelity document — dense on purpose, written for whoever builds and maintains this so nothing is lost between sessions. For the plain-language version, start with [`XR_GLOBE_FEASIBILITY_IN_BRIEF.md`](XR_GLOBE_FEASIBILITY_IN_BRIEF.md); the plan is [`PLAN.md`](../PLAN.md), the explanation is [the Owner's Brief](OWNERS_BRIEF.md), and the current calls and defaults are in [`DECISION_BRIEFS.md`](DECISION_BRIEFS.md).
+> **Status: dated technical evidence, not the current plan.** This study records
+> the repository and research position on 28 August 2026. Its feasibility
+> findings remain useful, but its schedule, cut order and simulated-feed build
+> posture were superseded. Current authority is [`PLAN.md`](../PLAN.md),
+> [`BUILD_STATE.md`](BUILD_STATE.md), the live-hybrid ruling in
+> [issue #77](https://github.com/earlyprototype/false-flag/issues/77), and the
+> VR build order in [`OWNERS_BRIEF.md`](OWNERS_BRIEF.md#the-vr-operations-room).
+> Official challenge submission is 13 September at 14:00 Irish time; the IMR
+> regional demonstration is 14 September. Sources:
+> [Participant Playbook](https://docs.google.com/document/d/1bYT1itRT6h0YU4i8uGbEUK78dJYa6z561qSe6tjSkNs/edit?usp=sharing)
+> and [AICC event page](https://www.aicc.co/events/2026/september-2026/techireland-national-ai-challenge-2026).
 
 **Integrating simulated gods-eye-view GEOINT layers into FALSE FLAG as a between-turn XR data layer — with an authoritative spatial layer and a VR ops room**
 
 *Version 2, 2026-08-28. Basis: this repository at `main` (35c11c0) plus the open DTDL PRs #65/#66, and [bilawalsidhu/gods-eye-view](https://github.com/bilawalsidhu/gods-eye-view) (MIT) at commit `314a0e1`. Produced by two multi-agent analysis passes (39 agents total): pass 1 — six codebase readers, three competing presentation architectures, three-lens judging, seven adversarially-verified claims, completeness critique; pass 2, under the owner's revised **build-what's-needed** framing — three targeted engine readers, three competing authoritative-spatial-layer designs, two-lens judging, five further verified claims (two by executing probes against the real engine), completeness critique. Raw agent output: `audits/2026-08-28-xr-feasibility/`. Cut material: `XR_GLOBE_FEASIBILITY_DISCARDS.md`.*
 
-*Owner rulings recorded 2026-08-28, which this version incorporates: (1) feasibility means what can be **built**, not what current code supports — the v1 "engine-untouched" virtue is explicitly revoked, replaced by protected-tree diff discipline and the new test files named in §4a; (2) the VR aim is **presence in the ops room** — the theatrical experience is the product; (3) the VR cast is **stylised comic characters against a hyper-real globe** — the register contrast is deliberate; (4) the between-turn window is **design-paced**, not LLM-latency-paced.*
+*Owner rulings recorded 2026-08-28, which this version incorporates: (1) feasibility means what can be **built**, not what current code supports — the v1 "engine-untouched" virtue is explicitly revoked, replaced by protected-tree diff discipline and the new test files named in §4a; (2) the VR aim is **presence in the ops room**; (3) the VR cast is **stylised comic characters against a hyper-real globe** — the register contrast is deliberate; (4) the between-turn window is **design-paced**, not LLM-latency-paced. The old claim that the theatrical layer itself was "the product" was superseded on 1 September: the existing AI wargame is the product, and VR extends it.*
 
 ---
 
@@ -36,7 +46,7 @@ Pass-1 claims 1–7; pass-2 claims 8–12. "Executed" = proven by running code, 
 |---|---|---|---|
 | 1 | CesiumJS can do in-headset VR today | **REFUTED — superseded in practice** | No WebXR as of v1.144; PoC PR #11372 unmerged and unprioritized. Never build or wait on the *direct* route — but read with claim 11: the ops-room projected screen (§6) delivers the VR element with CesiumJS never touching the headset pipeline, so the practical verdict on VR is **achievable**, not blocked. |
 | 2 | Google 3D Tiles fit a demo budget; keyless fallback exists | **CONDITIONAL** | 1,000 free root queries/month is ample (billing account + caps needed). gods-eye-view hard-throws without a key; 3-line patch → keyless OSM + Re:Earth stack. Keyless photoreal also exists via Cesium ion asset 2275207. |
-| 3 | gods-eye-view layers run on locally simulated feeds | **CONDITIONAL (yes)** | Layer contract is source-agnostic; `mode:'sim'` is first-class; same-origin `/api/*` seam → zero client changes, ~1–3 days. Feeds must pass freshness/schema guards. |
+| 3 | gods-eye-view layers run on locally simulated feeds | **CONDITIONAL (technical fact; not the build posture)** | The layer contract is source-agnostic and fixtures remain useful for automated checks. Current owner ruling #77 is live-first: runtime and demo use real feeds, fail visibly when unavailable, and never silently substitute simulated data. |
 | 4 | CesiumJS embeds in the Next.js frontend | **CONDITIONAL** | The committed frontend never builds (no `package.json` in git). Zero-build `FileResponse` HTML is the only proven serving path here — use it. |
 | 5 | The SSE bus carries globe telemetry without rework | **CONDITIONAL** | Throughput fine (~957 batched 500-entity events/s measured); but the per-session queue is a destructive work-queue — any second consumer needs per-subscriber fan-out (a live defect worth fixing regardless). Sparse keyframes + client interpolation, never high-Hz push. |
 | 6 | A DTDL geospatial extension is standard-clean | **CONFIRMED (executed)** | `TheatreAsset` with geospatial telemetry parsed clean in Microsoft's DTDLParser (14 interfaces, 309 entities). Stay on `context;3`; no Altitude semantic type. *The new provenance fields (§4a) require a re-validation run — pending.* |
@@ -73,7 +83,7 @@ The reconciled hybrid of the two leading pass-2 designs (the judges split 1–1 
 
 **Single-store rule.** Engine `world.spatial` is the only authority; the daemon and every client hold read-only snapshots; any position cache in narrative state or facilitator effect without the metrics sync recreates the silent-revert class. Quality-assessment REASONING is player-visible verbatim — player-facing calls receive the blue+estimates rendering only; one renderer split, one leak. Pinned by dedicated regression tests (see engine-diff list in the raw output).
 
-**What stays decorative, permanently:** civil air/shipping corridors, satellite passes, shader cosmetics, sub-turn interpolated micro-positions (derived, never written back), the classified SSBN and other abstract-location units (never rendered as points), and the player's uncertainty ellipses (a view, not state). Spatial *ending* predicates are *v2 opt-in only* — conditioning scoring on geometry is an owner decision, deliberately deferred.
+**What stays non-authoritative:** live civil air/shipping tracks, satellite passes, shader cosmetics, sub-turn interpolated micro-positions (derived, never written back), the classified SSBN and other abstract-location units (never rendered as points), and the player's uncertainty ellipses (a view, not state). Live environment facts may enter bounded adviser context under issue #77, but no external feed writes campaign state. Spatial ending predicates remain an owner-approved scoring change rather than an incidental map feature.
 
 **Incremental LLM cost:** one extra FLASH call per turn; the spatial block adds ~450–1,300 tokens to the deciding calls (~2.5–6.5k/turn across them). The demo loop stays $0: in mock mode without live orders the map runs **doctrine-only** — red still closes on schedule offline, which is a defensible demo story stated honestly.
 
@@ -83,7 +93,7 @@ The reconciled hybrid of the two leading pass-2 designs (the judges split 1–1 
 
 The decision points, each with an owner and an exit criterion. (Two v1 gates are struck: ~~LLM response time~~ — the window is design-paced; ~~the 30 s attract-mode pacing cap~~ — one line of our own `api/demo.py`.)
 
-1. **Onsite parameters** — **CLEARED 2026-08-28 (owner input)**: the build started 28 Aug, onsite day **12 Sep** (15 days), final date **14 Sep**. The onsite venue is **Irish Manufacturing Research** — an RTO whose pillars (Digitisation/Industry 4.0, Robotics & Automation) and flagship REWIRE project run on digital twins, so the DTDL track is the venue's home turf and the `Theatre;1` sidecar + DTMI badges are promoted to sprint priority. Consequence: the full program does not fit; the §7 cut lines activate — see the 15-day sprint plan there. What the onsite expects remains unpublished as far as known; a Manus research task should hunt it.
+1. **Challenge parameters — corrected 2026-09-01.** Build period: 28 Aug–13 Sep. Editable presentation plus demo link due **13 Sep at 14:00 Irish time**. Regional demonstration at **Irish Manufacturing Research on 14 Sep**, with a seven-minute presentation and three minutes of questions. These are external facts, not authority for agent-generated scope cuts. Source: [official Participant Playbook](https://docs.google.com/document/d/1bYT1itRT6h0YU4i8uGbEUK78dJYa6z561qSe6tjSkNs/edit?usp=sharing).
 2. **PRs #65/#66 merge sequencing** *(dependency)*: both tracks build on the merged tree; the DTDL provenance fields need a parser re-validation run post-merge. *Clears on merge + one rebase + PARSE OK.*
 3. **Solo capacity vs. tiered scope** *(resource)*: combined honest estimate **~2–3 months part-time** (Track A 2–3 weeks at the judged 2–3× multiplier; Track B ~4–6 part-time weeks staged so every stage ships playable; re-golden churn; doctrine/gazetteer authoring — which *is* game design, 2–4 days; gazetteer QA; the Quest spike). "Two tracks" means order-independent for one person, not parallel. *Managed by the cut lines in §7, never removed.*
 4. **Security before anything leaves localhost** *(engineering — worse under Track B)*: zero auth plus unauthenticated `POST /routing` and `PUT /prompts` now guard *the stored positions, facilitator move commands, and a network-reachable movement prompt* — venue wifi could literally move the fleet. Bind localhost + authenticated reverse proxy; read-only spectator mirror; the WebRTC variant's DataChannel is an input surface. *Hard gate for the position system.*
@@ -94,7 +104,7 @@ The decision points, each with an owner and an exit criterion. (Two v1 gates are
 
 ## 6. VR: the ops room
 
-**Thesis (owner ruling): presence in the room is the product.** The PM's experience of the crisis is mediated through screens and people — a VR globe you could freely inspect would *break* the epistemology the fog-of-war design depends on. So the deliverable is a three.js WebXR boardroom: world-locked screens on the walls (the situation globe, the advisor transcript, a metrics board, a patrol's sensor feed — all feeds that already exist on the bus), the advisors as **stylised comic sprites** built from the repo's existing pixel-art pipeline (`Graphics/Animations`: DB16 palette, sprite scenes, diplomat variants — billboarded, 2–3 talking frames keyed off transcript SSE events), room lighting tied to `escalation_risk`, the fictional clock's darkness outside a window. The register contrast with the hyper-real globe is the point — and it's armour: stylised characters give emotional distance for mature subject matter, and nothing with a comic cast will be mistaken for real footage.
+**Current framing: presence in the room extends the game; it is not a replacement product.** The PM's experience of the crisis is mediated through screens and people — a VR globe you could freely inspect would *break* the epistemology the fog-of-war design depends on. So the deliverable is a three.js WebXR boardroom around the existing campaign: world-locked screens on the walls (the situation globe, the advisor transcript, a metrics board, a patrol's sensor feed — all feeds that already exist on the bus), the advisors as **stylised comic sprites** built from the repo's existing pixel-art pipeline (`Graphics/Animations`: DB16 palette, sprite scenes, diplomat variants — billboarded, 2–3 talking frames keyed off transcript SSE events), room lighting tied to `escalation_risk`, the fictional clock's darkness outside a window. The register contrast with the hyper-real globe is the point — and it's armour: stylised characters give emotional distance for mature subject matter, and nothing with a comic cast will be mistaken for real footage.
 
 **The projected screen — sound under two hard conditions** (verified against the WebGL spec, WebXR issues, Meta's own numbers, and shipping three.js code):
 
@@ -114,9 +124,11 @@ Accepted limits: the globe is a monoscopic picture — no stereoscopic terrain, 
 
 ## 7. The plan
 
-**The plan is not in this document.** It lives at the repository root in **[`PLAN.md`](../PLAN.md)** — five stages, each with its build checklist, its done test (an observable fact), and its current status. That file is the single source; this study is the evidence behind it (why each choice, what was verified, what was rejected).
-
-Dates: build started 28 Aug 2026 · owner GO given 30 Aug · onsite 12 Sep at IMR · final date 14 Sep. Stage 1 shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95) and is `DONE` — the projector done-test passed 31 Aug; `main` also includes PRs #96–#99 and #101–#108. Cut order under pressure: Afterwards tier → stage 5 → stage 3. The gates are schedule instruments only — no design questions remain inside them ([#71](https://github.com/earlyprototype/false-flag/issues/71), the movement-architecture decision, is closed: hybrid orders on).
+**The plan is not in this document.** It lives at the repository root in
+**[`PLAN.md`](../PLAN.md)**. That file now sequences multi-client streaming,
+the spatial decision loop, live context, the Quest operations room, and
+demonstration reliability. It contains no agent-assigned duration estimates or
+cut ladder. This study supplies evidence only.
 
 ## 8. Engagement & playability
 
@@ -143,13 +155,13 @@ Interrogate-the-globe under fog (gods-eye-view's LLM-agnostic action grammar + t
 - **Determinism discipline** — fog noise or any spatial randomness touching `self.rng` corrupts resumed saves; the derived-generator rule is review-enforced. Prompt-text changes reshuffle mock goldens: land as one deliberate re-golden commit.
 - **Two-store trap recurrence** — standing discipline plus regression tests, not a one-time fix.
 - **Scope creep remains risk #1** — pass 2 produced 3 designs, 17 grafts, 16 ideas on top of pass 1's ten; the cut lines in §7 are the containment. Spatial endings stay v2 opt-in.
-- **Labeling policy (merged)**: permanent EXERCISE watermark on every surface; per-layer SIMULATED chips; classified assets as POSITION WITHHELD areas; **fictional-doctrine labels on ASW/sonar and BMD-footprint rings** (real figures are classified — the one place experts could embarrass the demo); public-figure citations for blue platform ranges; replace `intelligence.py`'s fabricated random distances; comic cast in VR as structural anti-misinformation. One responsible-use paragraph in the build's public materials.
+- **Boundary and marking policy (superseded by issue #77):** on the player surface, the real/simulated boundary is spatial—exercise zone plus fog—not a literal per-layer explanation. Spectator and recording surfaces retain diegetic `EXERCISE` marking. Classified assets remain POSITION WITHHELD areas; ASW/sonar and BMD footprints use fictional-doctrine marking; public platform figures retain citations. Replace `intelligence.py`'s fabricated random distances before authoritative spatial state coexists with it.
 - **Accessibility**: flicker-free shader variants (monitor *and* HMD), WCAG contrast on phosphor palettes, motion-comfort settings, captions for voice briefs.
 - Licensing manifest unchanged from v1 (MIT shaders w/ pinned commit; Apache-2.0 Cesium; OSM policy; Re:Earth CC BY 4.0; ion Community terms; **never** the CC BY-NC-SA cables data).
 
 ## 11. Owner decision checklist
 
-1. ~~Onsite parameters~~ — **landed 2026-08-28** (onsite 12 Sep at IMR, final date 14 Sep); the §7 sprint plan is the operative schedule. Remaining sub-item: what the onsite expects, if published.
+1. ~~Challenge parameters~~ — **corrected 2026-09-01**: submission 13 Sep at 14:00 Irish time; IMR regional demonstration 14 Sep; seven-minute presentation plus three-minute Q&A. [`PLAN.md`](../PLAN.md) is the operative sequence.
 2. ~~Merge #65/#66~~ — merged; re-run DTDLParser when the planned `Theatre;1` sidecars are authored.
 3. ~~Tiebreak ratification~~ — settled in [#71](https://github.com/earlyprototype/false-flag/issues/71): use the TASKORD+IRONCLAD hybrid validated-order channel.
 4. Downgrade silent-loss acceptance for saves (claim 9) — accept and document, or add version-aware load warnings.

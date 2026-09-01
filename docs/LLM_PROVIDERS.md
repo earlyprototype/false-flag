@@ -34,13 +34,17 @@ claude.ai *subscription* on arbitrary API calls like this game's — API usage i
 billed per token to an API account. At Haiku 4.5 prices that's still pocket
 change per session (roughly 75K input + 25K output tokens ≈ $0.20).
 
-## What this game actually costs — measured, 4 Aug 2026
+## What this game actually cost in the 4 Aug 2026 measurement
 
-Everything below was measured, not estimated. Call counts come from
-instrumenting real mock-mode campaigns; token counts come from building the
-engine's actual prompts against the real 18-turn campaign in
-`saves/parked_campaign4_borrowed_faces.json` (1,853 lines / 729 KB /
-**133,810 tokens**) and counting with `tiktoken` (`o200k_base`).
+The tables below are dated measurements, not current provider quotes. Call
+counts came from instrumented mock-mode campaigns. Token counts were built from
+an 18-turn save that is no longer present in this tree, so the exact run is not
+reproducible without restoring that fixture from history. Its transcript-size
+evidence is preserved in
+[`audits/2026-08-05-llm-context/README.md`](../audits/2026-08-05-llm-context/README.md)
+and the full
+[`SCHEMATIC.md`](../audits/2026-08-05-llm-context/SCHEMATIC.md). Treat the cost
+figures as historical comparison data and remeasure before a purchasing call.
 
 ### A turn is ~17 LLM calls, and input dominates completely
 

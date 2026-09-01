@@ -1,5 +1,11 @@
 # Graphics and Animations Technology Report (Final)
 
+> **Historical technology report — November 2025.** Its “final” provider
+> recommendation, free-tier status, timings and immediate next steps are
+> superseded. The current generator uses Hugging Face with a FLUX default;
+> model access and cost are account-dependent. Use
+> [`tools/README.md`](tools/README.md) for maintained instructions.
+
 **Date:** 2025-11-23
 **Status:** Complete Analysis & Recommendation
 

@@ -1,4 +1,8 @@
 # Dashboard Implementation Test Results
+
+> **Historical test report — 23 November 2025.** It is evidence for that build,
+> not the current suite result. Run the commands in the root
+> [README](../README.md#development) for current evidence.
 **FALSE FLAG: THE WARGAME - Dashboard UI Testing**
 
 **Date:** 2025-11-23  

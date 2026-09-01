@@ -6,7 +6,7 @@ The wargame now has **2 scenario variants** to choose from at game start:
 
 ### 🎯 Standard Campaign (90-120 min)
 - **6 scripted turns** before stochastic gameplay
-- Gradual escalation over 10 hours of in-game time
+- Gradual escalation over 6 hours of in-game time
 - Full NATO consultation and diplomatic complexity
 - **Recommended for:** First-time players
 
@@ -48,7 +48,7 @@ You'll see a scenario selection menu. Enter `1` for Standard or `2` for Fast Sta
 | Feature | Standard | Fast Start |
 |---------|----------|------------|
 | **Scripted Turns** | 6 | 3 |
-| **In-Game Time** | 10 hours | 3 hours |
+| **In-Game Time** | 6 hours | 3 hours |
 | **Estimated Real Time** | 90-120 min | 45-60 min |
 | **Pacing** | Gradual | Rapid |
 | **Stochastic From** | Turn 7 | Turn 4 |
@@ -72,7 +72,7 @@ You'll see a scenario selection menu. Enter `1` for Standard or `2` for Fast Sta
 
 ## Full Documentation
 
-See [`docs/SCENARIO_VARIANTS.md`](docs/SCENARIO_VARIANTS.md) for:
+See [`SCENARIO_VARIANTS.md`](SCENARIO_VARIANTS.md) for:
 - Detailed timeline comparisons
 - Compression strategy explanation
 - How to create custom variants

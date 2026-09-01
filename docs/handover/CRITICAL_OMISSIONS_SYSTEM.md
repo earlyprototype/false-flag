@@ -1,5 +1,8 @@
 # Critical Omissions Check System
 
+> **Historical November 2025 feature snapshot.** Verify behaviour against the
+> current code and [build state](../BUILD_STATE.md).
+
 ## Overview
 
 The Critical Omissions Check is a strategic safety net that triggers after you make a decision. Your advisors scan for **catastrophic gaps** in your decision-making - critical actions you haven't taken that could lead to disaster.

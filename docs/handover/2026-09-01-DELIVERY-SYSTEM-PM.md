@@ -1,5 +1,9 @@
 # Handover — delivery system + PM session, 31 Aug–1 Sep 2026
 
+> **Delivery-system history.** Its process evidence remains useful, but its
+> product sequence and challenge dates are superseded by
+> [`PLAN.md`](../../PLAN.md) and [`BUILD_STATE.md`](../BUILD_STATE.md).
+
 **Read this if you are picking up the PM role** (orchestrating work on this
 repo) in a fresh session. It records the delivery system built across 31
 Aug–1 Sep, the operating agreement with the owner, the exact state at

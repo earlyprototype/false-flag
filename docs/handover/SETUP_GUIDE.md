@@ -1,5 +1,9 @@
 # Gemini LLM Integration Setup Guide
 
+> **Historical November 2025 provider-specific setup.** Use the current
+> [README quickstart](../../README.md#quickstart) and
+> [LLM provider guide](../LLM_PROVIDERS.md) instead.
+
 This guide shows you how to enable intelligent advisor responses using Google's Gemini 2.5 Flash.
 
 ## Quick Start
