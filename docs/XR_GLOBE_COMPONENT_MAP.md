@@ -2,7 +2,7 @@
 
 > **New here?** This is an engineering-fidelity document — dense on purpose, written for whoever builds and maintains this so nothing is lost between sessions. For the plain-language version, start with [`XR_GLOBE_FEASIBILITY_IN_BRIEF.md`](XR_GLOBE_FEASIBILITY_IN_BRIEF.md); the plan is [`PLAN.md`](../PLAN.md), the explanation is [the Owner's Brief](OWNERS_BRIEF.md), and the current calls and defaults are in [`DECISION_BRIEFS.md`](DECISION_BRIEFS.md).
 
-**Visual companion to [`XR_GLOBE_FEASIBILITY.md`](XR_GLOBE_FEASIBILITY.md).** Every box below is classified: **CORE** (solid, in the competition sprint), **STRETCH** (attempt only behind its decision gate), or **DEFERRED** (post-competition, design verified and waiting). Links under each diagram go to the study section or file that specifies the component. Milestones and decision points are in the last diagram.
+**Visual companion to [`XR_GLOBE_FEASIBILITY.md`](XR_GLOBE_FEASIBILITY.md).** Every box below is classified: **CORE** (solid, in the sprint), **STRETCH** (attempt only behind its decision gate), or **DEFERRED** (Afterwards tier — beyond 14 Sep, design verified and waiting). Links under each diagram go to the study section or file that specifies the component. Milestones and decision points are in the last diagram.
 
 ---
 
@@ -62,7 +62,7 @@ flowchart LR
   classDef defer stroke-dasharray:2 4,stroke-width:1px
 ```
 
-**Legend**: thick border = CORE (sprint) · long dashes = STRETCH (gated) · short dashes = DEFERRED (post-competition). Dotted arrows are paths that exist only once their source component ships.
+**Legend**: thick border = CORE (sprint) · long dashes = STRETCH (gated) · short dashes = DEFERRED (Afterwards tier). Dotted arrows are paths that exist only once their source component ships.
 
 | Component | Class | Specified in | Anchors |
 |---|---|---|---|
@@ -176,7 +176,7 @@ flowchart TD
   M4["M4 · THE CABINET ORDERS THE MAP · ~1 wk\nBUILD: MOVEMENT call family (derived crc32 seed) · parser\n(≤8 orders, terminal sentinel, discard on truncation) ·\nvalidation vs unit registry + gazetteer + legality graph ·\nhold-on-failure + visible line · mock returns NO_ORDERS ·\ninject movements: · spatial context block · one re-baseline\nEXIT: a decision naming a movement lands in order_log and\nmoves the unit next turn; garbled reply → 0 orders + note"]:::stretch
   ONSITE(["ONSITE · 12 Sep · IMR"]):::core
   FINAL(["FINAL · 14 Sep"]):::core
-  M5["M5 · POST-COMPETITION (each independently buildable)\ntripwire engine · fog/intel_picture · snapshot-fed daemon\n+ /geo/stream · live-hybrid mode (#77) · email artifact (#76)\n· VR ops room (§4 build order)"]:::defer
+  M5["M5 · AFTERWARDS (each independently buildable)\ntripwire engine · fog/intel_picture · snapshot-fed daemon\n+ /geo/stream · live-hybrid mode (#77) · email artifact (#76)\n· VR ops room (§4 build order)"]:::defer
 
   D0B --> M0 --> M1 --> D1
   D1 -->|on schedule| M2 --> M3

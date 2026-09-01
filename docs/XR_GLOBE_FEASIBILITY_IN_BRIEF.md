@@ -13,7 +13,7 @@ Can FALSE FLAG gain a **live map of its war** — a satellite Earth on a big scr
 ## The twelve findings, plainly
 
 1. **VR — blocked one way, open another.** The borrowed globe software cannot drive a VR headset directly (checked thoroughly; don't let anyone spend a week trying). It doesn't need to: we put the globe's picture on a **screen inside the VR room** — like the wall display in a real ops centre — which is a proven technique with two known technical rules to follow. So the practical answer on VR is *achievable*, not refused. *(Findings 1 and 11 in the study.)*
-2. **The beautiful imagery is affordable.** The photorealistic Earth has a free tier that comfortably covers a competition demo, plus a completely free fallback look that needs no accounts at all. *(2)*
+2. **The beautiful imagery is affordable.** The photorealistic Earth has a free tier that comfortably covers the demo, plus a completely free fallback look that needs no accounts at all. *(2)*
 3. **We don't need anyone's live data.** The borrowed globe runs happily on our own simulated feeds — a few days' work, no external services, nothing real ever mixed in. *(3)*
 4. **We serve the globe the simple way.** Our half-finished web frontend doesn't actually build; the globe ships as a single self-contained page, the same proven way our dashboard already works. *(4)*
 5. **One real bug to fix first.** Today the game's live event feed can only serve *one* screen per session without them stealing each other's updates; a small fix lets many screens watch one game — worth doing regardless of the globe. *(5)*

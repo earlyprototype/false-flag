@@ -3,27 +3,27 @@
 
 ## BACKLOG
 
-*   [ ] Rewrite the delivery plan in professional, mechanical language (#80) - https://github.com/earlyprototype/false-flag/issues/80 — branch docs/80-delivery-plan — depends #79.
-*   [ ] Restore or replace missing DATA_LAYERS.md - models/layers.py and api/server.py cite DATA_LAYERS.md paragraphs, but the file is absent. Recover the intended document from prior session artifacts or replace stale references with a durable current source after understanding the fence.
-*   [ ] PH-0 Verify/fix browser adjudication after PR #57 - Pyodide reported can't start new thread; verify the fallback reads the player's decision and never silently substitutes canned adjudication. Record a real browser-path check.
-*   [ ] Fix CLI EOF/Ctrl-C turn loss (#18) - Route cli/main.py prompts through interruption-safe handling and verify an interrupted turn does not disappear behind bare Aborted.
-*   [ ] Extend PR #61 block-deletion to the 5 remaining decision-abandon paths (#22-class, owner-ruled bugs 27 Aug) + tests; retire dead pre-#61 copy cli/main_dashboard.py
-*   [ ] No-defaults ruling (#17, owner 27 Aug): parse failure -> bounded retry -> visible failure; defaulted fields contribute zero. Apply to actor_simulation + quality_assessment families
-*   [ ] Reconcile public Claude session into sanitised durable handover (#79) - Cloud session session_015NPEdfpJtAXR7sqKXHxQAQ is not present in local Claude JSONL files and unauthenticated retrieval is blocked. Obtain/export the public thread without copying credential text, store a sanitised durable handover under Research/System, then reconcile it against PR #67/#69 outputs. https://github.com/earlyprototype/false-flag/issues/79 — branch docs/79-session-reconciliation.
 *   [ ] Future / unprioritised work
-*   [ ] PH-3 WebXR COBRA room - five advisors driven by speak-tags
-*   [ ] PH-3 Station-based layer selection via raycast focus
-*   [ ] PH-3 Diplomat-call scene switch on same embodiment pipeline
-*   [ ] PH-4 Route CLI adjudication through concurrent pipeline
-*   [ ] PH-4 Extend shared cache prefix to the 7 uncached call families
-*   [ ] Close 3 information leaks - trust ints, threshold flags, save spoilers
-*   [ ] PH-3 Choose Convai route - (a) Unity V3 WebGL build vs (b) Web SDK per-turn re-target, rec (b)
-*   [ ] Fix episodes README Turn 6+ TBD line - contradicts existing turn_006.yaml
-*   [ ] build_play_bundle.py write index.html with newline=LF on Windows (currently CRLF)
-*   [ ] Add state-actor memory for Mystery coherence - Outstanding from the prior DTDL/dashboard handover: designed during 23–27 Aug, not implemented. Recover the existing design before scoping; do not reinvent it.
-*   [ ] Ruff lint: config, cleanup, then CI gate - ruff --select E9,F = 200 findings (56× F821 undefined-name — triage for latent bugs first). Add pyproject config, fix or ignore deliberately, then add the lint step to ci.yml checks job. Deferred from #102.
-*   [ ] Windows test suite: 12 environment/encoding/EOL failures - Reported by Sol 31 Aug: full suite green on Linux CI (721 passed, 3 skipped) but 12 unrelated environment/encoding/line-ending failures on Windows. Likely residue of the .gitattributes/EOL work — triage and fix or mark expected-skip on win32.
-*   [ ] Dashboard remaining half: a11y, reset contract, traceability (#92) - https://github.com/earlyprototype/false-flag/issues/92 — supersedes #84/#85/#86; cheap half shipped in PR #98. Remaining per issue body: accessibility pass to WCAG 2.2, full demo-reset contract across control surfaces, data-flow traceability.
+*   [ ] Afterwards: WebXR COBRA room - five advisors driven by speak-tags
+*   [ ] Afterwards: station-based layer selection via raycast focus
+*   [ ] Afterwards: diplomat-call scene switch on same embodiment pipeline
+*   [ ] Afterwards: choose Convai route - (a) Unity V3 WebGL build vs (b) Web SDK per-turn re-target, rec (b)
+*   [ ] Show-Safe: verify/fix browser adjudication after PR #57 (decision #73 gates urgency) - Pyodide reported can't start new thread; verify the fallback reads the player's decision and never silently substitutes canned adjudication. Record a real browser-path check.
+*   [ ] Delivery: concurrent CLI adjudication pipeline (#64)
+*   [ ] Delivery: extend shared cache prefix to the 7 uncached call families (#64)
+*   [ ] Delivery: rewrite the delivery plan in mechanical language (#80) - https://github.com/earlyprototype/false-flag/issues/80 — branch docs/80-delivery-plan — depends #79.
+*   [ ] Delivery: restore or replace missing DATA_LAYERS.md - models/layers.py and api/server.py cite DATA_LAYERS.md paragraphs, but the file is absent. Recover the intended document from prior session artifacts or replace stale references with a durable current source after understanding the fence.
+*   [ ] Show-Safe: fix CLI EOF/Ctrl-C turn loss (#18) - Route cli/main.py prompts through interruption-safe handling and verify an interrupted turn does not disappear behind bare Aborted.
+*   [ ] Show-Safe: extend PR #61 block-deletion to the 5 remaining decision-abandon paths + retire cli/main_dashboard.py - #22-class, owner-ruled bugs 27 Aug; include tests. cli/main_dashboard.py is the dead pre-#61 copy.
+*   [ ] Advisors: apply the no-defaults ruling (#17) to actor_simulation + quality_assessment - Owner ruling 27 Aug: parse failure -> bounded retry -> visible failure; defaulted fields contribute zero.
+*   [ ] Delivery: reconcile public Claude session into durable handover (#79) - Cloud session session_015NPEdfpJtAXR7sqKXHxQAQ is not present in local Claude JSONL files and unauthenticated retrieval is blocked. Obtain/export the public thread without copying credential text, store a sanitised durable handover under Research/System, then reconcile it against PR #67/#69 outputs. https://github.com/earlyprototype/false-flag/issues/79 — branch docs/79-session-reconciliation.
+*   [ ] Show-Safe: close 3 information leaks - trust ints, threshold flags, save spoilers
+*   [ ] Delivery: fix episodes README Turn 6+ TBD line - contradicts existing turn_006.yaml
+*   [ ] Show-Safe: build_play_bundle.py must write index.html with LF on Windows - currently CRLF
+*   [ ] Advisors: add state-actor memory for Mystery coherence - Outstanding from the prior DTDL/dashboard handover: designed during 23–27 Aug, not implemented. Recover the existing design before scoping; do not reinvent it.
+*   [ ] Delivery: ruff lint — config, cleanup, then CI gate - ruff --select E9,F = 200 findings (56× F821 undefined-name — triage for latent bugs first). Add pyproject config, fix or ignore deliberately, then add the lint step to ci.yml checks job. Deferred from #102.
+*   [ ] Show-Safe: Windows test suite — 12 environment/encoding/EOL failures - Reported by Sol 31 Aug: full suite green on Linux CI (721 passed, 3 skipped) but 12 unrelated environment/encoding/line-ending failures on Windows. Likely residue of the .gitattributes/EOL work — triage and fix or mark expected-skip on win32.
+*   [ ] Show-Safe: dashboard remaining half — a11y, reset contract, traceability (#92) - https://github.com/earlyprototype/false-flag/issues/92 — supersedes #84/#85/#86; cheap half shipped in PR #98. Remaining per issue body: accessibility pass to WCAG 2.2, full demo-reset contract across control surfaces, data-flow traceability.
 
 ## TODO
 
@@ -32,11 +32,11 @@
 
 ## DOING
 *   [ ] Audit runtime prompt quality and regression evidence (#83) - https://github.com/earlyprototype/false-flag/issues/83 — branch audit/83-prompt-quality-regression.
-*   [ ] Fan out advisor pushback to one LLM call per advisor (#87) - https://github.com/earlyprototype/false-flag/issues/87 — branch feat/87-advisor-pushback-fanout — supersedes #81. Remaining after #96: per-advisor fan-out via generate_group; /ask keyword router PM-voice bug; carry-overs from #81 close: Mystery-leak tests + DTDL extend-only + browser/preview parity.
 
 *   [ ] In progress (keep to 1-3 items)
 
 ## REVIEW
+*   [ ] Fan out advisor pushback to one LLM call per advisor (#87) - https://github.com/earlyprototype/false-flag/issues/87 — branch feat/87-advisor-pushback-fanout — supersedes #81. Remaining after #96: per-advisor fan-out via generate_group; /ask keyword router PM-voice bug; carry-overs from #81 close: Mystery-leak tests + DTDL extend-only + browser/preview parity.
 *   [ ] PH-0 Prune ~17 stale/merged branches (29 Aug: 7 local + 22 remote deleted; active branches remain)
 *   [ ] Audit recent Claude threads and enforce onboarding - Verify the last few Claude sessions against PLAN/docs, correct source attribution, and make AGENTS/CLAUDE point future sessions to the recent-session index.
 *   [ ] AI-completed work awaiting human approval
