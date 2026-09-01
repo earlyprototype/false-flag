@@ -973,6 +973,21 @@ def test_mock_interpretation_rejects_negation_inside_a_tasking_object(action):
     assert parse_interpretation_simple(response)["forces"] == ["None specified"]
 
 
+@pytest.mark.parametrize("action", [
+    "Do not, under any circumstances, deploy the carrier.",
+    "Never, under any circumstances, launch the SSBNs.",
+])
+def test_mock_interpretation_rejects_emphatic_negated_directives(action):
+    driver = MockDeterministicDriver()
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+
+
 @pytest.mark.parametrize(("action", "expected"), [
     ("Deploy the destroyers, but not the carrier.", ["the destroyers"]),
     ("Send the Typhoons, not the carrier.", ["the Typhoons"]),

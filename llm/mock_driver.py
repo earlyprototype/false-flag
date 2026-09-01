@@ -1186,6 +1186,13 @@ def _extract_tasked_forces(action: str) -> str:
         r"(?:do not|don['’]t|will not|won['’]t|cannot|can['’]t|not(?:\s+to)?|"
         r"never|no|refuse to|without|avoid)"
     )
+    action = re.sub(
+        rf"\b(?P<negated>{negation}),\s*under any circumstances,\s*"
+        rf"(?P<verb>{tasking_verb})\b",
+        r"\g<negated> \g<verb>",
+        action,
+        flags=re.IGNORECASE,
+    )
     asset = (
         r"(?:\b(?:HMS|RAF|RNAS|SSBNs?|SSNs?|CAP|carriers?|destroyers?|"
         r"frigates?|submarines?|squadrons?|aircraft|jets?|fighters?|"
