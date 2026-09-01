@@ -36,6 +36,11 @@ alter another's. Events emitted with no active subscriber wait for the first
 subscriber, preserving the cold open and briefing produced before EventSource
 can attach. Subscriber queues are removed on disconnect.
 
+`event_seq` orders delivery; `turn` and `t_plus_s` record emission. A worker
+event may therefore carry an earlier T+ than a lower-sequence event published
+directly on the loop. Subscriber queues and the no-subscriber backlog remain
+unbounded until the reconnectable snapshot replaces that recovery role.
+
 The shipped consumers are:
 
 - `/dashboard` — observability and controls.
