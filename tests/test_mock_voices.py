@@ -826,6 +826,30 @@ def test_mock_interpretation_does_not_task_a_negated_force():
     assert parse_interpretation_simple(response)["forces"] == ["None specified"]
 
 
+def test_mock_interpretation_excludes_a_negated_directive_after_a_comma():
+    driver = MockDeterministicDriver()
+    action = "Deploy P-8 patrols, but do not send the carrier."
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["P-8 patrols"]
+
+
+def test_mock_interpretation_keeps_a_positive_directive_after_a_negated_one():
+    driver = MockDeterministicDriver()
+    action = "Do not deploy the carrier, but send P-8 patrols to Iceland."
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["P-8 patrols"]
+
+
 def test_pushback_decision_extraction_survives_newlines():
     driver = MockDeterministicDriver()
     action = "Authorise nuclear\nfirst use."

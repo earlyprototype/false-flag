@@ -1167,19 +1167,23 @@ def _extract_tasked_forces(action: str) -> str:
     """Return assets explicitly tasked by the submitted decision."""
     # ponytail: explicit directives cover mock play; use the unit registry if
     # implicit force references ever need resolving.
-    matches = re.finditer(
-        r"\b(?:activate|assign|commit|deploy|dispatch|launch|mobilise|mobilize|"
+    tasking_verb = (
+        r"(?:activate|assign|commit|deploy|dispatch|launch|mobilise|mobilize|"
         r"order|position|put|ready|retask|scramble|send|station|surge|task|"
-        r"use(?!\s+of force\b))\s+"
-        r"(.+?)(?=\s+(?:at|for|in|into|near|off|on|over|to|toward|towards|under)\b|"
-        r"[;.]|$)",
+        r"use(?!\s+of force\b))"
+    )
+    negation = r"(?:do not|don['’]t|never|refuse to|without|avoid)"
+    matches = re.finditer(
+        rf"\b{tasking_verb}\s+"
+        rf"(.+?)(?=\s+(?:at|for|in|into|near|off|on|over|to|toward|towards|under)\b|"
+        rf",\s*(?:(?:and|but)\s+)?(?:{negation}\s+)?{tasking_verb}\b|[;.]|$)",
         action,
         re.IGNORECASE,
     )
     forces = []
     for match in matches:
         if re.search(
-                r"\b(?:do not|don['’]t|never|refuse to|without|avoid)\s*$",
+                rf"\b{negation}\s*$",
                 action[:match.start()], re.IGNORECASE):
             continue
         forces.append(" ".join(match.group(1).split()).strip(" \"'"))
