@@ -8,21 +8,26 @@ import json
 import os
 import subprocess
 import sys
+from collections import Counter
 from collections.abc import Callable
+from contextlib import contextmanager
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
+from random import Random
 from typing import Any
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import engine.narrator as narrator_module
+import engine.sim_loop as sim_loop_module
+import llm.inject_generator as inject_generator_module
 from agents.conversation import (
     check_critical_omissions,
-    handle_player_question,
-    handle_player_question_all,
     interpret_player_action,
 )
 from engine.actor_simulation import (
@@ -30,9 +35,13 @@ from engine.actor_simulation import (
     identify_relevant_actors,
     simulate_actor_responses,
 )
+from engine.decision_phase import format_decision_transcript
 from engine.events import load_inject_for_turn
+from engine.flags import update_world_flags
 from engine.game_manager import GameManager
 from engine.narrative_adjudication import (
+    _check_and_trigger_crises,
+    _update_character_attitudes,
     apply_quality_scaling,
     assess_action_quality,
     compute_situation_summary,
@@ -42,7 +51,7 @@ from engine.narrative_adjudication import (
 )
 from engine.narrator import generate_narrator_bridge
 from engine.utils import clamp
-from llm import call_log, router
+from llm import call_log, parse_health, router
 from llm.inject_generator import generate_inject
 from llm.mock_driver import MockDeterministicDriver
 from llm.model_config import LLMContext
@@ -77,6 +86,27 @@ BATCH_PATHS = {
     "actor_simulation",
     "character_response",
 }
+EXPECTED_MAIN_PATH_COUNTS = {
+    "advisor_qa_single": 1,
+    "advisor_qa_fanout": 5,
+    "decision_interpretation": 1,
+    "critical_omissions": 5,
+    "actor_simulation": 3,
+    "quality_assessment": 1,
+    "character_response": 2,
+    "situation_summary": 1,
+    "narrator": 1,
+    "diplomacy_conversation": 1,
+    "diplomacy_outcome": 1,
+    "inject_yaml": 1,
+}
+EXPECTED_PUSHBACK_PATH_COUNTS = {"advisor_pushback": 1}
+REQUEST_FIELDS = (
+    "system_instruction",
+    "temperature",
+    "max_tokens",
+    "model_override",
+)
 
 QUESTION = (
     "National Security Adviser, what does the evidence support, and what "
@@ -105,11 +135,9 @@ PUSHBACK_INTERPRETATION = (
     "directs officials to prepare a nuclear first-use option immediately."
 )
 METRICS = ("escalation_risk", "alliance_cohesion", "domestic_stability")
-CHARACTER_SELECTION_EFFECTS = {
-    "escalation_risk": 7,
-    "alliance_cohesion": -7,
-    "domestic_stability": -7,
-}
+
+_ROUTER_GENERATE_TEXT = router.generate_text
+_ROUTER_BATCH_GENERATE_TEXT = router.batch_generate_text
 
 
 def _jsonable(value: Any) -> Any:
@@ -119,15 +147,79 @@ def _jsonable(value: Any) -> Any:
         return _jsonable(value.value)
     if isinstance(value, dict):
         return {str(key): _jsonable(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple, set)):
+    if isinstance(value, (list, tuple)):
         return [_jsonable(item) for item in value]
+    if isinstance(value, set):
+        converted = [_jsonable(item) for item in value]
+        return sorted(converted, key=lambda item: json.dumps(item, sort_keys=True))
     if is_dataclass(value):
         return _jsonable(asdict(value))
     if hasattr(value, "model_dump"):
         return _jsonable(value.model_dump())
     if hasattr(value, "dict"):
         return _jsonable(value.dict())
-    return str(value)
+    raise TypeError(f"Cannot serialise {type(value).__name__}")
+
+
+@contextmanager
+def _request_metadata(**values: Any):
+    for field in REQUEST_FIELDS:
+        call_log.set_field(field, values.get(field))
+    try:
+        yield
+    finally:
+        for field in REQUEST_FIELDS:
+            call_log.set_field(field, None)
+
+
+def _audited_generate_text(
+    prompt: str,
+    rng: Any,
+    show_spinner: bool = True,
+    context: LLMContext | None = None,
+    model_override: str | None = None,
+    system_instruction: str | None = None,
+    temperature: float | None = None,
+    max_tokens: int | None = None,
+) -> str:
+    with _request_metadata(
+        system_instruction=system_instruction,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        model_override=model_override,
+    ):
+        return _ROUTER_GENERATE_TEXT(
+            prompt,
+            rng,
+            show_spinner=show_spinner,
+            context=context,
+            model_override=model_override,
+            system_instruction=system_instruction,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+
+def _audited_batch_generate_text(
+    prompts: list[str],
+    rng: Any,
+    show_spinner: bool = True,
+    context: LLMContext | None = None,
+    model_override: str | None = None,
+    max_tokens: int | None = None,
+) -> list[str]:
+    with _request_metadata(
+        max_tokens=max_tokens,
+        model_override=model_override,
+    ):
+        return _ROUTER_BATCH_GENERATE_TEXT(
+            prompts,
+            rng,
+            show_spinner=show_spinner,
+            context=context,
+            model_override=model_override,
+            max_tokens=max_tokens,
+        )
 
 
 def _git_head() -> str:
@@ -265,35 +357,43 @@ def _run_main_case(
 
     _capture(
         records, outputs, "advisor_qa_single", game.world.turn,
-        lambda: handle_player_question(
-            game.world, QUESTION, game.initial_conditions,
-            router.generate_text, game.rng, game.transcript,
-            event_ledger=ledger,
-        ),
+        lambda: game.process_question(QUESTION),
     )
     _capture(
         records, outputs, "advisor_qa_fanout", game.world.turn,
-        lambda: handle_player_question_all(
-            game.world, ROOM_QUESTION, game.initial_conditions,
-            router.generate_text, game.rng, game.transcript,
-            llm_batch_fn=router.batch_generate_text,
-            event_ledger=ledger,
-        ),
+        lambda: game.process_question_all(ROOM_QUESTION)[1:],
         per_record=True,
     )
+    game.world.phase = "decision"
+
+    # Match run_decision_pipeline's three fixed rounds. Pushback keeps its
+    # seed slot but is not invoked until the separate, final audit phase.
+    decision_rngs = [
+        Random(game.rng.randint(0, 2**31 - 1))
+        for _ in range(7)
+    ]
+    (
+        interpretation_rng,
+        actor_rng,
+        _pushback_rng,
+        omissions_rng,
+        quality_rng,
+        character_rng,
+        summary_rng,
+    ) = decision_rngs
     interpretation = _capture(
         records, outputs, "decision_interpretation", game.world.turn,
         lambda: interpret_player_action(
             game.world, ACTION, game.initial_conditions,
-            router.generate_text, game.rng, game.transcript,
+            router.generate_text, interpretation_rng, game.transcript,
             event_ledger=ledger,
         ),
     )
-    _capture(
+    critical_concerns = _capture(
         records, outputs, "critical_omissions", game.world.turn,
         lambda: check_critical_omissions(
             game.world, ACTION, interpretation, game.initial_conditions,
-            router.generate_text, game.rng, game.transcript,
+            router.generate_text, omissions_rng, game.transcript,
             llm_batch_fn=router.batch_generate_text,
             event_ledger=ledger,
         ),
@@ -309,7 +409,7 @@ def _run_main_case(
         records, outputs, "actor_simulation", game.world.turn,
         lambda: simulate_actor_responses(
             actors, ACTION, game.narrative_state.to_actor_context(),
-            router.generate_text, game.rng,
+            router.generate_text, actor_rng,
             llm_batch_fn=router.batch_generate_text,
             world_narrative=game.world.narrative,
         ),
@@ -319,7 +419,7 @@ def _run_main_case(
         records, outputs, "quality_assessment", game.world.turn,
         lambda: assess_action_quality(
             ACTION, game.narrative_state, interpretation,
-            router.generate_text, game.rng,
+            router.generate_text, quality_rng,
         ),
     )
     effects = _final_effects(game, actor_responses, quality)
@@ -328,8 +428,8 @@ def _run_main_case(
     _capture(
         records, outputs, "character_response", game.world.turn,
         lambda: generate_character_responses(
-            ACTION, quality, CHARACTER_SELECTION_EFFECTS, game.narrative_state,
-            router.generate_text, game.rng,
+            ACTION, quality, effects, game.narrative_state,
+            router.generate_text, character_rng,
             llm_batch_fn=router.batch_generate_text,
         ),
         per_record=True,
@@ -337,14 +437,25 @@ def _run_main_case(
     summary = _capture(
         records, outputs, "situation_summary", game.world.turn,
         lambda: compute_situation_summary(
-            game.narrative_state, ACTION, router.generate_text, game.rng,
+            game.narrative_state, ACTION, router.generate_text, summary_rng,
             quality_assessment=quality, final_effects=effects,
         ),
     )
+    _update_character_attitudes(game.narrative_state, quality["quality"])
+    _check_and_trigger_crises(game.narrative_state)
     if summary:
         game.narrative_state.situation_summary = summary
 
-    game.world.turn = 2
+    game.transcript.extend(format_decision_transcript(
+        ACTION, interpretation, [], critical_concerns
+    ))
+    game.world.phase = "adjudication"
+    update_world_flags(game.world)
+    game.narrative_state.turn = game.world.turn
+    game.world.turn += 1
+    game.world.phase = "briefing"
+    game.world.scene = game.world.turn
+    game.world.discussion_transcript = []
     next_inject = load_inject_for_turn(
         BASE_CONFIG["scenario_id"], game.world.turn, game.root_path
     ) or {}
@@ -384,7 +495,6 @@ def _run_main_case(
         "selected_narrative_id": selected_narrative,
         "actor_ids": actor_ids,
         "final_effects": effects,
-        "character_selection_effects": CHARACTER_SELECTION_EFFECTS,
         "outputs": outputs,
     }
 
@@ -440,8 +550,9 @@ def _assert_main_complete(records: list[dict[str, Any]], cases: list[dict[str, A
              "main invoked advisor pushback")
     for case, _ in CASES:
         case_records = [record for record in records if record["case"] == case]
-        _require({record["path"] for record in case_records} == set(MAIN_PATH_FAMILIES),
-                 f"{case} path coverage is incomplete")
+        path_counts = Counter(record["path"] for record in case_records)
+        _require(path_counts == Counter(EXPECTED_MAIN_PATH_COUNTS),
+                 f"{case} path counts differ: {dict(path_counts)}")
         for path in BATCH_PATHS:
             batch = [record for record in case_records if record["path"] == path]
             _require(bool(batch) and all(
@@ -468,6 +579,11 @@ def _assert_pushback_complete(records: list[dict[str, Any]], cases: list[dict[st
              "pushback captured a non-mock provider")
     _require(all(record["fallback"] is False for record in records),
              "pushback captured a fallback call")
+    for case, _ in CASES:
+        case_records = [record for record in records if record["case"] == case]
+        path_counts = Counter(record["path"] for record in case_records)
+        _require(path_counts == Counter(EXPECTED_PUSHBACK_PATH_COUNTS),
+                 f"{case} pushback path counts differ: {dict(path_counts)}")
 
 
 def _run_phase(phase: str) -> dict[str, Any]:
@@ -480,26 +596,50 @@ def _run_phase(phase: str) -> dict[str, Any]:
             for case, mystery_mode in CASES
         ]
         records: list[dict[str, Any]] = []
-        listener = records.append
+        def listener(record: dict[str, Any]) -> None:
+            for field in REQUEST_FIELDS:
+                record.setdefault(field, None)
+            records.append(record)
+
         call_log.reset()
+        parse_health.reset()
         call_log.add_listener(listener)
         try:
-            if phase == "main":
-                cases = [
-                    _run_main_case(case, mystery, game, records)
-                    for case, mystery, game in prepared
-                ]
-                _assert_main_complete(records, cases)
-                required_paths = list(MAIN_PATH_FAMILIES)
-                required_families = sorted(set(MAIN_PATH_FAMILIES.values()))
-            else:
-                cases = [
-                    _run_pushback_case(case, mystery, game, records)
-                    for case, mystery, game in prepared
-                ]
-                _assert_pushback_complete(records, cases)
-                required_paths = ["advisor_pushback"]
-                required_families = ["advisor_pushback"]
+            with (
+                patch.object(router, "generate_text", _audited_generate_text),
+                patch.object(router, "batch_generate_text", _audited_batch_generate_text),
+                patch.object(sim_loop_module, "generate_text", _audited_generate_text),
+                patch.object(
+                    sim_loop_module,
+                    "batch_generate_text",
+                    _audited_batch_generate_text,
+                ),
+                patch.object(narrator_module, "generate_text", _audited_generate_text),
+                patch.object(
+                    inject_generator_module,
+                    "generate_text",
+                    _audited_generate_text,
+                ),
+            ):
+                if phase == "main":
+                    cases = [
+                        _run_main_case(case, mystery, game, records)
+                        for case, mystery, game in prepared
+                    ]
+                    _assert_main_complete(records, cases)
+                    required_paths = list(MAIN_PATH_FAMILIES)
+                    required_families = sorted(set(MAIN_PATH_FAMILIES.values()))
+                else:
+                    cases = [
+                        _run_pushback_case(case, mystery, game, records)
+                        for case, mystery, game in prepared
+                    ]
+                    _assert_pushback_complete(records, cases)
+                    required_paths = ["advisor_pushback"]
+                    required_families = ["advisor_pushback"]
+            health = parse_health.snapshot()
+            _require(parse_health.total() == 0,
+                     f"parser health is not clean: {health}")
         finally:
             call_log.remove_listener(listener)
             for field in (
@@ -518,6 +658,7 @@ def _run_phase(phase: str) -> dict[str, Any]:
         "config": {**BASE_CONFIG, "mystery_mode_cases": [False, True]},
         "required_paths": required_paths,
         "required_families": required_families,
+        "parse_health": health,
         "cases": cases,
         "records": records,
     }
