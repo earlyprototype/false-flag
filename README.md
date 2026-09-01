@@ -311,6 +311,7 @@ loop runs on the deterministic mock driver and spends no API credit.
 - **Engineering audit trail**: [audits/](audits/) — the engineering-review (ER) register, measurement runs, and handover notes; check here for known issues and prior investigations
 - **[DTDL twin model](interop/README.md)**: False Flag's exercise domain in DTDL v3 — model set, exporter, validators, and how it renders on the dataflow page
 - **[Control Surface Guide](docs/CONTROL_SURFACE_GUIDE.md)**: plain-English walkthrough of `/dataflow` and `/dashboard` — what each page and control does, and when to use which
+- **[Tech element briefs](docs/tech/README.md)**: one factual brief per technology element (WebXR, CesiumJS, Convai, Quest 3, server streaming) for agents and sessions picking the project up cold
 
 ## Credits
 
