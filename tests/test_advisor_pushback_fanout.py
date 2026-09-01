@@ -794,6 +794,10 @@ def test_each_advisor_may_prefix_its_own_reply_without_owning_attribution():
     "NO PUSHBACK. Nothing triggers a concern.",
     "NO PUSHBACK. No trigger applies to this order.",
     "NO PUSHBACK. No concerns arise.",
+    "NO PUSHBACK. No pushback triggers are activated.",
+    "NO PUSHBACK. None of my pushback triggers are activated.",
+    "NO PUSHBACK. This decision does not activate any of my triggers.",
+    "NO PUSHBACK. I have no concerns about this decision.",
 ])
 def test_leading_or_tolerated_prefixed_no_pushback_remains_a_sentinel(reply):
     before = parse_health.snapshot()["fallbacks"].get("advisor_pushback", 0)
