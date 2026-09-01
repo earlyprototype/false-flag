@@ -13,7 +13,7 @@ is cited.*
   app installs on the device; a WebXR page opens in the built-in browser.
 - **Reference WebXR browser.** The built-in Meta Quest Browser is the
   reference target for WebXR content, including quad layers for crisp
-  in-headset text — a Quest-only benefit (see WEBXR.md).
+  in-headset text — a Quest-only benefit (see [WEBXR.md](WEBXR.md)).
 - **Optics sufficient for label-heavy screens.** Good enough to read a
   label-dense situation screen in-headset, which is what the globe is.
 - **Colour passthrough.** The headset can show the real room in colour
