@@ -24,6 +24,6 @@ All three designs share ~80% of the build — `models/spatial.py`, `engine/kinem
 **TASKORD pure** — the hybrid minus the legality graph, readiness, and route polylines. Saves a few days; loses the pieces that keep red honest and make the map feel inhabited. Only worth it under extreme schedule pressure — and D1's (the schedule-check decision gate's) cut goes to M2 (Standards on the Glass — the digital-twin standards badges) / M3 (Show-Safe) first anyway.
 
 **Ruling**: use the hybrid validated-order channel. Scheduling decides whether
-it lands before the competition; the architecture is not open.
+it lands before 12 Sep; the architecture is not open.
 
 Full specs, judge scores, and every graft: `audits/2026-08-28-xr-feasibility/workflow2_full_output.json` (`designs`, `judges`).

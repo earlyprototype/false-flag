@@ -83,7 +83,7 @@ The reconciled hybrid of the two leading pass-2 designs (the judges split 1–1 
 
 The decision points, each with an owner and an exit criterion. (Two v1 gates are struck: ~~LLM response time~~ — the window is design-paced; ~~the 30 s attract-mode pacing cap~~ — one line of our own `api/demo.py`.)
 
-1. **Competition parameters** — **CLEARED 2026-08-28 (owner input)**: the challenge started 28 Aug, onsite day **12 Sep** (15 days), final **14 Sep**. The onsite venue is **Irish Manufacturing Research** — an RTO whose pillars (Digitisation/Industry 4.0, Robotics & Automation) and flagship REWIRE project run on digital twins, so the DTDL track is the venue's home turf and the `Theatre;1` sidecar + DTMI badges are promoted to sprint priority. Consequence: the full program does not fit; the §7 cut lines activate — see the 15-day sprint plan there. Rubric still unpublished as far as known; a Manus research task should hunt it.
+1. **Onsite parameters** — **CLEARED 2026-08-28 (owner input)**: the build started 28 Aug, onsite day **12 Sep** (15 days), final date **14 Sep**. The onsite venue is **Irish Manufacturing Research** — an RTO whose pillars (Digitisation/Industry 4.0, Robotics & Automation) and flagship REWIRE project run on digital twins, so the DTDL track is the venue's home turf and the `Theatre;1` sidecar + DTMI badges are promoted to sprint priority. Consequence: the full program does not fit; the §7 cut lines activate — see the 15-day sprint plan there. What the onsite expects remains unpublished as far as known; a Manus research task should hunt it.
 2. **PRs #65/#66 merge sequencing** *(dependency)*: both tracks build on the merged tree; the DTDL provenance fields need a parser re-validation run post-merge. *Clears on merge + one rebase + PARSE OK.*
 3. **Solo capacity vs. tiered scope** *(resource)*: combined honest estimate **~2–3 months part-time** (Track A 2–3 weeks at the judged 2–3× multiplier; Track B ~4–6 part-time weeks staged so every stage ships playable; re-golden churn; doctrine/gazetteer authoring — which *is* game design, 2–4 days; gazetteer QA; the Quest spike). "Two tracks" means order-independent for one person, not parallel. *Managed by the cut lines in §7, never removed.*
 4. **Security before anything leaves localhost** *(engineering — worse under Track B)*: zero auth plus unauthenticated `POST /routing` and `PUT /prompts` now guard *the stored positions, facilitator move commands, and a network-reachable movement prompt* — venue wifi could literally move the fleet. Bind localhost + authenticated reverse proxy; read-only spectator mirror; the WebRTC variant's DataChannel is an input surface. *Hard gate for the position system.*
@@ -116,7 +116,7 @@ Accepted limits: the globe is a monoscopic picture — no stereoscopic terrain, 
 
 **The plan is not in this document.** It lives at the repository root in **[`PLAN.md`](../PLAN.md)** — five stages, each with its build checklist, its done test (an observable fact), and its current status. That file is the single source; this study is the evidence behind it (why each choice, what was verified, what was rejected).
 
-Dates: challenge started 28 Aug 2026 · owner GO given 30 Aug · onsite 12 Sep at IMR · final 14 Sep. Stage 1 shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95) and is `DONE` — the projector done-test passed 31 Aug; `main` also includes PRs #96–#99 and #101–#108. Cut order under pressure: post-competition tier → stage 5 → stage 3. The gates are schedule instruments only — no design questions remain inside them ([#71](https://github.com/earlyprototype/false-flag/issues/71), the movement-architecture decision, is closed: hybrid orders on).
+Dates: build started 28 Aug 2026 · owner GO given 30 Aug · onsite 12 Sep at IMR · final date 14 Sep. Stage 1 shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95) and is `DONE` — the projector done-test passed 31 Aug; `main` also includes PRs #96–#99 and #101–#108. Cut order under pressure: Afterwards tier → stage 5 → stage 3. The gates are schedule instruments only — no design questions remain inside them ([#71](https://github.com/earlyprototype/false-flag/issues/71), the movement-architecture decision, is closed: hybrid orders on).
 
 ## 8. Engagement & playability
 
@@ -149,7 +149,7 @@ Interrogate-the-globe under fog (gods-eye-view's LLM-agnostic action grammar + t
 
 ## 11. Owner decision checklist
 
-1. ~~Competition parameters~~ — **landed 2026-08-28** (onsite 12 Sep at IMR, final 14 Sep); the §7 sprint plan is the operative schedule. Remaining sub-item: the judging rubric, if published.
+1. ~~Onsite parameters~~ — **landed 2026-08-28** (onsite 12 Sep at IMR, final date 14 Sep); the §7 sprint plan is the operative schedule. Remaining sub-item: what the onsite expects, if published.
 2. ~~Merge #65/#66~~ — merged; re-run DTDLParser when the planned `Theatre;1` sidecars are authored.
 3. ~~Tiebreak ratification~~ — settled in [#71](https://github.com/earlyprototype/false-flag/issues/71): use the TASKORD+IRONCLAD hybrid validated-order channel.
 4. Downgrade silent-loss acceptance for saves (claim 9) — accept and document, or add version-aware load warnings.
