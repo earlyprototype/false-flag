@@ -162,9 +162,10 @@ def _assert_mock_only() -> None:
             )
 
 
-def _new_game(mystery_mode: bool) -> tuple[GameManager, dict[str, Any]]:
+def _new_game(mystery_mode: bool) -> GameManager:
     game = GameManager(**BASE_CONFIG, mystery_mode=mystery_mode)
-    return game, game.get_turn_briefing()
+    game.get_turn_briefing()
+    return game
 
 
 def _narrative_id(game: GameManager) -> str | None:
@@ -203,8 +204,6 @@ def _capture(
         per_record and isinstance(converted, list) and len(converted) == len(captured)
     ) else None
     for index, record in enumerate(captured):
-        record["context"] = record["family"]
-        record["raw_reply"] = record["reply"]
         record["parsed_output"] = (
             item_outputs[index] if item_outputs is not None else converted
         )
@@ -254,7 +253,6 @@ def _run_main_case(
     case: str,
     mystery_mode: bool,
     game: GameManager,
-    briefing: dict[str, Any],
     records: list[dict[str, Any]],
 ) -> dict[str, Any]:
     selected_narrative = _narrative_id(game)
@@ -272,7 +270,6 @@ def _run_main_case(
             router.generate_text, game.rng, game.transcript,
             event_ledger=ledger,
         ),
-        per_record=True,
     )
     _capture(
         records, outputs, "advisor_qa_fanout", game.world.turn,
@@ -385,7 +382,6 @@ def _run_main_case(
         "case": case,
         "config": {**BASE_CONFIG, "mystery_mode": mystery_mode},
         "selected_narrative_id": selected_narrative,
-        "briefing_title": briefing.get("title"),
         "actor_ids": actor_ids,
         "final_effects": effects,
         "character_selection_effects": CHARACTER_SELECTION_EFFECTS,
@@ -397,9 +393,7 @@ def _run_pushback_case(
     case: str,
     mystery_mode: bool,
     game: GameManager,
-    briefing: dict[str, Any],
     records: list[dict[str, Any]],
-    git_head: str,
 ) -> dict[str, Any]:
     from agents.conversation import generate_advisor_pushback
 
@@ -408,7 +402,6 @@ def _run_pushback_case(
     call_log.set_field("case", case)
     call_log.set_field("mystery_mode", mystery_mode)
     call_log.set_field("narrative_id", selected_narrative or "none")
-    call_log.set_field("git_head", git_head)
     outputs: dict[str, Any] = {}
     _capture(
         records, outputs, "advisor_pushback", game.world.turn,
@@ -423,7 +416,6 @@ def _run_pushback_case(
         "case": case,
         "config": {**BASE_CONFIG, "mystery_mode": mystery_mode},
         "selected_narrative_id": selected_narrative,
-        "briefing_title": briefing.get("title"),
         "outputs": outputs,
     }
 
@@ -484,7 +476,7 @@ def _run_phase(phase: str) -> dict[str, Any]:
     old_file_sink = os.environ.pop("WARGAME_CALL_LOG", None)
     try:
         prepared = [
-            (case, mystery_mode, *_new_game(mystery_mode))
+            (case, mystery_mode, _new_game(mystery_mode))
             for case, mystery_mode in CASES
         ]
         records: list[dict[str, Any]] = []
@@ -494,18 +486,16 @@ def _run_phase(phase: str) -> dict[str, Any]:
         try:
             if phase == "main":
                 cases = [
-                    _run_main_case(case, mystery, game, briefing, records)
-                    for case, mystery, game, briefing in prepared
+                    _run_main_case(case, mystery, game, records)
+                    for case, mystery, game in prepared
                 ]
                 _assert_main_complete(records, cases)
                 required_paths = list(MAIN_PATH_FAMILIES)
                 required_families = sorted(set(MAIN_PATH_FAMILIES.values()))
             else:
                 cases = [
-                    _run_pushback_case(
-                        case, mystery, game, briefing, records, git_head
-                    )
-                    for case, mystery, game, briefing in prepared
+                    _run_pushback_case(case, mystery, game, records)
+                    for case, mystery, game in prepared
                 ]
                 _assert_pushback_complete(records, cases)
                 required_paths = ["advisor_pushback"]
@@ -513,7 +503,7 @@ def _run_phase(phase: str) -> dict[str, Any]:
         finally:
             call_log.remove_listener(listener)
             for field in (
-                "case", "mystery_mode", "narrative_id", "git_head", "path", "turn"
+                "case", "mystery_mode", "narrative_id", "path", "turn"
             ):
                 call_log.set_field(field, None)
     finally:

@@ -105,7 +105,7 @@ Observable consequences can still flow forward. In the ON case, actor and Irish 
 - **Context:** full shared dossier and the PM's order.
 - **Route:** `decision_interpretation`, configured Flash, effective mock/driver-default.
 - **Observed output:** all five fields were present and specific.
-- **Failure mode:** `interpret_player_action` returns raw text; the terminal-only parser ignores resources; `GameManager.preview_decision` exposes literal `forces_involved=[]` and `timeline="Immediate"`. API clients therefore receive placeholders rather than model output.
+- **Failure mode:** `interpret_player_action` returns raw text; the terminal-only parser ignores resources; `GameManager.interpret_decision` exposes literal `forces_involved=[]` and `timeline="Immediate"`. API clients therefore receive placeholders rather than model output.
 - **Remediation:** [#113 — return parsed interpretation fields to API clients](https://github.com/earlyprototype/false-flag/issues/113).
 
 ### F4 — mock injects breach their own plain-text contract — Medium
