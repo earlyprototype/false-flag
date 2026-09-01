@@ -79,7 +79,8 @@ class GameSession:
             self._loop = None
 
     def _make_item(self, event_type: str, data: Any,
-                   layer: Optional[Layer]) -> Dict[str, Any]:
+                   layer: Optional[Layer], turn: Optional[int] = None,
+                   t_plus_s: Optional[float] = None) -> Dict[str, Any]:
         """Assemble one SSE queue item: stamp layer, turn, T+ and sequence.
 
         ``_layer`` is server-side only (the stream filter pops it before
@@ -89,8 +90,13 @@ class GameSession:
         layer = layer or Layer.SITREP
         payload = dict(data) if isinstance(data, dict) else {"value": data}
         payload.setdefault("layer", layer.value)
-        payload.setdefault("turn", self.manager.world.turn)
-        payload.setdefault("t_plus_s", round(time.time() - self.started_at, 3))
+        payload.setdefault(
+            "turn", self.manager.world.turn if turn is None else turn)
+        payload.setdefault(
+            "t_plus_s",
+            round(time.time() - self.started_at, 3)
+            if t_plus_s is None else t_plus_s,
+        )
         self._event_seq += 1
         payload.setdefault("event_seq", self._event_seq)
         return {
@@ -107,16 +113,23 @@ class GameSession:
     def push_event_threadsafe(self, event_type: str, data: Any,
                               layer: Optional[Layer] = None) -> None:
         """Push an event from a worker thread (LLM relay, demo driver)."""
+        turn = self.manager.world.turn
+        t_plus_s = round(time.time() - self.started_at, 3)
         if self._loop is not None:
             self._loop.call_soon_threadsafe(
-                self._make_and_publish, event_type, data, layer)
+                self._make_and_publish, event_type, data, layer,
+                turn, t_plus_s)
         else:
-            self._make_and_publish(event_type, data, layer)
+            self._make_and_publish(
+                event_type, data, layer, turn, t_plus_s)
 
     def _make_and_publish(self, event_type: str, data: Any,
-                          layer: Optional[Layer]) -> None:
+                          layer: Optional[Layer],
+                          turn: Optional[int] = None,
+                          t_plus_s: Optional[float] = None) -> None:
         """Assign sequence and publish as one loop-owned operation."""
-        self._publish(self._make_item(event_type, data, layer))
+        self._publish(self._make_item(
+            event_type, data, layer, turn=turn, t_plus_s=t_plus_s))
 
     def subscribe(self) -> asyncio.Queue:
         """Return an independent queue for one SSE subscriber."""

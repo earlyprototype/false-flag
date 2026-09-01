@@ -263,15 +263,20 @@ def test_disconnected_stream_unsubscribes_before_later_delivery():
     assert replacement.get_nowait()["event"] == "state_update"
 
 
-def test_threadsafe_events_receive_sequence_on_the_session_loop():
-    """Worker callbacks cannot arrive after a later sequence was published."""
+def test_threadsafe_events_keep_emission_time_and_loop_sequence(monkeypatch):
+    """Worker metadata is captured at emission; sequence follows delivery."""
     from api import server
     from models.layers import Layer
+
+    now = [100.0]
+    monkeypatch.setattr(server.time, "time", lambda: now[0])
 
     async def publish_worker_then_loop_event():
         session = server.GameSession(server.GameManager())
         first = session.subscribe()
         second = session.subscribe()
+        session.manager.world.turn = 4
+        now[0] = 101.25
         worker = threading.Thread(
             target=session.push_event_threadsafe,
             args=("transcript", {"content": "worker"}),
@@ -282,22 +287,29 @@ def test_threadsafe_events_receive_sequence_on_the_session_loop():
         # Keep the loop occupied until the worker has queued its callback.
         worker.join(timeout=2)
         assert not worker.is_alive()
+        session.manager.world.turn = 5
+        now[0] = 103.5
         await session.push_event(
             "state_update", {"phase": "discussion"}, layer=Layer.SITREP)
         await asyncio.sleep(0)
 
-        def sequences(queue):
-            return [
-                json.loads(queue.get_nowait()["data"])["event_seq"]
-                for _ in range(2)
-            ]
+        def events(queue):
+            return [queue.get_nowait() for _ in range(2)]
 
-        return sequences(first), sequences(second)
+        return events(first), events(second)
 
-    first_sequences, second_sequences = asyncio.run(
+    first_events, second_events = asyncio.run(
         publish_worker_then_loop_event())
-    assert first_sequences == [1, 2]
-    assert second_sequences == [1, 2]
+    assert first_events == second_events
+
+    payloads = [json.loads(item["data"]) for item in first_events]
+    assert [payload["event_seq"] for payload in payloads] == [1, 2]
+    by_event = {item["event"]: payload
+                for item, payload in zip(first_events, payloads)}
+    assert (by_event["transcript"]["turn"],
+            by_event["transcript"]["t_plus_s"]) == (4, 1.25)
+    assert (by_event["state_update"]["turn"],
+            by_event["state_update"]["t_plus_s"]) == (5, 3.5)
 
 
 def test_stream_filter_drops_referee_for_players_only():
