@@ -277,6 +277,7 @@ def _count_advisory_calls(monkeypatch):
     from collections import Counter
 
     from llm.mock_driver import MockDeterministicDriver
+    from llm.model_config import LLMContext
 
     counts = Counter()
     inner = MockDeterministicDriver()
@@ -287,6 +288,8 @@ def _count_advisory_calls(monkeypatch):
 
     def fake_batch(prompts, rng, context=None, **kwargs):
         counts[f"batch:{context}"] += 1
+        if context == LLMContext.ADVISOR_PUSHBACK:
+            return [f"Independent concern {i}" for i in range(len(prompts))]
         return [inner.generate_text(p, rng) for p in prompts]
 
     import engine.sim_loop as sim_loop
@@ -307,8 +310,8 @@ PUSHBACK_DECISION = ("Deploy the carrier strike group to shadow the vessel "
 
 def test_preview_then_commit_pays_each_advisory_family_once(monkeypatch):
     """ER-074: interpret_decision + resolve_decision of the identical text
-    makes exactly ONE interpretation call, ONE pushback call and ONE
-    omissions batch - the commit reuses the preview instead of re-running
+    makes exactly ONE interpretation call, ONE five-prompt pushback batch and
+    ONE omissions batch - the commit reuses the preview instead of re-running
     rounds 1-2. The ER-013 trust cost still fires on the unamended commit."""
     from llm.model_config import LLMContext
 
@@ -317,12 +320,22 @@ def test_preview_then_commit_pays_each_advisory_family_once(monkeypatch):
     gm.get_turn_briefing()
 
     preview = gm.interpret_decision(PUSHBACK_DECISION)
-    assert preview["pushback"], "the carrier decision must draw pushback"
+    assert [p["role"] for p in preview["pushback"]] == [
+        "Chief of the Defence Staff",
+        "National Security Adviser",
+        "Home Secretary",
+        "Foreign Secretary",
+        "Attorney General",
+    ]
+    assert [p["concern"] for p in preview["pushback"]] == [
+        f"Independent concern {i}" for i in range(5)
+    ]
     result = gm.resolve_decision(PUSHBACK_DECISION)
 
     assert result["error"] is None
     assert counts[str(LLMContext.DECISION_INTERPRETATION)] == 1
-    assert counts[str(LLMContext.ADVISOR_PUSHBACK)] == 1
+    assert counts[str(LLMContext.ADVISOR_PUSHBACK)] == 0
+    assert counts[f"batch:{LLMContext.ADVISOR_PUSHBACK}"] == 1
     assert counts[f"batch:{LLMContext.CRITICAL_OMISSIONS}"] == 1
     # The reused results reach the commit's payload verbatim.
     assert result["interpretation"] == preview["interpretation"]
@@ -349,7 +362,8 @@ def test_an_amended_commit_reruns_the_full_pipeline(monkeypatch):
 
     assert result["error"] is None
     assert counts[str(LLMContext.DECISION_INTERPRETATION)] == 2
-    assert counts[str(LLMContext.ADVISOR_PUSHBACK)] == 2
+    assert counts[str(LLMContext.ADVISOR_PUSHBACK)] == 0
+    assert counts[f"batch:{LLMContext.ADVISOR_PUSHBACK}"] == 2
     assert counts[f"batch:{LLMContext.CRITICAL_OMISSIONS}"] == 2
 
 
@@ -372,6 +386,7 @@ def test_the_preview_survives_a_save_load_between_interpret_and_commit(monkeypat
     result = restored.resolve_decision(PUSHBACK_DECISION)
     assert result["error"] is None
     assert counts[str(LLMContext.DECISION_INTERPRETATION)] == 1
+    assert counts[f"batch:{LLMContext.ADVISOR_PUSHBACK}"] == 1
     assert counts[f"batch:{LLMContext.CRITICAL_OMISSIONS}"] == 1
 
 

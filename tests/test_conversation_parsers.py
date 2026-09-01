@@ -295,6 +295,11 @@ def test_legal_question_routes_to_attorney_general():
     assert "Legal Advisor" in roles
 
 
+def test_overall_strategy_question_never_answers_as_the_prime_minister():
+    roles = responding_roles("What is our overall strategy?")
+    assert roles == ["Intelligence Coordinator"]
+
+
 # --- handle_player_question_all (ask the whole room) ---
 
 ALL_ROSTER_ROLES = [

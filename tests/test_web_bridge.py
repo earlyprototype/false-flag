@@ -530,6 +530,34 @@ def test_decide_then_end_turn_advances():
     assert "TURN 2" in rec.ansi()
 
 
+def test_decide_renders_each_pushback_result(monkeypatch):
+    """The browser must not discard independently attributed objections."""
+    game, rec = make_game()
+    rec.clear()
+
+    monkeypatch.setattr(game.gm, "resolve_decision", lambda _action: {
+        "interpretation": "A test interpretation.",
+        "reasoning": "",
+        "effects": {},
+        "pushback": [
+            {"role": "Chief of the Defence Staff", "concern": "Fleet concern."},
+            {"role": "Attorney General", "concern": "Legal concern."},
+        ],
+        "critical_concerns": [],
+        "advisor_reactions": [],
+        "international_reactions": [],
+        "ending": None,
+        "error": None,
+    })
+
+    game.handle({"type": "decide", "text": "Test the browser transport."})
+    output = rec.ansi()
+
+    assert "ADVISOR CONCERNS" in output
+    assert "CHIEF OF THE DEFENCE STAFF" in output and "Fleet concern." in output
+    assert "ATTORNEY GENERAL" in output and "Legal concern." in output
+
+
 def test_end_turn_without_a_decision_still_resolves_the_turn():
     game, rec = make_game()
     turn = game.gm.world.turn
