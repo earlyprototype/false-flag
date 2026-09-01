@@ -86,6 +86,7 @@ from engine.narrative_adjudication import (
 )
 from engine.utils import clamp
 from llm.parse_health import record_fallback
+from llm.parsing import is_error_response
 
 # One task per family, three families in the widest round.
 MAX_ROUND_WORKERS = 3
@@ -214,13 +215,23 @@ def format_decision_transcript(
     lines.append(f"Interpretation: {interpretation}")
     lines.append("")
 
-    if pushback:
+    failed_pushback = any(
+        is_error_response(concern) for _role, concern in pushback)
+    spoken_pushback = [
+        (role, concern)
+        for role, concern in pushback
+        if not is_error_response(concern)
+    ]
+    if spoken_pushback:
         lines.append("Advisor Concerns:")
-        for role, concern in pushback:
+        for role, concern in spoken_pushback:
             lines.append(f"\n{role}: {concern}")
         lines.append("")
-    else:
+    elif not failed_pushback:
         lines.append("No advisor concerns raised.")
+        lines.append("")
+    if failed_pushback:
+        lines.append("One or more advisor responses were unavailable.")
         lines.append("")
 
     if critical_concerns:
@@ -261,7 +272,8 @@ def run_preview_round(
         ("pushback",
          lambda task_rng: generate_advisor_pushback(
              world, action, interpretation, initial_conditions,
-             gen, task_rng, full_transcript, event_ledger=event_ledger),
+             gen, task_rng, full_transcript, llm_batch_fn=batch,
+             event_ledger=event_ledger),
          list),
         ("critical_omissions",
          lambda task_rng: check_critical_omissions(
@@ -418,7 +430,8 @@ def run_decision_pipeline(
             ("pushback",
              lambda task_rng: generate_advisor_pushback(
                  world, action, interpretation, initial_conditions,
-                 gen, task_rng, full_transcript, event_ledger=event_ledger),
+                 gen, task_rng, full_transcript, llm_batch_fn=batch,
+                 event_ledger=event_ledger),
              list),
             ("critical_omissions",
              lambda task_rng: check_critical_omissions(

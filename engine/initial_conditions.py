@@ -67,7 +67,7 @@ def get_character_info(initial_conditions: Dict[str, Any], character_id: str) ->
 
 
 def get_all_uk_advisors(initial_conditions: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
-    """Get all UK advisor characters (excludes Russian team).
+    """Get seated UK advisors (excludes the player and Russian team).
     
     Args:
         initial_conditions: Parsed initial conditions dict
@@ -79,8 +79,11 @@ def get_all_uk_advisors(initial_conditions: Dict[str, Any]) -> Dict[str, Dict[st
     uk_advisors = {}
     
     for char_id, char_info in characters.items():
-        # Exclude Russian team characters (they have 'note' field indicating control by injects)
-        if isinstance(char_info, dict) and "note" not in char_info:
+        # The Prime Minister is the player, not an advisor voice. Russian
+        # characters carry a note marking them as inject/adjudication driven.
+        if (char_id != PLAYER_CHARACTER_ID
+                and isinstance(char_info, dict)
+                and "note" not in char_info):
             uk_advisors[char_id] = char_info
     
     return uk_advisors
@@ -120,4 +123,3 @@ def get_stockpiles(initial_conditions: Dict[str, Any]) -> Dict[str, Any]:
         Stockpiles dict with ammunition categories and counts
     """
     return initial_conditions.get("stockpiles", {})
-

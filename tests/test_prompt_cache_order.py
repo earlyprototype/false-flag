@@ -140,7 +140,7 @@ def test_every_transcript_carrying_prompt_opens_with_the_same_dossier():
         build_decision_interpretation_prompt(world, "Hold the deployment.",
                                              conditions, transcript),
         build_pushback_prompt(world, "Hold the deployment.", "INTERPRETATION: hold",
-                              conditions, transcript),
+                              conditions, "foreign_secretary", transcript),
         build_critical_omissions_prompt(world, conditions, "chief_defence_staff",
                                         "Hold the deployment.", ["Submarine detected"],
                                         transcript),

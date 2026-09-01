@@ -378,15 +378,15 @@ def build_shared_context_prefix(transcript: FullTranscript,
     The order below is by rate of change, slowest first, which is the only
     order a prefix cache can exploit:
 
-    1. the campaign's fixed framing, and the hidden narrative truth drawn at
-       setup - constant for the whole campaign;
+    1. the campaign's fixed framing - constant for the whole campaign;
     2. the transcript - append-only, so turn N+1's block is turn N's block
        with more on the end, and a provider matches straight through it;
     3. the current metrics and phase - these change every turn, so they come
        last, after everything worth matching.
 
-    The role-specific half of each prompt follows this block. Nothing here
-    changes *what* a model is shown, only the order it is shown in.
+    The role-specific half of each prompt follows this block. Mystery mode's
+    hidden narrative truth is deliberately excluded from this player-facing
+    dossier (see the guard below).
 
     ``event_ledger``: optional sequence of played events (PlayedEvent objects
     or dicts). Rendered in the fast-moving tail — after the transcript, with

@@ -29,10 +29,7 @@ from engine.narrative_adjudication import _parse_quality_response  # noqa: E402
 from engine.actor_simulation import _parse_actor_response  # noqa: E402
 from engine.diplomacy import assess_diplomatic_outcome  # noqa: E402
 from engine.sim_loop import apply_inject_effects  # noqa: E402
-from agents.conversation import (  # noqa: E402
-    check_critical_omissions,
-    generate_advisor_pushback,
-)
+from agents.conversation import check_critical_omissions  # noqa: E402
 from models.world import Metrics, WorldState  # noqa: E402
 
 
@@ -360,35 +357,6 @@ def test_diplomatic_outcome_defaults_are_recorded():
         "diplomacy_outcome.outcome": 1,
         "diplomacy_outcome.summary": 1,
     }
-
-
-# --- ER-035: a bulleted cabinet objection is real pushback -------------------
-
-def test_er035_bulleted_roster_reply_returns_two_entries():
-    text = (
-        "- Military Commander: Two frigates leaves the approaches uncovered.\n"
-        "- Legal Advisor: No Article 51 basis."
-    )
-    result = generate_advisor_pushback(
-        make_world(), "deploy two frigates", "Two frigates north.",
-        INITIAL_CONDITIONS, make_llm(text), Random(42)
-    )
-    assert [role for role, _ in result] == ["Military Commander", "Legal Advisor"]
-    assert "approaches uncovered" in result[0][1]
-    assert "Article 51" in result[1][1]
-
-
-def test_orphan_leading_line_is_recorded_not_silent():
-    text = (
-        "The cabinet has reservations.\n"
-        "Legal Advisor: No Article 51 basis."
-    )
-    result = generate_advisor_pushback(
-        make_world(), "strike now", "Immediate strike.",
-        INITIAL_CONDITIONS, make_llm(text), Random(42)
-    )
-    assert [role for role, _ in result] == ["Legal Advisor"]
-    assert parse_health.snapshot()["misses"] == {"pushback.orphan_line": 1}
 
 
 # --- ER-036: acceptance rules must not discard real omissions ----------------

@@ -1248,6 +1248,15 @@ class WebGame:
             pen.blank()
         self.out(pen)
 
+        pushback = list(result.get("pushback") or [])
+        if pushback:
+            pen = AnsiPen(self.width)
+            pen.section("ADVISOR CONCERNS", AMBER)
+            for item in pushback:
+                pen.speaker(display_role(item["role"]), item["concern"],
+                            colour=AMBER)
+            self.out(pen)
+
         concerns = list(result.get("critical_concerns") or [])
         if concerns:
             pen = AnsiPen(self.width)

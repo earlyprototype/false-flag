@@ -31,9 +31,10 @@ def _stable_index(key: str, size: int) -> int:
 #   - Q&A:              "You are the {role} in a UK government COBRA meeting"
 #   - Reactions:        "You are {character.name}."
 #   - Omissions check:  "You are the UK {role} advising the Prime Minister"
-# Detection keys on that line rather than on keywords anywhere in the prompt,
-# because the surrounding context (transcript, character lists) mentions every
-# advisor by title and previously collapsed all voices into one.
+# Detection keys on a builder-owned marker emitted after editable and
+# interpolated text, rather than on arbitrary persona-like lines in the prompt.
+# The surrounding context mentions every advisor, and player text can itself
+# contain identity instructions; trusting either previously collapsed voices.
 # ---------------------------------------------------------------------------
 
 # advisor key -> aliases used in persona lines (role titles and display names)
@@ -1119,18 +1120,47 @@ def _render_inject(entry: dict, turn: int, tell: str = "") -> str:
 
 
 def _detect_advisor(prompt_lower: str):
-    """Return the advisor key explicitly addressed by a persona line, if any."""
+    """Return the advisor named by trusted builder or reaction framing."""
+    selected = None
+    selected_at = -1
     for key, aliases in _ADVISOR_ALIASES.items():
         for alias in aliases:
-            if re.search(r"you are (?:the )?(?:uk )?(?:us )?" + re.escape(alias), prompt_lower):
-                return key
-    return None
+            role = re.escape(alias)
+            patterns = (
+                r"(?m)^\s*\[advisor role:\s*(?:the )?(?:uk )?(?:us )?"
+                + role + r"\s*\]\s*$",
+                r"(?m)^\s*you are (?:the )?(?:uk )?(?:us )?" + role
+                + r"\.\s*\n\s*your relationship with the pm:",
+            )
+            for pattern in patterns:
+                for match in re.finditer(pattern, prompt_lower):
+                    if match.start() > selected_at:
+                        selected = key
+                        selected_at = match.start()
+    return selected
 
 
 def _extract_question(prompt: str) -> str:
     """Pull the player's question out of an advisor Q&A prompt, if present."""
     match = re.search(r'the prime minister asks:\s*"(.*?)"', prompt, re.IGNORECASE | re.DOTALL)
     return match.group(1) if match else prompt
+
+
+def _extract_quoted_prompt_value(
+    prompt: str,
+    heading: str,
+    *following_headings: str,
+):
+    """Extract a quoted prompt field, including embedded quotes/newlines."""
+    boundaries = "|".join(
+        re.escape(following) for following in following_headings)
+    match = re.search(
+        re.escape(heading) + r'\s*"(.*?)"\s*'
+        r'(?=(?:' + boundaries + r')|\Z)',
+        prompt,
+        re.IGNORECASE | re.DOTALL,
+    )
+    return match.group(1) if match else None
 
 
 class MockDeterministicDriver:
@@ -1188,12 +1218,9 @@ class MockDeterministicDriver:
         # Decision interpretation: echo the actual decision back as the summary
         # so the OPERATIONAL ORDER panel reflects what the player typed.
         if "interpret this action" in prompt_lower:
-            # Greedy match to the last quote on the line: decisions are a
-            # single input() line, and non-greedy truncated at any embedded
-            # double quote ('Tell the ally "stand by"; deploy...').
-            decided = re.search(r'the prime minister has decided:\s*"(.*)"', prompt,
-                                re.IGNORECASE)
-            summary = " ".join(decided.group(1).split()) if decided else \
+            decided = _extract_quoted_prompt_value(
+                prompt, "the prime minister has decided:", "IMPORTANT:")
+            summary = " ".join(decided.split()) if decided is not None else \
                 "Deploy naval and air assets to defensive posture"
             return (f"INTERPRETATION: {summary}\n"
                     "FORCES INVOLVED: Type-45 destroyers, combat air patrols, P-8 reconnaissance\n"
@@ -1206,23 +1233,44 @@ class MockDeterministicDriver:
         # (force listings, transcript) mentions "deploy"/"carrier" on every
         # turn and would otherwise fire pushback for every decision.
         if "pushback triggers" in prompt_lower:
-            decided = re.search(r'the pm has decided:\s*"(.*)"', prompt,
-                                re.IGNORECASE)
+            decided = _extract_quoted_prompt_value(
+                prompt, "the pm has decided:",
+                "Interpretation of this action:",
+                "Advisors and their pushback triggers:")
             # Fail closed: if the decision can't be extracted, don't scan the
             # whole prompt - its context mentions deploy/carrier every turn
             # and would fire spurious pushback.
-            if not decided:
-                return "NO PUSHBACK"
-            action_text = decided.group(1).lower()
+            if decided is None:
+                return "[ERROR: Advisor response unavailable]"
+            action_text = decided.lower()
+            advisor = _detect_advisor(prompt_lower)
 
             if "nuclear" in action_text:
-                return ("Attorney General: Prime Minister, nuclear first-use without imminent existential threat "
-                        "violates our legal framework and would fracture NATO immediately.\n"
-                        "Foreign Secretary: This would end US support and isolate us internationally.")
+                if advisor == "legal":
+                    return ("Prime Minister, nuclear first-use without imminent "
+                            "existential threat violates our legal framework and "
+                            "would fracture NATO immediately.")
+                if advisor == "foreign":
+                    return "This would end US support and isolate us internationally."
+                if advisor is None:  # Legacy direct mock probe.
+                    return ("Attorney General: Prime Minister, nuclear first-use "
+                            "without imminent existential threat violates our legal "
+                            "framework and would fracture NATO immediately.\n"
+                            "Foreign Secretary: This would end US support and "
+                            "isolate us internationally.")
+                return "NO PUSHBACK"
 
             if "deploy" in action_text and ("carrier" in action_text or "prince of wales" in action_text):
-                return ("Chief of the Defence Staff: Prime Minister, HMS Prince of Wales is not at highest readiness. "
-                        "We can surge her immediately at reduced capability, or wait 3 turns for full readiness.")
+                if advisor == "cds":
+                    return ("Prime Minister, HMS Prince of Wales is not at highest "
+                            "readiness. We can surge her immediately at reduced "
+                            "capability, or wait 3 turns for full readiness.")
+                if advisor is None:  # Legacy direct mock probe.
+                    return ("Chief of the Defence Staff: Prime Minister, HMS Prince "
+                            "of Wales is not at highest readiness. We can surge her "
+                            "immediately at reduced capability, or wait 3 turns for "
+                            "full readiness.")
+                return "NO PUSHBACK"
 
             return "NO PUSHBACK"
 

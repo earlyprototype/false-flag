@@ -287,20 +287,7 @@ def test_diplomacy_residue_is_recorded():
     assert parse_health.snapshot()["residue"] == {"diplomacy_outcome": 1}
 
 
-# --- P9: parse first, sentinel only when nothing was found -------------------
-
-def test_trailing_no_pushback_keeps_real_objections():
-    text = (
-        "Home Secretary: The public will panic without a statement.\n"
-        "NO PUSHBACK"
-    )
-    result = generate_advisor_pushback(
-        make_world(), "say nothing", "No statement.",
-        INITIAL_CONDITIONS, make_llm(text), Random(42)
-    )
-    assert result == [
-        ("Home Secretary", "The public will panic without a statement.")
-    ]
+# --- P9: a leading sentinel accepts only bounded absence rationale ----------
 
 
 @pytest.mark.parametrize("sentinel", ["NO PUSHBACK", "**NO PUSHBACK**",
@@ -313,13 +300,14 @@ def test_standalone_no_pushback_still_returns_empty(sentinel):
     assert result == []
 
 
-def test_empty_pushback_message_is_recorded_and_skipped():
+def test_empty_pushback_message_is_recorded_and_visible():
     result = generate_advisor_pushback(
         make_world(), "hold position", "Hold.",
-        INITIAL_CONDITIONS, make_llm("Home Secretary:"), Random(42)
+        INITIAL_CONDITIONS, make_llm(""), Random(42)
     )
-    assert result == []
-    assert parse_health.snapshot()["misses"] == {"pushback.empty_message": 1}
+    assert len(result) == 5
+    assert all("unavailable" in message.lower() for _, message in result)
+    assert parse_health.snapshot()["fallbacks"] == {"advisor_pushback": 5}
 
 
 # --- P10: an empty omissions reply is not an all-clear -----------------------

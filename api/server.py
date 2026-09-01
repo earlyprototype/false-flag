@@ -277,9 +277,15 @@ class CriticalConcern(BaseModel):
     recommendation: str
 
 
+class AdvisorPushback(BaseModel):
+    role: str
+    concern: str
+
+
 class InterpretationResponse(BaseModel):
     interpretation: str
     critical_concerns: List[CriticalConcern]
+    pushback: List[AdvisorPushback]
     forces_involved: List[str] = []
     timeline: str = "Immediate"
     raw_transcript: List[str] = []
@@ -942,13 +948,10 @@ async def acknowledge_briefing(session_id: str):
 
 
 # Speaker prefixes that mark a discussion transcript line as an advisor's.
-# handle_player_question emits the initial_conditions persona names
-# ("Military Commander", not "CDS" - see agents/conversation.py and
-# data/scenarios/war_game_2025/initial_conditions.yaml); the cabinet titles
-# the fiction uses elsewhere (cli/display_utils._ROLE_DISPLAY_TITLES) and the
-# legacy short forms are kept so older transcripts still classify.
+# Current initial_conditions emit cabinet titles; the older abstract persona
+# names and short forms remain so saved transcripts still classify.
 _ADVISOR_STREAM_ROLES = {
-    # initial_conditions persona names (what handle_player_question emits)
+    # older abstract persona names
     "government leader", "military commander", "intelligence coordinator",
     "domestic security", "diplomatic lead", "legal advisor",
     # cabinet titles used by the fiction / display layer
@@ -1045,7 +1048,10 @@ async def post_decision(request: DecisionRequest):
     # ... (rest of response handling identical to commit)
     await _stream_adjudication_results(session, result)
     
-    return {"status": "processed"}
+    return {
+        "status": "processed",
+        "pushback": result.get("pushback") or [],
+    }
 
 
 @app.post("/game/decision/interpret", response_model=InterpretationResponse)
@@ -1068,6 +1074,7 @@ async def interpret_decision(request: InterpretDecisionRequest):
         return InterpretationResponse(
             interpretation=result["interpretation"],
             critical_concerns=result["critical_concerns"],
+            pushback=result["pushback"],
             raw_transcript=result["raw_transcript"]
         )
     except Exception as e:
@@ -1080,6 +1087,7 @@ async def interpret_decision(request: InterpretDecisionRequest):
     return InterpretationResponse(
         interpretation=result["interpretation"],
         critical_concerns=result["critical_concerns"],
+        pushback=result["pushback"],
         raw_transcript=result["raw_transcript"]
     )
 
@@ -1103,7 +1111,10 @@ async def commit_decision(request: CommitDecisionRequest):
     # Stream results
     await _stream_adjudication_results(session, result)
     
-    return {"status": "processed"}
+    return {
+        "status": "processed",
+        "pushback": result.get("pushback") or [],
+    }
 
 
 async def _stream_adjudication_results(session: GameSession, result: Dict[str, Any]):

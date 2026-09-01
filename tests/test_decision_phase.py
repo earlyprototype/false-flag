@@ -87,7 +87,7 @@ def seeded_llm(prompt, rng, **kwargs):
     if "summarise the current situation" in p:
         return f"The campaign so far, take {rng.randint(0, 999)}."
     if "pushback" in p:
-        return f"Foreign Secretary: Concern number {rng.randint(0, 999)}."
+        return f"Concern number {rng.randint(0, 999)}."
     if "critical omissions check" in p:
         return (f"CONCERN: Gap {rng.randint(0, 999)}.\n"
                 f"RECOMMENDATION: Fix {rng.randint(0, 999)}.")
