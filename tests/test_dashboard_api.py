@@ -523,7 +523,10 @@ def test_edited_prompt_reaches_the_next_llm_call(client):
     prompt = build_advisor_context(
         build_world(), build_initial_conditions(), "chief_defence_staff",
         "What are our options?", build_transcript())
-    assert prompt.endswith(marker)
+    # Trusted role attribution intentionally remains last after editable text.
+    assert prompt.endswith(
+        f"{marker}\n\n[ADVISOR ROLE: Chief of the Defence Staff]"
+    )
 
 
 # --- inject console --------------------------------------------------------
