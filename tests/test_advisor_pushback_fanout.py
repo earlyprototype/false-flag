@@ -640,8 +640,11 @@ def test_each_advisor_may_prefix_its_own_reply_without_owning_attribution():
 @pytest.mark.parametrize("reply", [
     "Chief of the Defence Staff: NO PUSHBACK",
     "Prime Minister, NO PUSHBACK",
+    "NO PUSHBACK, no trigger is activated.",
+    "NO PUSHBACK. No trigger is activated.",
+    "NO PUSHBACK\nNo trigger is activated.",
 ])
-def test_tolerated_prefix_keeps_no_pushback_as_a_sentinel(reply):
+def test_leading_or_tolerated_prefixed_no_pushback_remains_a_sentinel(reply):
     before = parse_health.snapshot()["fallbacks"].get("advisor_pushback", 0)
 
     def batch(prompts, rng, **kwargs):
