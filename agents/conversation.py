@@ -366,6 +366,118 @@ def _find_pushback_failure_marker(text: str) -> Optional[str]:
     return None
 
 
+def _split_leading_pushback_sentinel(text: str) -> Optional[str]:
+    """Return text after a leading no-pushback sentinel, if present."""
+    cleaned = strip_decoration(text)
+    match = re.match(
+        r"^NO(?:\s+|_)PUSHBACK\b", cleaned, re.IGNORECASE)
+    if match is None:
+        return None
+    return cleaned[match.end():].strip()
+
+
+def _is_no_pushback_rationale_clause(clause: str) -> bool:
+    """Recognise a bounded statement that no pushback condition applies."""
+    if re.fullmatch(r"[A-Za-z\s]+", clause) is None:
+        return False
+    words = re.findall(r"[a-z]+", clause.lower())
+    if not words or set(words) & {
+        "and", "but", "however", "yet", "although", "though", "because",
+        "while", "despite", "nevertheless", "still", "except", "greater",
+        "more", "stronger", "graver", "than", "if", "unless", "apart",
+        "even",
+    }:
+        return False
+
+    protocol_terms = {
+        "pushback", "trigger", "triggers", "concern", "concerns",
+        "objection", "objections", "reservation", "reservations",
+        "warning", "warnings",
+    }
+    def has_only_context(rest: List[str]) -> bool:
+        if not rest:
+            return True
+        return re.fullmatch(
+            r"(?:here|"
+            r"(?:for|in|by|to|on) (?:this|the) "
+            r"(?:decision|action|proposal|course|case|situation)|"
+            r"(?:under|within) (?:my|our|this|the) "
+            r"(?:remit|criteria|rules|scope))",
+            " ".join(rest),
+        ) is not None
+
+    if words[0] in {"no", "none"}:
+        subject = next((
+            index for index, word in enumerate(words[1:7], start=1)
+            if word in protocol_terms
+        ), None)
+        if subject is None:
+            return False
+        modifiers = {
+            "the", "my", "our", "your", "any", "listed", "stated",
+            "relevant", "applicable", "current", "active", "remaining",
+            "known", "identified",
+        }
+        prefix = words[1:subject]
+        if words[0] == "no":
+            if any(word not in modifiers for word in prefix):
+                return False
+        elif (not prefix or prefix[0] != "of"
+              or any(word not in modifiers for word in prefix[1:])):
+            return False
+        predicate = words[subject + 1:]
+        if not predicate:
+            return False
+        if predicate[0] in {"apply", "applies", "exist", "exists", "remain", "remains"}:
+            return has_only_context(predicate[1:])
+        if (len(predicate) >= 2
+                and predicate[0] in {"is", "are", "was", "were"}
+                and predicate[1] in {
+                    "activated", "triggered", "applicable", "present",
+                }):
+            return has_only_context(predicate[2:])
+        if (len(predicate) >= 3
+                and predicate[0] in {"has", "have"}
+                and predicate[1] == "been"
+                and predicate[2] in {"activated", "triggered"}):
+            return has_only_context(predicate[3:])
+        return False
+
+    if words[0] == "nothing":
+        subject = next((
+            index for index, word in enumerate(words[1:9], start=1)
+            if word in protocol_terms
+        ), None)
+        prefix = words[1:subject] if subject is not None else []
+        if prefix[:1] == ["here"]:
+            prefix = prefix[1:]
+        actions = {
+            "raise", "raises", "trigger", "triggers", "warrant",
+            "warrants", "create", "creates", "constitute", "constitutes",
+        }
+        return (
+            subject is not None
+            and bool(prefix)
+            and prefix[0] in actions
+            and prefix[1:] in ([], ["a"], ["an"], ["any"])
+            and has_only_context(words[subject + 1:])
+        )
+    return False
+
+
+def _is_no_pushback_rationale(text: str) -> bool:
+    """Accept only explicit absence/non-applicability rationale."""
+    if re.fullmatch(r"[A-Za-z\s,.]*", text) is None:
+        return False
+    clauses = [
+        clause.strip()
+        for clause in re.split(r"[,.\r\n]+", text)
+        if clause.strip()
+    ]
+    return not clauses or all(
+        _is_no_pushback_rationale_clause(clause) for clause in clauses)
+
+
 def _split_pushback_narrative_tail(
     cleaned: str,
     known_roles: Set[str],
@@ -877,9 +989,9 @@ def generate_advisor_pushback(
             continue
 
         lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
-        if len(lines) == 1 and is_sentinel_line(lines[0], "NO PUSHBACK"):
-            continue
-        if len(lines) == 1:
+        sentinel_tail = (
+            _split_leading_pushback_sentinel(lines[0]) if lines else None)
+        if sentinel_tail is None and lines:
             (candidate, self_attributed, _narrative_as,
              malformed_intro) = _normalize_pushback_attribution_intro(
                 strip_decoration(lines[0]), known_roles)
@@ -892,11 +1004,17 @@ def generate_advisor_pushback(
                     prefix in player_roles and is_direct
                     and not self_attributed)
                 if (stripped is not None
-                        and is_sentinel_line(stripped, "NO PUSHBACK")
                         and (is_player_vocative
                              or (prefix in own_roles
                                  and not is_narrative_attribution))):
-                    continue
+                    sentinel_tail = _split_leading_pushback_sentinel(stripped)
+        if sentinel_tail is not None:
+            rationale = "\n".join([sentinel_tail, *lines[1:]]).strip()
+            if _is_no_pushback_rationale(rationale):
+                continue
+            record_fallback("advisor_pushback", f"{char_id} malformed reply")
+            result.append((role, unavailable))
+            continue
 
         # Attribution always comes from the roster. Tolerate and strip a
         # redundant self-prefix or player vocative; reject another seat only

@@ -287,7 +287,7 @@ def test_diplomacy_residue_is_recorded():
     assert parse_health.snapshot()["residue"] == {"diplomacy_outcome": 1}
 
 
-# --- P9: a standalone sentinel is the only valid no-pushback reply ---------
+# --- P9: a leading sentinel accepts only bounded absence rationale ----------
 
 
 @pytest.mark.parametrize("sentinel", ["NO PUSHBACK", "**NO PUSHBACK**",
