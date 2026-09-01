@@ -1320,8 +1320,10 @@ async def globe_page():
     plotted at its named base from GET /game/{id}/resources, anything
     the gazetteer cannot place listed in an UNRESOLVED tray rather than
     guessed onto the map. Takes ?game={session_id}; follows that
-    session's /stream as its ONE consumer (the event queue is
-    destructive single-consumer until Multi-client Session Streaming lands).
+    session's /stream. Every currently attached subscriber receives its
+    own copy of each live event. Only the first subscriber receives the
+    pre-connect backlog; late and reconnecting displays still await the
+    versioned theatre snapshot.
     """
     if not _GLOBE_PATH.exists():
         raise HTTPException(status_code=500, detail="globe.html missing")
