@@ -303,6 +303,10 @@
     "XR: decide the VR room delivery route (#127) - https://github.com/earlyprototype/false-flag/issues/127 \u2014 OPEN, owner rules; Unity-native room vs the owner's WebXR walk-in proposal (advisors in seats, screens load data layers). No default.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg45mJw",
       "status": "Backlog"
+    },
+    "Delivery: tech element briefs for future agents (#128) - https://github.com/earlyprototype/false-flag/issues/128 \u2014 docs/tech/ fact-files: WEBXR, CESIUM, CONVAI, QUEST3, SERVER_STREAMING + index; agent-executed, PR through the gate.": {
+      "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg450fQ",
+      "status": "Done"
     }
   }
 }
