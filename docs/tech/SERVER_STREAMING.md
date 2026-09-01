@@ -26,14 +26,15 @@ include transcript, system, state update, diplomacy, intelligence, ending,
 inject, adjudication, parse health and LLM-call records.
 
 REFEREE-layer data is filtered server-side. It must never be sent to an
-ordinary player and must remain protected when multi-subscriber delivery is
-implemented.
+ordinary player and remains protected under multi-subscriber delivery.
 
-## Current defect: destructive delivery
+## Current delivery model
 
-Each `GameSession` owns one `asyncio.Queue`. Reading an item removes it. If the
-dashboard and globe subscribe together, neither receives a complete copy; the
-failure looks like intermittent missing updates rather than a clear error.
+Each active subscriber owns an independent `asyncio.Queue`. `GameSession`
+copies every event before delivery, so filtering one subscriber's copy cannot
+alter another's. Events emitted with no active subscriber wait for the first
+subscriber, preserving the cold open and briefing produced before EventSource
+can attach. Subscriber queues are removed on disconnect.
 
 The shipped consumers are:
 
@@ -41,19 +42,14 @@ The shipped consumers are:
 - `/dataflow` — DTDL/dataflow view.
 - `/globe` — situation globe.
 
-Until Slice 1 is complete, use only one live subscriber per API session.
+The dashboard and globe may now observe the same API session concurrently.
 
-## Required fix
+## Remaining Slice 1 work
 
 Slice 1, **Multi-client Session Streaming**, is defined in
-[`PLAN.md`](../../PLAN.md#1--multi-client-session-streaming). It requires:
-
-- one independent queue per subscriber;
-- a copied payload before audience filtering;
-- a session-scoped, reconnectable theatre snapshot with an ETag;
-- teardown of subscriber queues on disconnect;
-- a regression check proving two simultaneous clients each receive every
-  permitted event.
+[`PLAN.md`](../../PLAN.md#1--multi-client-session-streaming). The fan-out and
+two-subscriber regression are complete. The remaining stream work is a
+session-scoped, reconnectable theatre snapshot with an ETag.
 
 SSE remains a change-notification path. The snapshot—not queue history—is what
 restores a reconnecting display.
@@ -61,7 +57,7 @@ restores a reconnecting display.
 ## Evidence
 
 - [`api/server.py`](../../api/server.py), sections `GameSession`,
-  `push_event`, `_stream_filter` and `stream_events`.
+  `push_event`, `_stream_filter` and `stream_game_events`.
 - [`api/globe.html`](../../api/globe.html), session snapshot and `EventSource`
   setup.
 - [`tests/test_api_server.py`](../../tests/test_api_server.py), Situation Globe

@@ -9,8 +9,10 @@ Driven through FastAPI's TestClient against the deterministic mock driver,
 same conventions as tests/test_api_server.py.
 """
 
+import asyncio
 import json
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -188,6 +190,115 @@ def test_adjudication_streams_referee_record_and_state_update(client):
 
 
 # --- REFEREE stream filtering ----------------------------------------------
+
+def test_subscribers_receive_independent_copies_and_preconnect_events():
+    """Every live observer gets each event; filtering one cannot alter another.
+
+    The first observer must also receive events emitted before EventSource can
+    attach, which is how a newly-created game delivers its cold open.
+    """
+    from api import server
+    from models.layers import Layer
+
+    session = server.GameSession(server.GameManager())
+    asyncio.run(session.push_event(
+        "transcript", {"content": "cold open"}, layer=Layer.SITREP))
+
+    first = session.subscribe()
+    preconnect = first.get_nowait()
+    assert preconnect["event"] == "transcript"
+    assert json.loads(preconnect["data"])["content"] == "cold open"
+
+    second = session.subscribe()
+    asyncio.run(session.push_event(
+        "llm_call", {"family": "advisor_qa"}, layer=Layer.REFEREE))
+    session.push_event_threadsafe(
+        "state_update", {"phase": "discussion"}, layer=Layer.SITREP)
+
+    first_items = [first.get_nowait(), first.get_nowait()]
+    second_items = [second.get_nowait(), second.get_nowait()]
+    assert [item["event"] for item in first_items] == [
+        "llm_call", "state_update"]
+    assert [item["event"] for item in second_items] == [
+        "llm_call", "state_update"]
+    assert [json.loads(item["data"])["event_seq"] for item in first_items] == \
+        [json.loads(item["data"])["event_seq"] for item in second_items]
+    assert first_items[0] is not second_items[0]
+
+    assert server._stream_filter(first_items[0], facilitator=False) is None
+    assert second_items[0]["_layer"] is Layer.REFEREE
+    assert server._stream_filter(first_items[1], facilitator=False)["event"] == \
+        "state_update"
+    assert server._stream_filter(second_items[1], facilitator=False)["event"] == \
+        "state_update"
+
+
+def test_disconnected_stream_unsubscribes_before_later_delivery():
+    """A closed stream cannot retain a queue and steal later events."""
+    from api import server
+    from models.layers import Layer
+
+    session = server.GameSession(server.GameManager())
+    session_id = "disconnect-probe"
+    server.sessions[session_id] = session
+
+    class DisconnectedRequest:
+        async def is_disconnected(self):
+            return True
+
+    async def disconnect_then_publish():
+        response = await server.stream_game_events(
+            session_id, DisconnectedRequest())
+        async for _ in response.body_iterator:
+            pass
+        await session.push_event(
+            "state_update", {"phase": "discussion"}, layer=Layer.SITREP)
+
+    try:
+        asyncio.run(disconnect_then_publish())
+    finally:
+        server.sessions.pop(session_id, None)
+
+    replacement = session.subscribe()
+    assert replacement.get_nowait()["event"] == "state_update"
+
+
+def test_threadsafe_events_receive_sequence_on_the_session_loop():
+    """Worker callbacks cannot arrive after a later sequence was published."""
+    from api import server
+    from models.layers import Layer
+
+    async def publish_worker_then_loop_event():
+        session = server.GameSession(server.GameManager())
+        first = session.subscribe()
+        second = session.subscribe()
+        worker = threading.Thread(
+            target=session.push_event_threadsafe,
+            args=("transcript", {"content": "worker"}),
+            kwargs={"layer": Layer.SITREP},
+        )
+
+        worker.start()
+        # Keep the loop occupied until the worker has queued its callback.
+        worker.join(timeout=2)
+        assert not worker.is_alive()
+        await session.push_event(
+            "state_update", {"phase": "discussion"}, layer=Layer.SITREP)
+        await asyncio.sleep(0)
+
+        def sequences(queue):
+            return [
+                json.loads(queue.get_nowait()["data"])["event_seq"]
+                for _ in range(2)
+            ]
+
+        return sequences(first), sequences(second)
+
+    first_sequences, second_sequences = asyncio.run(
+        publish_worker_then_loop_event())
+    assert first_sequences == [1, 2]
+    assert second_sequences == [1, 2]
+
 
 def test_stream_filter_drops_referee_for_players_only():
     from api.server import _stream_filter
