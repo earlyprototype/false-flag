@@ -38,7 +38,9 @@ forbidden, other card fields are fair game
 - Arm Auto-Merge (auto-merge.yml): arms native auto-merge only on a genuine
   PASS verdict, never on a skip.
 
-**KNOWN HOLE — the ruleset does not exist yet.** With no branch protection,
+**RESOLVED same day — see §6 close-out addendum.** The `main-gate` ruleset
+now exists and is active; the paragraph below is the morning's record.
+With no branch protection,
 `gh pr merge --auto` merges *immediately* on a PASS verdict without waiting
 for `checks`. Six machine merges happened this way (#104–#106, #108, #110);
 checks happened to finish first each time. **The single most important
@@ -147,7 +149,7 @@ hide real bugs); Sol's 12 Windows-only test failures (EOL/env class);
   `CLAUDE.md`/`AGENTS.md`/`.mcp.json` are machine-local and already point
   at this repo's board.
 
-## 5 · Ordered next actions
+## 5 · Ordered next actions (superseded by §6 — kept as the morning record)
 
 1. Land and reconcile #87 and #83 (procedure in §3).
 2. Owner: create the main ruleset (`checks` + `review`; bypass per §1) —
@@ -156,3 +158,68 @@ hide real bugs); Sol's 12 Windows-only test failures (EOL/env class);
 4. Schedule #89 (solo, own branch), then Stage 2 per PLAN.md.
 5. Owner decisions when convenient: #73, #75; approve or return the two
    no-PR REVIEW cards.
+
+## 6 · Close-out addendum — 1 Sep, end of session
+
+**Guardrails completed this afternoon.**
+- The `main-gate` ruleset is **live** (id 22016037): merges to `main`
+  require the `checks` and `review` status checks; only repo admin
+  bypasses (used for PM board commits — pushes print "bypassed rule
+  violations", which is the ruleset working, not an error). Repo
+  auto-merge is enabled, so a PASS verdict now **arms and waits** for
+  green; the instant-merge behaviour is gone.
+- Review max-turns raised 30 → 50 (PR #129, owner-merged) after the #126
+  review posted a genuine PASS then died at the turn ceiling, going red
+  on a passing review.
+- **New standing rule: agents open PRs as DRAFTS** and mark ready only
+  after the first review round's findings are handled — drafts never arm,
+  so this creates the fix window that PASS-with-LOW-findings otherwise
+  lacks. Bake it into every dispatch brief.
+- Auto-close keyword has failed on all four machine merges to date; close
+  issues manually with a one-line ship record, always.
+
+**Owner rulings this afternoon (binding on all future work).**
+- **Nothing is ever declared deferred by an agent or a doc; the owner
+  alone schedules.** Docs carry ordering only (PR #125 purged the timing
+  claims). The Afterwards tier is a sequence position, not a schedule.
+- **All tasks go on the kanban** — every open issue has a card; the
+  board-as-execution-queue-only convention is dead. Placeholder scaffold
+  lines are deleted from all five columns.
+- **Streams in card titles**: Advisors / Globe / Show-Safe / Delivery /
+  Prompts / XR. Stream prefixes describe what work is, never when.
+- **Identity is structural** (#132): speaker known by construction under
+  the fan-out, addressee captured by selection, the keyword router is to
+  be deleted not patched; validation survives only where LLM text becomes
+  game state. Design with #88, after PR #123 lands.
+
+**Lanes at close.**
+- Sol-1 is **still running** on #87 / PR #123: three review rounds, down
+  from 2 MEDIUM + 3 LOW to 1 MEDIUM + 4 LOW, +2,098/−711 with its own
+  test commit; converging, not looping. Reconcile on merge: gate the
+  card, close #87 manually, prune `feat/87-advisor-pushback-fanout` and
+  the `.worktrees/false-flag-feat87` worktree after a verified MERGED.
+- Sol-2's audit is fully landed (#83 DONE, PR #126): every prompt family
+  covered, 11 remediation issues filed and carded under `Prompts:`
+  (#111–#117, #119–#122). Lane-2 worktree (`false-flag-lane2`, branch
+  `audit/83-prompt-quality-regression`) is idle and reusable.
+- `docs/tech/` shipped (#128, PRs #130/#131): six verified fact-briefs
+  (WebXR, Cesium, Convai, Quest 3, server streaming + index) — read these
+  before re-deriving any of that in conversation.
+
+**Decisions moved today.** #72 ruled (split), #74 ruled (all options stay
+behind switches), #94 closed (Stage 1 DONE), #83/#100/#102/#107/#109/#128
+closed. Open with owner: #73 (both cuts now timeable), #75 (Quest 3
+sourcing — a contact is being asked; ask for "Meta Quest 3", Quest 3S
+acceptable), #127 (VR room route: Unity-native vs the owner's WebXR
+walk-in proposal — no default), #89 (scope narrowing; note the corrected
+fact on the issue: EIGHT country stances per narrative, not four).
+
+**Next actions, in order.**
+1. Reconcile PR #123 when it lands (procedure above).
+2. Dispatch the Show-Safe stream — it is the under-worked stream relative
+   to the 12 Sep onsite: Windows suite triage, Ctrl-C turn loss (#18),
+   the three information leaks, the CRLF bundle fix.
+3. Resolve the #88/#90 boundary; then #88, designed with #132.
+4. #89 solo dispatch (own branch) when the owner schedules it.
+5. Owner, when convenient: #73 and #75 rulings; the two no-PR REVIEW
+   cards (branch prune; audit-threads) await approve or return.
