@@ -8,7 +8,7 @@ Can FALSE FLAG gain a **live map of its war** — a satellite Earth on a big scr
 
 ## The verdict
 
-**Yes, at every layer** — as a *port of ideas*, not a copy-paste of code. The map can also draw from real game state: the engine keeps one position record per unit, updated once per turn by movement arithmetic along pre-drawn routes. The AI may only issue orders in plain words ("this unit sails to this named place") and never writes a number. Because only the coordinate lookup table and that arithmetic can write a position, a failure can leave the map out of date — it cannot put a made-up position on it.
+**Yes, at every layer** — as a *port of ideas*, not a copy-paste of code. The map can also draw from real game state: the engine keeps one position record per unit, updated once per turn by movement arithmetic along pre-drawn routes. The AI may only issue orders in plain words ("this unit sails to this named place") and never writes a number. Clean parses apply; partial parses apply valid lines and visibly skip bad lines; empty, truncated, or failed calls issue zero new orders, every unit continues its last validated standing order, and kinematics advances. A bad call can neither freeze nor invent a position.
 
 ## The twelve findings, plainly
 
@@ -19,7 +19,7 @@ Can FALSE FLAG gain a **live map of its war** — a satellite Earth on a big scr
 5. **One real bug to fix first.** Today the game's live event feed can only serve *one* screen per session without them stealing each other's updates; a small fix lets many screens watch one game — worth doing regardless of the globe. *(5)*
 6. **The digital-twin standard can carry a map.** Our twin model can hold coordinates and still pass Microsoft's official validator — proven by actually running it. This is the part the IMR audience will recognise as their own field. *(6)*
 7. **The scenario is already a map.** Everything happens at real places (Faslane, the GIUK gap, Severomorsk…), so about thirty looked-up coordinates put the whole war on a real Earth. The game just doesn't *track* positions yet — that's exactly what the build adds. *(7)*
-8. **The AI can be trusted with movement — because it never touches numbers.** It issues orders in the same plain labelled-text style the game already parses safely elsewhere; every order is checked against the known units and places, and any failure means ships simply hold course. *(8)*
+8. **The AI can be trusted with movement — because it never touches numbers.** It issues orders in the same plain labelled-text style the game already parses safely elsewhere; every order is checked against the known units and places, partial replies apply only valid lines, and failed replies issue no new orders while standing orders and movement continue. *(8)*
 9. **Old save files survive.** Adding positions to the game state keeps every existing save loadable — proven by running the real save/load code. (One build step must always follow that change; it's written down.) *(9)*
 10. **The map can make news.** The game can honestly notice "the fleet crossed the line" at the start of a turn and make that the turn's event, visible to the player and the AI advisors alike — proven against the real engine. *(10)*
 11. *(Merged into finding 1 above.)*

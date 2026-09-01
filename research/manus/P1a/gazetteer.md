@@ -1,8 +1,8 @@
 # P1a — Gazetteer QA dossier
 
-**Summary.** Verification table for the ~30 named locations in the war_game_2025 scenario (issue #70, task P1a), plus `East_Anglia_RAF_bases` (added on owner instruction — it appears as a location key in `data/scenarios/war_game_2025/initial_conditions.yaml:310`). 19 of the 20 point locations verified HIGH confidence against Wikipedia/Wikidata coordinates with official MOD/service pages confirming identity; St Fergus gas terminal is MEDIUM (village-level coordinate, the terminal sits ~0.5–1 km east — see exceptions). Seven derived/definition entries (GIUK references, North Atlantic rendezvous, East Anglia centroid, UK territorial waters) are CHECK-flagged with methods stated. Nothing unsourced; three figures spot-checked against live pages (RAF Marham, HMNB Clyde, Severomorsk — all matched to 4 dp).
+**Summary.** Verification table for the ~30 named locations in the war_game_2025 scenario (issue #70, task P1a), plus `East_Anglia_RAF_bases` (added on owner instruction — it appears as a location key in `data/scenarios/war_game_2025/initial_conditions.yaml:310`). 19 of the 20 point locations verified HIGH confidence against Wikipedia/Wikidata coordinates with official MOD/service pages confirming identity; St Fergus gas terminal is MEDIUM at the terminal page's published coordinate (see exceptions). All seven derived/definition entries (GIUK references, North Atlantic rendezvous, East Anglia centroid, UK territorial waters) are LOW/CHECK with methods stated. Nothing unsourced; three figures spot-checked against live pages (RAF Marham, HMNB Clyde, Severomorsk — all matched to 4 dp).
 
-**Confidence note (overall):** high for point locations (Wikipedia/Wikidata floor per issue spec, no conflicts >0.01° found); medium for derived points by construction (computed, not sourced facts).
+**Confidence note (overall):** high for point locations except St Fergus (medium); LOW/CHECK for all seven derived/definition entries because they are computed or definitions, not sourced point facts.
 
 ## Verification table
 
@@ -20,7 +20,7 @@
 | Northwood HQ | 51.6194 | -0.4094 | Permanent Joint Headquarters (PJHQ); UK joint operations command, Northwood, Hertfordshire | high | [18] [19] |
 | GCHQ Cheltenham | 51.8994 | -2.1244 | Government Communications Headquarters ("The Doughnut"), Cheltenham, Gloucestershire | high | [20] [21] |
 | Drax power station | 53.7358 | -0.9964 | Drax Power Station; largest UK power station by output, near Selby, North Yorkshire | high | [22] |
-| St Fergus gas terminal | 57.5583 | -1.8364 | St Fergus Gas Terminal; North Sea gas reception plant near Peterhead, Aberdeenshire | medium | [23] |
+| St Fergus gas terminal | 57.5706 | -1.8380 | St Fergus Gas Terminal; North Sea gas reception plant near Peterhead, Aberdeenshire | medium | [23] [43] |
 | Heathrow | 51.4775 | -0.4614 | London Heathrow Airport; UK's primary international airport, Hillingdon, West London | high | [24] [25] |
 | Oxford Circus | 51.5153 | -0.1419 | Road junction of Oxford Street and Regent Street, central London | high | [26] [27] |
 | Orkney Islands (Scapa Flow) | 58.9000 | -3.0500 | Scapa Flow; sheltered naval anchorage in the Orkney Islands, Scotland | high | [28] |
@@ -29,7 +29,7 @@
 | Severomorsk | 69.0667 | 33.4167 | Severomorsk; administrative HQ of the Russian Northern Fleet, Murmansk Oblast, Russia | high | [31] |
 | Murmansk | 68.9706 | 33.0750 | Murmansk; largest city above the Arctic Circle; major Barents Sea port, Russia | high | [32] |
 | East_Anglia_RAF_bases | 52.4739 | 0.5294 | Representative centroid of the East Anglia RAF cluster (Marham, Lakenheath, Mildenhall) | low (derived) | [9] [33] [34] |
-| UK_territorial_waters | — | — | UK territorial sea: 12 nautical miles from baselines per Territorial Sea Act 1987 s.1; definition note only, no centroid | n/a (definition) | [35] [36] |
+| UK_territorial_waters | — | — | UK territorial sea: 12 nautical miles from baselines per Territorial Sea Act 1987 s.1; definition note only, no centroid | low (definition) | [35] [36] |
 | North_Atlantic_rendezvous | 70.6191 | -0.7178 | Representative staging point for Northern Fleet group transiting Severomorsk toward GIUK; Norwegian Sea | low (derived) | [31] [37] [38] |
 | GIUK_gap | 63.4556 | -15.0178 | GIUK gap overall centroid; Greenland–Iceland–UK naval chokepoint, North Atlantic | low (derived) | [37] [38] [39] [40] [41] [42] |
 | GIUK_ref_Greenland_Iceland | 65.9852 | -30.2309 | GIUK reference point: Denmark Strait between Greenland and Iceland | low (derived) | [37] [38] |
@@ -52,7 +52,7 @@ RAF Fylingdales,54.3589,-0.6697,"RAF station; ballistic missile early warning an
 Northwood HQ,51.6194,-0.4094,"Permanent Joint Headquarters (PJHQ); UK joint operations command, Northwood, Hertfordshire",https://www.gov.uk/government/groups/the-permanent-joint-headquarters; https://en.wikipedia.org/wiki/Northwood_Headquarters,HIGH,"gov.uk page confirms PJHQ identity; coordinates from Wikipedia"
 GCHQ Cheltenham,51.8994,-2.1244,"Government Communications Headquarters ('The Doughnut'), Cheltenham, Gloucestershire",https://www.gchq.gov.uk/; https://en.wikipedia.org/wiki/GCHQ,HIGH,"GCHQ official site confirms organisation; coordinates from Wikipedia (GCHQ article)"
 Drax power station,53.7358,-0.9964,"Drax Power Station; largest UK power station by output, near Selby, North Yorkshire",https://en.wikipedia.org/wiki/Drax_Power_Station,HIGH,"Coordinates from Wikipedia; drax.com blocked automated fetch (403) so official URL not verified"
-St Fergus gas terminal,57.5583,-1.8364,"St Fergus Gas Terminal; North Sea gas reception plant near Peterhead, Aberdeenshire",https://en.wikipedia.org/wiki/St_Fergus,medium,"Coordinate is St Fergus village (Wikipedia); terminal sits adjacent (~0.5 km) — see exceptions"
+St Fergus gas terminal,57.5706,-1.8380,"St Fergus Gas Terminal; North Sea gas reception plant near Peterhead, Aberdeenshire",https://en.wikipedia.org/wiki/St_Fergus_Gas_Terminal; https://www.nationalgas.com/our-businesses/gas-terminals,medium,"Terminal coordinate from its dedicated Wikipedia page (published 57.57062, -1.83803); National Gas confirms terminal identity; see exceptions"
 Heathrow,51.4775,-0.4614,"London Heathrow Airport; UK's primary international airport, Hillingdon, West London",https://www.heathrow.com/; https://en.wikipedia.org/wiki/Heathrow_Airport,HIGH,"heathrow.com reachable (200); coordinates from Wikipedia"
 Oxford Circus,51.5153,-0.1419,"Road junction of Oxford Street and Regent Street, central London",https://en.wikipedia.org/wiki/Oxford_Circus; https://www.wikidata.org/wiki/Q1996213,HIGH,"Coordinates from Wikidata Q1996213 P625 (enwiki article Oxford Circus)"
 Orkney Islands (Scapa Flow),58.9000,-3.0500,"Scapa Flow; sheltered naval anchorage in the Orkney Islands, Scotland",https://en.wikipedia.org/wiki/Scapa_Flow,HIGH,"Coordinate is Scapa Flow body of water (Wikipedia); scenario references Orkney anchorage — fit for purpose"
@@ -83,7 +83,7 @@ All derived points use sourced endpoint coordinates; no precision invented beyon
 ## Exceptions list
 
 1. **UK_territorial_waters — no centroid supplied (by design).** The issue asks for a "definition note only." The UK territorial sea is a non-contiguous 12 nm band around Great Britain, Northern Ireland, and numerous islands; any single centroid would be invented precision. Definition sourced to Territorial Sea Act 1987 s.1 (12 nm from baselines) [35] with the 2014 baseline Order [36]. If the globe needs a renderable stand-in, that is a design decision for the engineering loop — recommend deriving it from a published UK territorial-sea GIS boundary rather than a hand point.
-2. **St Fergus gas terminal** — coordinate is St Fergus village (57.5583, -1.8364 [23]); the terminal itself sits on the coast roughly 0.5–1 km east. Village-level precision is adequate for globe plotting but flagged medium confidence; no authoritative page publishing terminal coordinates was found (Wikipedia floor used).
+2. **St Fergus gas terminal** — terminal coordinate 57.5706, -1.8380 comes from the dedicated terminal page (published 57.57062, -1.83803 [23]); National Gas confirms St Fergus as one of its gas terminals [43]. Confidence remains medium because the coordinate source is Wikipedia rather than an official coordinate dataset.
 3. **All seven derived points are CHECK/low by construction** — they are computed, not sourced facts. Endpoint coordinates are sourced; methods stated above.
 4. **North_Atlantic_rendezvous** is a scenario-defined staging area, not a charted feature. If the red doctrine legs in PR #69 planning assume a different staging geometry, this point should be re-derived to match.
 5. **Official MOD pages confirm identity, not coordinates.** RAF/RN station pages (verified live 2026-08-28/29) carry addresses and roles but no lat/lon; all coordinates come from Wikipedia/Wikidata — the issue's stated floor. No conflicts >0.01° found between Wikipedia article coordinates and Wikidata where both exist.
@@ -114,7 +114,7 @@ All derived points use sourced endpoint coordinates; no precision invented beyon
 20. https://www.gchq.gov.uk/
 21. https://en.wikipedia.org/wiki/GCHQ
 22. https://en.wikipedia.org/wiki/Drax_Power_Station
-23. https://en.wikipedia.org/wiki/St_Fergus
+23. https://en.wikipedia.org/wiki/St_Fergus_Gas_Terminal
 24. https://www.heathrow.com/
 25. https://en.wikipedia.org/wiki/Heathrow_Airport
 26. https://en.wikipedia.org/wiki/Oxford_Circus
@@ -134,3 +134,4 @@ All derived points use sourced endpoint coordinates; no precision invented beyon
 40. https://en.wikipedia.org/wiki/Faroe_Islands
 41. https://en.wikipedia.org/wiki/Shetland
 42. https://en.wikipedia.org/wiki/GIUK_gap
+43. https://www.nationalgas.com/our-businesses/gas-terminals

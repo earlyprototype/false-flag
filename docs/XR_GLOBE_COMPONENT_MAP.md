@@ -85,7 +85,7 @@ flowchart TD
   DOC["standing doctrine order\n(authored per unit)"]:::core
 
   VAL{"validate:\nunit ∈ ORBAT?\ndest ∈ gazetteer?\nmission legal in\ntransition graph?"}:::core
-  HOLD["FAIL → HOLD\nkeep standing order\nrecord_miss + visible line\nprovenance: simulated"]:::core
+  HOLD["NO NEW ORDER\nkeep standing order\nkinematics advances\nrecord_miss + visible line\nprovenance: simulated"]:::core
   APPLY["apply order\nprovenance: adjudicated"]:::core
   KIN2["kinematics.advance()\nonce per resolve_decision\npure · zero RNG · route polylines"]:::core
   SNAP["SpatialSnapshot →\nmailbox + GET /theatre"]:::core
@@ -110,7 +110,7 @@ flowchart TD
   classDef defer stroke-dasharray:2 4
 ```
 
-The safety property is structural: initial coordinates come only from the authored gazetteer at hydration, and every subsequent *movement* coordinate is produced only by `kinematics.advance()` from validated enums — no LLM output ever becomes a coordinate by either path — every failure path converges on HOLD, so a failure leaves a position un-updated (self-correcting next turn), never invented ([study §4a](XR_GLOBE_FEASIBILITY.md#4a-track-b--the-authoritative-spatial-layer), claim 8 conditions).
+The safety property is structural: initial coordinates come only from the authored gazetteer at hydration, and every subsequent *movement* coordinate is produced only by `kinematics.advance()` from validated enums — no LLM output ever becomes a coordinate by either path. Clean parses apply; partial parses apply valid lines and visibly skip bad lines; empty, truncated, or failed calls issue zero new orders, every unit continues its last validated standing order, and kinematics advances. No call failure can freeze or invent a position ([study §4a](XR_GLOBE_FEASIBILITY.md#4a-track-b--the-authoritative-spatial-layer), claim 8 conditions).
 
 ---
 
@@ -166,9 +166,9 @@ Mechanics the tree encodes: the boardroom and S1 screen are one build (the room 
 
 ```mermaid
 flowchart TD
-  D0B{"D0b · the owner's 'go'\nauthorizes the first code\n(nothing is built yet)"}:::gate
-  M0["M0 · FIRST LIGHT · ~1 day\nBUILD: api/globe.html at GET /globe (FileResponse,\ndashboard pattern) · CesiumJS · ~10 gazetteer entries ·\nplot GET /game/{id}/resources · attach 1 stream consumer ·\n1 sensor shader · diegetic EXERCISE chrome\nEXIT: every ORBAT unit plotted at its named location on\nthe projector; a state_update visibly changes the display"]:::core
-  M1["M1 · THE FLEET MOVES · ~1 wk\nBUILD: models/spatial.py · gazetteer.yaml (~30 sourced) ·\nengine/kinematics.py (pure advance, route polylines, no RNG) ·\nhydration at init+load · red doctrine legs · snapshot at\nresolve_decision · save 2.4→2.5 + bundle rebuild · tests\nEXIT: red group advances each turn along its route;\nsave@turn3 → load → positions identical; suite at 712 baseline"]:::core
+  D0B{"D0b · GO GIVEN 30 AUG\nowner authorized Stage 1"}:::gate
+  M0["M0 · FIRST LIGHT · BUILT IN PR #95\napi/globe.html at GET /globe (FileResponse) · CesiumJS ·\n14 gazetteer entries · plot GET /game/{id}/resources ·\nattach 1 stream consumer · 1 sensor shader ·\ndiegetic EXERCISE chrome\nDONE-TEST PASSED 31 AUG: every ORBAT unit plotted at its\nnamed location on the projector; state_update changed display"]:::core
+  M1["M1 · THE FLEET MOVES · ~1 wk\nBUILD: models/spatial.py · gazetteer.yaml (~30 sourced) ·\nengine/kinematics.py (pure advance, route polylines, no RNG) ·\nhydration at init+load · red doctrine legs · snapshot at\nresolve_decision · save 2.4→2.5 + bundle rebuild · tests\nEXIT: red group advances each turn along its route;\nsave@turn3 → load → positions identical; full suite passes"]:::core
   D1{"D1 · schedule check\non schedule → M2\nbehind → skip to M3"}:::gate
   M2["M2 · STANDARDS ON THE GLASS · ~1 wk\nBUILD: Theatre;1 + TheatreAsset;1 sidecar files (published\nversions untouched) · DTDLParser re-run committed ·\nGET /theatre (ETag) · per-subscriber bus fan-out with\nper-subscriber payload copies · DTMI badges bound to /dtdl\nEXIT: two clients on one session each receive every event;\nparser reports PARSE OK; badges live over the moving map"]:::core
   M3["M3 · SHOW-SAFE · ~3–4 days · non-negotiable\nBUILD (hardens the live path — not a simulated retreat):\nwritten start sequence · restart drill under 60s · localhost\nbind + authenticated proxy · 2 timed projector rehearsals ·\nbooth-loop config chosen at rehearsal as a labeled decision ·\nfilm recorded from a real run (hardware contingency only)\nEXIT: one rehearsal executed to the written sequence with\nzero operator improvisation; the film file exists"]:::core
