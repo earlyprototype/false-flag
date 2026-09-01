@@ -19,8 +19,8 @@ Right now, between turns, the game goes quiet — the cabinet argues, and nothin
 - A **lookup table** of ~30 real places (Faslane, the GIUK gap, Severomorsk…) with hand-checked coordinates. Authored locations originate here; movement arithmetic derives positions between them.
 - **One new record per unit** in the saved game: latitude, longitude, heading, speed, and its current order (e.g. "transit to GIUK_gap at cruise speed").
 - Positions update at **exactly one moment each turn** — when the turn resolves — by ordinary movement arithmetic: speed × time along a pre-drawn route. No randomness, no AI, in that step.
-- The AI's only involvement is the validated order channel settled in closed issue [#71](https://github.com/earlyprototype/false-flag/issues/71): after a decision it may emit text orders in a fixed format, e.g. `ORDER: HMS_Prince_of_Wales | transit | GIUK_gap | cruise`. The game checks every order against the fixed unit list and the lookup table; **an unrecognised or garbled order is ignored** — that unit keeps doing what it was already doing, and a visible note says so. The AI never writes numbers; if its call fails completely, zero new orders are issued — every unit carries on under its last validated orders, and the movement arithmetic still advances them (the same rule the decision record states).
-- **Consequence of this design**: a failure can leave the map *out of date*, but nothing can ever put a *made-up position* on it. That's the whole safety argument, and it's structural, not a promise.
+- The AI's only involvement is the validated order channel settled in closed issue [#71](https://github.com/earlyprototype/false-flag/issues/71): after a decision it may emit text orders in a fixed format, e.g. `ORDER: HMS_Prince_of_Wales | transit | GIUK_gap | cruise`. The game checks every order against the fixed unit list and the lookup table. Clean parses apply; partial parses apply valid lines and visibly skip bad lines; empty, truncated, or failed calls issue zero new orders, every unit continues its last validated standing order, and kinematics advances. The AI never writes numbers.
+- **Consequence of this design**: a bad call can neither freeze nor invent a position. That's the whole safety argument, and it's structural, not a promise.
 
 *(Deep: [study, Track B — the full spec](XR_GLOBE_FEASIBILITY.md#4a-track-b--the-authoritative-spatial-layer) · [map, diagram 2 — the order pipeline](XR_GLOBE_COMPONENT_MAP.md#2--track-b-mechanism--how-a-position-gets-written-and-why-no-failure-path-can-write-an-invented-one) · the save-file and turn-timing behaviour were verified by running the real engine code — [findings 9 & 10](XR_GLOBE_FEASIBILITY_IN_BRIEF.md).)*
 
@@ -30,7 +30,7 @@ Right now, between turns, the game goes quiet — the cabinet argues, and nothin
 
 The five stages in one line each: **1 First Light** — the map page exists and shows your forces · **2 The Fleet Moves** — units get real positions that advance each turn · **3 Standards on the Glass** — the map reads the digital-twin model and many screens can watch · **4 Show-Safe** — the demo runs to a written sequence without improvisation · **5 The Cabinet Orders the Map** — your decision text moves the forces. Then a post-competition tier.
 
-Stage 1 needs your **"go"** — authorization to write this project's first code. Nothing is built yet.
+The owner's **GO was given 30 Aug**. Stage 1 shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95) and is **BUILT — awaiting the projector done-test**. `main` also includes PRs #96 and #98; PR #99 is the current documentation/research salvage under review.
 
 ## The four open questions
 

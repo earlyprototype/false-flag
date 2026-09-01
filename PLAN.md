@@ -21,7 +21,7 @@ Each stage names **what gets built** and the **done test**: an observable fact y
 
 **Dates**: challenge started 28 Aug 2026 · onsite 12 Sep at Irish Manufacturing Research · final 14 Sep.
 **Cut order under time pressure**: Afterwards → Stage 5 → Stage 3. Stages 1, 2 and 4 are the floor.
-**Stage 1 is underway.** The owner's go was given 30 Aug 2026; work is tracked in [#94](https://github.com/earlyprototype/false-flag/issues/94) and lands as a draft PR from `claude/vr-game-xr-simulation-feasibility-gomu1j`.
+**Stage 1 is BUILT — awaiting the projector done-test.** The owner's go was given 30 Aug 2026; implementation shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95).
 
 ---
 

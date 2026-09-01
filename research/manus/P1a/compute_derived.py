@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compute derived gazetteer points with stated methods.
-All inputs are sourced coordinates pulled from Wikipedia/Wikidata (see wiki_coords.tsv
-and Wikidata P625 values fetched 2026-08-28/29).
+All inputs are sourced coordinates recorded in the accompanying gazetteer.md
+dossier (Wikipedia/Wikidata values fetched 2026-08-28/29).
 Great-circle midpoint formula: standard spherical midpoint (B x/y method).
 """
 import math
