@@ -343,6 +343,11 @@ def test_offline_pushback_is_visible_as_unavailable():
      "another seat."),
     "As the Foreign Secretary warned, [ERROR: HTTP 429 rate limited]",
     "As the Foreign Secretary warned, NO PUSHBACK",
+    "NO PUSHBACK, but the carrier cannot sail.",
+    "NO PUSHBACK. However, the carrier is not ready.",
+    "NO PUSHBACK\nThe carrier cannot sail.",
+    "Chief of the Defence Staff: NO PUSHBACK, but the carrier cannot sail.",
+    "Prime Minister, NO PUSHBACK. However, the carrier cannot sail.",
     ("As the Foreign Secretary warned, As the Attorney General advised, "
      "Speaking as the Home Secretary, I object."),
     ("As the Foreign Secretary warned, and Speaking as the Attorney "
