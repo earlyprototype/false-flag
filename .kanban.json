@@ -238,7 +238,7 @@
     },
     "Globe manual zoom controls: +/\u2212 buttons and slider (#107) - https://github.com/earlyprototype/false-flag/issues/107 \u2014 branch feat/107-globe-zoom-controls \u2014 owner-requested input redundancy (trackpad pinch unreliable; projector rigs). PM-built small bounded fix.": {
       "item_id": "PVTI_lAHOCkn-fc4Bh_kpzg4xido",
-      "status": "InProgress"
+      "status": "Done"
     }
   }
 }
