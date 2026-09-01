@@ -16,10 +16,10 @@ and [GAME_DESCRIPTION — Core Gameplay](../GAME_DESCRIPTION.md#core-gameplay).
 
 ## Repository state
 
-- `main` is at
-  [`631b082`](https://github.com/earlyprototype/false-flag/commit/631b082),
-  including the delivery-system close-out in PR #133 and adviser pushback
-  fan-out in [PR #123](https://github.com/earlyprototype/false-flag/pull/123).
+- The reviewed implementation baseline is
+  [`631b082`](https://github.com/earlyprototype/false-flag/commit/631b082). It
+  includes the delivery-system close-out in PR #133 and adviser pushback fan-out
+  in [PR #123](https://github.com/earlyprototype/false-flag/pull/123).
 - The canonical execution sequence is [`PLAN.md`](../PLAN.md). Do not infer a
   competing sequence from a handover, feasibility snapshot or issue title.
 

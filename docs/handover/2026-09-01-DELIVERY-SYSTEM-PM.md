@@ -189,8 +189,10 @@ hide real bugs); Sol's 12 Windows-only test failures (EOL/env class);
 - **All tasks go on the kanban** — every open issue has a card; the
   board-as-execution-queue-only convention is dead. Placeholder scaffold
   lines are deleted from all five columns.
-- **Streams in card titles**: Advisors / Globe / Demonstration Reliability and Submission / Delivery /
-  Prompts / XR. Stream prefixes describe what work is, never when.
+- **Streams in card titles**: Advisors / Globe / Show-Safe / Delivery /
+  Prompts / XR. The legacy Show-Safe prefix maps to Demonstration Reliability
+  and Submission in the current plan. Stream prefixes describe what work is,
+  never when.
 - **Identity is structural** (#132): speaker known by construction under
   the fan-out, addressee captured by selection, the keyword router is to
   be deleted not patched; validation survives only where LLM text becomes
@@ -220,7 +222,8 @@ fact on the issue: EIGHT country stances per narrative, not four).
 
 **Next actions, in order.**
 1. Reconcile PR #123 when it lands (procedure above).
-2. Dispatch Demonstration Reliability and Submission work — it is under-worked relative
+2. Dispatch the Show-Safe board stream (Demonstration Reliability and
+   Submission in the current plan) — it is under-worked relative
    to the 12 Sep onsite: Windows suite triage, Ctrl-C turn loss (#18),
    the three information leaks, the CRLF bundle fix.
 3. Resolve the #88/#90 boundary; then #88, designed with #132.

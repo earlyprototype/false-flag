@@ -135,7 +135,9 @@ order, the intended unit moves, the globe shows that consequence, and the next
 briefing can react to a crossed boundary. A deliberately malformed model reply
 moves nothing new and reports the failure. Save/load/resume preserves the same
 positions and standing orders. The player view never exposes hidden
-authoritative positions; the facilitator view may show them.
+authoritative positions. In a seeded hidden-track case, the facilitator sees
+the stored position while the player receives a bounded stale or noisy estimate
+that is visibly distinct from that position.
 
 ## 3 · Live Context Integration
 
