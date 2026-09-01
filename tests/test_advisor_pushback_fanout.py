@@ -571,6 +571,27 @@ def test_non_role_label_remains_valid_pushback_text():
 
 
 @pytest.mark.parametrize("concern", [
+    "There will be no pushback, provided NATO is consulted first.",
+    "I expect no pushback",
+])
+def test_lowercase_no_pushback_prose_remains_a_concern(concern):
+    def batch(prompts, rng, **kwargs):
+        return [concern] + ["NO PUSHBACK"] * (len(prompts) - 1)
+
+    result = generate_advisor_pushback(
+        _world(),
+        "Consult NATO before proceeding.",
+        "Consultation precedes action.",
+        _conditions(),
+        _unused_single,
+        Random(33),
+        llm_batch_fn=batch,
+    )
+
+    assert result == [("Chief of the Defence Staff", concern)]
+
+
+@pytest.mark.parametrize("concern", [
     ("The Foreign Secretary is right about the alliance, but HMS Prince "
      "of Wales cannot sail safely."),
     ("As the Foreign Secretary warned, our allies are already uneasy; "
