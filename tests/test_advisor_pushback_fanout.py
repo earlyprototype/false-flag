@@ -15,6 +15,7 @@ from agents.conversation import (
 from engine.initial_conditions import load_initial_conditions
 from llm import parse_health
 from llm.mock_driver import MockDeterministicDriver
+from llm.parsing import is_error_response
 from models.narrative import NarrativeConfig
 from models.world import Metrics, WorldState
 
@@ -57,6 +58,16 @@ def test_pushback_role_detection_is_bounded_for_long_spacing():
 
     assert detected == "Chancellor"
     assert perf_counter() - started < 0.25
+
+
+def test_error_marker_detection_is_bounded_for_long_non_match():
+    reply = " " * 32_000 + "ordinary advisor reply"
+
+    started = perf_counter()
+    detected = is_error_response(reply)
+
+    assert detected is False
+    assert perf_counter() - started < 0.5
 
 
 def test_pushback_fans_out_isolated_prompts_and_uses_roster_attribution():
@@ -351,6 +362,11 @@ def test_offline_pushback_is_visible_as_unavailable():
     "“NO PUSHBACK’.",
     "Chief of the Defence Staff: ‘NO PUSHBACK”.",
     "Prime Minister, “ NO PUSHBACK ’.",
+    "NO\u200b PUSHBACK",
+    "NO PUSH\u200bBACK",
+    "“NO\u200b PUSHBACK”",
+    "Chief of the Defence Staff: NO PUSH\u200bBACK",
+    "Prime Minister, “NO\u200b PUSHBACK”",
     "(NO PUSHBACK",
     "NO PUSHBACK)",
     "[NO PUSHBACK",
