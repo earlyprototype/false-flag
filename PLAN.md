@@ -21,7 +21,7 @@ Each stage names **what gets built** and the **done test**: an observable fact y
 
 **Dates**: challenge started 28 Aug 2026 · onsite 12 Sep at Irish Manufacturing Research · final 14 Sep.
 **Cut order under time pressure**: Afterwards → Stage 5 → Stage 3. Stages 1, 2 and 4 are the floor.
-**Stage 1 is BUILT — awaiting the projector done-test.** The owner's go was given 30 Aug 2026; implementation shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95).
+**Stage 1 is DONE — the projector done-test passed 31 Aug 2026.** The owner's go was given 30 Aug 2026; implementation shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95) with follow-ups [#104](https://github.com/earlyprototype/false-flag/pull/104), [#106](https://github.com/earlyprototype/false-flag/pull/106) and [#108](https://github.com/earlyprototype/false-flag/pull/108).
 
 ---
 
@@ -41,7 +41,7 @@ The globe stages above are one of two workstreams; the other is cabinet-advisor 
 **Later** — post-competition unless the stretch gate opens room
 - Stages 3–5 per the gates below · [#90](https://github.com/earlyprototype/false-flag/issues/90) advisor hidden-state parity with foreign actors · [#92](https://github.com/earlyprototype/false-flag/issues/92) visual-design pass · [#76](https://github.com/earlyprototype/false-flag/issues/76) real-email inject · [#77](https://github.com/earlyprototype/false-flag/issues/77) live-hybrid mode
 
-**Decisions** — under the owner's 30 Aug "plan then go" authorization, each open decision proceeds on the working default recorded in its issue; commenting on the issue overturns the default at any time: [#72](https://github.com/earlyprototype/false-flag/issues/72) map-data folder · [#73](https://github.com/earlyprototype/false-flag/issues/73) judges' campaign cut · [#74](https://github.com/earlyprototype/false-flag/issues/74) default visual register · [#75](https://github.com/earlyprototype/false-flag/issues/75) Quest availability (assumed yes; stays open until confirmed) · [#89](https://github.com/earlyprototype/false-flag/issues/89) scope to one game type + Mystery mode (gets its own branch when that work starts)
+**Decisions** — under the owner's 30 Aug "plan then go" authorization, each open decision proceeds on the working default recorded in its issue; commenting on the issue overturns the default at any time. Ruled and closed: [#72](https://github.com/earlyprototype/false-flag/issues/72) map-data folder (split, 1 Sep) · [#74](https://github.com/earlyprototype/false-flag/issues/74) default visual register (all options stay behind switches, 31 Aug). Open: [#73](https://github.com/earlyprototype/false-flag/issues/73) users' campaign cut · [#75](https://github.com/earlyprototype/false-flag/issues/75) Quest availability (assumed yes; stays open until confirmed) · [#89](https://github.com/earlyprototype/false-flag/issues/89) scope to one game type + Mystery mode (gets its own branch when that work starts)
 
 ---
 
@@ -151,7 +151,7 @@ Gates are schedule instruments only. No design questions remain inside them.
 
 ## Open questions and parallel work
 
-Decisions still open, each with a working default so silence never blocks a stage: [#72](https://github.com/earlyprototype/false-flag/issues/72) which folder the map's data files live in · [#73](https://github.com/earlyprototype/false-flag/issues/73) which campaign cut the judges watch · [#74](https://github.com/earlyprototype/false-flag/issues/74) the globe's default visual register · [#75](https://github.com/earlyprototype/false-flag/issues/75) whether a Meta Quest headset is available.
+Decisions still open, each with a working default so silence never blocks a stage: [#73](https://github.com/earlyprototype/false-flag/issues/73) which campaign cut the users watch · [#75](https://github.com/earlyprototype/false-flag/issues/75) whether a Meta Quest headset is available. Ruled and closed: [#72](https://github.com/earlyprototype/false-flag/issues/72) map-data folder (split) · [#74](https://github.com/earlyprototype/false-flag/issues/74) visual register (all options stay behind switches).
 
 Running alongside, off-branch: the [Manus research queue](https://github.com/earlyprototype/false-flag/issues/70) — its gazetteer verification task feeds Stage 2.
 

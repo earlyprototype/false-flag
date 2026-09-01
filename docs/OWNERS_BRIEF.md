@@ -30,16 +30,14 @@ Right now, between turns, the game goes quiet — the cabinet argues, and nothin
 
 The five stages in one line each: **1 First Light** — the map page exists and shows your forces · **2 The Fleet Moves** — units get real positions that advance each turn · **3 Standards on the Glass** — the map reads the digital-twin model and many screens can watch · **4 Show-Safe** — the demo runs to a written sequence without improvisation · **5 The Cabinet Orders the Map** — your decision text moves the forces. Then a post-competition tier.
 
-The owner's **GO was given 30 Aug**. Stage 1 shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95) and is **BUILT — awaiting the projector done-test**. `main` also includes PRs #96 and #98; PR #99 is the current documentation/research salvage under review.
+The owner's **GO was given 30 Aug**. Stage 1 shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95) and is **DONE — the projector done-test passed 31 Aug** ([#94](https://github.com/earlyprototype/false-flag/issues/94), closed). `main` also carries #96–#99 and #101–#108 (advisor fixes, dashboard usability, the research salvage, the in-repo kanban board, the CI pipeline, and three Stage-1 follow-ups).
 
-## The four open questions
+## The open questions
 
-Each is a GitHub issue — answer by commenting and closing; each has a safe default if you stay silent.
+Each is a GitHub issue — answer by commenting and closing; each has a safe default if you stay silent. Ruled and closed so far: **#72** (geo files: split — scenario truth with the scenario, engine-derived with the tech) and **#74** (all visual-register options stay live behind switches; revisit late dev).
 
-1. **[#72 — Which folder do the map's data files live in?](https://github.com/earlyprototype/false-flag/issues/72)** (beside the story episodes, or a separate technical folder)
-2. **[#73 — Which campaign cut do the judges watch?](https://github.com/earlyprototype/false-flag/issues/73)** (full slow-burn vs quick-start; we can time both and pick)
-3. **[#74 — First impression: bare satellite Earth or the CRT filter?](https://github.com/earlyprototype/false-flag/issues/74)** (both ship; this sets the default)
-4. **[#75 — Is a Meta Quest VR headset available?](https://github.com/earlyprototype/false-flag/issues/75)** (a plain yes/no to record on the issue)
+1. **[#73 — Which campaign cut do the users watch?](https://github.com/earlyprototype/false-flag/issues/73)** (full slow-burn vs quick-start; we can time both and pick)
+2. **[#75 — Is a Meta Quest VR headset available?](https://github.com/earlyprototype/false-flag/issues/75)** (a plain yes/no to record on the issue)
 
 Movement design issue [#71](https://github.com/earlyprototype/false-flag/issues/71) is closed: validated orders are on. The research task queue lives in [#70](https://github.com/earlyprototype/false-flag/issues/70).
 

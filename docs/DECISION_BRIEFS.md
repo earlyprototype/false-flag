@@ -1,13 +1,13 @@
 # Decision Briefs — what each open call needs, when it's due, and the default
 
-*Companion to `BUILD_STATE.md`. Principle: no decision is due before the milestone that needs it; every decision has a safe default. The owner gave GO on 30 Aug; M0 (First Light) shipped in PR #95 and is `BUILT — awaiting the projector done-test`. B1 (the build stage every movement design shares: the position system with no AI) requires none of the remaining open decisions.*
+*Companion to `BUILD_STATE.md`. Principle: no decision is due before the milestone that needs it; every decision has a safe default. The owner gave GO on 30 Aug; M0 (First Light) shipped in PR #95 and is `DONE` — the projector done-test passed 31 Aug. B1 (the build stage every movement design shares: the position system with no AI) requires none of the remaining open decisions.*
 
 | # | Decision | Due at | Context source | Default if silent |
 |---|---|---|---|---|
 | N1 | Movement architecture ([#71](https://github.com/earlyprototype/false-flag/issues/71)) | **SETTLED 28 Aug — orders on** | This page, §below | Hybrid selected |
-| N2 | Geo-pack home (issue [#72](https://github.com/earlyprototype/false-flag/issues/72): which folder the map's data files live in) | First geo commit | None (taste; `git mv`-reversible) | `data/scenarios/…`, diff-first |
-| N3 | Demo campaign variant (issue [#73](https://github.com/earlyprototype/false-flag/issues/73): which campaign cut the judges watch) | M0 rehearsal | Stopwatch two mock runs (M0 produces them) | Time both, pick at M0 |
-| N4 | Default globe register (issue [#74](https://github.com/earlyprototype/false-flag/issues/74): bare satellite Earth vs the CRT filter as the globe's default look) | M3 (Show-Safe, the demo-hardening milestone) dress rehearsal | Your eyes on the projector (both framings ship regardless) | Clean photoreal + escalation ladder, CRT toggle present |
+| N2 | Geo-pack home (issue [#72](https://github.com/earlyprototype/false-flag/issues/72): which folder the map's data files live in) | **RULED 1 Sep — SPLIT** | Ruling on the closed issue | Scenario truth with the scenario, engine-derived with the tech, accounting across the seam |
+| N3 | Demo campaign variant (issue [#73](https://github.com/earlyprototype/false-flag/issues/73): which campaign cut the users watch) | M0 rehearsal | Stopwatch two mock runs (M0 produces them) | Time both, pick at M0 |
+| N4 | Default globe register (issue [#74](https://github.com/earlyprototype/false-flag/issues/74): bare satellite Earth vs the CRT filter as the globe's default look) | **RULED 31 Aug — all options stay** | Ruling on the closed issue | Bare Earth working default; FLIR + CRT switches live (PR #106); revisit late dev |
 | — | Quest availability — is a Meta Quest VR headset available? (a yes/no to record in issue [#75](https://github.com/earlyprototype/false-flag/issues/75)) | Before the VR spike | A fact, not a reading | S3 (streamed screen) path assumed |
 | — | Save downgrade loss | B1 | Executed probe, study claim 9 | Accept + document + version bump 2.4→2.5 |
 

@@ -6,10 +6,10 @@
 
 ## Where things stand
 
-- **`main` includes PRs #95, #96 and #98.** It carries the full DTDL twin surface, the Stage 1 Situation Globe implementation, the advisor-pushback fix, and the dashboard usability/accessibility changes.
-- **Stage 1 · First Light is `BUILT — awaiting the projector done-test`.** The owner gave GO on 30 Aug; implementation shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95).
+- **`main` includes PRs #95–#99 and #101–#108.** It carries the full DTDL twin surface, the Stage 1 Situation Globe implementation (plus the URL fix #104, CRT filter #106, and manual zoom #108), the advisor-prompt and pushback fixes (#96/#97), the dashboard usability changes (#98), the P1a research salvage (#99), the in-repo kanban board (#101), and the three-stage CI pipeline with the verdict-gated review (#103).
+- **Stage 1 · First Light is `DONE`** — the owner ran the projector done-test on 31 Aug and it passed ([#94](https://github.com/earlyprototype/false-flag/issues/94), closed). The owner gave GO on 30 Aug; implementation shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95).
 - **Movement architecture is settled.** [#71](https://github.com/earlyprototype/false-flag/issues/71) selected the hybrid validated-order channel; only scheduling remains.
-- **PR #99** (`claude/salvage-93-docs`) is the current documentation/research salvage under review. It restores the verified P1a gazetteer dossier and aligns the Situation Globe records without changing runtime code.
+- **In flight**: advisor-pushback fan-out ([#87](https://github.com/earlyprototype/false-flag/issues/87)) and the prompt-quality audit ([#83](https://github.com/earlyprototype/false-flag/issues/83)), dispatched 1 Sep on parallel lanes.
 
 ## The plan
 
@@ -49,7 +49,7 @@ The digital-twin model on `main` (13 interfaces) is not modified; new capability
 **Where the plan lives now**: `PLAN.md` at the repository root is canonical — five stages, build checklists, done tests, status table, gates, cut order. README links it from the top. The owner's brief, this file, the study (§7) and the component map (§5) all point at it; none of them restate it. **Update PLAN.md first, always.**
 
 **Repository state**
-- This 28 Aug snapshot is superseded by the current state above: `main` includes PRs #95/#96/#98, and PR #99 is under review.
+- This 28 Aug snapshot is superseded by the current state above ("Where things stand").
 
 **Decisions and rulings recorded tonight**
 - #71 **closed**: the hybrid validated-order channel is selected. Failed calls issue zero new orders; standing orders and kinematics continue. Only scheduling decides when it is built (stage 5).
@@ -58,6 +58,6 @@ The digital-twin model on `main` (13 interfaces) is not modified; new capability
 - #76: real-email inject artifact, MVP-worthy.
 - Language rule: mechanical statements of what/how/why. No metaphor ("truth", "lie") anywhere in project docs.
 
-**Current correction:** decisions #72–#75 remain on working defaults; P1a from queue #70 is in PR #99. Stage 1 is **BUILT — awaiting the projector done-test** after the 30 Aug GO and PR #95.
+**Current correction:** [#72](https://github.com/earlyprototype/false-flag/issues/72) (geo files: SPLIT — scenario truth with the scenario, engine-derived with the tech, accounting across the seam) and [#74](https://github.com/earlyprototype/false-flag/issues/74) (visual register: all options stay live behind switches) are **ruled and closed**; [#73](https://github.com/earlyprototype/false-flag/issues/73) and [#75](https://github.com/earlyprototype/false-flag/issues/75) remain open. P1a from queue #70 landed via PR #99. Stage 1 is **DONE** — projector done-test passed 31 Aug.
 
 **Known stale**: the claude.ai artifact page predates the plan rework; refresh or retire it. The repository is the memory.
