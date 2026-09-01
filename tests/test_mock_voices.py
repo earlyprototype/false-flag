@@ -890,6 +890,8 @@ def test_mock_interpretation_keeps_a_positive_directive_after_a_negated_one():
     "Order an intelligence review.",
     "Send aid to Norway.",
     "Authorise a nuclear strike on the Russian task force.",
+    "Use force only in self-defence.",
+    "Authorise force only if attacked.",
 ])
 def test_mock_interpretation_rejects_directives_without_named_assets(action):
     driver = MockDeterministicDriver()
@@ -977,6 +979,10 @@ def test_mock_interpretation_rejects_negation_inside_a_tasking_object(action):
     ("Send the Typhoons, and not the carrier.", ["the Typhoons"]),
     ("Send the Typhoons, other than the carrier.", ["the Typhoons"]),
     ("Send the Typhoons, except the carrier.", ["the Typhoons"]),
+    ("Deploy the destroyers but not the carrier.", ["the destroyers"]),
+    ("Send the Typhoons but no carriers.", ["the Typhoons"]),
+    ("Deploy the destroyers but do not fire.", ["the destroyers"]),
+    ("Deploy the carrier group without escorts.", ["the carrier group"]),
 ])
 def test_mock_interpretation_drops_elided_force_exclusions(action, expected):
     driver = MockDeterministicDriver()

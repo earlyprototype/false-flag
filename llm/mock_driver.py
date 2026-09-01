@@ -1189,7 +1189,7 @@ def _extract_tasked_forces(action: str) -> str:
     asset = (
         r"(?:\b(?:HMS|RAF|RNAS|SSBNs?|SSNs?|CAP|carriers?|destroyers?|"
         r"frigates?|submarines?|squadrons?|aircraft|jets?|fighters?|"
-        r"helicopters?|drones?|warships?|ships?|fleet|forces?|troops?|"
+        r"helicopters?|drones?|warships?|ships?|fleet|forces|troops?|"
         r"marines?|patrols?|Poseidons?|Typhoons?|Wedgetails?)\b|"
         r"\b(?:Type\s*-?\s*\d+|[PFE]\s*-?\s*\d+[A-Z]?)\b)"
     )
@@ -1221,6 +1221,13 @@ def _extract_tasked_forces(action: str) -> str:
         )
         for force in force_match.group(1).split(","):
             force = " ".join(force.split()).strip(" \"'")
+            force = re.split(
+                rf"\s+(?:(?:but|and)\s+(?:{negation}|except|other\s+than)|"
+                r"without|except|other\s+than)\b",
+                force,
+                maxsplit=1,
+                flags=re.IGNORECASE,
+            )[0].strip()
             if re.match(
                     r"(?:not|(?:but|and)\s+not|other than|except)\b",
                     force,
