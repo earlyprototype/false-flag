@@ -372,7 +372,8 @@ def test_routing_rejects_unknown_context_tier_and_provider(client):
 def test_prompt_family_list_get_put_reset_roundtrip(client):
     listing = client.get("/prompts").json()["families"]
     assert {f["family"] for f in listing} == {
-        "advisor_qa", "decision_interpretation", "advisor_pushback"}
+        "advisor_qa", "advisor_qa_fanout", "decision_interpretation",
+        "advisor_pushback"}
     assert all(f["edited"] is False for f in listing)
 
     got = client.get("/prompts/advisor_qa").json()

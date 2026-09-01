@@ -8,7 +8,7 @@ Interpretation of this action:
 Advisors and their pushback triggers:
 {advisors_str}
 
-For each advisor whose pushback triggers are activated by this decision, generate a brief (2-3 sentences) in-character warning or concern. Reference past warnings or decisions from the conversation history if relevant (e.g., "As I warned in Turn 2..."). If no triggers are activated, respond with "NO PUSHBACK".
+For each advisor whose pushback triggers are activated by this decision, generate a brief (2-3 sentences) in-character warning or concern. Reference past warnings or decisions from the conversation history if relevant (e.g., "As I warned two days ago..."). If no triggers are activated, respond with "NO PUSHBACK".
 
 Format:
 [ADVISOR ROLE]: [their concern]

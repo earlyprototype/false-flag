@@ -1,0 +1,38 @@
+# Stage 1 — mechanical checks on every PR and on pushes to main (issue #102).
+# Ported from LCCL's three-stage pipeline (assessed 31 Aug 2026); Python port.
+# The job is named `checks` on purpose: it is the name the main-branch ruleset
+# requires, so renaming it silently drops the merge gate.
+#
+# NO lint step yet: at port time `ruff --select E9,F` reports 200 findings
+# (56 undefined-name among them). A red day-one gate teaches everyone to
+# ignore CI, so lint lands as its own cleanup + ratchet, tracked on the board.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
+
+      - name: Tests
+        run: python -m pytest tests/ -q
+
+      - name: Auto-merge eligibility tests
+        # The verdict classifier (.github/scripts/automerge-eligible.cjs)
+        # decides what may merge with no human looking (see auto-merge.yml),
+        # so its logic is tested here — plain node:assert, no framework.
+        # Runners ship node; no setup-node needed.
+        run: node .github/scripts/automerge-eligible.test.cjs

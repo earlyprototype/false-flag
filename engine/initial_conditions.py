@@ -10,6 +10,13 @@ from typing import Any, Dict, Optional
 import yaml
 
 
+# The character the human plays. They chair COBRA: the room answers them and
+# is advised by them, so the player's own office is never one of the advisor
+# voices the model is asked to generate (/askall excludes it, and so does the
+# pushback roster).
+PLAYER_CHARACTER_ID = "prime_minister"
+
+
 def load_initial_conditions(scenario_id: str, root_path: Optional[Path] = None) -> Dict[str, Any]:
     """Load initial conditions YAML for a scenario.
     

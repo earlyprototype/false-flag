@@ -18,7 +18,11 @@ from llm.model_config import LLMContext
 from llm.fanout import generate_group
 from llm.parse_health import record_fallback, record_miss, record_residue
 from llm.parsing import extract_label, is_sentinel_line, strip_decoration
-from engine.initial_conditions import get_all_uk_advisors
+from engine.initial_conditions import (
+    PLAYER_CHARACTER_ID,
+    get_all_uk_advisors,
+    get_character_info,
+)
 
 
 # Common title variants advisors are referred to by in LLM output,
@@ -121,6 +125,26 @@ def _known_pushback_roles(initial_conditions: Dict[str, Any]) -> Set[str]:
             roles.add(role.strip().lower())
 
     return roles
+
+
+def _player_role_names(initial_conditions: Dict[str, Any]) -> Set[str]:
+    """Normalized names a pushback line could use to attribute itself to the player.
+
+    The player's own office is off the pushback roster (build_pushback_prompt),
+    but a model can still emit a "Prime Minister: ..." line from the transcript
+    it has just read. These names let the parser recognise such a line and drop
+    it instead of crediting it to an advisor or gluing it onto the previous
+    advisor's message.
+    """
+    names: Set[str] = set(_ADVISOR_ROLE_ALIASES.get(PLAYER_CHARACTER_ID, []))
+    names.add(PLAYER_CHARACTER_ID.replace("_", " ").lower())
+
+    info = get_character_info(initial_conditions, PLAYER_CHARACTER_ID) or {}
+    role = info.get("role", "") if isinstance(info, dict) else ""
+    if role:
+        names.add(role.strip().lower())
+
+    return names
 
 
 def _normalize_role_prefix(prefix: str) -> str:
@@ -276,7 +300,7 @@ def handle_player_question_all(
     uk_advisors = get_all_uk_advisors(initial_conditions)
 
     # The Prime Minister is the player: the room answers, the chair asks.
-    asked = [cid for cid in uk_advisors if cid != "prime_minister"]
+    asked = [cid for cid in uk_advisors if cid != PLAYER_CHARACTER_ID]
 
     if not asked:
         return [("System", "Error: No advisors available. Initial conditions "
@@ -292,7 +316,7 @@ def handle_player_question_all(
         try:
             prompts.append(build_advisor_context(
                 world, initial_conditions, char_id, question, transcript,
-                event_ledger))
+                event_ledger, fanout=True))
             prompt_ok[char_id] = True
         except Exception as e:
             record_fallback("advisor_qa", f"{char_id} {type(e).__name__}")
@@ -402,8 +426,19 @@ def generate_advisor_pushback(
     # advisor role; other lines (markdown emphasis, wrapped text) are treated
     # as continuations of the previous advisor's message.
     known_roles = _known_pushback_roles(initial_conditions)
+    # The player's own office is not on the roster the prompt lists, so a
+    # line attributed to it is a model slip, not pushback. It is dropped with
+    # the same orphan/record idiom as any unrecognised prefix - and dropped
+    # explicitly, so it cannot fall through to the continuation branch below
+    # and be glued onto the previous advisor's message.
+    player_roles = _player_role_names(initial_conditions)
     pushback_list = []
     residue = []
+    # A dropped player line can be wrapped over several lines; its tail would
+    # otherwise take the continuation branch and land in the previous
+    # advisor's message, which is the same leak the drop exists to prevent.
+    # The block stays suppressed until the next recognised advisor prefix.
+    in_player_block = False
     for line in lines:
         stripped = line.strip()
         if not stripped:
@@ -415,15 +450,34 @@ def generate_advisor_pushback(
 
         role = None
         message = ""
+        player_line = False
         if ":" in stripped:
             prefix, remainder = stripped.split(":", 1)
             candidate = _normalize_role_prefix(prefix)
-            if candidate.lower() in known_roles:
-                role = candidate
-                message = remainder.strip()
+            lowered = candidate.lower()
+            # "The Prime Minister:" names the same speaker as "Prime Minister:";
+            # match with and without the article so neither form slips past.
+            forms = (lowered, lowered[4:]) if lowered.startswith("the ") else (lowered,)
+            if any(f in player_roles for f in forms):
+                player_line = True
+            else:
+                for f in forms:
+                    if f in known_roles:
+                        role = candidate[4:].strip() if f != lowered else candidate
+                        message = remainder.strip()
+                        break
 
-        if role is not None:
+        if player_line:
+            in_player_block = True
+            record_miss("pushback", "player_line", stripped[:60])
+            residue.append(stripped)
+        elif role is not None:
+            in_player_block = False
             pushback_list.append((role, message))
+        elif in_player_block:
+            # Wrapped tail of the player-attributed line just dropped.
+            record_miss("pushback", "player_line", stripped[:60])
+            residue.append(stripped)
         elif pushback_list:
             prev_role, prev_message = pushback_list[-1]
             pushback_list[-1] = (prev_role, f"{prev_message} {stripped}".strip())

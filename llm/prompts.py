@@ -36,9 +36,16 @@ ADVISOR_VOICE_INSTRUCTIONS = "\n".join([
     "IMPORTANT: You are a real advisor in COBRA during a national crisis.",
     "Speak naturally about intelligence assessments, strategic concerns, and operational realities.",
     "Do NOT reference 'metrics', 'game mechanics', 'scores', or 'values'.",
-    "Never say 'turn N' ('in Turn 2', 'last turn') - turns are game"
-    " mechanics. Refer to time in-fiction: 'two days ago', 'earlier this"
-    " week', 'since the incident began'.",
+    # The ban is stated abstractly and illustrated only by what an advisor
+    # SHOULD say. Every earlier wording quoted the forbidden forms instead -
+    # first a numbered one, then a spelled-out number and a turn-relative
+    # phrase - which left game time sitting in every assembled advisor
+    # prompt, muddying the rule and handing the model the exact phrasing to
+    # imitate (issues #91, #97). The guard is
+    # tests/test_presentation_rules._GAME_TURN_RE.
+    "Never state game time - no turn numbers and no turn-relative phrases;"
+    " turns are game mechanics. Refer to time in-fiction: 'two days ago',"
+    " 'earlier this week', 'since the incident began'.",
     "Use professional crisis management language.",
     "Write in British English throughout - British spellings (organise, defence,"
     " programme) and Whitehall usage, never American.",
@@ -46,12 +53,13 @@ ADVISOR_VOICE_INSTRUCTIONS = "\n".join([
 ])
 
 
-def _state_bands(world: WorldState) -> str:
-    """The prose rendering of the metrics: bands plus the casualty counts.
+def _state_band_lines(world: WorldState) -> List[str]:
+    """The prose situation lines: the three bands plus the casualty counts.
 
-    Split out of build_world_state_summary so a caller that wants the
-    situation in words - without the advisor-voice instructions or the
-    flags block - can take just this (ER-009, ER-027).
+    Returned without the CURRENT SITUATION header so a caller that already
+    prints one of its own can splice these straight in - which is what the
+    shared dossier does, in place of the raw metric values it used to print
+    under an instruction never to reference values (issue #91).
     """
     # Translate metrics into narrative descriptions
     escalation_desc = (
@@ -77,9 +85,7 @@ def _state_bands(world: WorldState) -> str:
 
     # Mission progress removed - crisis continues indefinitely (even in post-apocalyptic wasteland!)
 
-    lines = [
-        f"=== CURRENT SITUATION (Turn {world.turn}, {world.phase.upper()} phase) ===",
-        "",
+    return [
         f"THREAT ASSESSMENT: {escalation_desc.upper()} risk of further Russian escalation",
         f"DOMESTIC SITUATION: Public sentiment is {stability_desc}; infrastructure security concerns",
         f"ALLIANCE STATUS: NATO cohesion appears {alliance_desc} (particular concern: US Article 5 commitment)",
@@ -87,7 +93,18 @@ def _state_bands(world: WorldState) -> str:
         f"CASUALTIES TO DATE: {world.metrics.casualties_mil} military personnel, {world.metrics.casualties_civ} civilians",
     ]
 
-    return "\n".join(lines)
+
+def _state_bands(world: WorldState) -> str:
+    """The prose rendering of the metrics under its own header.
+
+    Split out of build_world_state_summary so a caller that wants the
+    situation in words - without the advisor-voice instructions or the
+    flags block - can take just this (ER-009, ER-027).
+    """
+    return "\n".join([
+        f"=== CURRENT SITUATION (Turn {world.turn}, {world.phase.upper()} phase) ===",
+        "",
+    ] + _state_band_lines(world))
 
 
 def _intel_flags(world: WorldState) -> str:
@@ -134,7 +151,8 @@ def build_advisor_context(
     character_id: str,
     question: str,
     transcript: Optional[List[str]] = None,
-    event_ledger=None
+    event_ledger=None,
+    fanout: bool = False
 ) -> str:
     """Build LLM prompt for advisor response to player question.
 
@@ -145,6 +163,12 @@ def build_advisor_context(
         question: Player's question
         transcript: Optional full game transcript for conversation history
         event_ledger: Optional played-event ledger for the dossier (ER-003)
+        fanout: True when this call is one of a whole-room set
+            (handle_player_question_all). It selects the advisor_qa_fanout
+            template, which drops the routed path's "suggest who might better
+            answer it" - with every advisor answering the same question, a
+            deflection to a colleague answering it two panels down is an
+            instruction the call shape contradicts.
 
     Returns:
         Formatted prompt for LLM
@@ -201,7 +225,7 @@ def build_advisor_context(
     from llm.prompt_templates import render
 
     return f"{full_context}\n\n" + render(
-        "advisor_qa",
+        "advisor_qa_fanout" if fanout else "advisor_qa",
         role=role,
         knowledge_domains=", ".join(knowledge_domains),
         key_concerns=", ".join(key_concerns),
@@ -275,16 +299,24 @@ def build_pushback_prompt(
     Returns:
         Formatted prompt for LLM to generate advisor warnings
     """
+    from engine.initial_conditions import PLAYER_CHARACTER_ID
+
     characters = initial_conditions.get("characters", {})
-    
-    # Build list of UK advisors and their pushback triggers
+
+    # Build list of UK advisors and their pushback triggers.
+    # The player's own character is left off the roster: they are the chair
+    # the pushback is addressed to, and listing them lets the model render
+    # the player's office objecting to the player's own decision. The same
+    # exclusion guards /askall (agents.conversation.handle_player_question_all).
     advisor_info = []
     for char_id, char_data in characters.items():
+        if char_id == PLAYER_CHARACTER_ID:
+            continue
         if isinstance(char_data, dict) and "note" not in char_data:  # UK advisors only
             role = char_data.get("role", "Advisor")
             triggers = char_data.get("pushback_triggers", [])
             advisor_info.append(f"- {role}: {', '.join(triggers)}")
-    
+
     advisors_str = "\n".join(advisor_info)
 
     from llm.context_builder import build_shared_context_prefix
@@ -472,6 +504,22 @@ Your inject:"""
     return prompt
 
 
+#: The one-line remit each advisor is reminded of in the critical-omissions
+#: scan. A character_id with no entry simply gets no remit line.
+_OMISSION_REMITS: Dict[str, str] = {
+    "foreign_secretary":
+        "- Foreign affairs, alliance coordination, diplomatic channels",
+    "chief_defence_staff":
+        "- Military readiness, force protection, operational feasibility",
+    "home_secretary":
+        "- Domestic security, public safety, civil order",
+    "attorney_general":
+        "- Legal authority, international law, rules of engagement",
+    "national_security_advisor":
+        "- Strategic coordination, intelligence assessment, overall risk",
+}
+
+
 def build_critical_omissions_prompt(
     world: WorldState,
     initial_conditions: Dict[str, Any],
@@ -509,7 +557,12 @@ def build_critical_omissions_prompt(
 
     character = initial_conditions.get("characters", {}).get(character_id, {})
     role = character.get("role", character_id)
-    personality = character.get("personality", "Professional and direct")
+
+    # The advisor's remit line. Written as five inline conditionals in the
+    # f-string, this emitted the four that did not match as four blank lines
+    # in every one of the five calls a turn makes.
+    remit = _OMISSION_REMITS.get(character_id, "")
+    remit_block = f"\n{remit}" if remit else ""
 
     # Build context on what actions have been taken recently
     recent_context = "\n".join(recent_events) if recent_events else "No recent major events"
@@ -557,12 +610,7 @@ EXAMPLES OF CRITICAL OMISSIONS:
 - Escalation WITHOUT ally consultation (Article 5 denial risk)
 - Committing forces WITHOUT securing logistics/support
 
-YOUR ROLE AS {role.upper()}:
-{"- Foreign affairs, alliance coordination, diplomatic channels" if character_id == "foreign_secretary" else ""}
-{"- Military readiness, force protection, operational feasibility" if character_id == "chief_defence_staff" else ""}
-{"- Domestic security, public safety, civil order" if character_id == "home_secretary" else ""}
-{"- Legal authority, international law, rules of engagement" if character_id == "attorney_general" else ""}
-{"- Strategic coordination, intelligence assessment, overall risk" if character_id == "national_security_advisor" else ""}
+YOUR ROLE AS {role.upper()}:{remit_block}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

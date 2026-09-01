@@ -364,6 +364,35 @@ def test_dataflow_page_serves_the_operable_schema(client):
         assert mode_name in body
 
 
+def test_facilitator_pages_describe_themselves_and_reset(client):
+    """Demo affordances (issue #92): every dashboard panel carries a caption,
+    both pages can be cleared between runs, and the engine map zooms."""
+    dashboard = client.get("/dashboard").text
+    panels = dashboard.split("<main>")[1].split("</main>")[0].split("<section")[1:]
+    assert len(panels) == 7
+    for panel in panels:
+        assert '<p class="note"' in panel, "a dashboard panel carries no description"
+    assert 'id="btnResetView"' in dashboard      # clears ledger, calls, charts
+    assert "KIND_GLOSS" in dashboard             # raw stream event names glossed
+
+    # The two hand-built charts are marks and axis text; role="img" mutes the
+    # axis text and chartAlt() supplies the name and the spoken reading that
+    # replace it, rebuilt on every redraw.
+    for chart in ("chartMetrics", "chartCas"):
+        opening_tag = dashboard.split(f'id="{chart}"')[1].split(">")[0]
+        assert 'role="img"' in opening_tag, f"{chart} has no text alternative"
+    assert "function chartAlt(" in dashboard
+    assert "<title>" in dashboard and "<desc>" in dashboard
+
+    dataflow = client.get("/dataflow").text
+    for control in ("zoomOutBtn", "zoomInBtn", "zoomFitBtn", "resetViewBtn"):
+        assert control in dataflow
+    # role="img" makes the whole SVG subtree presentational, dropping every
+    # node's aria-label while the node groups stay in the tab order.
+    assert 'role: "img"' not in dataflow
+    assert 'role: "group"' in dataflow
+
+
 def test_new_game_mystery_mode_reaches_the_manager(client):
     """mystery_mode on /game/new must construct a mystery-mode manager."""
     from api import server
@@ -450,6 +479,8 @@ def test_globe_page_serves_the_exercise_marked_situation_globe(client):
     assert "EXERCISE" in body
     assert "/resources" in body and "/stream/" in body
     assert "UNRESOLVED" in body.upper()  # the tray for unplaceable units
+    # Manual zoom redundancy (#107): buttons and slider must keep shipping.
+    assert "btnZoomIn" in body and "btnZoomOut" in body and "zoomSlider" in body
 
 
 def test_globe_gazetteer_covers_every_order_of_battle_location():
