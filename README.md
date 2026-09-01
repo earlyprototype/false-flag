@@ -267,8 +267,10 @@ false-flag/
 ```
 
 The terminal and static browser each own their own engine session. FastAPI
-observer pages share API-created sessions, but the current event stream is
-single-consumer. The exact integration gaps are recorded in
+observer pages share API-created sessions, and every attached subscriber gets
+its own copy of each live event. Only the first subscriber receives events
+queued before any observer connects; late and reconnect recovery still awaits
+the versioned theatre snapshot. The exact integration gaps are recorded in
 [BUILD_STATE.md](docs/BUILD_STATE.md#what-is-not-built).
 
 ### Documentation status

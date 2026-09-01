@@ -25,9 +25,11 @@ The player, dashboard, globe and VR room observe one game session. Each screen
 gets its own copy of permitted events, so opening a second display cannot steal
 updates from the first.
 
-Today this is not true: the API session has one destructive queue, while the
-terminal and static browser run separate engine instances. The build must prove
-the shared path before claiming “one engine, many surfaces.”
+The API session now gives every attached subscriber its own copy of each live
+event. Only the first subscriber receives the pre-connect backlog, and late or
+reconnecting displays still need the versioned theatre snapshot. The terminal
+and static browser also remain separate engine instances. The build must prove
+the shared player path before claiming “one engine, many surfaces.”
 
 ### Campaign geography
 
@@ -117,8 +119,8 @@ game; it is not the product.
 - The full game loop, adviser system, diplomacy, adjudication and save/load are
   built.
 - The Cesium globe is built and passed its projector test on 31 August 2026.
-- Multi-subscriber streaming, moving tracks, live feeds and the VR room are not
-  built yet.
+- Per-subscriber live streaming is built. A shared API player, reconnectable
+  snapshot, moving tracks, live feeds and the VR room are not built yet.
 
 Detailed status: [`BUILD_STATE.md`](BUILD_STATE.md).
 
