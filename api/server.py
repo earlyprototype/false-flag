@@ -1272,7 +1272,7 @@ async def globe_page():
     the gazetteer cannot place listed in an UNRESOLVED tray rather than
     guessed onto the map. Takes ?game={session_id}; follows that
     session's /stream as its ONE consumer (the event queue is
-    destructive single-consumer until Stage 3's fan-out).
+    destructive single-consumer until Multi-client Session Streaming lands).
     """
     if not _GLOBE_PATH.exists():
         raise HTTPException(status_code=500, detail="globe.html missing")

@@ -243,7 +243,7 @@ UX/UI/cli/
 **Active Work:**
 - [Phase 2.5 Plan](02_PHASE_PLANS/Phase_2.5_Dashboard_Fixes.md) - Current tasks
 - [Today's Log](03_DAILY_LOGS/) - Daily progress
-- [Test Checklist](04_TESTING/Test_Checklist_Dashboard.md) - Testing procedures
+- Test checklist — referenced by the original plan but not present in this repository
 
 **Code Files:**
 - `cli/main.py` - Original CLI (DO NOT MODIFY)

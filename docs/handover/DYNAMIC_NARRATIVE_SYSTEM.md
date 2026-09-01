@@ -1,5 +1,8 @@
 # Dynamic Narrative System - Implementation Status
 
+> **Historical November 2025 status snapshot.** It does not describe current
+> priorities or completion state. Start with [BUILD_STATE.md](../BUILD_STATE.md).
+
 ## Overview
 
 The Dynamic Narrative System introduces replayability and emergent storytelling by allowing different "secret truths" to guide AI agent behaviour throughout a playthrough. Instead of scripted hints, foreign leaders, diplomats, and intelligence briefers are given hidden motivations that shape their responses and actions.

@@ -1,5 +1,8 @@
 # Advisor Sentiment & Trust System - Implementation Report
 
+> **Historical November 2025 proposal.** Status, priority and estimates below
+> are not current. Start with [the current build state](../BUILD_STATE.md).
+
 **Feature**: Real-time trust updates based on interpersonal interactions  
 **Status**: 🔲 Proposed - Not Yet Implemented  
 **Priority**: P2 - Medium (After UX fixes)  

@@ -1,5 +1,9 @@
 # Incoming Diplomatic Calls System - Implementation Report
 
+> **Historical November 2025 proposal.** Incoming and mandatory diplomatic
+> encounters have since changed; verify against current code and
+> [BUILD_STATE.md](../BUILD_STATE.md).
+
 **Feature**: Allow foreign nations to initiate contact with the UK Prime Minister  
 **Status**: 🔲 Not Implemented - Critical Gap Identified  
 **Priority**: P1 - High (Core gameplay mechanic)  

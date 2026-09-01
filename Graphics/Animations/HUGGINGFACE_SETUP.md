@@ -1,5 +1,11 @@
 # 🎉 Hugging Face Image Generation - FREE Solution!
 
+> **Historical setup snapshot — November 2025.** Do not rely on its claim that
+> a token is configured, its SDXL default, free quota, timings or rate limits.
+> The current script requires `HF_TOKEN` or `HUGGINGFACE_TOKEN` and defaults to
+> `black-forest-labs/FLUX.1-schnell`. Use
+> [`tools/README.md`](tools/README.md) for the maintained instructions.
+
 **Status:** ✅ WORKING & TESTED  
 **Cost:** FREE (no billing required)  
 **Speed:** ~5-10 seconds per image

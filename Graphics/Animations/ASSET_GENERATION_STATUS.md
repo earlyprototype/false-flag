@@ -1,5 +1,9 @@
 # Asset Generation Status Report
 
+> **Historical run record — 27 October 2025.** This records a failed Gemini
+> generation attempt, not the current tool or provider. The maintained script
+> uses Hugging Face; see [`tools/README.md`](tools/README.md).
+
 **Date:** 2025-10-27  
 **Status:** ❌ Automated generation failed (API rate limits)
 

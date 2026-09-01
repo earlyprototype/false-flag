@@ -6,7 +6,10 @@ You are the UK Prime Minister. Russia has just staged an attack and blamed Brita
 
 **[Play it in your browser →](https://earlyprototype.github.io/false-flag/)** — the same engine, compiled to WebAssembly. You need a passphrase (or an OpenRouter key of your own); see [Sharing one key with playtesters](#sharing-one-key-with-playtesters-browser-build) below.
 
-**Currently building:** the Situation Globe — a live map of the crisis. The plan, its stages and their status: **[PLAN.md](PLAN.md)**.
+**Currently building:** the Situation Globe, live context layers and a Quest
+operations room around the existing game. They extend the same campaign rather
+than replace it. Read the **[canonical plan](PLAN.md)** and
+**[current build state](docs/BUILD_STATE.md)**.
 
 ![Title sequence — the masthead condenses out of the fog of Operation Tuman](docs/media/title_sequence.gif)
 
@@ -257,10 +260,29 @@ false-flag/
 ├── docs/                   # The browser build (GitHub Pages root) + setup guides
 ├── scripts/                # Launchers and setup helpers
 ├── dev-scripts/            # Debugging and content-generation tools
-├── api/, frontend/         # Experimental web UI — not wired into the CLI game yet
+├── api/                    # Tested FastAPI sessions + dashboard/dataflow/globe pages
+├── frontend/               # API-backed Next.js source; build metadata currently absent
 ├── Graphics/, UX/          # Visual asset generation & UX exploration (experimental)
 └── ingestion/, overrides/  # Scenario-content tooling
 ```
+
+The terminal and static browser each own their own engine session. FastAPI
+observer pages share API-created sessions, but the current event stream is
+single-consumer. The exact integration gaps are recorded in
+[BUILD_STATE.md](docs/BUILD_STATE.md#what-is-not-built).
+
+### Documentation status
+
+- **Current:** [PLAN.md](PLAN.md),
+  [docs/BUILD_STATE.md](docs/BUILD_STATE.md),
+  [docs/OWNERS_BRIEF.md](docs/OWNERS_BRIEF.md), and
+  [docs/tech/](docs/tech/README.md).
+- **Technical evidence snapshot:**
+  [docs/XR_GLOBE_FEASIBILITY.md](docs/XR_GLOBE_FEASIBILITY.md). Use it for the
+  reasoning behind decisions, not current scheduling.
+- **Historical:** [docs/handover/](docs/handover/README.md) and the dated plans
+  under `UX/UI/`. Historical documents may explain an older design but do not
+  override current state or next actions.
 
 ## Development
 
@@ -305,9 +327,7 @@ loop runs on the deterministic mock driver and spends no API credit.
 
 - **[GAME_DESCRIPTION.md](GAME_DESCRIPTION.md)**: Full premise, characters, and the world behind the crisis
 - **[Inspiration & Sources](docs/INSPIRATION.md)**: Full credit to The Wargame, Perun's NATO wargame analysis, and the wargaming research behind the design
-- **[Diplomatic System](docs/handover/DIPLOMATIC_SYSTEM.md)**: How alliance negotiation and diplomatic encounters work
-- **[Nuclear Command Chain](docs/handover/NUCLEAR_COMMAND_CHAIN_SYSTEM.md)**: Nuclear authority, consequences, and escalation control
-- **[Dynamic Narrative System](docs/handover/DYNAMIC_NARRATIVE_SYSTEM.md)**: The hidden-narrative engine driving emergent storytelling
+- **[Historical handover index](docs/handover/README.md)**: dated system and status snapshots, explicitly separated from current project truth
 - **Engineering audit trail**: [audits/](audits/) — the engineering-review (ER) register, measurement runs, and handover notes; check here for known issues and prior investigations
 - **[DTDL twin model](interop/README.md)**: False Flag's exercise domain in DTDL v3 — model set, exporter, validators, and how it renders on the dataflow page
 - **[Control Surface Guide](docs/CONTROL_SURFACE_GUIDE.md)**: plain-English walkthrough of `/dataflow` and `/dashboard` — what each page and control does, and when to use which
@@ -324,4 +344,3 @@ MIT — see [LICENSE](LICENSE).
 ---
 
 **Ready to face the crisis? The nation is waiting for your decision.** 🇬🇧
-

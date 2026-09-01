@@ -1,5 +1,10 @@
 # FALSE FLAG - Web UI Development Tracking
 
+> **Archived planning set — 23 November 2025.** “Active,” “current sprint” and
+> next-step claims below are historical. The current API/frontend truth is in
+> [`docs/BUILD_STATE.md`](../../../docs/BUILD_STATE.md) and
+> [`frontend/README.md`](../../../frontend/README.md).
+
 **Purpose:** Structured development plan, progress tracking, and technical reference for Web UI + CLI Dashboard convergence  
 **Created:** 23 November 2025  
 **Status:** Phase 0 - Stabilisation (Active)  

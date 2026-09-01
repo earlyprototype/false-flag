@@ -1,5 +1,8 @@
 # Diplomatic Encounter System
 
+> **Historical November 2025 feature snapshot.** Verify behaviour against the
+> current code and [build state](../BUILD_STATE.md).
+
 ## Overview
 
 The diplomatic encounter system allows players to interact with international leaders and diplomats during the crisis. This adds depth to alliance management and provides opportunities for strategic negotiation.

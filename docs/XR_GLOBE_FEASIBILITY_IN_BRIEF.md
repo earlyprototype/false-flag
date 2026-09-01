@@ -1,32 +1,82 @@
-# The Feasibility Study, In Brief
+# Situation Globe Feasibility — In Brief
 
-*Plain-language version of `XR_GLOBE_FEASIBILITY.md` — for anyone meeting this work for the first time. Nothing here requires reading the technical study; every finding below links back to it if you want the deep version. The plan lives in [`PLAN.md`](../PLAN.md), the explanation in [the Owner's Brief](OWNERS_BRIEF.md), and the current calls and defaults in [`DECISION_BRIEFS.md`](DECISION_BRIEFS.md).*
+This is the plain-language summary of the dated technical evidence in
+[`XR_GLOBE_FEASIBILITY.md`](XR_GLOBE_FEASIBILITY.md). Current sequencing and
+status live in [`PLAN.md`](../PLAN.md) and [`BUILD_STATE.md`](BUILD_STATE.md).
 
 ## What was studied
 
-Can FALSE FLAG gain a **live map of its war** — a satellite Earth on a big screen where the Russian fleet visibly sails toward Scotland between turns — borrowing ideas from an open-source globe project (gods-eye-view), with a VR element, powered by the game's own Microsoft-standard digital-twin model? Two analysis passes, every important claim tested adversarially, several by running real code.
+Whether FALSE FLAG can add a moving situation globe, authoritative campaign
+positions, bounded live external context and a VR operations room without
+allowing generated text or external feeds to corrupt game state.
 
-## The verdict
+The answer is yes, by extending the existing game rather than replacing it or
+copying the whole God's Eye View application.
 
-**Yes, at every layer** — as a *port of ideas*, not a copy-paste of code. The map can also draw from real game state: the engine keeps one position record per unit, updated once per turn by movement arithmetic along pre-drawn routes. The AI may only issue orders in plain words ("this unit sails to this named place") and never writes a number. Clean parses apply; partial parses apply valid lines and visibly skip bad lines; empty, truncated, or failed calls issue zero new orders, every unit continues its last validated standing order, and kinematics advances. A bad call can neither freeze nor invent a position.
+## Findings
 
-## The twelve findings, plainly
+1. **The globe already has a viable serving path.** A self-contained CesiumJS
+   page served by FastAPI is simpler and more proven here than the incomplete
+   Next.js build. That page shipped in
+   [PR #95](https://github.com/earlyprototype/false-flag/pull/95).
 
-1. **VR — blocked one way, open another.** The borrowed globe software cannot drive a VR headset directly (checked thoroughly; don't let anyone spend a week trying). It doesn't need to: we put the globe's picture on a **screen inside the VR room** — like the wall display in a real ops centre — which is a proven technique with two known technical rules to follow. So the practical answer on VR is *achievable*, not refused. *(Findings 1 and 11 in the study.)*
-2. **The beautiful imagery is affordable.** The photorealistic Earth has a free tier that comfortably covers the demo, plus a completely free fallback look that needs no accounts at all. *(2)*
-3. **We don't need anyone's live data.** The borrowed globe runs happily on our own simulated feeds — a few days' work, no external services, nothing real ever mixed in. *(3)*
-4. **We serve the globe the simple way.** Our half-finished web frontend doesn't actually build; the globe ships as a single self-contained page, the same proven way our dashboard already works. *(4)*
-5. **One real bug to fix first.** Today the game's live event feed can only serve *one* screen per session without them stealing each other's updates; a small fix lets many screens watch one game — worth doing regardless of the globe. *(5)*
-6. **The digital-twin standard can carry a map.** Our twin model can hold coordinates and still pass Microsoft's official validator — proven by actually running it. This is the part the IMR audience will recognise as their own field. *(6)*
-7. **The scenario is already a map.** Everything happens at real places (Faslane, the GIUK gap, Severomorsk…), so about thirty looked-up coordinates put the whole war on a real Earth. The game just doesn't *track* positions yet — that's exactly what the build adds. *(7)*
-8. **The AI can be trusted with movement — because it never touches numbers.** It issues orders in the same plain labelled-text style the game already parses safely elsewhere; every order is checked against the known units and places, partial replies apply only valid lines, and failed replies issue no new orders while standing orders and movement continue. *(8)*
-9. **Old save files survive.** Adding positions to the game state keeps every existing save loadable — proven by running the real save/load code. (One build step must always follow that change; it's written down.) *(9)*
-10. **The map can make news.** The game can honestly notice "the fleet crossed the line" at the start of a turn and make that the turn's event, visible to the player and the AI advisors alike — proven against the real engine. *(10)*
-11. *(Merged into finding 1 above.)*
-12. **The military numbers must be authored, and safely can be.** Ranges and speeds aren't in the scenario files, but every ship and missile in it is real with published public figures. Anything genuinely classified (sonar performance, missile-defence footprints) gets an explicit "fictional doctrine" label so no expert can catch us pretending. *(12)*
+2. **The current globe is only a display foundation.** It plots UK resources
+   at authored bases. It does not yet hold authoritative moving tracks or show
+   the red fleet advancing.
 
-## Who reads what
+3. **Several displays cannot safely watch one session yet.** The API session
+   owns one destructive queue, so subscribers silently divide the event stream.
+   Per-subscriber fan-out and a reconnectable snapshot are required before the
+   dashboard, globe and VR room can run together.
 
-- **Everyone, first**: this page, then the [Owner's Brief](OWNERS_BRIEF.md) and [`PLAN.md`](../PLAN.md).
-- **Whoever builds or maintains**: the technical study, component map, and discards register in this folder — dense on purpose, so nothing is lost between sessions.
-- **Whoever runs research tasks**: issue #70 (ready-to-paste briefs).
+4. **Campaign positions can be safe engine state.** Authored coordinates come
+   from a checked gazetteer; deterministic kinematics advances them along
+   authored routes. The model may emit validated named orders but never a
+   coordinate. This is the settled design in
+   [issue #71](https://github.com/earlyprototype/false-flag/issues/71).
+
+5. **Movement can become gameplay rather than decoration.** A player decision
+   can move a unit, and a later boundary crossing can become the next briefing's
+   news. Save/load must preserve the tracks, standing orders and fired
+   tripwires.
+
+6. **Live data is part of the build.** Weather is the first live input; one
+   bounded civilian-flight layer follows. External facts may inform adviser
+   context but never write campaign state. The game-zone and live-first rules
+   are authoritative in
+   [issue #77](https://github.com/earlyprototype/false-flag/issues/77).
+
+7. **The right reuse from God's Eye View is small.** Reuse the conceptual
+   fetch → validate → render pattern, source-health discipline and attribution
+   practice. Do not port its large layer manager, Vite proxy surface, voice
+   system or many feed-specific renderers. FALSE FLAG currently reuses only the
+   pinned MIT thermal shader.
+
+8. **The VR route is a screen inside the room.** Build the portable WebXR room
+   first, measure it on the Quest, then use a local `XRQuadLayer` if the device
+   result is good or a server-rendered H.264/WebRTC media layer if it is not.
+   The WebXR standard explains why quad layers improve text and map legibility:
+   [WebXR Layers specification](https://immersive-web.github.io/layers/).
+
+9. **The full game remains the acceptance test.** Briefing, adviser debate,
+   diplomacy, free-form decision, pushback, adjudication and continuing
+   consequences must still work. The globe and room show that campaign; they do
+   not reduce it to a technical pipeline.
+
+## Data and licensing references
+
+- [God's Eye View at the analysed commit](https://github.com/bilawalsidhu/gods-eye-view/tree/314a0e1)
+- [God's Eye View data-source register at the analysed commit](https://github.com/bilawalsidhu/gods-eye-view/blob/314a0e1/DATA_SOURCES.md)
+- [Open-Meteo licence](https://open-meteo.com/en/license)
+- [OpenSky terms of use](https://opensky-network.org/about/terms-of-use)
+
+Provider terms are independent of the MIT source-code licence. OpenSky in
+particular requires written agreement for operational REST use; a flight feed
+must not become demo-required until its intended use is permitted.
+
+## Read next
+
+- [Owner's plain-language brief](OWNERS_BRIEF.md)
+- [Canonical build plan](../PLAN.md)
+- [Current component map](XR_GLOBE_COMPONENT_MAP.md)
+- [Full technical evidence](XR_GLOBE_FEASIBILITY.md)

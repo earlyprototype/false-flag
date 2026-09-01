@@ -1,5 +1,8 @@
 # FALSE FLAG: THE WARGAME - Executive Handover Summary
 
+> **Historical snapshot — 8 November 2025.** Do not use this file for current
+> status or next actions. See [BUILD_STATE.md](../BUILD_STATE.md).
+
 **Date**: November 8, 2025  
 **Status**: Alpha - Core Systems Complete, UX Polish Required  
 **Next Milestone**: Beta Release after Phase 1 Fixes  

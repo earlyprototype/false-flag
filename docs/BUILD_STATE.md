@@ -1,62 +1,116 @@
-# Build State — Situation Globe (stock-take, 2026-08-31)
+# Current Build State
 
-**Start here** if you are new to this or returning after a break. The canonical plan is [`PLAN.md`](../PLAN.md); the 29 Aug handover is historical context only: [`docs/handover/2026-08-29-SITUATION-GLOBE.md`](handover/2026-08-29-SITUATION-GLOBE.md).
+Current as of 1 September 2026. Start here after
+[`PLAN.md`](../PLAN.md). Historical handovers are indexed separately in
+[`docs/handover/README.md`](handover/README.md).
 
-**Purpose**: single resume point for engineering state. Any continuation — renewed agent session, different model, or the owner alone — starts here.
+## Product centre
 
-## Where things stand
+FALSE FLAG is the AI wargame. The existing campaign loop—briefing, five-adviser
+discussion, diplomacy, free-form decision, pushback, adjudication and
+consequences—is the product. The Situation Globe, live external context and VR
+operations room extend that same game.
 
-- **`main` includes PRs #95–#99 and #101–#108.** It carries the full DTDL twin surface, the Stage 1 Situation Globe implementation (plus the URL fix #104, CRT filter #106, and manual zoom #108), the advisor-prompt and pushback fixes (#96/#97), the dashboard usability changes (#98), the P1a research salvage (#99), the in-repo kanban board (#101), and the three-stage CI pipeline with the verdict-gated review (#103).
-- **Stage 1 · First Light is `DONE`** — the owner ran the projector done-test on 31 Aug and it passed ([#94](https://github.com/earlyprototype/false-flag/issues/94), closed). The owner gave GO on 30 Aug; implementation shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95).
-- **Movement architecture is settled.** [#71](https://github.com/earlyprototype/false-flag/issues/71) selected the hybrid validated-order channel; only scheduling remains.
-- **In flight**: advisor-pushback fan-out ([#87](https://github.com/earlyprototype/false-flag/issues/87)) and the prompt-quality audit ([#83](https://github.com/earlyprototype/false-flag/issues/83)), dispatched 1 Sep on parallel lanes.
+Evidence: [README — What Happens in a Session](../README.md#what-happens-in-a-session)
+and [GAME_DESCRIPTION — Core Gameplay](../GAME_DESCRIPTION.md#core-gameplay).
 
-## The plan
+## Repository state
 
-Canonical, with per-stage status and done tests: **[PLAN.md](../PLAN.md)** at the repository root. Do not restate the plan here — update PLAN.md and link to it.
+- The reviewed implementation baseline is
+  [`631b082`](https://github.com/earlyprototype/false-flag/commit/631b082). It
+  includes the delivery-system close-out in PR #133 and adviser pushback fan-out
+  in [PR #123](https://github.com/earlyprototype/false-flag/pull/123).
+- The canonical execution sequence is [`PLAN.md`](../PLAN.md). Do not infer a
+  competing sequence from a handover, feasibility snapshot or issue title.
 
-## Immediate next actions (in order)
+## What is built
 
-1. Land the in-flight lanes: advisor-pushback fan-out ([#87](https://github.com/earlyprototype/false-flag/issues/87)) and the prompt-quality audit ([#83](https://github.com/earlyprototype/false-flag/issues/83)), both dispatched 1 Sep.
-2. Schedule [#89](https://github.com/earlyprototype/false-flag/issues/89) (scope to one game type + Mystery; its own branch) and start Stage 2 from [`PLAN.md`](../PLAN.md). The §4a degradation ladder is normative: bad lines are visibly skipped; failed calls issue zero new orders while standing orders continue and kinematics advances.
+- A headless `GameManager` and complete multi-turn campaign loop.
+- Five cabinet-adviser roles, conversational questioning, decision
+  interpretation, pushback and critical-omission checks.
+- Scripted and generated injects, diplomacy, adjudication, campaign memory,
+  endings and save/load.
+- Terminal and static-browser playing surfaces.
+- A FastAPI session path with decision, diplomacy, save/load and SSE endpoints.
+- An observability dashboard, dataflow/DTDL view and control surface.
+- Thirteen published DTDL interfaces.
+- The shipped Cesium Situation Globe, completed in
+  [PR #95](https://github.com/earlyprototype/false-flag/pull/95) and verified on
+  the projector on 31 August.
 
-## Needs / open items
+## What is not built
 
-- Open working-default decisions: demo variant ([#73](https://github.com/earlyprototype/false-flag/issues/73)); Quest availability ([#75](https://github.com/earlyprototype/false-flag/issues/75)); save downgrade-loss acceptance. Ruled and closed: geo-pack location ([#72](https://github.com/earlyprototype/false-flag/issues/72), split) and default visual register ([#74](https://github.com/earlyprototype/false-flag/issues/74), all options stay behind switches).
-- P1a gazetteer QA landed via PR #99; the remaining Manus queue stays in [#70](https://github.com/earlyprototype/false-flag/issues/70).
-- DTDLParser re-validation once `Theatre;1` is authored (dotnet 8 + DTDLParser 1.1.3 — the pass-2 probe recipe).
+- The globe plots static UK resource locations; it has no authoritative moving
+  red-force tracks.
+- The one session queue is destructive. Dashboard, dataflow, globe and future
+  VR subscribers currently steal events from one another.
+- The terminal CLI and static Pyodide browser each own their own engine session;
+  they are not observers of a FastAPI session.
+- The checked-in `frontend/` source has API calls, but its package metadata is
+  absent, so the documented Next.js start commands do not work from this tree.
+  It also omits the later-turn `POST /game/{session_id}/briefing` call required
+  for injects, effects and mandatory encounters after turn one.
+- No spatial-state model, kinematics module, theatre snapshot or validated
+  movement-order path exists.
+- No external live-data adapter exists.
+- No WebXR room or on-device Quest measurement exists.
 
-## How to resume without the current session
+These gaps are ordered and tested in [`PLAN.md`](../PLAN.md).
 
-Read, in order: this file → `XR_GLOBE_COMPONENT_MAP.md` (visual) → `XR_GLOBE_FEASIBILITY.md` (authority; §4a is the implementation spec, §3 the verified constraints) → `XR_GLOBE_FEASIBILITY_DISCARDS.md` (what was considered and cut, so it isn't relitigated). The raw agent outputs under `audits/` answer any "why" the docs compress.
+## Load-bearing implementation facts
 
-## Historical record: session close, 2026-08-28 (late)
+- Engine state remains the only authority. Displays hold read-only snapshots.
+- An LLM may emit a named movement order but never a coordinate. Gazetteer
+  hydration and deterministic kinematics are the only coordinate writers.
+- Failed movement interpretation creates no new order; the last validated
+  standing order remains active.
+- Live external facts may inform adviser context but never mutate metrics,
+  positions, orders or outcomes. The authoritative boundary is
+  [issue #77](https://github.com/earlyprototype/false-flag/issues/77).
+- Prompt use is still gated by the unresolved campaign-clock rule: current
+  observations must not be presented as facts from the October 2025 scenario.
+- The player experiences the live/fictional boundary spatially through the
+  exercise zone and fog, not through literal explanatory labels. Spectator and
+  recording surfaces retain diegetic `EXERCISE` marking.
+- REFEREE data is filtered server-side. Routing, prompt-edit and future movement
+  controls must not leave localhost without authentication.
+- Every `models/world.py` change requires rebuilding `docs/game.zip`.
+- Stable derived randomness uses `crc32`, never Python's process-salted
+  `hash()`.
+- Live-feed fixtures are for automated tests only. Runtime source failure is
+  visible; the application does not silently substitute fake live data.
 
-- **The seam (owner-confirmed)**: live-hybrid per-layer split; the game reads live-derived facts as context, never state — issue [#77](https://github.com/earlyprototype/false-flag/issues/77) (live-hybrid mode: real live data feeds with a carved-out game zone) is authoritative, including the **boundary-as-zone** design (no text labels on player surfaces; fog carries the reality boundary; diegetic EXERCISE chrome only where optics require) and the **live-first / no-fallback build posture** (non-determinism of play is the thesis; simulated modes are CI fixtures only; session journaling is AAR journalism, not replay-protection). Recorded demo film: **kept**, as hardware-catastrophe contingency only.
-- **Real-email inject artifact** (a game inject delivered as an actual email): issue [#76](https://github.com/earlyprototype/false-flag/issues/76), MVP-worthy.
-- **N1 (the movement-architecture decision) reframed mechanically** in issue [#71](https://github.com/earlyprototype/false-flag/issues/71) (should the AI's movement orders move your forces?) with the recommendation on record (orders on — completes the interpretation call the engine already runs and discards).
-- **Language ruling enforced repo-wide**: mechanical language only (what/how/why); truth/lie metaphors removed from all docs on both branches.
-- **Docs status at close**: study + map + in-brief + discards (PR #67) and owner's brief + this file + decision briefs (PR #69) all current. **Known stale**: the claude.ai artifact page (pre-dates the sprint-milestone rework, tonight's rulings, and the language sweep) — refresh it or retire it; the repo is the memory.
-- **Superseded after this pause**: the owner gave GO on 30 Aug, #71 settled the hybrid, and Stage 1 shipped in PR #95. Decisions [#72](https://github.com/earlyprototype/false-flag/issues/72)–[#75](https://github.com/earlyprototype/false-flag/issues/75) retain working defaults.
+## Current external facts
 
-## Planned DTDL additions (documented now, built at milestone M2)
+- Challenge submission is due 13 September 2026 at 14:00 Irish time.
+- The IMR regional demonstration is 14 September; the official pitch format is
+  seven minutes plus three minutes of questions.
+- Teams must contain 4–9 members including one team leader; current registration
+  compliance has not been recorded in this repository.
+- Unless an organiser maps FALSE FLAG to an official statement, it needs
+  mentor approval as an alternative Challenge entry. That approval and the
+  catalogue's wildcard evidence are not yet recorded.
+- The existing game predates the challenge period. Submission material must
+  distinguish it from work completed during 28 August–13 September.
 
-The digital-twin model on `main` (13 interfaces) is not modified; new capability lands as versioned sidecar interface files auto-served by `/dtdl`. Planned: `Theatre;1` (one per session, relating the session to its map entities) and `TheatreAsset;1` (one per unit; position record as telemetry with a source label: adjudicated / simulated / estimated) — both already proven to parse clean in Microsoft's official DTDLParser (study claim 6; re-run the validator when the files land). Existing slots reused rather than extended: `WorldReference.environmentalFactors` carries live-derived environment facts (issue [#77](https://github.com/earlyprototype/false-flag/issues/77)), and the `Inject` channel/targets already describe the real-email delivery (issue [#76](https://github.com/earlyprototype/false-flag/issues/76)). Published interface versions are never edited in place.
+Sources:
+[official Participant Playbook](https://docs.google.com/document/d/1bYT1itRT6h0YU4i8uGbEUK78dJYa6z561qSe6tjSkNs/edit?usp=sharing),
+[official Challenge Catalogue](https://docs.google.com/document/d/1D2rQhMPmqIFsCMyi_QPxVJCQQQYZ_phuHkdfz69UoX8/edit?usp=sharing), and
+[AICC event page](https://www.aicc.co/events/2026/september-2026/techireland-national-ai-challenge-2026).
 
-## Historical record: end of session, 2026-08-28 (night)
+## Resume order
 
-**Where the plan lives now**: `PLAN.md` at the repository root is canonical — five stages, build checklists, done tests, status table, gates, cut order. README links it from the top. The owner's brief, this file, the study (§7) and the component map (§5) all point at it; none of them restate it. **Update PLAN.md first, always.**
-
-**Repository state**
-- This 28 Aug snapshot is superseded by the current state above ("Where things stand").
-
-**Decisions and rulings recorded tonight**
-- #71 **closed**: the hybrid validated-order channel is selected. Failed calls issue zero new orders; standing orders and kinematics continue. Only scheduling decides when it is built (stage 5).
-- #77: live-hybrid seam confirmed as the design — per-layer real/simulated split, game reads live-derived facts as context and never as state; **boundary is spatial (a zone), never text labels**; fog carries it.
-- **Live-first build posture**: the demo runs the real system; simulated modes are CI fixtures only, never a runtime the build retreats to. Non-determinism of play is the project thesis, not a cost. Recorded demo film kept, for hardware failure only.
-- #76: real-email inject artifact, MVP-worthy.
-- Language rule: mechanical statements of what/how/why. No metaphor ("truth", "lie") anywhere in project docs.
-
-**Current correction:** [#72](https://github.com/earlyprototype/false-flag/issues/72) (geo files: SPLIT — scenario truth with the scenario, engine-derived with the tech, accounting across the seam) and [#74](https://github.com/earlyprototype/false-flag/issues/74) (visual register: all options stay live behind switches) are **ruled and closed**; [#73](https://github.com/earlyprototype/false-flag/issues/73) and [#75](https://github.com/earlyprototype/false-flag/issues/75) remain open. P1a from queue #70 landed via PR #99. Stage 1 is **DONE** — projector done-test passed 31 Aug.
-
-**Known stale**: the claude.ai artifact page predates the plan rework; refresh or retire it. The repository is the memory.
+1. Read [`PLAN.md`](../PLAN.md).
+2. Read this file.
+3. Read [`OWNERS_BRIEF.md`](OWNERS_BRIEF.md) for the plain-language product
+   extension.
+4. Use [`XR_GLOBE_COMPONENT_MAP.md`](XR_GLOBE_COMPONENT_MAP.md) for the current
+   data flow.
+5. Consult [`XR_GLOBE_FEASIBILITY.md`](XR_GLOBE_FEASIBILITY.md) only for the
+   technical evidence behind a decision; its dated analysis is not the current
+   schedule.
+6. Read the Kanbanger board through the MCP resource. If it reports the outer
+   `fogOfWar` folder rather than `false-flag/_kanban.md`, restart with the
+   project-scoped MCP binding; do not create or hand-edit another board. Once
+   correctly bound, reconcile the old #127 architecture-decision task with the
+   selected WebXR route and closed GitHub issue.

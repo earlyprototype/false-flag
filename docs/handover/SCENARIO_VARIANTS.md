@@ -1,5 +1,8 @@
 # Scenario Variants System
 
+> **Historical November 2025 feature snapshot.** Verify current behaviour
+> against the code and [BUILD_STATE.md](../BUILD_STATE.md).
+
 ## Overview
 
 The wargame now supports multiple scenario variants with different pacing and complexity levels. Players can choose their preferred experience at game start through an interactive menu.
@@ -16,7 +19,7 @@ The wargame now supports multiple scenario variants with different pacing and co
 
 **Features:**
 - Gradual escalation from diplomatic crisis to missile launch
-- 6 hours of in-game time before stochastic gameplay
+- Six scripted turns before stochastic gameplay
 - Full NATO consultation and diplomatic complexity
 - Detailed world-building and character development
 
@@ -43,7 +46,7 @@ The wargame now supports multiple scenario variants with different pacing and co
 
 **Features:**
 - Rapid escalation with breaking developments mid-turn
-- 3 hours of in-game time before stochastic gameplay
+- Three scripted turns before stochastic gameplay
 - All key narrative beats preserved but compressed
 - Faster path to player-driven emergent gameplay
 
@@ -75,7 +78,7 @@ SELECT SCENARIO
    Experience the full crisis as it unfolds over 6 scripted turns
    
    • Gradual escalation from diplomatic crisis to missile launch
-   • 6 hours of in-game time before stochastic gameplay
+   • Six scripted turns before stochastic gameplay
    • Full NATO consultation and diplomatic complexity
    
    Recommended for: First-time players, narrative focus
@@ -86,7 +89,7 @@ SELECT SCENARIO
    Compressed timeline - reach critical decisions faster
    
    • Rapid escalation with breaking developments mid-turn
-   • 3 hours of in-game time before stochastic gameplay
+   • Three scripted turns before stochastic gameplay
    • All key narrative beats preserved but compressed
    
    Recommended for: Experienced players, replay value, time-limited sessions
@@ -184,7 +187,7 @@ Fast Start compresses 6 turns into 3 without sacrificing world-building by:
 ### What's Different
 
 - **Pacing:** 2 crisis moments per turn instead of 1
-- **Timeline:** 3 hours to missile launch vs 10 hours
+- **Missile launch:** Turn 3 instead of Turn 5
 - **Breathing room:** Less time between decisions
 - **Urgency:** Breaking developments feel more immediate
 

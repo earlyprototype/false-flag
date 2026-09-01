@@ -1,4 +1,7 @@
 # PLAYTEST FEEDBACK REPORT
+
+> **Historical playtest — 8 November 2025.** Defect status and priorities below
+> must not be treated as current. See [BUILD_STATE.md](../BUILD_STATE.md).
 **Session Date**: Saturday, November 8, 2025  
 **Tester**: Primary Developer  
 **Build**: Dynamic Narrative System - Phase 3 Complete  

@@ -6,12 +6,12 @@ re-derived in conversation. Each brief states what the element is, its role
 here, verified integration facts, constraints and risks, and the current
 decision state.
 
-Facts verified against the repo as of 1 Sep 2026 — version-pinned details
-(CesiumJS versions, Quest Browser versions, ruling dates) may age; each brief
-cites its sources so they can be re-checked.
+Facts verified against the repo as of 1 Sep 2026. External platform support and
+provider terms may change; each active claim links to a primary source or a
+project decision so it can be re-checked.
 
-- [WEBXR.md](WEBXR.md) — browser-delivered VR: option B of open route decision #127, its strengths, and its three known weaknesses.
-- [CESIUM.md](CESIUM.md) — the globe engine: exactly how the shipped `/globe` page uses CesiumJS today, and the in-room-screen question on each VR route.
-- [CONVAI.md](CONVAI.md) — the avatar embodiment layer, never the brain: puppet mode vs conversational mode, SDK facts, and the cloud dependency.
-- [QUEST3.md](QUEST3.md) — Meta Quest 3 hardware facts, sourcing state (#75), and what to plug in on day one.
-- [SERVER_STREAMING.md](SERVER_STREAMING.md) — the laptop FastAPI server as the spine: how surfaces attach, the destructive single-consumer stream limit, and Stage 3's planned fan-out.
+- [WEBXR.md](WEBXR.md) — selected portable room route and the measured local-quad-layer versus streamed-screen fork.
+- [CESIUM.md](CESIUM.md) — the globe engine: exactly how the shipped `/globe` page uses CesiumJS today and its role in the selected WebXR screen path.
+- [CONVAI.md](CONVAI.md) — optional future embodiment service; not a dependency of the current room.
+- [QUEST3.md](QUEST3.md) — Meta Quest 3 hardware facts, sourcing state (#75), and the on-device measurement procedure.
+- [SERVER_STREAMING.md](SERVER_STREAMING.md) — which surfaces really share an API session, the destructive single-consumer defect, and Slice 1's fix.

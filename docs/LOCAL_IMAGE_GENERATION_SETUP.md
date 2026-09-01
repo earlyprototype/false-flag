@@ -1,5 +1,10 @@
 # 🎨 Local Image Generation Setup Guide
 
+> **Historical machine-specific research — November 2025.** The hardware
+> inventory, performance estimates, filesystem paths and asset-progress claims
+> below were never maintained as project state. Re-check the actual machine and
+> current upstream installation instructions before using any option here.
+
 Complete guide for running AI image generation locally on your Windows 10 system with 16GB RAM and 12-core Intel i5.
 
 ## 🔍 System Analysis

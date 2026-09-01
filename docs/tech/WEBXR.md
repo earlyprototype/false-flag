@@ -1,59 +1,94 @@
-# WebXR
+# WebXR Operations Room
 
-WebXR is the W3C browser API for immersive experiences: a web page served over
-HTTPS can enter a full VR (or AR) session on a headset directly from the
-headset's browser. Nothing is installed on the device; the room is a URL.
+WebXR is the browser API used for the portable FALSE FLAG operations room. A
+headset opens the room from the laptop server; the room observes the same game
+session as the globe and dashboard.
 
-## Role in this project
+## Selected build route
 
-WebXR is **option B of the open VR route decision (issue #127)**: the
-browser-delivered walk-in room. The owner's recorded vision (proposed
-1 Sep 2026): you walk into a room with a screen; the advisors sit in the
-seats; the screen loads the data layer virtually — delivered through the
-headset's browser, nothing installed, continuous with the existing web stack
-(the CesiumJS globe page, the Convai Web SDK, the same laptop server).
-Option A is a Unity-native installed app. Both options render the same room
-experience; #127 decides only the engine and delivery path.
+The current build order supersedes the earlier open-ended Unity-versus-WebXR
+comparison in issue #127:
 
-## Strengths
+1. Build a portable three.js/WebXR room with a world-locked situation screen.
+2. Measure it on the real Quest.
+3. If local globe rendering meets the recorded device budget, use an
+   `XRQuadLayer` for the screen.
+4. Otherwise keep the same room and use a server-rendered H.264/WebRTC video
+   source on a media quad layer.
 
-- **Standalone delivery.** The headset's browser opens a URL on the laptop
-  server. No build step, no store, no install on the device.
-- **Continuity with the web stack.** This is a Python/web repo. The globe
-  page, the streaming endpoints and the dashboards already exist as web
-  surfaces; a WebXR room extends them rather than adding a second toolchain,
-  and iteration stays a page refresh.
+This decision selects WebXR for the room. The device measurement selects only
+the screen source. The 1 September 2026
+[owner ruling](https://github.com/earlyprototype/false-flag/issues/127#issuecomment-5498505180)
+is also recorded in [`DECISION_BRIEFS.md`](../DECISION_BRIEFS.md). Issue #127
+is closed and remains useful as history, but it no longer defines the current
+route.
 
-## The three known weaknesses
+## Why the room extends the game
 
-1. **Browser session lifecycle.** A browser VR session does not survive
-   headset sleep or a page reload the way an installed app does. Re-entry
-   after sleep/reload must be rehearsed before live use.
-2. **Performance ceiling.** A browser-delivered room runs below what a
-   native app can do on the same headset.
-3. **The globe-on-a-screen integration.** CesiumJS is not VR-native: the
-   library has no WebXR mode (none as of CesiumJS 1.144; the proof-of-concept
-   PR #11372 in the CesiumJS repo is unmerged — `docs/XR_GLOBE_FEASIBILITY.md`,
-   claim 1). The globe must render to an offscreen canvas that is textured
-   onto the in-room monitor mesh. This integration needs a proof of concept.
+- The campaign still runs in the existing engine.
+- Adviser presence and dialogue come from the real campaign transcript.
+- The situation screen displays the same session-scoped snapshot as the
+  projector globe.
+- VR does not create a second simulation or delegate adviser reasoning to an
+  avatar service.
 
-## Verified supporting facts (`docs/XR_GLOBE_FEASIBILITY.md`)
+## Portable screen
 
-- **Render-loop ownership.** `window.requestAnimationFrame` is not guaranteed
-  to fire during an immersive session on standalone headsets. Cesium must run
-  with `useDefaultRenderLoop: false` and have `viewer.render()` driven from
-  `xrSession.requestAnimationFrame`, or the globe silently freezes in-headset.
-- **Crisp text on the in-room screen.** Meta Quest Browser (≥16.1) supports
-  XRQuadLayer: the compositor resamples the panel once, giving materially
-  crisper text on a label-heavy screen. Desktop Chrome ships only
-  XRProjectionLayer, so quad-layer benefits are Quest-only.
-- **Unproven on-device performance.** CesiumJS running flat in the Quest
-  browser at usable framerates is unproven; the feasibility study gates the
-  local in-headset variants on an on-device check. The first smoke test in
-  [QUEST3.md](QUEST3.md) answers exactly this.
+CesiumJS has no supported immersive-WebXR globe mode. Its upstream
+[WebXR implementation remains an open proof-of-concept PR](https://github.com/CesiumGS/cesium/pull/11372), so
+the first build uses its ordinary canvas as the source for a screen inside the
+three.js room.
 
-## Decision state
+Two implementation constraints from the feasibility study remain load-bearing:
 
-Open — issue #127 (VR room delivery route: Unity-native or WebXR walk-in).
-No default applies; the owner rules when ready. The hardware that would prove
-either route is tracked in #75 (see [QUEST3.md](QUEST3.md)).
+- The immersive session owns animation timing. Cesium rendering must be driven
+  from the XR session's animation frame while immersive mode is active.
+- The canvas-to-texture update must occur in the same rendering task, or use an
+  explicitly preserved buffer, so the copied frame is defined.
+
+These are implementation constraints to prove in the portable build—not a
+reason to choose the final screen source in advance.
+
+## Quad-layer branch
+
+An `XRQuadLayer` is a flat world-space composition layer. The compositor can
+keep text and maps at a different resolution from the main eye buffer and
+avoid unnecessary resampling. This is why it is the preferred branch if local
+rendering passes the Quest measurement.
+
+Primary source:
+[WebXR Layers API Level 1](https://immersive-web.github.io/layers/), sections
+“Introduction,” “XRQuadLayer,” and “Application flow.” Browser support remains
+limited and must be tested on the target Quest rather than inferred from the
+specification.
+
+## Streamed-source branch
+
+If local globe rendering misses the measured device budget, the laptop renders
+the screen and sends H.264 video over WebRTC to a media quad layer. Only screen
+content is streamed; head tracking and the room remain local. Any returned
+input is an authenticated control surface.
+
+## Device acceptance measurements
+
+Record:
+
+- frame rate and frame time;
+- thermal behaviour over the intended session;
+- text and map-label legibility;
+- screen-input latency;
+- reconnect behaviour after headset sleep or page reload;
+- comfort and accessibility with motion and flicker controls.
+
+The recorded result—not preference—selects the quad-layer or streamed-source
+branch.
+
+## References
+
+- [Canonical VR slice](../../PLAN.md#4--quest-ops-room-display)
+- [Full feasibility evidence, “VR: the ops room”](../XR_GLOBE_FEASIBILITY.md#6-vr-the-ops-room)
+- [Quest device brief](QUEST3.md)
+- [WebXR Layers specification](https://immersive-web.github.io/layers/)
+- [WebXR layer samples](https://immersive-web.github.io/webxr-samples/layers-samples/)
+- [Meta Quest Browser overview](https://developers.meta.com/horizon/documentation/web/)
+- [Meta Quest Browser feature-detection guidance](https://developers.meta.com/horizon/documentation/web/browser-specs/)

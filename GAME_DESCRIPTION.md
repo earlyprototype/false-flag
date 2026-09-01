@@ -43,7 +43,10 @@ Each turn represents a critical decision point in the escalating crisis. The gam
 #### 4. **Adjudication Phase**
 - Your decision is executed
 - Metrics update based on outcomes
-- World state changes (flags, postures, spatial elements)
+- World state changes (metrics, flags, postures, relationships and campaign memory)
+- Authoritative moving-unit state is planned in the current Situation Globe
+  build and is not implemented yet; the existing `spatial_state` field is only
+  a legacy named-location placeholder
 - See consequences ripple through the scenario
 - Turn advances
 
@@ -120,7 +123,8 @@ clamped to -10..+10, and is currently informational only.
 - Civilian casualties
 - Flags (e.g., `public_awareness`, `us_commitment`)
 - Force postures (e.g., readiness states, deployments)
-- Spatial state (unit locations, asset status)
+- Legacy named-location groupings in `spatial_state`; authoritative tracks and
+  movement orders are specified in [PLAN.md](PLAN.md#2--spatial-decision-loop)
 
 ### 🎲 **Hybrid Inject System**
 
@@ -178,7 +182,7 @@ Press SPACE during scrolling to skip to the end of the current scene. Press SPAC
 
 ### LLM Integration
 
-The game uses **Google Gemini 2.5 Flash** (configurable) for:
+The game uses a configurable LLM provider for:
 
 - **Player action interpretation**: Understanding complex, natural language decisions
 - **Advisor response generation**: In-character, contextual, non-meta responses
@@ -186,7 +190,9 @@ The game uses **Google Gemini 2.5 Flash** (configurable) for:
 - **Diplomatic counterpart simulation**: Roleplaying foreign leaders/diplomats
 - **Outcome assessment**: Analyzing conversation results and metric impacts
 
-**Context Window**: Leverages Gemini's 1M token context to include full game history, ensuring advisors remember previous discussions and decisions.
+**Campaign context**: prompts use bounded transcript and campaign-memory
+sections rather than claiming to send unlimited full history. Provider and
+model choices are documented in [docs/LLM_PROVIDERS.md](docs/LLM_PROVIDERS.md).
 
 **Safety Settings**: Configured to handle mature content appropriate for a military-political crisis simulation.
 
@@ -201,8 +207,9 @@ class WorldState:
     metrics: Metrics
     flags: Dict[str, Any]
     posture: Dict[str, Any]
-    spatial_state: Dict[str, Any]
+    spatial_state: Dict[str, List[str]]  # legacy named-location grouping
     discussion_transcript: List[str]
+    recent_injects: List[str]
     diplomatic_relationships: Dict[str, int]
 ```
 
@@ -281,41 +288,9 @@ Every decision involves trade-offs:
 
 ## Installation & Setup
 
-### Requirements:
-- Python 3.10+
-- Google Gemini API key (or compatible LLM)
-- Windows, Linux, or macOS (input handling is cross-platform — see the
-  README quickstart for both PowerShell and bash setups)
-
-### Quick Start:
-
-```bash
-# Clone repository
-git clone [repository-url]
-cd wargame
-
-# Create virtual environment
-python -m venv .venv
-.venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure API key
-# Edit config.py with your Gemini API key
-
-# Run the game
-python -m cli.main play
-```
-
-### Configuration:
-
-Edit `config.py`:
-```python
-GOOGLE_API_KEY = "your-api-key-here"
-GEMINI_MODEL = "gemini-2.5-flash"  # or gemini-2.5-pro for higher quality
-GEMINI_MAX_TOKENS = 4096  # Max tokens per LLM response
-```
+Use the maintained [README quickstart](README.md#quickstart). No API key is
+required for deterministic mock play. Current hosted and local provider options
+are documented in [docs/LLM_PROVIDERS.md](docs/LLM_PROVIDERS.md).
 
 ---
 
@@ -341,9 +316,9 @@ The game respects player intelligence while challenging assumptions. Advisors wi
 Based on **"The Wargame"** podcast series, which simulates realistic crisis scenarios with expert participants.
 
 ### Development:
-- **Game Design & Implementation**: AI-assisted development using Claude Sonnet 4.5
+- **Game Design & Implementation**: AI-assisted development
 - **Scenario Content**: Inspired by the podcast's scenarios, real-world wargaming research, and historical crises
-- **LLM Integration**: Google Gemini 2.5 Flash
+- **LLM Integration**: configurable hosted, local and deterministic drivers
 - **Framework**: Python, Typer, Pydantic, YAML
 
 ### Special Thanks:
@@ -359,7 +334,6 @@ Potential expansions (not yet implemented):
 
 - **Multiplayer Mode**: Player as PM, AI or human as Russian President
 - **Campaign Mode**: Multiple linked scenarios (Ukraine, Taiwan, Arctic, etc.)
-- **Advanced Graphics**: Terminal UI → Rich/Blessed → GUI
 - **Modding Support**: Community-created scenarios and episodes
 - **Historical Scenarios**: Cuban Missile Crisis, Suez Crisis, Falklands War
 - **AI Director**: Dynamic difficulty adjustment based on player performance
@@ -385,15 +359,16 @@ Potential expansions (not yet implemented):
 
 ## License
 
-[To be determined based on your preferences]
+[MIT](LICENSE)
 
 ---
 
 ## Contact & Contribution
 
-[Your contact information / contribution guidelines if you want to open source]
+Use the repository's [GitHub issues](https://github.com/earlyprototype/false-flag/issues)
+for defects and proposals. Current build status is maintained in
+[docs/BUILD_STATE.md](docs/BUILD_STATE.md).
 
 ---
 
 **The crisis has begun. Your advisors are waiting. What will you decide?**
-

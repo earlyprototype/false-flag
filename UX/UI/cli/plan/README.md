@@ -1,4 +1,8 @@
 # CLI Development Documentation
+
+> **Archived planning set.** Phase and “ready to start” claims below are not
+> current. Use [`docs/BUILD_STATE.md`](../../../../docs/BUILD_STATE.md) and the
+> root [`README.md`](../../../../README.md).
 **FALSE FLAG: THE WARGAME - Terminal Interface**
 
 ---

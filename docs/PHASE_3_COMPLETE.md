@@ -1,5 +1,8 @@
 # Phase 3 Complete: Dynamic Narrative System Fully Operational
 
+> **Historical feature milestone.** Verify current behaviour and open defects
+> against [`BUILD_STATE.md`](BUILD_STATE.md), tests and GitHub issues.
+
 ## Executive Summary
 
 The Dynamic Narrative System has been **fully implemented and integrated** across all LLM agents in the wargame. The game now supports multiple "secret truths" that guide agent behavior, creating unique, replayable experiences where players must deduce what's really happening from the subtle behavior of foreign leaders, advisors, and dynamically generated events.

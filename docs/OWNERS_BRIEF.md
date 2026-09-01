@@ -1,50 +1,132 @@
-# The Owner's Brief — the Situation Globe, in plain language
+# Owner's Brief — Situation Globe and VR Operations Room
 
-*This is the translation layer. The other documents are deliberately dense — they exist so no engineer (human or AI) ever loses the thread between sessions. **This one is for you and anyone new to the project.** Plain here means mechanically concrete, not vague: every section says what actually exists, what changes it, and links to the deep version.*
+This is the plain-language explanation. The canonical sequence and done tests
+live in [`PLAN.md`](../PLAN.md); current engineering truth lives in
+[`BUILD_STATE.md`](BUILD_STATE.md).
 
-**Drill-down map**: [findings in plain language](XR_GLOBE_FEASIBILITY_IN_BRIEF.md) · [full technical study](XR_GLOBE_FEASIBILITY.md) · [visual component map](XR_GLOBE_COMPONENT_MAP.md) · [open decisions and research](https://github.com/earlyprototype/false-flag/issues) · [`BUILD_STATE.md`](BUILD_STATE.md) · [`DECISION_BRIEFS.md`](DECISION_BRIEFS.md)
+## What stays central
 
----
+FALSE FLAG is already the game: the Prime Minister receives a crisis briefing,
+questions five cabinet advisers, handles diplomatic pressure, makes a
+free-form decision, receives pushback, and lives with the adjudicated
+consequences over multiple turns.
 
-## What we're building, in one paragraph
+The new work does not replace that experience. It makes the same campaign
+spatial, connected to bounded live context, and present inside a VR operations
+room.
 
-Right now, between turns, the game goes quiet — the cabinet argues, and nothing moves. We're adding **a live map of the war**: a satellite Earth on a big screen where the Russian Northern Fleet visibly sails toward Scotland while the players deliberate. The player's screen draws the *intelligence estimate* of enemy positions (fuzzy circles that sharpen when they task patrol aircraft); the facilitator's screen draws the *actual stored positions*. When the fleet crosses a line that matters — into the GIUK gap, within missile range of London — the game notices at the start of the next turn and makes it that turn's news.
+Source: [README — What Happens in a Session](../README.md#what-happens-in-a-session).
 
-## The two parts, mechanically
+## What the build adds
 
-**1 · The screen** — a single web page, served the same way our existing dashboard is, that draws the game's state on a satellite Earth. It adds visual filters borrowed from the gods-eye-view project (clean satellite → CRT → night-vision → thermal, switched by the escalation score the game already computes), scripted camera moves when events land, and a permanent EXERCISE watermark. It only ever *displays* data; it cannot change the game. *(Deep: [study, Track A](XR_GLOBE_FEASIBILITY.md#4-track-a--presentation-architecture) · [map, diagram 1](XR_GLOBE_COMPONENT_MAP.md#1--system-overview--what-talks-to-what).)*
+### A shared live campaign
 
-**2 · The position system** — a small new piece of game state. Concretely:
+The player, dashboard, globe and VR room observe one game session. Each screen
+gets its own copy of permitted events, so opening a second display cannot steal
+updates from the first.
 
-- A **lookup table** of ~30 real places (Faslane, the GIUK gap, Severomorsk…) with hand-checked coordinates. Authored locations originate here; movement arithmetic derives positions between them.
-- **One new record per unit** in the saved game: latitude, longitude, heading, speed, and its current order (e.g. "transit to GIUK_gap at cruise speed").
-- Positions update at **exactly one moment each turn** — when the turn resolves — by ordinary movement arithmetic: speed × time along a pre-drawn route. No randomness, no AI, in that step.
-- The AI's only involvement is the validated order channel settled in closed issue [#71](https://github.com/earlyprototype/false-flag/issues/71): after a decision it may emit text orders in a fixed format, e.g. `ORDER: HMS_Prince_of_Wales | transit | GIUK_gap | cruise`. The game checks every order against the fixed unit list and the lookup table. Clean parses apply; partial parses apply valid lines and visibly skip bad lines; empty, truncated, or failed calls issue zero new orders, every unit continues its last validated standing order, and kinematics advances. The AI never writes numbers.
-- **Consequence of this design**: a bad call can neither freeze nor invent a position. That's the whole safety argument, and it's structural, not a promise.
+Today this is not true: the API session has one destructive queue, while the
+terminal and static browser run separate engine instances. The build must prove
+the shared path before claiming “one engine, many surfaces.”
 
-*(Deep: [study, Track B — the full spec](XR_GLOBE_FEASIBILITY.md#4a-track-b--the-authoritative-spatial-layer) · [map, diagram 2 — the order pipeline](XR_GLOBE_COMPONENT_MAP.md#2--track-b-mechanism--how-a-position-gets-written-and-why-no-failure-path-can-write-an-invented-one) · the save-file and turn-timing behaviour were verified by running the real engine code — [findings 9 & 10](XR_GLOBE_FEASIBILITY_IN_BRIEF.md).)*
+### Campaign geography
 
-## The plan
+Every relevant unit receives a stored track. Authored places come from a
+checked gazetteer; deterministic movement arithmetic advances units along
+authored routes once per turn. The player sees intelligence estimates where
+appropriate; the facilitator may see stored positions.
 
-**The plan lives in one place: [PLAN.md](../PLAN.md)** — five stages, each with what gets built, the observable fact that proves it works, and its current status. It is the single source; this brief explains *what the thing is*, the plan says *what happens next and where we are*.
+The player's decision can produce a bounded movement order, but the model never
+writes coordinates. It may name a known unit, mission, destination and speed
+band. The engine validates that text and ordinary kinematics writes the next
+position. A bad reply creates no new order and cannot invent a location.
 
-The five stages in one line each: **1 First Light** — the map page exists and shows your forces · **2 The Fleet Moves** — units get real positions that advance each turn · **3 Standards on the Glass** — the map reads the digital-twin model and many screens can watch · **4 Show-Safe** — the demo runs to a written sequence without improvisation · **5 The Cabinet Orders the Map** — your decision text moves the forces. Then the Afterwards tier — scheduled only when you say so.
+Source: [owner decision #71](https://github.com/earlyprototype/false-flag/issues/71).
 
-The owner's **GO was given 30 Aug**. Stage 1 shipped in [PR #95](https://github.com/earlyprototype/false-flag/pull/95) and is **DONE — the projector done-test passed 31 Aug** ([#94](https://github.com/earlyprototype/false-flag/issues/94), closed). `main` also carries #96–#99 and #101–#108 (advisor fixes, dashboard usability, the research salvage, the in-repo kanban board, the CI pipeline, and three Stage-1 follow-ups).
+### Live external context
 
-## The open questions
+The globe also receives genuinely live, fiction-neutral context. Weather is the
+first feed; a bounded civilian-flight layer follows after its provider terms are
+cleared.
 
-Each is a GitHub issue — answer by commenting and closing; each has a safe default if you stay silent. Ruled and closed so far: **#72** (geo files: split — scenario truth with the scenario, engine-derived with the tech) and **#74** (all visual-register options stay live behind switches; revisit late dev).
+Real feeds and fictional campaign entities remain separate. Outside the
+exercise zone the real picture is visible; inside it the game's consequential
+layers own the picture and fog carries the transition. Live facts may inform an
+adviser's environmental context, but they never directly change a metric,
+position, order or outcome.
 
-1. **[#73 — Which campaign cut do the users watch?](https://github.com/earlyprototype/false-flag/issues/73)** (full slow-burn vs quick-start; we can time both and pick)
-2. **[#75 — Is a Meta Quest VR headset available?](https://github.com/earlyprototype/false-flag/issues/75)** (a plain yes/no to record on the issue)
+One framing choice remains open before weather enters dialogue: the shipped
+campaign is dated October 2025 while a live feed is observed now. The owner must
+either rebase the campaign date, define current conditions as a present-day
+exercise baseline, or keep them spectator-only. The UI and prompt must never
+present one date as the other.
 
-Movement design issue [#71](https://github.com/earlyprototype/false-flag/issues/71) is closed: validated orders are on. The research task queue lives in [#70](https://github.com/earlyprototype/false-flag/issues/70).
+Source: [owner decision #77](https://github.com/earlyprototype/false-flag/issues/77).
 
-## Glossary
+### The VR operations room
 
-- **Gazetteer** — the ~30-place lookup table for authored locations; movement arithmetic derives positions between them.
-- **Digital twin / DTDL** — a Microsoft standard for describing a system as structured data. The game already models itself this way (merged today); the map becomes a display of that model. IMR's home field.
-- **Tripwire** — a line or circle on the map the game checks once per turn; a crossing becomes that turn's event.
-- **Fog of war** — players see estimates (last confirmed position + a circle that grows with staleness); the facilitator sees the stored positions.
-- **Position labels** — every dot on the map carries how it was produced: *updated this turn by the movement step*, *projected forward between turns*, or *estimate shown to the player*. Nothing displays without one.
+The VR build puts the existing campaign into a three.js/WebXR room. The
+situation globe is a world-locked screen; adviser presence and dialogue are
+driven by the real campaign transcript.
+
+The order is fixed:
+
+1. Build the portable room and screen.
+2. Measure that build on the real Quest.
+3. If local rendering meets the measured budget, use an `XRQuadLayer`.
+4. Otherwise keep the room and feed the screen from a server-rendered
+   H.264/WebRTC stream.
+
+The measurement selects where the screen pixels are produced. It does not
+change the game, room or session contract.
+
+[Owner ruling](https://github.com/earlyprototype/false-flag/issues/127#issuecomment-5498505180);
+technical source: [WebXR Layers specification](https://immersive-web.github.io/layers/).
+
+## Assessment of the route
+
+| Slice | Value added | Assessment |
+|---|---|---|
+| Multi-client Session Streaming | Makes the played campaign, globe, dashboard and VR room agree instead of silently stealing events from one another. | Correct first dependency. First select and complete one API-backed player; streaming alone cannot prove this slice. Do not build two players. |
+| Spatial Decision Loop | Turns the globe into gameplay: decisions move forces and geography can create later consequences. | Highest direct game value. The bounded-order and deterministic-coordinate route protects the simulation from model invention. |
+| Live Context Integration | Makes the fictional crisis feel situated in the present world and gives advisers grounded environmental context. | Valuable only with a hard boundary. Weather first is the useful low-risk proof; civilian flights wait for provider permission. |
+| Quest Ops-Room Display | Makes the existing cabinet game spatially present without creating a second game. | Correct route. Build the portable screen, measure the real headset, then choose the rendering path from evidence. |
+| Demonstration Reliability and Submission | Proves the complete game survives presentation conditions and makes the Challenge contribution legible. | Essential throughout the build, not a final polish phase. The authentic turn remains the test. |
+
+Overall, this route adds value because every slice strengthens the existing
+decision loop. If a proposed task cannot improve that loop, make it more
+legible, or make it more reliable, it does not belong in this build.
+
+## What a complete demonstration is
+
+It is one authentic FALSE FLAG turn:
+
+1. Briefing with relevant live context.
+2. Cabinet questioning, disagreement and pushback.
+3. Diplomatic pressure where the campaign calls for it.
+4. A free-form player decision.
+5. Interpretation and adjudication by the existing engine.
+6. Consequences visible in campaign state, on the globe and in the VR room.
+7. The following turn begins from those consequences.
+
+The dashboard may explain calls, sources and state changes, but it supports the
+game; it is not the product.
+
+## What exists now
+
+- The full game loop, adviser system, diplomacy, adjudication and save/load are
+  built.
+- The Cesium globe is built and passed its projector test on 31 August 2026.
+- Multi-subscriber streaming, moving tracks, live feeds and the VR room are not
+  built yet.
+
+Detailed status: [`BUILD_STATE.md`](BUILD_STATE.md).
+
+## Reference map
+
+- [Canonical plan](../PLAN.md)
+- [Current engineering state](BUILD_STATE.md)
+- [Current component map](XR_GLOBE_COMPONENT_MAP.md)
+- [Full feasibility evidence](XR_GLOBE_FEASIBILITY.md)
+- [Plain feasibility findings](XR_GLOBE_FEASIBILITY_IN_BRIEF.md)
+- [Technology briefs](tech/README.md)

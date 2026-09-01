@@ -1,5 +1,9 @@
 # Handover — delivery system + PM session, 31 Aug–1 Sep 2026
 
+> **Delivery-system history.** Its process evidence remains useful, but its
+> product sequence and challenge dates are superseded by
+> [`PLAN.md`](../../PLAN.md) and [`BUILD_STATE.md`](../BUILD_STATE.md).
+
 **Read this if you are picking up the PM role** (orchestrating work on this
 repo) in a fresh session. It records the delivery system built across 31
 Aug–1 Sep, the operating agreement with the owner, the exact state at
@@ -90,7 +94,7 @@ all fixed before merge. No false blocks so far.
 
 ## 3 · State at handover (1 Sep 2026)
 
-**Stage 1 · First Light is DONE** — projector done-test passed 31 Aug
+**Globe Display is DONE** — projector done-test passed 31 Aug
 (#94 closed; PLAN.md current). The globe has FLIR + CRT filter switches
 (#74 ruling: all options stay live) and manual zoom controls (#107/#108).
 
@@ -112,7 +116,7 @@ all fixed before merge. No false blocks so far.
 first — #90 item 3 duplicates #88's per-advisor deltas). #89 is a complete
 evidence-backed work order (scope to one game type + Mystery, gate-don't-
 delete, own branch, done tests in the issue) — solo dispatch, it crosses
-~29 files; one engine-touching build at a time. Stage 2 build cites the
+~29 files; one engine-touching build at a time. Spatial Decision Loop work cites the
 #72 ruling (SPLIT: scenario-truth geography with the scenario,
 engine-derived with the tech, accounting across the seam in CI).
 
@@ -155,7 +159,7 @@ hide real bugs); Sol's 12 Windows-only test failures (EOL/env class);
 2. Owner: create the main ruleset (`checks` + `review`; bypass per §1) —
    closes the instant-merge hole.
 3. Resolve the #88/#90 boundary, then dispatch #88.
-4. Schedule #89 (solo, own branch), then Stage 2 per PLAN.md.
+4. Schedule #89 (solo, own branch), then the Spatial Decision Loop per PLAN.md.
 5. Owner decisions when convenient: #73, #75; approve or return the two
    no-PR REVIEW cards.
 
@@ -186,7 +190,9 @@ hide real bugs); Sol's 12 Windows-only test failures (EOL/env class);
   board-as-execution-queue-only convention is dead. Placeholder scaffold
   lines are deleted from all five columns.
 - **Streams in card titles**: Advisors / Globe / Show-Safe / Delivery /
-  Prompts / XR. Stream prefixes describe what work is, never when.
+  Prompts / XR. The legacy Show-Safe prefix maps to Demonstration Reliability
+  and Submission in the current plan. Stream prefixes describe what work is,
+  never when.
 - **Identity is structural** (#132): speaker known by construction under
   the fan-out, addressee captured by selection, the keyword router is to
   be deleted not patched; validation survives only where LLM text becomes
@@ -207,7 +213,7 @@ hide real bugs); Sol's 12 Windows-only test failures (EOL/env class);
   before re-deriving any of that in conversation.
 
 **Decisions moved today.** #72 ruled (split), #74 ruled (all options stay
-behind switches), #94 closed (Stage 1 DONE), #83/#100/#102/#107/#109/#128
+behind switches), #94 closed (Globe Display DONE), #83/#100/#102/#107/#109/#128
 closed. Open with owner: #73 (both cuts now timeable), #75 (Quest 3
 sourcing — a contact is being asked; ask for "Meta Quest 3", Quest 3S
 acceptable), #127 (VR room route: Unity-native vs the owner's WebXR
@@ -216,7 +222,8 @@ fact on the issue: EIGHT country stances per narrative, not four).
 
 **Next actions, in order.**
 1. Reconcile PR #123 when it lands (procedure above).
-2. Dispatch the Show-Safe stream — it is the under-worked stream relative
+2. Dispatch the Show-Safe board stream (Demonstration Reliability and
+   Submission in the current plan) — it is under-worked relative
    to the 12 Sep onsite: Windows suite triage, Ctrl-C turn loss (#18),
    the three information leaks, the CRLF bundle fix.
 3. Resolve the #88/#90 boundary; then #88, designed with #132.
