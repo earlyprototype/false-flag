@@ -1172,11 +1172,17 @@ def _extract_tasked_forces(action: str) -> str:
         r"order|position|put|ready|retask|scramble|send|station|surge|task|"
         r"use(?!\s+of force\b))\s+"
         r"(.+?)(?=\s+(?:at|for|in|into|near|off|on|over|to|toward|towards|under)\b|"
-        r"[,;.]|$)",
+        r"[;.]|$)",
         action,
         re.IGNORECASE,
     )
-    forces = [" ".join(match.group(1).split()).strip(" \"'") for match in matches]
+    forces = []
+    for match in matches:
+        if re.search(
+                r"\b(?:do not|don['’]t|never|refuse to|without|avoid)\s*$",
+                action[:match.start()], re.IGNORECASE):
+            continue
+        forces.append(" ".join(match.group(1).split()).strip(" \"'"))
     return ", ".join(force for force in forces if force) or "None specified"
 
 
@@ -1237,9 +1243,10 @@ class MockDeterministicDriver:
         if "interpret this action" in prompt_lower:
             decided = _extract_quoted_prompt_value(
                 prompt, "the prime minister has decided:", "IMPORTANT:")
-            summary = " ".join(decided.split()) if decided is not None else \
+            normalised_decision = " ".join((decided or "").split())
+            summary = normalised_decision if decided is not None else \
                 "Deploy naval and air assets to defensive posture"
-            forces = _extract_tasked_forces(decided or "")
+            forces = _extract_tasked_forces(normalised_decision)
             return (f"INTERPRETATION: {summary}\n"
                     f"FORCES INVOLVED: {forces}\n"
                     "RESOURCES CONSUMED: Minimal (patrol operations)\n"

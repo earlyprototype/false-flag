@@ -786,6 +786,46 @@ def test_mock_interpretation_is_honest_when_no_force_is_tasked():
     assert parse_interpretation_simple(response)["forces"] == ["None specified"]
 
 
+def test_mock_interpretation_keeps_a_multiline_force_package():
+    driver = MockDeterministicDriver()
+    action = ("Deploy P-8 patrols and\nType 23 frigates to track Russian "
+              "submarines.")
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == [
+        "P-8 patrols and Type 23 frigates"]
+
+
+def test_mock_interpretation_keeps_comma_separated_force_packages():
+    driver = MockDeterministicDriver()
+    action = ("Deploy Type 45 destroyers, Type 23 frigates and P-8 patrols "
+              "to monitor the GIUK gap.")
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == [
+        "Type 45 destroyers", "Type 23 frigates and P-8 patrols"]
+
+
+def test_mock_interpretation_does_not_task_a_negated_force():
+    driver = MockDeterministicDriver()
+    action = "Do not deploy the carrier; consult NATO allies."
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+
+
 def test_pushback_decision_extraction_survives_newlines():
     driver = MockDeterministicDriver()
     action = "Authorise nuclear\nfirst use."
