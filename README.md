@@ -306,7 +306,8 @@ New here? **[Read the plain-English guide](docs/CONTROL_SURFACE_GUIDE.md)** firs
 what each page is for and how to use it, no jargon. What follows is the
 quick technical reference.
 
-A FastAPI server exposes the engine for facilitators and observers:
+A FastAPI server exposes the engine for facilitators and observers. Install the
+pinned core and API dependency sets together:
 
 ```bash
 pip install -r requirements.txt -r api/requirements.txt
