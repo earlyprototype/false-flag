@@ -51,12 +51,12 @@
 ## DOING
 
 ## REVIEW
-*   [ ] Audit runtime prompt quality and regression evidence (#83) - https://github.com/earlyprototype/false-flag/issues/83 — branch audit/83-prompt-quality-regression.
 *   [ ] Fan out advisor pushback to one LLM call per advisor (#87) - https://github.com/earlyprototype/false-flag/issues/87 — branch feat/87-advisor-pushback-fanout — supersedes #81. Remaining after #96: per-advisor fan-out via generate_group; /ask keyword router PM-voice bug; carry-overs from #81 close: Mystery-leak tests + DTDL extend-only + browser/preview parity.
 *   [ ] PH-0 Prune ~17 stale/merged branches (29 Aug: 7 local + 22 remote deleted; active branches remain)
 *   [ ] Audit recent Claude threads and enforce onboarding - Verify the last few Claude sessions against PLAN/docs, correct source attribution, and make AGENTS/CLAUDE point future sessions to the recent-session index.
 
 ## DONE
+*   [x] Audit runtime prompt quality and regression evidence (#83) - https://github.com/earlyprototype/false-flag/issues/83 — branch audit/83-prompt-quality-regression.
 *   [x] Reconcile Situation Globe status docs (#109) - https://github.com/earlyprototype/false-flag/issues/109 — rescued uncommitted doc edits from the PR #99 session live on branch docs/rescue-pr99-session-edits; rebase their intent onto current truth (Stage 1 DONE, #99 merged, #72/#74 ruled) and land through the gate.
 *   [x] Globe manual zoom controls: +/− buttons and slider (#107) - https://github.com/earlyprototype/false-flag/issues/107 — branch feat/107-globe-zoom-controls — owner-requested input redundancy (trackpad pinch unreliable; projector rigs). PM-built small bounded fix.
 *   [x] Issue #100: keep Situation Globe URL on last successful session - https://github.com/earlyprototype/false-flag/issues/100 — requiring TDD, isolated branch, PR, review.
