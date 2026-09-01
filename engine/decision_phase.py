@@ -261,7 +261,8 @@ def run_preview_round(
         ("pushback",
          lambda task_rng: generate_advisor_pushback(
              world, action, interpretation, initial_conditions,
-             gen, task_rng, full_transcript, event_ledger=event_ledger),
+             gen, task_rng, full_transcript, llm_batch_fn=batch,
+             event_ledger=event_ledger),
          list),
         ("critical_omissions",
          lambda task_rng: check_critical_omissions(
@@ -418,7 +419,8 @@ def run_decision_pipeline(
             ("pushback",
              lambda task_rng: generate_advisor_pushback(
                  world, action, interpretation, initial_conditions,
-                 gen, task_rng, full_transcript, event_ledger=event_ledger),
+                 gen, task_rng, full_transcript, llm_batch_fn=batch,
+                 event_ledger=event_ledger),
              list),
             ("critical_omissions",
              lambda task_rng: check_critical_omissions(

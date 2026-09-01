@@ -93,6 +93,22 @@ def test_one_failed_call_does_not_cost_the_rest_of_the_group():
         "fine", "", "fine"]
 
 
+def test_malformed_batch_container_fails_every_slot_visibly_to_callers():
+    for malformed in (
+        "NO PUSHBACK",
+        b"NO PUSHBACK",
+        {"reply": "ok"},
+        {"first", "second"},
+        frozenset({"first", "second"}),
+    ):
+        def batch(prompts, rng, **kwargs):
+            return malformed
+
+        assert generate_group(
+            ["a", "b"], None, Random(1), batch
+        ) == ["", ""]
+
+
 def test_an_empty_group_asks_nothing():
     def explode(*args, **kwargs):
         raise AssertionError("should not have been called")

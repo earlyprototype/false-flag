@@ -3,9 +3,10 @@ byte-parity of the extracted templates.
 
 The parity gate: tests/data/prompt_parity_golden.json holds the intended
 bytes of the three hot-editable families, first captured against the
-PRE-refactor inline f-string builders and re-captured once for issue #91
-(two deliberately rewritten instruction lines). With unedited templates,
-the builders must reproduce those prompts byte for byte.
+PRE-refactor inline f-string builders and deliberately re-captured for
+issue #91's presentation fixes and issue #87's per-advisor pushback prompt.
+With unedited templates, the builders must reproduce those prompts byte for
+byte.
 """
 
 import json
@@ -49,7 +50,7 @@ def test_assembled_prompts_match_golden():
     exactly the golden bytes.
 
     The golden was captured against the pre-refactor inline builders and
-    re-captured once, deliberately, for issue #91 (see
+    deliberately re-captured for issues #91 and #87 (see
     tests/prompt_parity_fixtures). Anything else that moves these bytes -
     a stray edit to DEFAULTS, a changed shared prefix - fails here.
     """
@@ -168,6 +169,13 @@ def test_render_falls_back_to_default_on_broken_file():
     family = "advisor_pushback"
     pt.template_path(family).write_text("Broken {nonsense_field}",
                                         encoding="utf-8", newline="\n")
-    out = pt.render(family, action="A", interpretation="B", advisors_str="C")
+    values = {
+        "action": "A",
+        "interpretation": "B",
+        "role": "C",
+        "key_concerns": "D",
+        "pushback_triggers": "E",
+    }
+    out = pt.render(family, **values)
     assert out == pt.DEFAULTS[family].format(
-        action="A", interpretation="B", advisors_str="C")
+        **values)

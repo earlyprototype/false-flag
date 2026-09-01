@@ -13,6 +13,7 @@ single-call function, so tests and the mock driver are unaffected; when a
 batch function is supplied as well, the group is fanned out instead.
 """
 
+from collections.abc import Mapping, Set
 from random import Random
 from typing import Any, Callable, List, Optional
 
@@ -39,8 +40,9 @@ def generate_group(
         prompts: Independent prompts. Order is preserved in the result.
         llm_generate_fn: Single-call function, used when no batch function is
             given and as the shape every existing call site already injects.
-        rng: Random number generator. Both paths draw from it once per prompt,
-            so a seeded campaign generates the same sequence either way.
+        rng: Random number generator. Order is deterministic within either
+            execution path; provider drivers do not promise identical random
+            consumption between batch and sequential modes.
         llm_batch_fn: Optional concurrent function (the router's
             ``batch_generate_text``). Absent, the group runs sequentially.
         context: Optional LLMContext for per-context model selection.
@@ -50,17 +52,16 @@ def generate_group(
         One response per prompt, in order.
 
         The two paths mark a failure differently, and a caller has to test
-        for both. On the sequential path a failed call yields an empty
-        string, rather than losing the rest of the group. On the batch path
-        the live driver catches each prompt's exception inside its thread
-        pool and returns ``"[ERROR: ...]"`` in that prompt's slot - so it
-        never raises, and the router's retry-then-mock fallback never sees
-        it. That fallback covers only a batch call that fails as a whole.
+        for both. A failed sequential call or whole batch yields an empty
+        string in each affected slot, rather than losing the rest of the
+        group. On the batch path a live driver may instead catch a
+        per-prompt exception inside its thread pool and return
+        ``"[ERROR: ...]"`` in that prompt's slot.
 
         The marker matters because it is truthy and well-formed enough to
         survive: fed to a parser that shrugs at unrecognised text, it can
-        end up quoted as an advisor's line. See the guard in
-        ``engine/narrative_adjudication.py``.
+        end up quoted as an advisor's line. Each fan-out consumer must guard
+        both failure shapes.
     """
     if not prompts:
         return []
@@ -72,7 +73,17 @@ def generate_group(
         kwargs["max_tokens"] = max_tokens
 
     if llm_batch_fn is not None:
-        results = list(llm_batch_fn(prompts, rng, **kwargs))
+        try:
+            raw_results = llm_batch_fn(prompts, rng, **kwargs)
+            if isinstance(raw_results, (str, bytes, bytearray, Mapping, Set)):
+                raise TypeError("batch result must be a response sequence")
+            results = list(raw_results)
+        except Exception as e:
+            print(f"[WARN] LLM batch failed: {e}")
+            record_fallback(
+                _component(context),
+                f"batch call failed: {type(e).__name__}")
+            return [""] * len(prompts)
         # Every caller pairs this with its input using zip, so a short list
         # silently drops the trailing advisors or actors rather than failing.
         # The sequential path below always returns len(prompts); the batch

@@ -17,7 +17,12 @@ from llm.prompts import (
 from llm.model_config import LLMContext
 from llm.fanout import generate_group
 from llm.parse_health import record_fallback, record_miss, record_residue
-from llm.parsing import extract_label, is_sentinel_line, strip_decoration
+from llm.parsing import (
+    extract_label,
+    is_error_response,
+    is_sentinel_line,
+    strip_decoration,
+)
 from engine.initial_conditions import (
     PLAYER_CHARACTER_ID,
     get_all_uk_advisors,
@@ -28,12 +33,18 @@ from engine.initial_conditions import (
 # Common title variants advisors are referred to by in LLM output,
 # keyed by character id. Used to recognise "Role: message" pushback lines.
 _ADVISOR_ROLE_ALIASES: Dict[str, List[str]] = {
-    "prime_minister": ["prime minister", "pm"],
-    "chief_defence_staff": ["chief of the defence staff", "chief defence staff", "cds"],
-    "national_security_advisor": ["national security advisor", "national security adviser", "nsa"],
-    "home_secretary": ["home secretary"],
-    "foreign_secretary": ["foreign secretary"],
-    "attorney_general": ["attorney general"],
+    "prime_minister": ["prime minister", "pm", "government leader"],
+    "chief_defence_staff": [
+        "chief of the defence staff", "chief defence staff", "cds",
+        "military commander",
+    ],
+    "national_security_advisor": [
+        "national security advisor", "national security adviser", "nsa",
+        "intelligence coordinator",
+    ],
+    "home_secretary": ["home secretary", "domestic security"],
+    "foreign_secretary": ["foreign secretary", "diplomatic lead"],
+    "attorney_general": ["attorney general", "legal advisor"],
 }
 
 
@@ -46,9 +57,15 @@ _TITLE_WORDS = {
     "governor", "president", "chairman", "whip", "staff",
 }
 
-# Leading address: optional "the", then a short title, ending at a comma,
-# colon or dash — e.g. "Chancellor, what do you think?"
-_ADDRESS_RE = re.compile(r"^\s*(?:the\s+)?([A-Za-z][A-Za-z '\-]{1,40}?)\s*[,:–—-]")
+# Leading address: optional "the", then a short title, optional speech verb,
+# and punctuation — e.g. "Chancellor, ..." or "Foreign Secretary says: ...".
+_ADDRESS_RE = re.compile(
+    r"^\s*(?:the\s+)?([A-Za-z][A-Za-z '\-]{1,40}?)"
+    r"\s*(?:[*_`]+\s*)?"
+    r"(?:\s+(says?|said|speaks?|speaking|respond(?:s|ed|ing)?|"
+    r"repl(?:y|ies|ied|ying))\s*(?:[*_`]+\s*)?)?"
+    r"([,;:–—-])"
+)
 
 # Lowercase connectives that appear inside natural titles ("Chancellor of the
 # Exchequer", "Minister for the Armed Forces") and must not defeat the
@@ -112,10 +129,15 @@ def _question_matches_keyword(question_lower: str, keyword: str) -> bool:
 
 
 def _known_pushback_roles(initial_conditions: Dict[str, Any]) -> Set[str]:
-    """Build the set of normalized role names that identify a pushback speaker."""
+    """Build role prefixes that make a per-advisor reply malformed."""
     roles: Set[str] = set()
     for aliases in _ADVISOR_ROLE_ALIASES.values():
         roles.update(aliases)
+
+    player = get_character_info(initial_conditions, PLAYER_CHARACTER_ID) or {}
+    player_role = player.get("role", "") if isinstance(player, dict) else ""
+    if player_role:
+        roles.add(player_role.strip().lower())
 
     uk_advisors = get_all_uk_advisors(initial_conditions)
     for char_id, char_info in uk_advisors.items():
@@ -125,36 +147,6 @@ def _known_pushback_roles(initial_conditions: Dict[str, Any]) -> Set[str]:
             roles.add(role.strip().lower())
 
     return roles
-
-
-def _player_role_names(initial_conditions: Dict[str, Any]) -> Set[str]:
-    """Normalized names a pushback line could use to attribute itself to the player.
-
-    The player's own office is off the pushback roster (build_pushback_prompt),
-    but a model can still emit a "Prime Minister: ..." line from the transcript
-    it has just read. These names let the parser recognise such a line and drop
-    it instead of crediting it to an advisor or gluing it onto the previous
-    advisor's message.
-    """
-    names: Set[str] = set(_ADVISOR_ROLE_ALIASES.get(PLAYER_CHARACTER_ID, []))
-    names.add(PLAYER_CHARACTER_ID.replace("_", " ").lower())
-
-    info = get_character_info(initial_conditions, PLAYER_CHARACTER_ID) or {}
-    role = info.get("role", "") if isinstance(info, dict) else ""
-    if role:
-        names.add(role.strip().lower())
-
-    return names
-
-
-def _normalize_role_prefix(prefix: str) -> str:
-    """Strip markdown/bullet/bracket decoration from a candidate 'Role:' prefix.
-
-    Delegates to the shared strip_decoration, which also removes leading
-    hyphens and bullet glyphs so a bulleted roster line ("- Legal Advisor:")
-    resolves to the role it names.
-    """
-    return strip_decoration(prefix)
 
 
 def handle_player_question(
@@ -212,7 +204,6 @@ def handle_player_question(
         "foreign_secretary": ["foreign", "diplomatic", "alliance", "nato", "us"],
         "home_secretary": ["home", "domestic", "public", "civilian", "infrastructure"],
         "attorney_general": ["legal", "law", "attorney", "international law"],
-        "prime_minister": ["pm", "prime minister", "overall", "strategy"]
     }
     
     for char_id, keywords in advisor_keywords.items():
@@ -277,10 +268,9 @@ def handle_player_question_all(
     of the feature (the player asked the room, the room answers), but a
     front end should treat it as the expensive affordance it is rather than
     the default. The prompts are independent, so when ``llm_batch_fn`` is
-    supplied they go out as one batched group (see llm/fanout.py); the batch
-    drivers pre-draw a child seed per prompt from ``rng``, so a seeded
-    campaign answers identically whether the group fans out or runs in
-    sequence.
+    supplied they go out as one batched group (see llm/fanout.py). Prompt and
+    result order is stable; exact batch-vs-sequential RNG consumption is a
+    provider detail and is not treated as equivalent.
 
     Args:
         world: Current world state
@@ -299,8 +289,8 @@ def handle_player_question_all(
     """
     uk_advisors = get_all_uk_advisors(initial_conditions)
 
-    # The Prime Minister is the player: the room answers, the chair asks.
-    asked = [cid for cid in uk_advisors if cid != PLAYER_CHARACTER_ID]
+    # get_all_uk_advisors excludes the player: the room answers, the chair asks.
+    asked = list(uk_advisors)
 
     if not asked:
         return [("System", "Error: No advisors available. Initial conditions "
@@ -392,9 +382,10 @@ def generate_advisor_pushback(
     llm_generate_fn,
     rng: Random,
     transcript: List[str] = None,
+    llm_batch_fn=None,
     event_ledger=None
 ) -> List[Tuple[str, str]]:
-    """Generate advisor warnings/pushback for player's action.
+    """Ask each seated advisor independently for warnings or pushback.
 
     Args:
         world: Current world state
@@ -404,105 +395,89 @@ def generate_advisor_pushback(
         llm_generate_fn: Function to call LLM
         rng: Random number generator
         transcript: Optional full game transcript for conversation history
+        llm_batch_fn: Optional batch generator for the independent prompts
         event_ledger: Optional played-event ledger for the dossier (ER-003)
 
     Returns:
-        List of (advisor_role, pushback_message) tuples, or empty list if no pushback
+        Roster-attributed concerns. Failed/malformed slots carry a visible
+        error concern; valid standalone NO PUSHBACK slots are omitted.
     """
-    prompt = build_pushback_prompt(world, action, interpretation, initial_conditions,
-                                   transcript, event_ledger)
-    pushback_text = llm_generate_fn(prompt, rng, context=LLMContext.ADVISOR_PUSHBACK)
+    advisors = get_all_uk_advisors(initial_conditions)
+    prompts = [
+        build_pushback_prompt(
+            world, action, interpretation, initial_conditions, char_id,
+            transcript, event_ledger)
+        for char_id in advisors
+    ]
+    responses = generate_group(
+        prompts, llm_generate_fn, rng, llm_batch_fn,
+        context=LLMContext.ADVISOR_PUSHBACK)
     
-    # Parse pushback response.
-    # "NO PUSHBACK" only counts when it appears as a standalone line, so an
-    # advisor mentioning the phrase mid-sentence doesn't drop real pushback.
-    # The messages are parsed FIRST and the sentinel applied only when none
-    # were found: a reply carrying real objections plus a trailing standalone
-    # "NO PUSHBACK" keeps the objections.
-    lines = pushback_text.strip().split("\n")
-    saw_sentinel = False
-
-    # A line starts a new pushback only when the prefix before ":" is a known
-    # advisor role; other lines (markdown emphasis, wrapped text) are treated
-    # as continuations of the previous advisor's message.
+    unavailable = "[ERROR: Advisor response unavailable]"
     known_roles = _known_pushback_roles(initial_conditions)
-    # The player's own office is not on the roster the prompt lists, so a
-    # line attributed to it is a model slip, not pushback. It is dropped with
-    # the same orphan/record idiom as any unrecognised prefix - and dropped
-    # explicitly, so it cannot fall through to the continuation branch below
-    # and be glued onto the previous advisor's message.
-    player_roles = _player_role_names(initial_conditions)
-    pushback_list = []
-    residue = []
-    # A dropped player line can be wrapped over several lines; its tail would
-    # otherwise take the continuation branch and land in the previous
-    # advisor's message, which is the same leak the drop exists to prevent.
-    # The block stays suppressed until the next recognised advisor prefix.
-    in_player_block = False
-    for line in lines:
-        stripped = line.strip()
-        if not stripped:
-            continue
-
-        if is_sentinel_line(stripped, "NO PUSHBACK"):
-            saw_sentinel = True
-            continue
-
-        role = None
-        message = ""
-        player_line = False
-        if ":" in stripped:
-            prefix, remainder = stripped.split(":", 1)
-            candidate = _normalize_role_prefix(prefix)
-            lowered = candidate.lower()
-            # "The Prime Minister:" names the same speaker as "Prime Minister:";
-            # match with and without the article so neither form slips past.
-            forms = (lowered, lowered[4:]) if lowered.startswith("the ") else (lowered,)
-            if any(f in player_roles for f in forms):
-                player_line = True
-            else:
-                for f in forms:
-                    if f in known_roles:
-                        role = candidate[4:].strip() if f != lowered else candidate
-                        message = remainder.strip()
-                        break
-
-        if player_line:
-            in_player_block = True
-            record_miss("pushback", "player_line", stripped[:60])
-            residue.append(stripped)
-        elif role is not None:
-            in_player_block = False
-            pushback_list.append((role, message))
-        elif in_player_block:
-            # Wrapped tail of the player-attributed line just dropped.
-            record_miss("pushback", "player_line", stripped[:60])
-            residue.append(stripped)
-        elif pushback_list:
-            prev_role, prev_message = pushback_list[-1]
-            pushback_list[-1] = (prev_role, f"{prev_message} {stripped}".strip())
-        else:
-            # A line before any recognised advisor is still dropped (it is
-            # usually preamble), but no longer silently: if it was a real
-            # objection under an unrecognised prefix, the record shows it.
-            record_miss("pushback", "orphan_line", stripped[:60])
-            residue.append(stripped)
-
-    if residue:
-        record_residue("advisor_pushback", len(residue), residue[0][:60])
-
-    if saw_sentinel and not pushback_list:
-        return []
-
-    # An advisor rendered saying nothing is a parse failure, not pushback:
-    # drop the empty entry and record it. Surviving messages get the
-    # turn-reference scrub — game time never reaches the fiction.
+    player_roles = set(_ADVISOR_ROLE_ALIASES.get(PLAYER_CHARACTER_ID, []))
+    player = get_character_info(initial_conditions, PLAYER_CHARACTER_ID) or {}
+    if isinstance(player, dict) and player.get("role"):
+        player_roles.add(player["role"].strip().lower())
     result = []
-    for role, message in pushback_list:
-        if message.strip():
-            result.append((role, _scrub_turn_references(message)))
-        else:
-            record_miss("pushback", "empty_message", role)
+    for (char_id, char_info), response in zip(advisors.items(), responses):
+        role = char_info.get("role", "Advisor")
+        if not isinstance(response, str):
+            record_fallback("advisor_pushback", f"{char_id} malformed reply")
+            result.append((role, unavailable))
+            continue
+        cleaned = response.strip()
+
+        if not cleaned or is_error_response(cleaned):
+            record_fallback("advisor_pushback", f"{char_id} failed reply")
+            result.append((role, unavailable))
+            continue
+
+        lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
+        if len(lines) == 1 and is_sentinel_line(lines[0], "NO PUSHBACK"):
+            continue
+
+        # A per-advisor reply is either the bare concern or the sentinel.
+        # A role-prefixed/mixed reply is malformed; never parse its prefix
+        # into attribution or let another seat's words cross this slot.
+        has_role_prefix = False
+        for line in lines:
+            if any(extract_label(line, known_role) is not None
+                   for known_role in known_roles):
+                has_role_prefix = True
+                break
+            candidate_line, self_attributed = re.subn(
+                r"^(?:speaking\s+)?as\s+(?:the\s+)?",
+                "",
+                strip_decoration(line),
+                count=1,
+                flags=re.IGNORECASE,
+            )
+            if _detect_unknown_addressee(candidate_line, known_roles):
+                has_role_prefix = True
+                break
+            match = _ADDRESS_RE.match(candidate_line)
+            if match is None:
+                continue
+            candidate = strip_decoration(match.group(1)).lower()
+            forms = ((candidate, candidate[4:])
+                     if candidate.startswith("the ") else (candidate,))
+            if any(form in known_roles for form in forms):
+                if (match.group(3) == "," and match.group(2) is None
+                        and not self_attributed
+                        and any(form in player_roles for form in forms)):
+                    continue
+                has_role_prefix = True
+                break
+
+        if (any(is_sentinel_line(line, "NO PUSHBACK") for line in lines)
+                or has_role_prefix):
+            record_fallback("advisor_pushback", f"{char_id} malformed reply")
+            result.append((role, unavailable))
+            continue
+
+        result.append((role, _scrub_turn_references(cleaned)))
+
     return result
 
 
@@ -671,4 +646,3 @@ def check_critical_omissions(
             continue
 
     return critical_concerns
-

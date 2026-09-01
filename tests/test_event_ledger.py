@@ -397,6 +397,25 @@ def test_disposition_closes_the_most_recently_staged_event():
     assert ns.event_ledger[0].disposition == "open"       # turn 1 untouched
 
 
+def test_unavailable_advisor_is_not_persisted_as_an_objector():
+    from engine.narrative_adjudication import record_event_disposition
+
+    ns = _state(turn=1)
+    ns.record_played_event(1, "Akula submarine surfaces off Orkney")
+
+    record_event_disposition(
+        ns,
+        "Hold current posture.",
+        pushback=[
+            ("Chief of the Defence Staff",
+             "[ERROR: Advisor response unavailable]"),
+            ("Attorney General", "A real legal objection."),
+        ],
+    )
+
+    assert ns.event_ledger[-1].objectors == ["Attorney General"]
+
+
 def test_actor_simulation_path_also_records_disposition(monkeypatch):
     """Campaigns with an actor system route through
     adjudicate_with_actor_simulation — recording only in the narrative path

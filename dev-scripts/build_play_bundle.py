@@ -271,7 +271,8 @@ def stamp_page(stamp: str) -> bool:
 
     if text == original:
         return False
-    PAGE.write_text(text, encoding="utf-8")
+    with PAGE.open("w", encoding="utf-8", newline="\n") as page:
+        page.write(text)
     return True
 
 

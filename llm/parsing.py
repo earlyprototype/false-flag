@@ -41,7 +41,16 @@ def strip_decoration(text: str) -> str:
     Unlike the old role-prefix normaliser this also removes leading hyphens
     and bullet glyphs, so "- Military Commander" reads as the role it names.
     """
+    text = re.sub(_LEAD_RE, "", text, count=1)
     return text.strip().strip(_DECORATION_CHARS).strip()
+
+
+def is_error_response(value: object) -> bool:
+    """True when a fan-out slot carries a driver failure marker."""
+    if not isinstance(value, str):
+        return False
+    cleaned = value.strip()
+    return cleaned.startswith(("[ERROR:", "[Offline mode:"))
 
 
 def extract_label(line: str, label: str) -> Optional[str]:

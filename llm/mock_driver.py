@@ -1120,11 +1120,20 @@ def _render_inject(entry: dict, turn: int, tell: str = "") -> str:
 
 def _detect_advisor(prompt_lower: str):
     """Return the advisor key explicitly addressed by a persona line, if any."""
+    selected = None
+    selected_at = -1
     for key, aliases in _ADVISOR_ALIASES.items():
         for alias in aliases:
-            if re.search(r"you are (?:the )?(?:uk )?(?:us )?" + re.escape(alias), prompt_lower):
-                return key
-    return None
+            pattern = (
+                r"(?m)^\s*you are (?:the )?(?:uk )?(?:us )?"
+                + re.escape(alias)
+                + r"\b"
+            )
+            for match in re.finditer(pattern, prompt_lower):
+                if match.start() > selected_at:
+                    selected = key
+                    selected_at = match.start()
+    return selected
 
 
 def _extract_question(prompt: str) -> str:
@@ -1214,15 +1223,34 @@ class MockDeterministicDriver:
             if not decided:
                 return "NO PUSHBACK"
             action_text = decided.group(1).lower()
+            advisor = _detect_advisor(prompt_lower)
 
             if "nuclear" in action_text:
-                return ("Attorney General: Prime Minister, nuclear first-use without imminent existential threat "
-                        "violates our legal framework and would fracture NATO immediately.\n"
-                        "Foreign Secretary: This would end US support and isolate us internationally.")
+                if advisor == "legal":
+                    return ("Prime Minister, nuclear first-use without imminent "
+                            "existential threat violates our legal framework and "
+                            "would fracture NATO immediately.")
+                if advisor == "foreign":
+                    return "This would end US support and isolate us internationally."
+                if advisor is None:  # Legacy direct mock probe.
+                    return ("Attorney General: Prime Minister, nuclear first-use "
+                            "without imminent existential threat violates our legal "
+                            "framework and would fracture NATO immediately.\n"
+                            "Foreign Secretary: This would end US support and "
+                            "isolate us internationally.")
+                return "NO PUSHBACK"
 
             if "deploy" in action_text and ("carrier" in action_text or "prince of wales" in action_text):
-                return ("Chief of the Defence Staff: Prime Minister, HMS Prince of Wales is not at highest readiness. "
-                        "We can surge her immediately at reduced capability, or wait 3 turns for full readiness.")
+                if advisor == "cds":
+                    return ("Prime Minister, HMS Prince of Wales is not at highest "
+                            "readiness. We can surge her immediately at reduced "
+                            "capability, or wait 3 turns for full readiness.")
+                if advisor is None:  # Legacy direct mock probe.
+                    return ("Chief of the Defence Staff: Prime Minister, HMS Prince "
+                            "of Wales is not at highest readiness. We can surge her "
+                            "immediately at reduced capability, or wait 3 turns for "
+                            "full readiness.")
+                return "NO PUSHBACK"
 
             return "NO PUSHBACK"
 

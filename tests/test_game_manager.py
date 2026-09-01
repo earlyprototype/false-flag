@@ -123,6 +123,29 @@ def test_resolve_decision_surfaces_adjudication_error(monkeypatch):
     assert snapshot_metrics(gm.world.metrics) == before
 
 
+def test_unavailable_pushback_is_visible_but_not_a_pending_objector(monkeypatch):
+    import engine.game_manager as game_manager_module
+
+    pushback = [
+        ("Chief of the Defence Staff", "[ERROR: Advisor response unavailable]"),
+        ("Attorney General", "A real legal objection."),
+    ]
+    monkeypatch.setattr(
+        game_manager_module,
+        "run_turn_decision",
+        lambda *args, **kwargs: ("Interpretation.", pushback, [], []),
+    )
+
+    gm = make_manager()
+    preview = gm.interpret_decision("Test decision")
+
+    assert preview["pushback"] == [
+        {"role": role, "concern": concern} for role, concern in pushback
+    ]
+    assert gm._pending_pushback == (
+        "Test decision", ["Attorney General"])
+
+
 def test_briefing_passes_turn_filename_and_stochastic_flag(monkeypatch):
     import engine.game_manager as game_manager_module
 

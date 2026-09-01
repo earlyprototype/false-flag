@@ -304,6 +304,15 @@ def _rate_limiter_for_call(provider: str, model_name: Optional[str]):
     return get_rate_limiter(model_name, provider)
 
 
+def _pushback_driver_unavailable(provider, context, driver) -> bool:
+    """Whether a real-provider pushback call fell back before dispatch."""
+    return (
+        context == LLMContext.ADVISOR_PUSHBACK
+        and provider != "mock"
+        and isinstance(driver, (MockDeterministicDriver, OfflineDriver))
+    )
+
+
 def generate_text(
     prompt: str, 
     rng: Random, 
@@ -348,7 +357,7 @@ def generate_text(
     use_spinner = show_spinner and provider not in ["mock", "offline"]
 
     # Out-param the driver fills with call metadata (finish_reason); the
-    # resilient wrapper marks mock fallbacks in it too. Feeds the call log.
+    # resilient wrapper marks fallback/error replies in it too. Feeds the log.
     meta: dict = {}
 
     # Helper to call driver with optional args
@@ -375,9 +384,15 @@ def generate_text(
             return driver.generate_text(prompt, rng, **kwargs)
         return f"[LLM response to: {prompt[:50]}...]"
 
-    # Resilient wrapper: retry once on failure, then fall back to the mock
-    # driver so a runtime API error (429, network blip) never crashes the game
+    # Retry once. Most families then use a mock reply so the game continues;
+    # advisor pushback reports the failed slot visibly instead of fabricating
+    # an objection or no-pushback result.
     def call_driver_resilient():
+        if _pushback_driver_unavailable(provider, context, driver):
+            from llm.parse_health import record_fallback
+            record_fallback("router", "driver unavailable")
+            meta['fallback'] = True
+            return "[ERROR: Advisor response unavailable]"
         try:
             return call_driver()
         except Exception:
@@ -385,11 +400,17 @@ def generate_text(
             try:
                 return call_driver()
             except Exception as e:
+                visible_failure = context == LLMContext.ADVISOR_PUSHBACK
+                fallback = ("reporting an unavailable advisor response"
+                            if visible_failure
+                            else "using offline advisor response for this call")
                 print(f"[WARNING] LLM call failed ({type(e).__name__}: {e}); "
-                      "using offline advisor response for this call")
+                      f"{fallback}")
                 from llm.parse_health import record_fallback
                 record_fallback("router", type(e).__name__)
                 meta['fallback'] = True
+                if visible_failure:
+                    return "[ERROR: Advisor response unavailable]"
                 return MockDeterministicDriver().generate_text(prompt, rng)
 
     def call_and_log():
@@ -506,6 +527,12 @@ def batch_generate_text(
 
     # Helper for batch call
     def call_batch():
+        if _pushback_driver_unavailable(provider, context, driver):
+            from llm.parse_health import record_fallback
+            record_fallback("router", "driver unavailable")
+            for m in metas:
+                m['fallback'] = True
+            return ["[ERROR: Advisor response unavailable]" for _ in prompts]
         if hasattr(driver, 'batch_generate_text'):
             # Claim a rate-limit slot per prompt *before* dispatching. The
             # driver fans the group out across a thread pool and never sees
@@ -521,8 +548,8 @@ def batch_generate_text(
 
             claim_slots()
             kwargs = batch_kwargs(driver.batch_generate_text, meta_out=metas)
-            # Retry once on failure, then fall back to the mock driver so a
-            # runtime API error never crashes the game
+            # Retry once. Most families then use mock replies; advisor
+            # pushback reports one visible failed slot per prompt instead.
             try:
                 return driver.batch_generate_text(prompts, rng, **kwargs)
             except Exception:
@@ -535,12 +562,19 @@ def batch_generate_text(
                     claim_slots()
                     return driver.batch_generate_text(prompts, rng, **kwargs)
                 except Exception as e:
-                    print(f"[WARNING] LLM batch call failed ({type(e).__name__}: {e}); "
-                          "using offline advisor responses for this call")
+                    visible_failure = context == LLMContext.ADVISOR_PUSHBACK
+                    fallback = ("reporting unavailable advisor responses"
+                                if visible_failure
+                                else "using offline advisor responses for this call")
+                    print(f"[WARNING] LLM batch call failed ({type(e).__name__}: "
+                          f"{e}); {fallback}")
                     from llm.parse_health import record_fallback
                     record_fallback("router", f"batch {type(e).__name__}")
                     for m in metas:
                         m['fallback'] = True
+                    if visible_failure:
+                        return ["[ERROR: Advisor response unavailable]"
+                                for _ in prompts]
                     return MockDeterministicDriver().batch_generate_text(prompts, rng)
         # Fallback sequential - forwards max_tokens where the signature
         # admits it, same as the batch path (ER-011: this used to call bare)

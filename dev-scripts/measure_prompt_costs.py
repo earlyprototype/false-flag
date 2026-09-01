@@ -97,17 +97,22 @@ def main():
     }
 
     decision = "Hold the deployment and convene the North Atlantic Council."
+    advisor_ids = (
+        "foreign_secretary", "chief_defence_staff", "attorney_general",
+        "home_secretary", "national_security_advisor",
+    )
     prompts = [
         ("advisor_qa", build_advisor_context(
             world, conditions, "foreign_secretary", "Where does NATO stand?",
             transcript)),
         ("decision_interpretation", build_decision_interpretation_prompt(
             world, decision, conditions, transcript)),
-        ("advisor_pushback", build_pushback_prompt(
-            world, decision, "INTERPRETATION: hold", conditions, transcript)),
     ]
-    for cid in ("foreign_secretary", "chief_defence_staff", "attorney_general",
-                "home_secretary", "national_security_advisor"):
+    for cid in advisor_ids:
+        prompts.append((f"advisor_pushback:{cid}", build_pushback_prompt(
+            world, decision, "INTERPRETATION: hold", conditions,
+            cid, transcript)))
+    for cid in advisor_ids:
         prompts.append((f"omissions:{cid}", build_critical_omissions_prompt(
             world, conditions, cid, decision, ["Submarine detected"], transcript)))
 
