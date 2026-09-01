@@ -393,6 +393,10 @@ def test_offline_pushback_is_visible_as_unavailable():
     "NO PUSHBACK. No concern is ¬ applicable.",
     "Chief of the Defence Staff: NO PUSHBACK. No objection is ¬ applicable.",
     "Prime Minister, NO PUSHBACK. No warning is ≠ required.",
+    "NO PUSHBACK. No concern is met.",
+    ("Chief of the Defence Staff: NO PUSHBACK. No concerns are met under "
+     "my remit."),
+    "Prime Minister, NO PUSHBACK. None of my objections is met.",
     ("As the Foreign Secretary warned, As the Attorney General advised, "
      "Speaking as the Home Secretary, I object."),
     ("As the Foreign Secretary warned, and Speaking as the Attorney "
