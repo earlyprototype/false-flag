@@ -458,25 +458,42 @@ def _is_no_pushback_rationale_clause(clause: str) -> bool:
     modifiers = {
         "the", "my", "our", "your", "any", "listed", "stated",
         "relevant", "applicable", "current", "active", "remaining",
-        "known", "identified",
+        "known", "identified", "pushback",
     }
     def has_only_context(rest: List[str]) -> bool:
         if not rest:
             return True
         return re.fullmatch(
             r"(?:here|"
-            r"(?:for|in|by|to|on) (?:this|the) "
+            r"(?:about|for|in|by|to|on) (?:this|the) "
             r"(?:decision|action|proposal|course|case|situation|order)|"
             r"(?:under|within) (?:my|our|this|the) "
             r"(?:remit|criteria|rules|scope))",
             " ".join(rest),
         ) is not None
 
+    def find_protocol_subject(start: int, stop: int) -> Optional[int]:
+        for index in range(start, min(stop, len(words))):
+            if words[index] not in protocol_terms:
+                continue
+            if (words[index] == "pushback"
+                    and words[index + 1:index + 2]
+                    in (["trigger"], ["triggers"])):
+                continue
+            return index
+        return None
+
+    if re.fullmatch(
+            r"(?:this|the) "
+            r"(?:decision|action|proposal|course|case|situation|order) "
+            r"(?:does|did) not (?:activate|trigger) "
+            r"(?:any of )?(?:my|our|the) "
+            r"(?:pushback )?(?:trigger|triggers)",
+            " ".join(words)):
+        return True
+
     if words[0] in {"no", "none"}:
-        subject = next((
-            index for index, word in enumerate(words[1:7], start=1)
-            if word in protocol_terms
-        ), None)
+        subject = find_protocol_subject(1, 7)
         if subject is None:
             return False
         prefix = words[1:subject]
@@ -509,10 +526,7 @@ def _is_no_pushback_rationale_clause(clause: str) -> bool:
         return False
 
     if words[0] == "i" and words[1:3] in (["have", "no"], ["see", "no"]):
-        subject = next((
-            index for index, word in enumerate(words[3:9], start=3)
-            if word in protocol_terms
-        ), None)
+        subject = find_protocol_subject(3, 9)
         return (
             subject is not None
             and all(word in modifiers for word in words[3:subject])
