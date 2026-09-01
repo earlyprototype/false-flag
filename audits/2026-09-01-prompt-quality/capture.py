@@ -478,7 +478,30 @@ def _run_main_case(
         lambda: game.process_diplomacy("Thank you, goodbye."),
     )
 
+    game.world.turn = 6
+    game.world.scene = 6
+    _, turn_six_lines = sim_loop_module.run_turn_briefing(
+        game.world,
+        game.scenario_id,
+        False,
+        game.rng,
+        game.root_path,
+        full_transcript=[],
+        suppress_display=True,
+        narrative_state=game.narrative_state,
+    )
+    game.transcript.extend(turn_six_lines)
+    game.narrative_state.update_hidden_metrics({
+        "escalation_risk": game.world.metrics.escalation_risk,
+        "domestic_stability": game.world.metrics.domestic_stability,
+        "alliance_cohesion": game.world.metrics.alliance_cohesion,
+        "casualties_mil": game.world.metrics.casualties_mil,
+        "casualties_civ": game.world.metrics.casualties_civ,
+    })
+    game.narrative_state.turn = 6
     game.world.turn = 7
+    game.world.scene = 7
+    game.world.phase = "briefing"
     _capture(
         records, outputs, "inject_yaml", game.world.turn,
         lambda: generate_inject(
