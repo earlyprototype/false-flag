@@ -16,14 +16,10 @@ and [GAME_DESCRIPTION — Core Gameplay](../GAME_DESCRIPTION.md#core-gameplay).
 
 ## Repository state
 
-- `main` is at `3113b9b`, including the delivery-system close-out merged in
-  PR #133.
-- The current documentation branch is `docs/136-technical-stage-names`; draft
-  [PR #137](https://github.com/earlyprototype/false-flag/pull/137) has passing
-  CI and hosted review at the last check.
-- Adviser pushback fan-out is in
-  [PR #123](https://github.com/earlyprototype/false-flag/pull/123). CI passes;
-  the hosted review verdict currently fails, so it is not merge-ready.
+- `main` is at
+  [`631b082`](https://github.com/earlyprototype/false-flag/commit/631b082),
+  including the delivery-system close-out in PR #133 and adviser pushback
+  fan-out in [PR #123](https://github.com/earlyprototype/false-flag/pull/123).
 - The canonical execution sequence is [`PLAN.md`](../PLAN.md). Do not infer a
   competing sequence from a handover, feasibility snapshot or issue title.
 

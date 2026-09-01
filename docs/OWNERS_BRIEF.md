@@ -80,7 +80,8 @@ The order is fixed:
 The measurement selects where the screen pixels are produced. It does not
 change the game, room or session contract.
 
-Technical source: [WebXR Layers specification](https://immersive-web.github.io/layers/).
+[Owner ruling](https://github.com/earlyprototype/false-flag/issues/127#issuecomment-5498505180);
+technical source: [WebXR Layers specification](https://immersive-web.github.io/layers/).
 
 ## Assessment of the route
 

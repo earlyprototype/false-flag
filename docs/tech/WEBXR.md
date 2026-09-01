@@ -17,10 +17,11 @@ comparison in issue #127:
    source on a media quad layer.
 
 This decision selects WebXR for the room. The device measurement selects only
-the screen source. The 1 September 2026 owner ruling is recorded in
-[`DECISION_BRIEFS.md`](../DECISION_BRIEFS.md). Issue
-[#127](https://github.com/earlyprototype/false-flag/issues/127) is closed and
-remains useful as history, but it no longer defines the current route.
+the screen source. The 1 September 2026
+[owner ruling](https://github.com/earlyprototype/false-flag/issues/127#issuecomment-5498505180)
+is also recorded in [`DECISION_BRIEFS.md`](../DECISION_BRIEFS.md). Issue #127
+is closed and remains useful as history, but it no longer defines the current
+route.
 
 ## Why the room extends the game
 

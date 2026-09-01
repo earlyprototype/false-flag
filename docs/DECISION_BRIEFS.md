@@ -8,13 +8,13 @@ assign dates or create a competing sequence. Current build order:
 
 | Decision | Ruling | Evidence |
 |---|---|---|
-| Product centre | FALSE FLAG remains the AI wargame. Globe, live context and VR deepen the existing campaign rather than replacing it with a generic demonstration. | Owner ruling, 1 Sep 2026; [PLAN — Product centre](../PLAN.md#product-centre) |
+| Product centre | FALSE FLAG remains the AI wargame. Globe, live context and VR deepen the existing campaign rather than replacing it with a generic demonstration. | [Owner ruling, 1 Sep 2026](https://github.com/earlyprototype/false-flag/issues/136#issuecomment-5499898594); [PLAN — Product centre](../PLAN.md#product-centre) |
 | Movement authority | A model may emit bounded named orders but never coordinates. Gazetteer hydration and deterministic kinematics are the coordinate writers. | [Issue #71](https://github.com/earlyprototype/false-flag/issues/71) |
 | Geo-file ownership | Scenario-authored geography stays with scenario data; engine-derived geography stays with technical data; the seam remains explicit. | [Issue #72](https://github.com/earlyprototype/false-flag/issues/72) |
 | Globe visual controls | The normal, CRT and FLIR views remain selectable rather than one being removed early. | [Issue #74](https://github.com/earlyprototype/false-flag/issues/74) |
 | Live/simulated boundary | Real feeds and game state are separate layers. Live facts may inform context, never state. The exercise zone and fog carry the boundary; runtime is live-first with no silent fixture fallback. | [Issue #77](https://github.com/earlyprototype/false-flag/issues/77) |
-| VR build route | Build the portable WebXR room/screen, measure it on the Quest, then use a local quad layer or streamed source according to the measurements. | Owner ruling, 1 Sep 2026; [PLAN — Quest Ops-Room Display](../PLAN.md#4--quest-ops-room-display) |
-| Planning estimates | Agent-generated duration estimates do not decide scope or cut features. Dependencies and observable done tests order the work. | Owner ruling, 1 Sep 2026 |
+| VR build route | Build the portable WebXR room/screen, measure it on the Quest, then use a local quad layer or streamed source according to the measurements. | [Owner ruling, 1 Sep 2026](https://github.com/earlyprototype/false-flag/issues/127#issuecomment-5498505180); [PLAN — Quest Ops-Room Display](../PLAN.md#4--quest-ops-room-display) |
+| Planning estimates | Agent-generated duration estimates do not decide scope or cut features. Dependencies and observable done tests order the work. | [Owner ruling, 1 Sep 2026](https://github.com/earlyprototype/false-flag/issues/136#issuecomment-5499898594) |
 
 ## Open facts or selections
 

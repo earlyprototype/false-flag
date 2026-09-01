@@ -20,14 +20,14 @@ For whoever picks this up: the owner, or a fresh session. Two minutes of reading
 
 ## Waiting on the owner
 
-1. **The "go"** — authorization to write this project's first code (Stage 1, Globe Display). This is the only thing blocking build work.
+1. **The "go"** — authorization to write this project's first code (Globe Display). This is the only thing blocking build work.
 2. **Merge PR #69** — puts `PLAN.md` and the README pointer on `main`, where anyone in the repo finds the plan immediately. One click.
 3. **Four open decisions**, each with a working default so silence blocks nothing: [#72](https://github.com/earlyprototype/false-flag/issues/72) data-file location · [#73](https://github.com/earlyprototype/false-flag/issues/73) demo campaign cut · [#74](https://github.com/earlyprototype/false-flag/issues/74) default visual register · [#75](https://github.com/earlyprototype/false-flag/issues/75) Quest headset available (the VR diagram is drawn assuming yes).
-4. **Fire the [Manus research queue](https://github.com/earlyprototype/false-flag/issues/70)** when convenient — its gazetteer verification task feeds Stage 2. Credits don't expire.
+4. **Fire the [Manus research queue](https://github.com/earlyprototype/false-flag/issues/70)** when convenient — its gazetteer verification task feeds the Spatial Decision Loop. Credits don't expire.
 
 ## If the answer is "go", the first work is
 
-Stage 1 in `PLAN.md`. Concretely: create `api/globe.html`, serve it at `GET /globe` by FileResponse copying the pattern `api/server.py` already uses for `/dashboard`; load CesiumJS in the page; hardcode ~10 place-name→coordinate entries; call `GET /game/{id}/resources` and plot each unit at its named base; subscribe to one session event stream (**one consumer only** — see traps); add one vendored sensor shader and the EXERCISE chrome. Done when every unit sits at its real location on the projector and a game event visibly changes the display.
+Globe Display in `PLAN.md`. Concretely: create `api/globe.html`, serve it at `GET /globe` by FileResponse copying the pattern `api/server.py` already uses for `/dashboard`; load CesiumJS in the page; hardcode ~10 place-name→coordinate entries; call `GET /game/{id}/resources` and plot each unit at its named base; subscribe to one session event stream (**one consumer only** — see traps); add one vendored sensor shader and the EXERCISE chrome. Done when every unit sits at its real location on the projector and a game event visibly changes the display.
 
 ## Rulings that stand — do not re-open
 
@@ -41,7 +41,7 @@ Stage 1 in `PLAN.md`. Concretely: create `api/globe.html`, serve it at `GET /glo
 ## Traps
 
 - Any edit to `models/world.py` **must** be followed by `python3 dev-scripts/build_play_bundle.py` and the regenerated `docs/game.zip` committed, or exactly 4 tests fail on the packaging stamp.
-- The session event stream is single-consumer today: two clients on one session steal each other's events. One consumer per session until the fan-out fix lands (Stage 3).
+- The session event stream is single-consumer today: two clients on one session steal each other's events. One consumer per session until Multi-client Session Streaming lands.
 - Never edit the 13 published DTDL interfaces. New capability goes in new sidecar files, then re-run Microsoft's DTDLParser.
 - CodeRabbit's "Merge Risk: Moderate" banner on #67 is **stale** — it assessed commit `3081816`; both issues it names were fixed in `4e7ff10`. Its review checkbox clears it.
 - The claude.ai artifact page from the first analysis pass predates the plan rework. Refresh or retire it; the repository is the memory.

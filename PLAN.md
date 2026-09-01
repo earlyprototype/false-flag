@@ -26,8 +26,9 @@ The end-to-end acceptance path is one authentic turn:
 6. Campaign consequences update the same session, globe and VR room.
 7. The next turn continues from the resulting state.
 
-Owner ruling, 1 September 2026: implementation estimates do not decide scope or
-cut features. Work is sequenced by dependencies and observable done tests.
+[Owner ruling, 1 September 2026](https://github.com/earlyprototype/false-flag/issues/136#issuecomment-5499898594):
+implementation estimates do not decide scope or cut features. Work is sequenced
+by dependencies and observable done tests.
 
 ## Current status
 
@@ -112,6 +113,9 @@ change the campaign.*
       deterministic, zero-RNG kinematics.
 - [ ] Publish the resulting snapshot to the theatre endpoint and interpolate
       only for display between authoritative turn boundaries.
+- [ ] Derive the player intelligence picture from authoritative tracks. The
+      facilitator may see stored positions; the player sees only bounded,
+      stale or noisy estimates where the scenario permits them.
 - [ ] Add the bounded movement-order call settled in
       [issue #71](https://github.com/earlyprototype/false-flag/issues/71): the
       model emits unit, mission, named destination and speed band; it never
@@ -130,7 +134,8 @@ During an authentic turn, a free-form player decision produces a validated
 order, the intended unit moves, the globe shows that consequence, and the next
 briefing can react to a crossed boundary. A deliberately malformed model reply
 moves nothing new and reports the failure. Save/load/resume preserves the same
-positions and standing orders.
+positions and standing orders. The player view never exposes hidden
+authoritative positions; the facilitator view may show them.
 
 ## 3 · Live Context Integration
 
