@@ -272,28 +272,32 @@ This endpoint skips the interpretation/pushback step. Phase 1 introduces `/game/
 **Response:**
 ```json
 {
-  "interpretation": {
-    "summary": "Deploy HMS Queen Elizabeth CSG to Baltic to demonstrate resolve",
-    "forces_involved": ["HMS Queen Elizabeth CSG", "RAF Typhoon squadron"],
-    "timeline": "24-48 hours for deployment",
-    "estimated_risk": "Moderate escalation potential"
-  },
+  "interpretation": "INTERPRETATION: Sustain maritime patrols and consult NATO.\nFORCES INVOLVED: P-8 patrols, Type 23 frigates\nRESOURCES CONSUMED: aviation fuel, sonobuoys\nTIMELINE: Within six hours\nFEASIBILITY: Feasible at current readiness",
   "critical_concerns": [
     {
-      "role": "CDS",
-      "concern": "Insufficient air cover during transit",
-      "recommendation": "Deploy additional Typhoon squadron to Estonia"
-    },
-    {
-      "role": "NSA",
-      "concern": "Risk of Russian submarine contact",
-      "recommendation": "Increase ASW assets in convoy"
+      "role": "Chief of the Defence Staff",
+      "concern": "The northern approaches would be left exposed.",
+      "recommendation": "Retain one frigate for the northern screen."
     }
+  ],
+  "pushback": [
+    {
+      "role": "Attorney General",
+      "concern": "Clarify the rules of engagement before deployment."
+    }
+  ],
+  "forces_involved": ["P-8 patrols", "Type 23 frigates"],
+  "resources_consumed": ["aviation fuel", "sonobuoys"],
+  "timeline": "Within six hours",
+  "feasibility": "Feasible at current readiness",
+  "raw_transcript": [
+    "Prime Minister's Decision: Deploy maritime patrols.",
+    "Interpretation: INTERPRETATION: Sustain maritime patrols and consult NATO."
   ]
 }
 ```
 
-**Status:** PLANNED (not yet implemented)
+**Status:** IMPLEMENTED
 
 ---
 
@@ -646,7 +650,6 @@ ISO 8601: `2025-11-23T16:30:00Z`
 
 ---
 
-**Last Updated:** 23 Nov 2025  
-**Next Update:** After Phase 1 implementation
+**Last Updated:** 2 Sep 2026
 
-
+**Maintenance:** Update this reference when the live API contract changes.

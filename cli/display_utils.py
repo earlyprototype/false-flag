@@ -14,8 +14,8 @@ from rich.markup import escape as rich_escape
 from cli import aesthetics as ae
 from cli.rich_ui import console, format_markdown, RICH_ENABLED
 from cli.theme import theme_manager, SYMBOLS
-from llm.parse_health import record_miss, record_residue
-from llm.parsing import extract_label
+from llm.parse_health import record_miss
+from llm.parsing import parse_interpretation
 
 
 _MD_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
@@ -161,81 +161,8 @@ def advisor_attitude_lines(narrative_state, include_stance: bool = False) -> lis
     return lines
 
 
-def parse_interpretation_simple(interpretation: str) -> dict:
-    """Parse LLM interpretation into key sections for display.
-
-    Args:
-        interpretation: Full interpretation text
-
-    Returns:
-        Dict with parsed sections
-    """
-    sections = {
-        "summary": "",
-        "forces": [],
-        "timeline": "",
-        "concerns": ""
-    }
-
-    lines = interpretation.split('\n')
-    current_section = None
-    # FEASIBILITY accumulates like a text field: the concern keywords may sit
-    # on a wrapped continuation line rather than the label line itself.
-    feasibility_text = ""
-    # Non-empty lines the parser neither consumed nor recognised.
-    residue = []
-
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-
-        interp = extract_label(line, "INTERPRETATION")
-        forces = extract_label(line, "FORCES INVOLVED")
-        timeline = extract_label(line, "TIMELINE")
-        feasibility = extract_label(line, "FEASIBILITY")
-
-        if interp is not None:
-            # Inline value or the summary paragraph on the following lines
-            # (label-on-own-line) - support both, accumulating continuations.
-            sections["summary"] = interp
-            current_section = "summary"
-        elif forces is not None:
-            # Inline value ("FORCES INVOLVED: a, b") or bullet list on
-            # following lines - support both.
-            if forces:
-                sections["forces"] = [f.strip() for f in forces.split(",") if f.strip()][:5]
-            current_section = "forces"
-        elif timeline is not None:
-            if timeline:
-                sections["timeline"] = timeline
-            current_section = "timeline"
-        elif feasibility is not None:
-            feasibility_text = feasibility
-            current_section = "feasibility"
-        elif current_section == "summary":
-            sections["summary"] = f"{sections['summary']} {line}".strip()
-        elif current_section == "feasibility":
-            feasibility_text = f"{feasibility_text} {line}".strip()
-        elif current_section == "forces" and line.startswith(("*", "-", "•")):
-            # Extract force name from bullet point
-            stripped = line.lstrip("*-• ")
-            force = stripped.split(":")[0] if ":" in stripped else stripped
-            if force and len(sections["forces"]) < 5:  # Max 5 forces shown
-                sections["forces"].append(force)
-        elif current_section == "timeline" and not sections["timeline"]:
-            sections["timeline"] = line
-        else:
-            residue.append(line)
-
-    if "impossible" in feasibility_text.lower() \
-            or "requires clarification" in feasibility_text.lower():
-        sections["concerns"] = feasibility_text
-
-    if residue:
-        record_residue("decision_interpretation", len(residue), residue[0][:60])
-
-    return sections
+# Backward-compatible CLI import; engine code uses the shared helper directly.
+parse_interpretation_simple = parse_interpretation
 
 
 def display_decision_summary(action: str, interpretation: str, show_details: bool = False):
@@ -272,7 +199,7 @@ def display_decision_summary(action: str, interpretation: str, show_details: boo
         # Show key forces
         if parsed["forces"]:
             content.append(f"[{COLORS['success']}]Forces Deployed:[/{COLORS['success']}]")
-            for force in parsed["forces"]:
+            for force in parsed["forces"][:5]:
                 content.append(f"  • {markdown_to_rich(force)}")
             content.append("")
 

@@ -21,7 +21,7 @@ from engine.scenario_loader import (
     load_narrative_configs,
 )
 from engine.sim_loop import run_turn_briefing, run_turn_decision, run_turn_discussion  # noqa: F401 (run_turn_decision: preview path)
-from llm.parsing import is_error_response
+from llm.parsing import is_error_response, parse_interpretation
 
 # Environment flag to disable Rich output in engine modules
 os.environ["WARGAME_RICH_UI"] = "false"
@@ -385,6 +385,7 @@ class GameManager:
             dry_run=True,  # Don't advance phase or commit to transcript yet
             narrative_state=self.narrative_state
         )
+        parsed_interpretation = parse_interpretation(interpretation)
 
         # Format critical concerns for API
         concerns_list = []
@@ -421,14 +422,15 @@ class GameManager:
             "decision_lines": list(decision_lines),
         }
 
-        # Create placeholder data for missing fields
         return {
             "interpretation": interpretation,
             "critical_concerns": concerns_list,
             "pushback": [{"role": r, "concern": c} for r, c in (pushback or [])],
             "raw_transcript": decision_lines,
-            "forces_involved": [],  # Placeholder
-            "timeline": "Immediate" # Placeholder
+            "forces_involved": parsed_interpretation["forces"],
+            "resources_consumed": parsed_interpretation["resources"],
+            "timeline": parsed_interpretation["timeline"],
+            "feasibility": parsed_interpretation["feasibility"],
         }
 
     # New pushback is attributed from the roster, so it carries cabinet titles.

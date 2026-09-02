@@ -352,8 +352,100 @@ def test_feasibility_wrapped_clause_is_captured():
         "FEASIBILITY: Requires\n"
         "clarification on the rules of engagement.\n"
     )
+    assert parsed.get("feasibility") == \
+        "Requires clarification on the rules of engagement."
     assert parsed["concerns"] == \
         "Requires clarification on the rules of engagement."
+
+
+def test_interpretation_resources_are_parsed_as_a_list():
+    parsed = parse_interpretation_simple(
+        "INTERPRETATION: Sustain maritime patrols.\n"
+        "FORCES INVOLVED: P-8 patrols\n"
+        "RESOURCES CONSUMED: aviation fuel, sonobuoys\n"
+        "TIMELINE: Within six hours\n"
+        "FEASIBILITY: Feasible at current readiness\n"
+    )
+    assert parsed.get("resources") == ["aviation fuel", "sonobuoys"]
+
+
+def test_interpretation_list_continuations_require_list_markers():
+    parsed = parse_interpretation_simple(
+        "FORCES INVOLVED: Type-45 destroyer\n"
+        "This explanatory sentence is not another force.\n"
+        "- P-8 patrol\n"
+        "2. Type 23 frigate: screen the group\n"
+        "RESOURCES CONSUMED: aviation fuel\n"
+        "This explanatory sentence is not another resource.\n"
+        "* sonobuoys\n"
+        "2) runway slots\n"
+        "TIMELINE: Within six hours\n"
+    )
+
+    assert parsed["forces"] == [
+        "Type-45 destroyer", "P-8 patrol", "Type 23 frigate"]
+    assert parsed["resources"] == [
+        "aviation fuel", "sonobuoys", "runway slots"]
+    assert parse_health.snapshot()["residue"] == {
+        "decision_interpretation": 2}
+
+
+def test_interpretation_list_fields_are_not_capped():
+    forces = ["force-1", "force-2", "force-3",
+              "force-4", "force-5", "force-6"]
+    resources = ["resource-1", "resource-2", "resource-3",
+                 "resource-4", "resource-5", "resource-6"]
+
+    parsed = parse_interpretation_simple(
+        f"FORCES INVOLVED: {', '.join(forces)}\n"
+        f"RESOURCES CONSUMED: {', '.join(resources)}\n"
+    )
+
+    assert parsed["forces"] == forces
+    assert parsed["resources"] == resources
+
+
+def test_decision_summary_keeps_the_cli_panel_to_five_forces(monkeypatch):
+    from io import StringIO
+
+    from rich.console import Console
+    from cli import display_utils
+
+    output = StringIO()
+    monkeypatch.setattr(
+        display_utils,
+        "console",
+        Console(file=output, width=120, force_terminal=False),
+    )
+    forces = ["force-1", "force-2", "force-3",
+              "force-4", "force-5", "force-6"]
+
+    display_utils.display_decision_summary(
+        "Test decision",
+        f"FORCES INVOLVED: {', '.join(forces)}",
+    )
+
+    rendered = output.getvalue()
+    assert all(force in rendered for force in forces[:5])
+    assert forces[5] not in rendered
+
+
+@pytest.mark.parametrize("sentinel", ["None", "None specified"])
+def test_interpretation_list_sentinels_are_empty(sentinel):
+    parsed = parse_interpretation_simple(
+        f"FORCES INVOLVED: {sentinel}\n"
+        f"RESOURCES CONSUMED: {sentinel}\n"
+    )
+    assert parsed["forces"] == []
+    assert parsed.get("resources") == []
+
+
+def test_malformed_interpretation_has_empty_field_fallbacks():
+    parsed = parse_interpretation_simple("Unlabelled model reply")
+    assert parsed["forces"] == []
+    assert parsed.get("resources") == []
+    assert parsed["timeline"] == ""
+    assert parsed.get("feasibility") == ""
 
 
 # --- P3/P4: situation summary + character responses record fallbacks ---------

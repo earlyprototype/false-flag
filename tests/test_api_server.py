@@ -126,23 +126,46 @@ def test_briefing_refused_while_mandatory_call_is_live(client):
     assert decided.status_code == 409
 
 
-def test_interpret_decision_returns_each_advisor_pushback(client, monkeypatch):
-    """The HTTP preview must not drop the engine's per-advisor results."""
+def test_interpret_decision_returns_each_parsed_field(client, monkeypatch):
+    """The HTTP preview must return the engine's complete parsed result."""
     from api import server
+    import engine.game_manager as game_manager_module
 
     created = _new_game(client)
-    manager = server.sessions[created["session_id"]].manager
+    forces = ["force-1", "force-2", "force-3",
+              "force-4", "force-5", "force-6"]
+    resources = ["resource-1", "resource-2", "resource-3",
+                 "resource-4", "resource-5", "resource-6"]
+    interpretation = (
+        "INTERPRETATION: Sustain maritime patrols and consult NATO.\n"
+        f"FORCES INVOLVED: {', '.join(forces)}\n"
+        f"RESOURCES CONSUMED: {', '.join(resources)}\n"
+        "TIMELINE: Within six hours\n"
+        "FEASIBILITY: Feasible at current readiness"
+    )
+    pushback_pairs = [
+        ("Chief of the Defence Staff", "Fleet concern."),
+        ("Attorney General", "Legal concern."),
+    ]
     pushback = [
         {"role": "Chief of the Defence Staff", "concern": "Fleet concern."},
         {"role": "Attorney General", "concern": "Legal concern."},
     ]
+    decision_lines = [
+        "Prime Minister's Decision: Test the transport.",
+        f"Interpretation: {interpretation}",
+    ]
 
-    monkeypatch.setattr(manager, "interpret_decision", lambda _action: {
-        "interpretation": "A test interpretation.",
-        "critical_concerns": [],
-        "pushback": pushback,
-        "raw_transcript": [],
-    })
+    monkeypatch.setattr(
+        game_manager_module,
+        "run_turn_decision",
+        lambda *args, **kwargs: (
+            interpretation,
+            pushback_pairs,
+            [],
+            decision_lines,
+        ),
+    )
 
     response = client.post("/game/decision/interpret", json={
         "session_id": created["session_id"],
@@ -150,7 +173,16 @@ def test_interpret_decision_returns_each_advisor_pushback(client, monkeypatch):
     })
 
     assert response.status_code == 200
-    assert response.json()["pushback"] == pushback
+    assert response.json() == {
+        "interpretation": interpretation,
+        "critical_concerns": [],
+        "pushback": pushback,
+        "forces_involved": forces,
+        "resources_consumed": resources,
+        "timeline": "Within six hours",
+        "feasibility": "Feasible at current readiness",
+        "raw_transcript": decision_lines,
+    }
 
 
 def test_direct_commit_returns_each_advisor_pushback(client, monkeypatch):
