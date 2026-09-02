@@ -849,16 +849,24 @@ def test_mock_interpretation_keeps_coordinated_force_directives():
         "Type 45 destroyers", "Typhoons"]
 
 
-def test_mock_interpretation_keeps_a_directive_after_incidental_negation():
+@pytest.mark.parametrize(("action", "expected"), [
+    ("Ready or not, if necessary, deploy the carrier.", ["the carrier"]),
+    ("No, on reflection, deploy the carrier.", ["the carrier"]),
+    (
+        "Send the frigates, no, on reflection, deploy the carrier.",
+        ["the frigates", "the carrier"],
+    ),
+])
+def test_mock_interpretation_keeps_a_directive_after_incidental_negation(
+        action, expected):
     driver = MockDeterministicDriver()
-    action = "Ready or not, if necessary, deploy the carrier."
 
     response = driver.generate_text(
         f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
         RNG,
     )
 
-    assert parse_interpretation_simple(response)["forces"] == ["the carrier"]
+    assert parse_interpretation_simple(response)["forces"] == expected
 
 
 def test_mock_interpretation_does_not_task_a_negated_force():

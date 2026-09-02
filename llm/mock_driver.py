@@ -1186,11 +1186,15 @@ def _extract_tasked_forces(action: str) -> str:
         r"(?:do not|don['’]t|will not|won['’]t|cannot|can['’]t|not(?:\s+to)?|"
         r"never|no|refuse to|without|avoid)"
     )
+    parenthetical_negation = (
+        r"(?:do not|don['’]t|will not|won['’]t|cannot|can['’]t|not\s+to|"
+        r"never|refuse to|avoid)"
+    )
     action = re.sub(
         rf"(?P<boundary>^|[;.!?]\s*|"
         rf",\s*(?:and|but)\s+(?:(?:instead|then)\s+)?|,\s*|"
         rf"\s+(?:and|but)\s+(?:(?:instead|then)\s+)?)"
-        rf"(?P<negated>{negation})\s*,[^,;.!?]*,\s*"
+        rf"(?P<negated>{parenthetical_negation})\s*,[^,;.!?]*,\s*"
         rf"(?P<verb>{tasking_verb})\b",
         r"\g<boundary>\g<negated> \g<verb>",
         action,
