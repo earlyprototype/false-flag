@@ -1190,13 +1190,18 @@ def _extract_tasked_forces(action: str) -> str:
         r"(?:do not|don['’]t|will not|won['’]t|cannot|can['’]t|not\s+to|"
         r"never|refuse to|avoid)"
     )
-    action = re.sub(
-        rf"(?P<boundary>^|[;.!?]\s*|"
+    parenthetical_prefix = (
+        rf"(?:(?:^|[;.!?]\s*|"
         rf",\s*(?:and|but)\s+(?:(?:instead|then)\s+)?|,\s*|"
         rf"\s+(?:and|but)\s+(?:(?:instead|then)\s+)?)"
-        rf"(?P<negated>{parenthetical_negation})\s*,[^,;.!?]*,\s*"
+        rf"{parenthetical_negation}|"
+        r"\b(?:must|shall|should|may|might|will|would|can|could|do|does|"
+        r"are|is|to|and|but)\s+not)"
+    )
+    action = re.sub(
+        rf"(?P<negated>{parenthetical_prefix})\s*,[^,;.!?]*,\s*"
         rf"(?P<verb>{tasking_verb})\b",
-        r"\g<boundary>\g<negated> \g<verb>",
+        r"\g<negated> \g<verb>",
         action,
         flags=re.IGNORECASE,
     )

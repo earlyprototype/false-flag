@@ -851,6 +851,7 @@ def test_mock_interpretation_keeps_coordinated_force_directives():
 
 @pytest.mark.parametrize(("action", "expected"), [
     ("Ready or not, if necessary, deploy the carrier.", ["the carrier"]),
+    ("Not, actually, deploy the carrier.", ["the carrier"]),
     ("No, on reflection, deploy the carrier.", ["the carrier"]),
     (
         "Send the frigates, no, on reflection, deploy the carrier.",
@@ -996,6 +997,11 @@ def test_mock_interpretation_rejects_negation_inside_a_tasking_object(action):
 @pytest.mark.parametrize("action", [
     "Do not, under any circumstances, deploy the carrier.",
     "Never, under any circumstances, launch the SSBNs.",
+    "They must not, under any circumstances, deploy the carrier.",
+    (
+        "Hold the fleet in port and not, under any circumstances, deploy "
+        "the carrier."
+    ),
     "Do not, for any reason, deploy the carrier.",
     "Do not, I repeat, deploy the carrier.",
     "Never, ever, launch the SSBNs.",
