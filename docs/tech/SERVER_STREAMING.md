@@ -11,7 +11,8 @@ is proved.
 ## How an API surface attaches
 
 1. A client creates or restores an API game session.
-2. Observer pages receive `?game=<session id>`.
+2. The globe accepts `?game=<session id>`; the dashboard and dataflow view
+   accept a pasted session ID.
 3. The shipped globe fetches its current snapshot from
    `GET /game/{id}/theatre`.
 4. Each page opens `GET /stream/{id}` for change events.
