@@ -247,7 +247,7 @@ Interprets a decision and returns advisor feedback without committing it.
 
 ```json
 {
-  "interpretation": "Sustain maritime patrols while consulting NATO.",
+  "interpretation": "INTERPRETATION: Sustain maritime patrols while consulting NATO.\nFORCES INVOLVED: P-8 patrols, Type 23 frigates\nRESOURCES CONSUMED: aviation fuel, sonobuoys\nTIMELINE: Within six hours\nFEASIBILITY: Feasible at current readiness",
   "critical_concerns": [
     {
       "role": "Chief of the Defence Staff",
@@ -266,13 +266,25 @@ Interprets a decision and returns advisor feedback without committing it.
   "timeline": "Within six hours",
   "feasibility": "Feasible at current readiness",
   "raw_transcript": [
-    "Prime Minister's Decision: Increase maritime patrols and consult NATO."
+    "Prime Minister's Decision: Increase maritime patrols and consult NATO.",
+    "",
+    "Interpretation: INTERPRETATION: Sustain maritime patrols while consulting NATO.\nFORCES INVOLVED: P-8 patrols, Type 23 frigates\nRESOURCES CONSUMED: aviation fuel, sonobuoys\nTIMELINE: Within six hours\nFEASIBILITY: Feasible at current readiness",
+    "",
+    "Advisor Concerns:",
+    "\nAttorney General: Clarify the rules of engagement.",
+    "",
+    "CRITICAL ADVISORY:",
+    "\nChief of the Defence Staff: The northern approaches may be exposed.",
+    "RECOMMENDATION: Retain one frigate for the northern screen.",
+    ""
   ]
 }
 ```
 
 Every top-level field shown in the response is required by the declared
-response model; the five collection fields may be empty arrays.
+response model; the five collection fields may be empty arrays. `interpretation`
+is the raw labelled model reply; clients should use the four parsed fields for
+structured display. `raw_transcript` includes blank strings as separators.
 
 ### POST `/game/decision/commit`
 
@@ -606,7 +618,7 @@ data: {"type":"advisor","role":"National Security Advisor","content":"...","laye
 ```
 
 Player sessions never receive REFEREE-layer events. Event names include
-`transcript`, `diplomacy`, `system`, `state_update`, and `ending`; facilitator
+`transcript`, `diplomacy`, `intel`, `system`, `state_update`, and `ending`; facilitator
 sessions can additionally receive `llm_call`, `adjudication`, and
 `parse_health`.
 
@@ -621,6 +633,8 @@ provides a value. Declared collection fields are arrays and may be empty.
 
 None are specified in this live guide. Historical unchecked phase-plan items
 are planning records, not promises that an endpoint is absent or forthcoming.
+Facilitator controls, HTML pages, health, demo, and DTDL support routes are
+outside this curated player-WebApp guide; omission here does not imply status.
 
 **Maintenance:** Reconcile this guide whenever the FastAPI routes or models
 change; use `/openapi.json` to detect drift.
