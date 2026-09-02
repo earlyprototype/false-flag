@@ -37,10 +37,11 @@ build step, is the live integration. Verified facts, from the file itself:
   floored at zero so + can never move the camera the opposite way; the
   log-scale slider sets camera height via `setView` with orientation
   preserved, and tracks native wheel/pinch zoom through `camera.changed`.
-- **Data on the globe.** Units from `GET /game/{id}/resources` plot at their
-  gazetteer bases as points with labels; any location the gazetteer cannot
-  place goes to a visible UNRESOLVED tray, never an invented coordinate.
-  Live updates arrive over the session's SSE stream
+- **Data on the globe.** The player-safe `GET /game/{id}/theatre` snapshot
+  supplies turn, phase and units. Units plot at their gazetteer bases as points
+  with labels; any location the gazetteer cannot place goes to a visible
+  UNRESOLVED tray, never an invented coordinate. SSE events trigger a
+  conditional snapshot fetch using its strong ETag
   ([SERVER_STREAMING.md](SERVER_STREAMING.md)).
 
 ## The globe in the VR room

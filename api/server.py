@@ -10,6 +10,7 @@ Provides endpoints for:
 import os
 import sys
 import asyncio
+import hashlib
 import json
 import threading
 import time
@@ -17,7 +18,7 @@ from typing import Dict, Optional, List, Any
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -430,6 +431,13 @@ class ResourceSummary(BaseModel):
     stockpiles: List[StockpileItem]
 
 
+class TheatreSnapshot(ResourceSummary):
+    schema_version: int = 1
+    session_id: str
+    turn: int
+    phase: str
+
+
 class DiplomaticContact(BaseModel):
     country_code: str
     title: Optional[str] = None
@@ -616,6 +624,31 @@ async def get_resources(session_id: str):
     
     session = sessions[session_id]
     return session.manager.get_resources()
+
+
+@app.get("/game/{session_id}/theatre", response_model=TheatreSnapshot)
+async def get_theatre_snapshot(session_id: str, request: Request):
+    """Return the current player-visible theatre state."""
+    session = _session_or_404(session_id)
+    with session.lock:
+        snapshot = TheatreSnapshot(
+            session_id=session_id,
+            turn=session.manager.world.turn,
+            phase=session.manager.world.phase,
+            **session.manager.get_resources(),
+        )
+        body = json.dumps(
+            snapshot.model_dump(),
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        etag = f'"{hashlib.sha256(body).hexdigest()}"'
+
+    headers = {"ETag": etag, "Cache-Control": "private, no-cache"}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return Response(body, media_type="application/json", headers=headers)
 
 
 @app.get(
@@ -1316,13 +1349,13 @@ async def globe_page():
     """The situation globe (self-contained, no build step).
 
     CesiumJS Earth carrying the session's order of battle: every unit
-    plotted at its named base from GET /game/{id}/resources, anything
+    plotted at its named base from GET /game/{id}/theatre, anything
     the gazetteer cannot place listed in an UNRESOLVED tray rather than
     guessed onto the map. Takes ?game={session_id}; follows that
     session's /stream. Every currently attached subscriber receives its
     own copy of each live event. Only the first subscriber receives the
-    pre-connect backlog; late and reconnecting displays still await the
-    versioned theatre snapshot.
+    pre-connect backlog; the versioned theatre snapshot restores late and
+    reconnecting displays.
     """
     if not _GLOBE_PATH.exists():
         raise HTTPException(status_code=500, detail="globe.html missing")

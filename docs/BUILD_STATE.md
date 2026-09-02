@@ -33,6 +33,8 @@ and [GAME_DESCRIPTION — Core Gameplay](../GAME_DESCRIPTION.md#core-gameplay).
 - Terminal and static-browser playing surfaces.
 - A FastAPI session path with decision, diplomacy, save/load and SSE endpoints.
 - Independent per-subscriber SSE queues for one session's observers.
+- A versioned, player-safe theatre snapshot with strong ETag revalidation; the
+  globe restores from it and treats SSE as change notification.
 - An observability dashboard, dataflow/DTDL view and control surface.
 - Thirteen published DTDL interfaces.
 - The shipped Cesium Situation Globe, completed in
@@ -43,16 +45,16 @@ and [GAME_DESCRIPTION — Core Gameplay](../GAME_DESCRIPTION.md#core-gameplay).
 
 - The globe plots static UK resource locations; it has no authoritative moving
   red-force tracks.
-- No versioned, reconnectable theatre snapshot with an ETag exists; SSE events
-  notify current subscribers but do not restore display state after reconnect.
+- The theatre snapshot is one common player-safe projection. Session IDs are
+  not authentication, and per-viewer permissions are not built.
 - The terminal CLI and static Pyodide browser each own their own engine session;
   they are not observers of a FastAPI session.
 - The checked-in `frontend/` source has API calls, but its package metadata is
   absent, so the documented Next.js start commands do not work from this tree.
   It also omits the later-turn `POST /game/{session_id}/briefing` call required
   for injects, effects and mandatory encounters after turn one.
-- No spatial-state model, kinematics module, theatre snapshot or validated
-  movement-order path exists.
+- No authoritative track model, kinematics module or validated movement-order
+  path exists.
 - No external live-data adapter exists.
 - No WebXR room or on-device Quest measurement exists.
 

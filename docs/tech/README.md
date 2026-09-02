@@ -14,4 +14,4 @@ project decision so it can be re-checked.
 - [CESIUM.md](CESIUM.md) — the globe engine: exactly how the shipped `/globe` page uses CesiumJS today and its role in the selected WebXR screen path.
 - [CONVAI.md](CONVAI.md) — optional future embodiment service; not a dependency of the current room.
 - [QUEST3.md](QUEST3.md) — Meta Quest 3 hardware facts, sourcing state (#75), and the on-device measurement procedure.
-- [SERVER_STREAMING.md](SERVER_STREAMING.md) — which surfaces share an API session, the current per-subscriber delivery model, and the remaining reconnectable-snapshot work.
+- [SERVER_STREAMING.md](SERVER_STREAMING.md) — which surfaces share an API session, the current per-subscriber delivery model, and the player-safe reconnectable snapshot.

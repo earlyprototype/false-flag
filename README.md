@@ -269,8 +269,10 @@ false-flag/
 The terminal and static browser each own their own engine session. FastAPI
 observer pages share API-created sessions, and every attached subscriber gets
 its own copy of each live event. Only the first subscriber receives events
-queued before any observer connects; late and reconnect recovery still awaits
-the versioned theatre snapshot. The exact integration gaps are recorded in
+queued before any observer connects. The globe restores its current
+player-visible turn, phase and static order of battle from the versioned theatre
+snapshot, using SSE only as a change notification. Per-viewer permissions and
+the shared API player path remain open; the exact gaps are recorded in
 [BUILD_STATE.md](docs/BUILD_STATE.md#what-is-not-built).
 
 ### Documentation status
