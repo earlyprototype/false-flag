@@ -428,16 +428,34 @@ string on this list response.
   "actor": "Russian Federation",
   "code": "RUS",
   "assessment": {
-    "raw": "In-fiction intelligence assessment text"
+    "raw": [
+      "═══════════════════════════════════════════════════════════════════════════════",
+      "         DETAILED ASSESSMENT - Russian Federation",
+      "         Turn 5",
+      "═══════════════════════════════════════════════════════════════════════════════",
+      "",
+      "Relationship Trend: STABLE →",
+      "Current Assessment: 10/100",
+      "",
+      "Recent Indicators:",
+      "• Minimal diplomatic engagement",
+      "• Intelligence sharing: none (restrictive)",
+      "• Public statements lack commitment",
+      "",
+      "Analyst Assessment: ADVERSARIAL. Actively working against UK interests.",
+      "",
+      "═══════════════════════════════════════════════════════════════════════════════"
+    ]
   },
   "confidence": "medium",
   "last_updated": 5
 }
 ```
 
-The current assessment object has a `raw` text field; it does not expose the
-older invented `military_posture`, `political_intent`, or `likely_next_moves`
-structure. `last_updated` is the integer game turn on this detail response.
+The current assessment object has a `raw` list of display lines; it does not
+expose the older invented `military_posture`, `political_intent`, or
+`likely_next_moves` structure. `last_updated` is the integer game turn on this
+detail response.
 
 ---
 
