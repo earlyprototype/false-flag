@@ -935,6 +935,7 @@ async def stream_game_events(session_id: str, request: Request):
     async def event_generator():
         subscriber_queue = session.subscribe()
         try:
+            yield {"event": "stream_ready", "data": "{}"}
             while True:
                 # Check for disconnection
                 if await request.is_disconnected():

@@ -233,8 +233,8 @@ def test_subscribers_receive_independent_copies_and_preconnect_events():
         "state_update"
 
 
-def test_disconnected_stream_unsubscribes_before_later_delivery():
-    """A closed stream cannot retain a queue and steal later events."""
+def test_stream_ready_follows_registration_and_disconnect_unsubscribes():
+    """Ready is first, and a closed stream cannot retain its queue."""
     from api import server
     from models.layers import Layer
 
@@ -249,8 +249,13 @@ def test_disconnected_stream_unsubscribes_before_later_delivery():
     async def disconnect_then_publish():
         response = await server.stream_game_events(
             session_id, DisconnectedRequest())
-        async for _ in response.body_iterator:
-            pass
+        iterator = response.body_iterator
+        ready = await iterator.__anext__()
+        assert ready == {"event": "stream_ready", "data": "{}"}
+        assert len(session._subscribers) == 1
+        with pytest.raises(StopAsyncIteration):
+            await iterator.__anext__()
+        assert not session._subscribers
         await session.push_event(
             "state_update", {"phase": "discussion"}, layer=Layer.SITREP)
 

@@ -40,7 +40,9 @@ Each active subscriber owns an independent `asyncio.Queue`. `GameSession`
 copies every event before delivery, so filtering one subscriber's copy cannot
 alter another's. Events emitted with no active subscriber wait for the first
 subscriber, preserving the cold open and briefing produced before EventSource
-can attach. Subscriber queues are removed on disconnect.
+can attach. `stream_ready` is emitted only after subscriber registration and
+triggers the globe's reconnect snapshot. Subscriber queues are removed on
+disconnect.
 
 `event_seq` orders delivery; `turn` and `t_plus_s` record emission. A worker
 event may therefore carry an earlier T+ than a lower-sequence event published

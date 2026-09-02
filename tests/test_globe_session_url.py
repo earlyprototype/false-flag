@@ -389,7 +389,7 @@ const response = (etag, turn) => ({
     assert result.returncode == 0, result.stderr or result.stdout
 
 
-def test_globe_revalidates_after_every_stream_open_with_handlers_installed():
+def test_globe_revalidates_after_every_stream_ready_signal():
     script = r"""
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -402,7 +402,6 @@ assert.notEqual(start, -1, "session state not found");
 assert.notEqual(end, -1, "session feed boundary not found");
 
 const requests = [];
-const openRegistration = [];
 let latestSource = null;
 
 class FakeEventSource {
@@ -413,10 +412,6 @@ class FakeEventSource {
   }
   addEventListener(name, handler) { this.listeners[name] = handler; }
   close() {}
-  set onopen(handler) {
-    openRegistration.push(Object.keys(this.listeners).sort());
-    this.openHandler = handler;
-  }
 }
 
 const context = vm.createContext({
@@ -438,18 +433,15 @@ vm.runInContext("renderResources = captureRender; flashLive = captureFlash", con
 
 (async () => {
   vm.runInContext("connectStream()", context);
-  assert.deepEqual(openRegistration, [[
-    "adjudication", "diplomacy", "ending", "inject_fired", "intel", "llm_call",
-    "parse_health", "state_update", "system", "transcript",
-  ]], "open handler must be installed after all stream handlers");
+  assert.equal(typeof latestSource.listeners.stream_ready, "function");
 
-  latestSource.openHandler();
+  latestSource.listeners.stream_ready({ data: "{}" });
   await new Promise(setImmediate);
-  assert.equal(requests.length, 1, "initial open must revalidate the snapshot");
+  assert.equal(requests.length, 1, "initial ready must revalidate the snapshot");
 
-  latestSource.openHandler();
+  latestSource.listeners.stream_ready({ data: "{}" });
   await new Promise(setImmediate);
-  assert.equal(requests.length, 2, "EventSource reconnect must revalidate again");
+  assert.equal(requests.length, 2, "reconnect ready must revalidate again");
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;

@@ -532,7 +532,8 @@ function connectStream() {
       scheduleRefetch();
     });
   }
-  source.onopen = () => loadTheatre().catch(e => flashLive("refetch failed", e.message));
+  source.addEventListener("stream_ready", () =>
+    loadTheatre().catch(e => flashLive("refetch failed", e.message)));
   source.onerror = () => { /* EventSource auto-reconnects */ };
 }
 
