@@ -49,6 +49,9 @@ _NEGATORS = {"no", "not", "never", "cannot", "won't", "wouldn't", "don't"}
 
 _SIGNED_INT_RE = re.compile(r"[+-]?\d+")
 _FLOAT_RE = re.compile(r"[+-]?\d+(?:\.\d+)?")
+_LIST_CONTINUATION_RE = re.compile(
+    r"^(?:[*\-\u2022\u2013\u2014]|\d+[.)])\s+(.+)$"
+)
 
 
 def strip_decoration(text: str) -> str:
@@ -95,7 +98,7 @@ def _parse_list_field(value: str) -> list[str]:
     if strip_decoration(value).rstrip(".").casefold() in {
             "", "none", "none specified"}:
         return []
-    return [item.strip() for item in value.split(",") if item.strip()][:5]
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 def parse_interpretation(interpretation: Optional[str]) -> dict:
@@ -143,12 +146,14 @@ def parse_interpretation(interpretation: Optional[str]) -> dict:
         elif current_section == "feasibility":
             feasibility_text = f"{feasibility_text} {line}".strip()
         elif current_section in {"forces", "resources"}:
-            item = line.lstrip("*-• ")
+            continuation = _LIST_CONTINUATION_RE.match(line)
+            if continuation is None:
+                residue.append(line)
+                continue
+            item = continuation.group(1).strip()
             if current_section == "forces" and ":" in item:
                 item = item.split(":", 1)[0]
-            for value in _parse_list_field(item):
-                if len(sections[current_section]) < 5:
-                    sections[current_section].append(value)
+            sections[current_section].extend(_parse_list_field(item))
         elif current_section == "timeline" and not sections["timeline"]:
             sections["timeline"] = line
         else:

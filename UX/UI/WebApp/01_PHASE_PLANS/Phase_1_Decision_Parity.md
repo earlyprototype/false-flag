@@ -1,4 +1,11 @@
 # Phase 1: Decision Loop Parity
+
+> **HISTORICAL / SUPERSEDED**
+>
+> This file preserves the original Phase 1 planning record; its statuses and
+> estimates are not current. See the canonical [PLAN.md](../../../../PLAN.md)
+> and the [live decision-interpret API contract](../03_TECHNICAL_SPECS/API_Contracts.md#post-gamedecisioninterpret).
+
 **Status:** PENDING (blocked by Phase 0)  
 **Goal:** Web App matches CLI's decision discipline  
 **Estimated Duration:** 2-3 weeks  
@@ -393,5 +400,4 @@ The decision loop is the heart of the game. Skipping the interpretation/pushback
 
 **Previous Phase:** [Phase_0_Stabilisation.md](Phase_0_Stabilisation.md)  
 **Next Phase:** [Phase_2_Deep_State_Intel.md](Phase_2_Deep_State_Intel.md)
-
 

@@ -199,7 +199,7 @@ def display_decision_summary(action: str, interpretation: str, show_details: boo
         # Show key forces
         if parsed["forces"]:
             content.append(f"[{COLORS['success']}]Forces Deployed:[/{COLORS['success']}]")
-            for force in parsed["forces"]:
+            for force in parsed["forces"][:5]:
                 content.append(f"  • {markdown_to_rich(force)}")
             content.append("")
 

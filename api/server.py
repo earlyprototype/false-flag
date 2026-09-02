@@ -1121,7 +1121,7 @@ async def interpret_decision(request: InterpretDecisionRequest):
         with session.lock:
             result = manager.interpret_decision(request.action_text)
         print(f"DEBUG: result keys: {result.keys()}")
-        
+
         return InterpretationResponse(
             interpretation=result["interpretation"],
             critical_concerns=result["critical_concerns"],
@@ -1138,7 +1138,8 @@ async def interpret_decision(request: InterpretDecisionRequest):
         print(f"ERROR in interpret_decision: {e}")
         # If it's a validation error, it might be helpful to see it
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
-    
+
+
 @app.post("/game/decision/commit")
 async def commit_decision(request: CommitDecisionRequest):
     """Step 2: Commit to a decision and run adjudication."""
