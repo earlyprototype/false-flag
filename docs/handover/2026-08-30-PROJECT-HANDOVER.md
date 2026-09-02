@@ -16,19 +16,20 @@
   [`42bf968`](https://github.com/earlyprototype/false-flag/commit/42bf968).
 - **Sanitised recovery source:**
   [`fe344ec`](https://github.com/earlyprototype/false-flag/commit/fe344ec).
-- **Public session:**
-  <https://claude.ai/code/session_015NPEdfpJtAXR7sqKXHxQAQ>.
+- **Session identifier:** `session_015NPEdfpJtAXR7sqKXHxQAQ`
+  (Anthropic-hosted; requires the owner's account and is not independently
+  retrievable).
 
-The reconciliation record states that all 213 entries visible in the shared
-session were reviewed. The public page is provenance, not durable project
-memory. Credential material visible in the source is intentionally absent from
-this file.
+The owner's reconciliation of the shared session states that all 213 visible
+entries were reviewed; that reconciliation is not tracked in this repository.
+The session identifier is provenance, not durable project memory. Any
+credential text present in the source material has been excluded.
 
 The workspace-local Claude transcript named
 `b667bdbc-13f1-4187-bc39-e4b372908fd4.jsonl` covers earlier DTDL and
 control-surface work from 27–28 August; it is not the 29 August session. Local
 transcript summaries are not guaranteed to exist in a fresh clone. The tracked
-planning snapshot from that date is
+planning snapshot from 29 August is
 [`2026-08-29-SITUATION-GLOBE.md`](2026-08-29-SITUATION-GLOBE.md).
 
 ## Settled decisions preserved from the session
