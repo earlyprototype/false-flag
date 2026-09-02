@@ -24,8 +24,8 @@ flowchart LR
   end
 
   subgraph API["SESSION API"]
-    SNAP["PLANNED · Session theatre snapshot\nETag · reconnectable"]
-    FAN["PLANNED · Subscriber fan-out\naudience filtering"]
+    SNAP["CURRENT V1 · Session theatre snapshot\nETag · reconnectable · player-safe"]
+    FAN["CURRENT · Subscriber fan-out\naudience filtering"]
   end
 
   subgraph SURFACES["THE SAME CAMPAIGN, OBSERVED"]
@@ -35,6 +35,7 @@ flowchart LR
   end
 
   PLAYER --> GM
+  GM --> SNAP
   GM --> SPATIAL --> KIN --> SNAP
   KIN --> TRIP --> GM
   GM --> FAN

@@ -141,12 +141,11 @@
 /* ===================================================================
    False Flag — Situation Globe (shipped display foundation, PLAN.md)
 
-   Reads GET /game/{id}/resources and plots every unit at its named
-   base, then follows that game's SSE stream so a live event visibly
-   moves the display.
+   Reads GET /game/{id}/theatre and plots every unit at its named base,
+   then follows that game's SSE stream as a change notification.
 
    Live events fan out to the dashboard and globe while both are attached.
-   The pre-connect backlog goes only to the first subscriber.
+   The versioned snapshot restores late and reconnecting displays.
    =================================================================== */
 
 const $ = id => document.getElementById(id);
@@ -445,6 +444,9 @@ function renderTray(resolved, unresolved) {
 /* ------------------------------------------------------- session + feed */
 let sessionId = params.get("game") || "";
 let source = null, refetchTimer = null, lastCounts = null, attachSeq = 0;
+const theatreEtags = new Map();
+let theatreLoadPromise = null, theatreLoadQueued = false;
+let lastRenderedTheatre = null;
 
 function setStatus(html) { $("statusBody").innerHTML = html; }
 
@@ -462,19 +464,63 @@ function renderResources(id, data) {
   lastCounts = { forces: (data.forces || []).length, resolved: resolved.length,
                  unresolved: unresolved.length, stockpiles: (data.stockpiles || []).length };
   setStatus(`session <b>${esc(id.slice(0, 8))}…</b><br>
+    turn <b>${esc(data.turn)}</b> · phase <b>${esc(pretty(data.phase))}</b><br>
     <b>${lastCounts.forces}</b> units · <b>${lastCounts.resolved}</b> plotted ·
     <b>${lastCounts.unresolved}</b> unresolved · ${lastCounts.stockpiles} stockpile lines<br>
     co-located units are fanned for legibility; positions remain at bases until spatial tracks are implemented`);
 }
 
-async function loadResources() {
+function renderTheatre(id, data) {
+  const previous = lastRenderedTheatre;
+  try {
+    renderResources(id, data);
+  } catch (error) {
+    if (previous) {
+      try { renderResources(previous.id, previous.data); }
+      catch { /* keep the original render error */ }
+    }
+    throw error;
+  }
+  lastRenderedTheatre = { id, data };
+}
+
+async function loadTheatre() {
   if (!sessionId) return;
-  const id = sessionId;
-  const res = await fetch(`/game/${encodeURIComponent(id)}/resources`);
-  if (!res.ok) throw new Error(`resources ${res.status}`);
-  const data = await res.json();
-  if (id !== sessionId) return;  // session switched while this response was in flight
-  renderResources(id, data);
+  if (theatreLoadPromise) {
+    theatreLoadQueued = true;
+    return theatreLoadPromise;
+  }
+  theatreLoadPromise = Promise.resolve().then(async () => {
+    let failure = null;
+    try {
+      do {
+        theatreLoadQueued = false;
+        try {
+          const id = sessionId;
+          const headers = {};
+          const etag = theatreEtags.get(id);
+          if (etag) headers["If-None-Match"] = etag;
+          const res = await fetch(`/game/${encodeURIComponent(id)}/theatre`, { headers });
+          if (res.status !== 304) {
+            if (!res.ok) throw new Error(`theatre ${res.status}`);
+            const data = await res.json();
+            if (id === sessionId) {
+              const nextEtag = res.headers.get("ETag");
+              renderTheatre(id, data);
+              if (nextEtag) theatreEtags.set(id, nextEtag);
+            }
+          }
+          failure = null;
+        } catch (e) {
+          failure = e;
+        }
+      } while (theatreLoadQueued);
+      if (failure) throw failure;
+    } finally {
+      theatreLoadPromise = null;
+    }
+  });
+  return theatreLoadPromise;
 }
 
 // Bursts (one adjudicated turn pushes a dozen events) collapse into one
@@ -483,7 +529,7 @@ function scheduleRefetch() {
   if (refetchTimer) clearTimeout(refetchTimer);
   refetchTimer = setTimeout(() => {
     refetchTimer = null;
-    loadResources().catch(e => flashLive("refetch failed", e.message));
+    loadTheatre().catch(e => flashLive("refetch failed", e.message));
   }, 250);
 }
 
@@ -501,6 +547,8 @@ function connectStream() {
       scheduleRefetch();
     });
   }
+  source.addEventListener("stream_ready", () =>
+    loadTheatre().catch(e => flashLive("refetch failed", e.message)));
   source.onerror = () => { /* EventSource auto-reconnects */ };
 }
 
@@ -508,20 +556,26 @@ async function attach(id) {
   const token = ++attachSeq;  // a newer attach supersedes this one
   $("sessionInput").value = id;
   try {
-    const res = await fetch(`/game/${encodeURIComponent(id)}/resources`);
-    if (!res.ok) throw new Error(`resources ${res.status}`);
+    const res = await fetch(`/game/${encodeURIComponent(id)}/theatre`);
+    if (!res.ok) throw new Error(`theatre ${res.status}`);
     const data = await res.json();
     if (token !== attachSeq) return;  // lost the race to a later attach
+    const etag = res.headers.get("ETag");
+    renderTheatre(id, data);
     if (id !== sessionId) history.replaceState(null, "", `?game=${encodeURIComponent(id)}`);
     if (source) { source.close(); source = null; }  // prior session's stream ends only on success
     sessionId = id;
     $("sessionBadge").textContent = `session ${id.slice(0, 8)}…`;
-    renderResources(id, data);
+    if (etag) theatreEtags.set(id, etag);
     connectStream();
     flashLive("attached", "watching stream");
   } catch (e) {
     if (token !== attachSeq) return;
     // sessionId, the badge and any prior stream stay on the previously attached session
+    if (lastRenderedTheatre) {
+      flashLive("attach failed", e.message);
+      return;
+    }
     setStatus(`<span class="err">${esc(e.message)}</span> — no such session, or the
       server has restarted. Start one from <a style="color:var(--accent)"
       href="/dashboard">/dashboard</a> and pass its id as <b>?game=</b>.`);

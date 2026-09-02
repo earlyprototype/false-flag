@@ -9,6 +9,7 @@ the same payload shape /game/new returns.
 """
 
 import asyncio
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -560,16 +561,202 @@ def test_dashboard_page_serves_the_twin_model_panel(client):
     assert "/dataflow" in body  # links to the full ◇ DTDL view
 
 
+def test_theatre_snapshot_unknown_session_is_404(client):
+    response = client.get("/game/no-such-session/theatre")
+
+    assert response.status_code == 404
+
+
+def test_theatre_snapshot_returns_versioned_player_view(client):
+    created = _new_game(client)
+    session_id = created["session_id"]
+
+    response = client.get(f"/game/{session_id}/theatre")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "schema_version": 1,
+        "session_id": session_id,
+        "turn": created["turn"],
+        "phase": created["phase"],
+        **client.get(f"/game/{session_id}/resources").json(),
+    }
+    assert response.headers["cache-control"] == "private, no-cache"
+    etag = response.headers["etag"]
+    assert etag.startswith('"') and etag.endswith('"') and len(etag) == 66
+
+
+def test_theatre_snapshots_are_isolated_by_session(client):
+    from api import server
+
+    first = _new_game(client)
+    second = _new_game(client)
+    for created, unit_id in ((first, "first-unit"), (second, "second-unit")):
+        manager = server.sessions[created["session_id"]].manager
+        manager.initial_conditions["uk_forces"] = {
+            "naval": [{"id": unit_id, "location": "Portsmouth"}],
+        }
+
+    first_response = client.get(f"/game/{first['session_id']}/theatre")
+    second_response = client.get(f"/game/{second['session_id']}/theatre")
+
+    assert first_response.json()["session_id"] == first["session_id"]
+    assert second_response.json()["session_id"] == second["session_id"]
+    assert [unit["id"] for unit in first_response.json()["forces"]] == ["first-unit"]
+    assert [unit["id"] for unit in second_response.json()["forces"]] == ["second-unit"]
+    assert first_response.headers["etag"] != second_response.headers["etag"]
+
+
+def test_theatre_snapshot_excludes_hidden_and_legacy_state(client):
+    from api import server
+
+    created = _new_game(client)
+    session_id = created["session_id"]
+    manager = server.sessions[session_id].manager
+    manager.world.spatial_state = {"hidden-site": ["red-unit"]}
+    manager.world.recent_injects = ["secret narrative"]
+    manager.transcript.append("secret actor exchange")
+    manager.initial_conditions["red_forces"] = {
+        "hidden": [{"id": "red-unit", "location": "hidden-site"}],
+    }
+
+    response = client.get(f"/game/{session_id}/theatre")
+    selected = client.get(f"/game/{session_id}/theatre?facilitator=true")
+
+    assert set(response.json()) == {
+        "schema_version", "session_id", "turn", "phase", "forces", "stockpiles",
+    }
+    for forbidden in (
+        "timestamp", "event_seq", "spatial_state", "narrative", "actor_system",
+        "actors", "world", "hidden-site", "red-unit", "secret narrative",
+        "secret actor exchange",
+    ):
+        assert forbidden not in response.text
+    assert selected.content == response.content
+    assert selected.headers["etag"] == response.headers["etag"]
+
+
+def test_theatre_snapshot_etag_revalidates_exact_canonical_body(client):
+    created = _new_game(client)
+    url = f"/game/{created['session_id']}/theatre"
+    initial = client.get(url)
+    etag = initial.headers["etag"]
+
+    unchanged = client.get(url, headers={"If-None-Match": etag})
+    weak_match = client.get(url, headers={"If-None-Match": f"W/{etag}"})
+
+    canonical = json.dumps(
+        initial.json(), ensure_ascii=False, separators=(",", ":"), sort_keys=True,
+    ).encode("utf-8")
+    assert initial.content == canonical
+    assert etag == f'"{hashlib.sha256(canonical).hexdigest()}"'
+    assert unchanged.status_code == 304
+    assert unchanged.content == b""
+    assert unchanged.headers["etag"] == etag
+    assert unchanged.headers["cache-control"] == "private, no-cache"
+    assert weak_match.status_code == 200
+
+
+def test_unrelated_sse_event_leaves_theatre_etag_stable(client):
+    from api import server
+    from models.layers import Layer
+
+    created = _new_game(client)
+    session_id = created["session_id"]
+    session = server.sessions[session_id]
+    url = f"/game/{session_id}/theatre"
+    etag = client.get(url).headers["etag"]
+    _drain_events(session)
+
+    asyncio.run(session.push_event(
+        "transcript", {"content": "display-only notice"}, layer=Layer.SITREP,
+    ))
+
+    event = _drain_events(session)
+    response = client.get(url, headers={"If-None-Match": etag})
+    assert event[0]["event"] == "transcript"
+    assert event[0]["data"]["content"] == "display-only notice"
+    assert response.status_code == 304
+    assert response.headers["etag"] == etag
+
+
+def test_visible_turn_change_replaces_theatre_etag(client):
+    created = _new_game(client)
+    session_id = created["session_id"]
+    url = f"/game/{session_id}/theatre"
+    initial = client.get(url)
+
+    decided = client.post("/game/decision", json={
+        "session_id": session_id,
+        "action_text": "Convene NATO consultations and hold current positions.",
+    })
+    changed = client.get(url)
+
+    assert decided.status_code == 200
+    assert changed.json()["turn"] == initial.json()["turn"] + 1
+    assert changed.headers["etag"] != initial.headers["etag"]
+
+
+def test_visible_phase_change_replaces_theatre_etag(client):
+    from api import server
+
+    created = _new_game(client)
+    session_id = created["session_id"]
+    url = f"/game/{session_id}/theatre"
+    initial = client.get(url)
+    session = server.sessions[session_id]
+
+    with session.lock:
+        session.manager.world.phase = "decision"
+
+    changed = client.get(url)
+    assert changed.json()["phase"] == "decision"
+    assert changed.headers["etag"] != initial.headers["etag"]
+
+
+def test_theatre_snapshot_waits_for_session_lock(client):
+    import threading
+
+    from api import server
+
+    created = _new_game(client)
+    session = server.sessions[created["session_id"]]
+    outcome = {}
+
+    def fetch_snapshot():
+        outcome["response"] = client.get(
+            f"/game/{created['session_id']}/theatre")
+
+    thread = threading.Thread(target=fetch_snapshot, daemon=True)
+    with session.lock:
+        thread.start()
+        thread.join(0.3)
+        assert thread.is_alive(), "snapshot read did not wait for the session lock"
+    thread.join(5.0)
+
+    assert not thread.is_alive(), "snapshot read never completed after lock release"
+    assert outcome["response"].status_code == 200
+
+
+def test_theatre_snapshot_lock_wait_runs_off_the_event_loop():
+    import inspect
+
+    from api import server
+
+    assert not inspect.iscoroutinefunction(server.get_theatre_snapshot)
+
+
 def test_globe_page_serves_the_exercise_marked_situation_globe(client):
     """GET /globe returns the self-contained situation globe: EXERCISE
-    chrome, the resources fetch it plots from, and the one stream it
+    chrome, the theatre snapshot it plots from, and the one stream it
     consumes."""
     response = client.get("/globe")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     body = response.text
     assert "EXERCISE" in body
-    assert "/resources" in body and "/stream/" in body
+    assert "/theatre" in body and "/stream/" in body
+    assert "data.turn" in body and "data.phase" in body
     assert "UNRESOLVED" in body.upper()  # the tray for unplaceable units
     # Manual zoom redundancy (#107): buttons and slider must keep shipping.
     assert "btnZoomIn" in body and "btnZoomOut" in body and "zoomSlider" in body
