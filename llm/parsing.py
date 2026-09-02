@@ -52,6 +52,10 @@ _FLOAT_RE = re.compile(r"[+-]?\d+(?:\.\d+)?")
 _LIST_CONTINUATION_RE = re.compile(
     r"^(?:[*\-\u2022\u2013\u2014]|\d+[.)])\s+(.+)$"
 )
+_FIELD_VALUE_LEAD_RE = re.compile(
+    r"^\s*(?:(?:>+|#+)\s+)*"
+    r"(?:(?:[*\-\u2022\u2013\u2014]|\d+[.)])\s+)?"
+)
 
 
 def strip_decoration(text: str) -> str:
@@ -98,7 +102,21 @@ def _parse_list_field(value: str) -> list[str]:
     if strip_decoration(value).rstrip(".").casefold() in {
             "", "none", "none specified"}:
         return []
-    return [item.strip() for item in value.split(",") if item.strip()]
+    items = []
+    for item in value.split(","):
+        item = _strip_field_value_decoration(item)
+        if item:
+            items.append(item)
+    return items
+
+
+def _strip_field_value_decoration(value: str) -> str:
+    """Remove value wrapping without stripping semantic punctuation."""
+    value = _FIELD_VALUE_LEAD_RE.sub("", value, count=1).strip()
+    value = value.strip("*_`").strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        value = value[1:-1].strip()
+    return value
 
 
 def parse_interpretation(interpretation: Optional[str]) -> dict:
