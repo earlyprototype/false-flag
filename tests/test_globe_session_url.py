@@ -129,6 +129,12 @@ const responses = [
     json: async () => ({ forces: [{ id: "unit-a" }], stockpiles: [] }),
   },
   {
+    ok: true,
+    status: 200,
+    headers: { get: name => name.toLowerCase() === "etag" ? '"etag-a"' : null },
+    json: async () => ({ forces: [{ id: "unit-a" }], stockpiles: [] }),
+  },
+  {
     ok: false,
     status: 304,
     headers: { get: name => name.toLowerCase() === "etag" ? '"etag-a"' : null },
@@ -136,6 +142,7 @@ const responses = [
 ];
 let latestSource = null;
 let renderCalls = 0;
+let renderFails = true;
 
 class FakeEventSource {
   constructor(url) {
@@ -156,7 +163,10 @@ const context = vm.createContext({
   },
   setTimeout: handler => { handler(); return 1; },
   clearTimeout: () => {},
-  renderResources: () => { renderCalls += 1; },
+  renderResources: () => {
+    renderCalls += 1;
+    if (renderFails) throw new Error("render failed");
+  },
   flashLive: () => {},
 });
 
@@ -168,19 +178,23 @@ vm.runInContext(`
 vm.runInContext(html.slice(start, end), context);
 
 (async () => {
+  await assert.rejects(vm.runInContext("loadTheatre()", context), /render failed/);
+  assert.equal(vm.runInContext('theatreEtags.get("session-a")', context), undefined);
+
+  renderFails = false;
   await vm.runInContext("loadTheatre()", context);
-  assert.equal(renderCalls, 1);
-  assert.equal(requests[0].url, "/game/session-a/theatre");
-  assert.equal(requests[0].options.headers?.["If-None-Match"], undefined);
+  assert.equal(renderCalls, 2);
+  assert.equal(requests[1].url, "/game/session-a/theatre");
+  assert.equal(requests[1].options.headers?.["If-None-Match"], undefined);
   assert.equal(vm.runInContext('theatreEtags.get("session-a")', context), '"etag-a"');
 
   vm.runInContext("connectStream()", context);
   latestSource.listeners.state_update({ data: '{"turn": 1}' });
   await new Promise(setImmediate);
 
-  assert.equal(requests[1].url, "/game/session-a/theatre");
-  assert.equal(requests[1].options.headers["If-None-Match"], '"etag-a"');
-  assert.equal(renderCalls, 1, "304 must keep the current plotted view");
+  assert.equal(requests[2].url, "/game/session-a/theatre");
+  assert.equal(requests[2].options.headers["If-None-Match"], '"etag-a"');
+  assert.equal(renderCalls, 2, "304 must keep the current plotted view");
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;

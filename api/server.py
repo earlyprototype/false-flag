@@ -627,7 +627,7 @@ async def get_resources(session_id: str):
 
 
 @app.get("/game/{session_id}/theatre", response_model=TheatreSnapshot)
-async def get_theatre_snapshot(session_id: str, request: Request):
+def get_theatre_snapshot(session_id: str, request: Request):
     """Return the current player-visible theatre state."""
     session = _session_or_404(session_id)
     with session.lock:
@@ -646,6 +646,8 @@ async def get_theatre_snapshot(session_id: str, request: Request):
         etag = f'"{hashlib.sha256(body).hexdigest()}"'
 
     headers = {"ETag": etag, "Cache-Control": "private, no-cache"}
+    # v1 accepts one exact strong validator. Weak, list and * parsing stay
+    # out of scope.
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers=headers)
     return Response(body, media_type="application/json", headers=headers)

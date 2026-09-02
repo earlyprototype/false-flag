@@ -480,8 +480,8 @@ async function loadTheatre() {
   const data = await res.json();
   if (id !== sessionId) return;  // session switched while this response was in flight
   const nextEtag = res.headers.get("ETag");
-  if (nextEtag) theatreEtags.set(id, nextEtag);
   renderResources(id, data);
+  if (nextEtag) theatreEtags.set(id, nextEtag);
 }
 
 // Bursts (one adjudicated turn pushes a dozen events) collapse into one
@@ -520,12 +520,12 @@ async function attach(id) {
     const data = await res.json();
     if (token !== attachSeq) return;  // lost the race to a later attach
     const etag = res.headers.get("ETag");
-    if (etag) theatreEtags.set(id, etag);
     if (id !== sessionId) history.replaceState(null, "", `?game=${encodeURIComponent(id)}`);
     if (source) { source.close(); source = null; }  // prior session's stream ends only on success
     sessionId = id;
     $("sessionBadge").textContent = `session ${id.slice(0, 8)}…`;
     renderResources(id, data);
+    if (etag) theatreEtags.set(id, etag);
     connectStream();
     flashLive("attached", "watching stream");
   } catch (e) {

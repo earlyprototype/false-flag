@@ -738,6 +738,14 @@ def test_theatre_snapshot_waits_for_session_lock(client):
     assert outcome["response"].status_code == 200
 
 
+def test_theatre_snapshot_lock_wait_runs_off_the_event_loop():
+    import inspect
+
+    from api import server
+
+    assert not inspect.iscoroutinefunction(server.get_theatre_snapshot)
+
+
 def test_globe_page_serves_the_exercise_marked_situation_globe(client):
     """GET /globe returns the self-contained situation globe: EXERCISE
     chrome, the theatre snapshot it plots from, and the one stream it
