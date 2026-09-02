@@ -19,6 +19,10 @@ setup instructions or build order.
 - [`2026-09-01-DELIVERY-SYSTEM-PM.md`](2026-09-01-DELIVERY-SYSTEM-PM.md) —
   delivery-system snapshot through PR #110. Its product ordering and dates are
   superseded by the current plan.
+- [`2026-08-30-PROJECT-HANDOVER.md`](2026-08-30-PROJECT-HANDOVER.md) —
+  sanitised historical record of the public 29 August Claude session. It
+  preserves provenance and settled decisions but no current status or next
+  step.
 - [`2026-08-29-SITUATION-GLOBE.md`](2026-08-29-SITUATION-GLOBE.md) — planning
   snapshot before Globe Display shipped and before the current live/VR sequence.
 
