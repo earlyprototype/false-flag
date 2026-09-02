@@ -44,7 +44,7 @@ const context = vm.createContext({
     },
   },
   $: id => elements[id],
-  renderResources: () => { renderCalls += 1; },
+  renderTheatre: () => { renderCalls += 1; },
   connectStream: () => { connectCalls += 1; },
   flashLive: () => {},
   setStatus: () => {},
@@ -55,6 +55,7 @@ vm.runInContext(`
   let attachSeq = 0;
   let sessionId = "good-session";
   const theatreEtags = new Map();
+  let lastRenderedTheatre = { id: "good-session", data: {} };
   let source = {
     closed: false,
     close() { this.closed = true; },
@@ -150,7 +151,7 @@ const context = vm.createContext({
     },
   },
   $: id => elements[id],
-  renderResources: () => { throw new Error("render failed"); },
+  renderTheatre: () => { throw new Error("render failed"); },
   connectStream: () => { connectCalls += 1; },
   flashLive: () => {},
   setStatus: () => {},
@@ -161,6 +162,7 @@ vm.runInContext(`
   let attachSeq = 0;
   let sessionId = "prior-session";
   const theatreEtags = new Map([["prior-session", '"prior-etag"']]);
+  let lastRenderedTheatre = { id: "prior-session", data: {} };
   const priorSource = {
     closed: false,
     close() { this.closed = true; },
@@ -179,6 +181,149 @@ vm.runInContext(html.slice(start, end), context);
     candidateEtag: theatreEtags.get("candidate-session"),
   })`, context);
 
+  assert.equal(currentUrl, "?game=prior-session&ionToken=token#view");
+  assert.equal(historyCalls, 0);
+  assert.equal(state.sessionId, "prior-session");
+  assert.equal(elements.sessionBadge.textContent, "session prior-seâ€¦");
+  assert.equal(state.sameSource, true);
+  assert.equal(state.priorSourceClosed, false);
+  assert.equal(connectCalls, 0);
+  assert.equal(state.priorEtag, '"prior-etag"');
+  assert.equal(state.candidateEtag, undefined);
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
+"""
+
+    result = subprocess.run(
+        ["node", "-e", script, str(GLOBE)],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_globe_attach_render_failure_restores_previous_display():
+    script = r"""
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+
+const html = fs.readFileSync(process.argv[1], "utf8");
+const start = html.indexOf('let sessionId = params.get("game") || "";');
+const end = html.indexOf('$("btnAttach").onclick', start);
+assert.notEqual(start, -1, "session state not found");
+assert.notEqual(end, -1, "attach handler boundary not found");
+
+const priorData = {
+  schema_version: 1,
+  session_id: "prior-session",
+  turn: 1,
+  phase: "discussion",
+  forces: [{
+    id: "prior-unit", branch: "naval", unit_type: "frigate", location: "Portsmouth",
+    status: "ready", role: null, readiness_turns: null, notes: null,
+  }],
+  stockpiles: [{ category: "fuel", name: "prior-stock", count: 10, note: null }],
+};
+const candidateData = {
+  schema_version: 1,
+  session_id: "candidate-session",
+  turn: 2,
+  phase: "decision",
+  forces: [{
+    id: "candidate-unit", branch: "air", unit_type: "fighter", location: "RAF Marham",
+    status: "ready", role: null, readiness_turns: null, notes: null,
+  }],
+  stockpiles: [{ category: "fuel", name: "candidate-stock", count: 5, note: null }],
+};
+const displayed = { map: null, tray: null, status: null };
+const renders = [];
+const flashes = [];
+let currentUrl = "?game=prior-session&ionToken=token#view";
+let historyCalls = 0;
+let setStatusCalls = 0;
+let connectCalls = 0;
+
+const elements = {
+  sessionInput: { value: "" },
+  sessionBadge: { textContent: "session prior-seâ€¦" },
+};
+const priorSource = {
+  closed: false,
+  close() { this.closed = true; },
+};
+
+const context = vm.createContext({
+  encodeURIComponent,
+  params: { get: name => name === "game" ? "prior-session" : null },
+  fetch: async () => ({
+    ok: true,
+    status: 200,
+    headers: { get: name => name.toLowerCase() === "etag" ? '"candidate-etag"' : null },
+    json: async () => candidateData,
+  }),
+  history: {
+    replaceState(_state, _title, url) {
+      currentUrl = url;
+      historyCalls += 1;
+    },
+  },
+  $: id => elements[id],
+  esc: value => value,
+  priorData,
+  priorSource,
+  captureRender: (id, data) => {
+    renders.push(id);
+    displayed.map = data.forces[0].id;
+    displayed.tray = data.stockpiles[0].name;
+    displayed.status = `turn ${data.turn} ${data.phase}`;
+    if (id === "candidate-session") throw new Error("candidate render failed");
+  },
+  captureStatus: value => {
+    setStatusCalls += 1;
+    displayed.status = value;
+  },
+  captureFlash: (kind, note) => { flashes.push([kind, note]); },
+  captureConnect: () => { connectCalls += 1; },
+  EventSource: class {},
+  setTimeout,
+  clearTimeout,
+});
+
+vm.runInContext(html.slice(start, end), context);
+vm.runInContext(`
+  renderResources = captureRender;
+  setStatus = captureStatus;
+  flashLive = captureFlash;
+  connectStream = captureConnect;
+  source = priorSource;
+  theatreEtags.set("prior-session", '"prior-etag"');
+  if (typeof renderTheatre === "function") renderTheatre("prior-session", priorData);
+  else renderResources("prior-session", priorData);
+`, context);
+
+(async () => {
+  await vm.runInContext('attach("candidate-session")', context);
+  const state = vm.runInContext(`({
+    sessionId,
+    sameSource: source === priorSource,
+    priorSourceClosed: priorSource.closed,
+    priorEtag: theatreEtags.get("prior-session"),
+    candidateEtag: theatreEtags.get("candidate-session"),
+  })`, context);
+
+  assert.deepEqual(displayed, {
+    map: "prior-unit",
+    tray: "prior-stock",
+    status: "turn 1 discussion",
+  });
+  assert.deepEqual(renders, ["prior-session", "candidate-session", "prior-session"]);
+  assert.deepEqual(flashes, [["attach failed", "candidate render failed"]]);
+  assert.equal(setStatusCalls, 0, "restored status must not be overwritten by the error");
   assert.equal(currentUrl, "?game=prior-session&ionToken=token#view");
   assert.equal(historyCalls, 0);
   assert.equal(state.sessionId, "prior-session");
@@ -259,7 +404,7 @@ const context = vm.createContext({
   },
   setTimeout: handler => { handler(); return 1; },
   clearTimeout: () => {},
-  renderResources: () => {
+  renderTheatre: () => {
     renderCalls += 1;
     if (renderFails) throw new Error("render failed");
   },

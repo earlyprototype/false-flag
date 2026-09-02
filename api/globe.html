@@ -446,6 +446,7 @@ let sessionId = params.get("game") || "";
 let source = null, refetchTimer = null, lastCounts = null, attachSeq = 0;
 const theatreEtags = new Map();
 let theatreLoadPromise = null, theatreLoadQueued = false;
+let lastRenderedTheatre = null;
 
 function setStatus(html) { $("statusBody").innerHTML = html; }
 
@@ -467,6 +468,20 @@ function renderResources(id, data) {
     <b>${lastCounts.forces}</b> units · <b>${lastCounts.resolved}</b> plotted ·
     <b>${lastCounts.unresolved}</b> unresolved · ${lastCounts.stockpiles} stockpile lines<br>
     co-located units are fanned for legibility; positions remain at bases until spatial tracks are implemented`);
+}
+
+function renderTheatre(id, data) {
+  const previous = lastRenderedTheatre;
+  try {
+    renderResources(id, data);
+  } catch (error) {
+    if (previous) {
+      try { renderResources(previous.id, previous.data); }
+      catch { /* keep the original render error */ }
+    }
+    throw error;
+  }
+  lastRenderedTheatre = { id, data };
 }
 
 async function loadTheatre() {
@@ -491,7 +506,7 @@ async function loadTheatre() {
             const data = await res.json();
             if (id === sessionId) {
               const nextEtag = res.headers.get("ETag");
-              renderResources(id, data);
+              renderTheatre(id, data);
               if (nextEtag) theatreEtags.set(id, nextEtag);
             }
           }
@@ -546,7 +561,7 @@ async function attach(id) {
     const data = await res.json();
     if (token !== attachSeq) return;  // lost the race to a later attach
     const etag = res.headers.get("ETag");
-    renderResources(id, data);
+    renderTheatre(id, data);
     if (id !== sessionId) history.replaceState(null, "", `?game=${encodeURIComponent(id)}`);
     if (source) { source.close(); source = null; }  // prior session's stream ends only on success
     sessionId = id;
@@ -557,6 +572,10 @@ async function attach(id) {
   } catch (e) {
     if (token !== attachSeq) return;
     // sessionId, the badge and any prior stream stay on the previously attached session
+    if (lastRenderedTheatre) {
+      flashLive("attach failed", e.message);
+      return;
+    }
     setStatus(`<span class="err">${esc(e.message)}</span> — no such session, or the
       server has restarted. Start one from <a style="color:var(--accent)"
       href="/dashboard">/dashboard</a> and pass its id as <b>?game=</b>.`);
