@@ -9,6 +9,10 @@ from pathlib import Path
 root = Path(__file__).parent.parent
 sys.path.insert(0, str(root))
 
+def _utf8_env():
+    return {**os.environ, "PYTHONIOENCODING": "utf-8"}
+
+
 def test_original_cli_works():
     """Verify original CLI is untouched."""
     print("Testing original CLI...")
@@ -16,6 +20,8 @@ def test_original_cli_works():
         [sys.executable, "-m", "cli.main", "--help"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        env=_utf8_env(),
         cwd=root
     )
     
@@ -30,6 +36,8 @@ def test_dashboard_cli_works():
         [sys.executable, "-m", "cli.main_dashboard", "--help"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        env=_utf8_env(),
         cwd=root
     )
     
@@ -44,6 +52,8 @@ def test_dashboard_import():
         [sys.executable, "-c", "from cli.dashboard import WargameDashboard; print('OK')"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        env=_utf8_env(),
         cwd=root
     )
     
@@ -60,6 +70,8 @@ def test_both_commands_available():
         [sys.executable, "-m", "cli.main", "--help"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        env=_utf8_env(),
         cwd=root
     )
     
@@ -68,6 +80,8 @@ def test_both_commands_available():
         [sys.executable, "-m", "cli.main_dashboard", "--help"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        env=_utf8_env(),
         cwd=root
     )
     
@@ -89,6 +103,8 @@ def test_intro_command():
         [sys.executable, "-m", "cli.main", "intro"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        env=_utf8_env(),
         cwd=root,
         timeout=10
     )
@@ -98,6 +114,8 @@ def test_intro_command():
         [sys.executable, "-m", "cli.main_dashboard", "intro"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        env=_utf8_env(),
         cwd=root,
         timeout=10
     )
@@ -116,13 +134,14 @@ def test_play_intro_smoke_non_tty():
     static frame, and all three intro scene cards).
     """
     print("Testing play --intro-only smoke (non-TTY cinematics)...")
-    env = dict(os.environ)
+    env = _utf8_env()
     env["WARGAME_LLM"] = "mock"
     result = subprocess.run(
         [sys.executable, "-m", "cli.main", "play", "--intro-only"],
         input="1\n1\n1\n1\n",
         capture_output=True,
         text=True,
+        encoding="utf-8",
         cwd=root,
         timeout=120,
         env=env,
