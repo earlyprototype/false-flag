@@ -20,7 +20,7 @@ setup instructions or build order.
   delivery-system snapshot through PR #110. Its product ordering and dates are
   superseded by the current plan.
 - [`2026-08-30-PROJECT-HANDOVER.md`](2026-08-30-PROJECT-HANDOVER.md) —
-  sanitised historical record of the public 29 August Claude session. It
+  sanitised historical record of the 29 August Claude session. It
   preserves provenance and settled decisions but no current status or next
   step.
 - [`2026-08-29-SITUATION-GLOBE.md`](2026-08-29-SITUATION-GLOBE.md) — planning
