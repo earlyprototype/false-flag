@@ -456,7 +456,7 @@ def test_dataflow_page_serves_the_operable_schema(client):
     assert "/prompts/" in body
     for mode_name in ("classic", "immersive", "emergent"):
         assert mode_name in body
-    assert not re.findall(r'anchor:"[^"]*\.py:\d+', body), \
+    assert not re.findall(r'anchor:"[^"]*:\d+', body), \
         "dataflow anchors must use stable path::symbol references"
 
 
