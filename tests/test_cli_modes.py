@@ -9,8 +9,9 @@ from pathlib import Path
 root = Path(__file__).parent.parent
 sys.path.insert(0, str(root))
 
-utf8_env = dict(os.environ)
-utf8_env["PYTHONIOENCODING"] = "utf-8"
+def _utf8_env():
+    return {**os.environ, "PYTHONIOENCODING": "utf-8"}
+
 
 def test_original_cli_works():
     """Verify original CLI is untouched."""
@@ -20,7 +21,7 @@ def test_original_cli_works():
         capture_output=True,
         text=True,
         encoding="utf-8",
-        env=utf8_env,
+        env=_utf8_env(),
         cwd=root
     )
     
@@ -36,7 +37,7 @@ def test_dashboard_cli_works():
         capture_output=True,
         text=True,
         encoding="utf-8",
-        env=utf8_env,
+        env=_utf8_env(),
         cwd=root
     )
     
@@ -51,6 +52,8 @@ def test_dashboard_import():
         [sys.executable, "-c", "from cli.dashboard import WargameDashboard; print('OK')"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        env=_utf8_env(),
         cwd=root
     )
     
@@ -68,7 +71,7 @@ def test_both_commands_available():
         capture_output=True,
         text=True,
         encoding="utf-8",
-        env=utf8_env,
+        env=_utf8_env(),
         cwd=root
     )
     
@@ -78,7 +81,7 @@ def test_both_commands_available():
         capture_output=True,
         text=True,
         encoding="utf-8",
-        env=utf8_env,
+        env=_utf8_env(),
         cwd=root
     )
     
@@ -100,6 +103,8 @@ def test_intro_command():
         [sys.executable, "-m", "cli.main", "intro"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        env=_utf8_env(),
         cwd=root,
         timeout=10
     )
@@ -109,6 +114,8 @@ def test_intro_command():
         [sys.executable, "-m", "cli.main_dashboard", "intro"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        env=_utf8_env(),
         cwd=root,
         timeout=10
     )
@@ -127,9 +134,8 @@ def test_play_intro_smoke_non_tty():
     static frame, and all three intro scene cards).
     """
     print("Testing play --intro-only smoke (non-TTY cinematics)...")
-    env = dict(os.environ)
+    env = _utf8_env()
     env["WARGAME_LLM"] = "mock"
-    env["PYTHONIOENCODING"] = "utf-8"
     result = subprocess.run(
         [sys.executable, "-m", "cli.main", "play", "--intro-only"],
         input="1\n1\n1\n1\n",
