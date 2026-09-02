@@ -9,6 +9,9 @@ from pathlib import Path
 root = Path(__file__).parent.parent
 sys.path.insert(0, str(root))
 
+utf8_env = dict(os.environ)
+utf8_env["PYTHONIOENCODING"] = "utf-8"
+
 def test_original_cli_works():
     """Verify original CLI is untouched."""
     print("Testing original CLI...")
@@ -16,6 +19,8 @@ def test_original_cli_works():
         [sys.executable, "-m", "cli.main", "--help"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        env=utf8_env,
         cwd=root
     )
     
@@ -30,6 +35,8 @@ def test_dashboard_cli_works():
         [sys.executable, "-m", "cli.main_dashboard", "--help"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        env=utf8_env,
         cwd=root
     )
     
@@ -60,6 +67,8 @@ def test_both_commands_available():
         [sys.executable, "-m", "cli.main", "--help"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        env=utf8_env,
         cwd=root
     )
     
@@ -68,6 +77,8 @@ def test_both_commands_available():
         [sys.executable, "-m", "cli.main_dashboard", "--help"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        env=utf8_env,
         cwd=root
     )
     
@@ -118,11 +129,13 @@ def test_play_intro_smoke_non_tty():
     print("Testing play --intro-only smoke (non-TTY cinematics)...")
     env = dict(os.environ)
     env["WARGAME_LLM"] = "mock"
+    env["PYTHONIOENCODING"] = "utf-8"
     result = subprocess.run(
         [sys.executable, "-m", "cli.main", "play", "--intro-only"],
         input="1\n1\n1\n1\n",
         capture_output=True,
         text=True,
+        encoding="utf-8",
         cwd=root,
         timeout=120,
         env=env,
