@@ -5,10 +5,10 @@ already call the game, discussion, decision, diplomacy, saved-game listing and
 load, and SSE endpoints; it is not a mock-only UI. It has no save-game call.
 
 It is **not runnable from the current tree** because `package.json`, the lock
-file, TypeScript configuration and component metadata are absent. Commands such
-as `npm install` and `npm run dev` therefore fail here. Do not use this README
-as a setup guide or claim this client as a demonstrated surface until its build
-is deliberately restored and verified.
+file, TypeScript configuration, component metadata and the imported shared
+`lib/utils.ts` helper are absent. `npm install` and `npm run dev` therefore fail
+here. Do not use this README as a setup guide or claim this client as a
+demonstrated surface until its build is deliberately restored and verified.
 
 There is also a known campaign-flow gap: the current page acknowledges turn
 one's briefing but never calls `POST /game/{session_id}/briefing` for later
