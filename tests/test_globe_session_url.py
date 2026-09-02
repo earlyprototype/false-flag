@@ -108,6 +108,102 @@ setImmediate(() => {
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_globe_attach_render_failure_preserves_previous_session():
+    script = r"""
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+
+const html = fs.readFileSync(process.argv[1], "utf8");
+const start = html.indexOf("async function attach(id)");
+const end = html.indexOf('$("btnAttach").onclick', start);
+assert.notEqual(start, -1, "attach function not found");
+assert.notEqual(end, -1, "attach handler boundary not found");
+
+const elements = {
+  sessionInput: { value: "" },
+  sessionBadge: { textContent: "session prior-seâ€¦" },
+};
+let currentUrl = "?game=prior-session&ionToken=token#view";
+let historyCalls = 0;
+let connectCalls = 0;
+
+const context = vm.createContext({
+  encodeURIComponent,
+  fetch: async () => ({
+    ok: true,
+    status: 200,
+    headers: { get: name => name.toLowerCase() === "etag" ? '"candidate-etag"' : null },
+    json: async () => ({
+      schema_version: 1,
+      session_id: "candidate-session",
+      turn: 2,
+      phase: "decision",
+      forces: [],
+      stockpiles: [],
+    }),
+  }),
+  history: {
+    replaceState(_state, _title, url) {
+      currentUrl = url;
+      historyCalls += 1;
+    },
+  },
+  $: id => elements[id],
+  renderResources: () => { throw new Error("render failed"); },
+  connectStream: () => { connectCalls += 1; },
+  flashLive: () => {},
+  setStatus: () => {},
+  esc: value => value,
+});
+
+vm.runInContext(`
+  let attachSeq = 0;
+  let sessionId = "prior-session";
+  const theatreEtags = new Map([["prior-session", '"prior-etag"']]);
+  const priorSource = {
+    closed: false,
+    close() { this.closed = true; },
+  };
+  let source = priorSource;
+`, context);
+vm.runInContext(html.slice(start, end), context);
+
+(async () => {
+  await vm.runInContext('attach("candidate-session")', context);
+  const state = vm.runInContext(`({
+    sessionId,
+    sameSource: source === priorSource,
+    priorSourceClosed: priorSource.closed,
+    priorEtag: theatreEtags.get("prior-session"),
+    candidateEtag: theatreEtags.get("candidate-session"),
+  })`, context);
+
+  assert.equal(currentUrl, "?game=prior-session&ionToken=token#view");
+  assert.equal(historyCalls, 0);
+  assert.equal(state.sessionId, "prior-session");
+  assert.equal(elements.sessionBadge.textContent, "session prior-seâ€¦");
+  assert.equal(state.sameSource, true);
+  assert.equal(state.priorSourceClosed, false);
+  assert.equal(connectCalls, 0);
+  assert.equal(state.priorEtag, '"prior-etag"');
+  assert.equal(state.candidateEtag, undefined);
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
+"""
+
+    result = subprocess.run(
+        ["node", "-e", script, str(GLOBE)],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_globe_revalidates_theatre_after_stream_notification():
     script = r"""
 const assert = require("node:assert/strict");

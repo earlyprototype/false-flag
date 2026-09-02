@@ -545,11 +545,11 @@ async function attach(id) {
     const data = await res.json();
     if (token !== attachSeq) return;  // lost the race to a later attach
     const etag = res.headers.get("ETag");
+    renderResources(id, data);
     if (id !== sessionId) history.replaceState(null, "", `?game=${encodeURIComponent(id)}`);
     if (source) { source.close(); source = null; }  // prior session's stream ends only on success
     sessionId = id;
     $("sessionBadge").textContent = `session ${id.slice(0, 8)}…`;
-    renderResources(id, data);
     if (etag) theatreEtags.set(id, etag);
     connectStream();
     flashLive("attached", "watching stream");
