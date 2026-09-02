@@ -66,7 +66,7 @@ and delivery order must be checked in the current entry points linked above.
 - `CharacterAttitude` and `NarrativeState.characters` remain separate from
   foreign-actor models and are the intended home for adviser stance and
   bounded private memory.
-- Private adviser memory survives save/load/resume and must not leak into
+- Private adviser memory must survive save/load/resume and must not leak into
   another adviser's prompt, player-facing output or public telemetry.
 - The agreed first verification boundary was one game type under both
   Mystery-disabled and Mystery-enabled conditions.
