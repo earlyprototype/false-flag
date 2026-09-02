@@ -445,6 +445,7 @@ function renderTray(resolved, unresolved) {
 let sessionId = params.get("game") || "";
 let source = null, refetchTimer = null, lastCounts = null, attachSeq = 0;
 const theatreEtags = new Map();
+let theatreLoadPromise = null, theatreLoadQueued = false;
 
 function setStatus(html) { $("statusBody").innerHTML = html; }
 
@@ -470,18 +471,41 @@ function renderResources(id, data) {
 
 async function loadTheatre() {
   if (!sessionId) return;
-  const id = sessionId;
-  const headers = {};
-  const etag = theatreEtags.get(id);
-  if (etag) headers["If-None-Match"] = etag;
-  const res = await fetch(`/game/${encodeURIComponent(id)}/theatre`, { headers });
-  if (res.status === 304) return;
-  if (!res.ok) throw new Error(`theatre ${res.status}`);
-  const data = await res.json();
-  if (id !== sessionId) return;  // session switched while this response was in flight
-  const nextEtag = res.headers.get("ETag");
-  renderResources(id, data);
-  if (nextEtag) theatreEtags.set(id, nextEtag);
+  if (theatreLoadPromise) {
+    theatreLoadQueued = true;
+    return theatreLoadPromise;
+  }
+  theatreLoadPromise = Promise.resolve().then(async () => {
+    let failure = null;
+    try {
+      do {
+        theatreLoadQueued = false;
+        try {
+          const id = sessionId;
+          const headers = {};
+          const etag = theatreEtags.get(id);
+          if (etag) headers["If-None-Match"] = etag;
+          const res = await fetch(`/game/${encodeURIComponent(id)}/theatre`, { headers });
+          if (res.status !== 304) {
+            if (!res.ok) throw new Error(`theatre ${res.status}`);
+            const data = await res.json();
+            if (id === sessionId) {
+              const nextEtag = res.headers.get("ETag");
+              renderResources(id, data);
+              if (nextEtag) theatreEtags.set(id, nextEtag);
+            }
+          }
+          failure = null;
+        } catch (e) {
+          failure = e;
+        }
+      } while (theatreLoadQueued);
+      if (failure) throw failure;
+    } finally {
+      theatreLoadPromise = null;
+    }
+  });
+  return theatreLoadPromise;
 }
 
 // Bursts (one adjudicated turn pushes a dozen events) collapse into one
@@ -508,6 +532,7 @@ function connectStream() {
       scheduleRefetch();
     });
   }
+  source.onopen = () => loadTheatre().catch(e => flashLive("refetch failed", e.message));
   source.onerror = () => { /* EventSource auto-reconnects */ };
 }
 

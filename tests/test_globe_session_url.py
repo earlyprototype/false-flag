@@ -174,6 +174,7 @@ vm.runInContext(`
   let sessionId = "session-a";
   let source = null, refetchTimer = null;
   const theatreEtags = new Map();
+  let theatreLoadPromise = null, theatreLoadQueued = false;
 `, context);
 vm.runInContext(html.slice(start, end), context);
 
@@ -195,6 +196,164 @@ vm.runInContext(html.slice(start, end), context);
   assert.equal(requests[2].url, "/game/session-a/theatre");
   assert.equal(requests[2].options.headers["If-None-Match"], '"etag-a"');
   assert.equal(renderCalls, 2, "304 must keep the current plotted view");
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
+"""
+
+    result = subprocess.run(
+        ["node", "-e", script, str(GLOBE)],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_globe_serializes_busy_theatre_revalidations_with_one_trailing_fetch():
+    script = r"""
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+
+const html = fs.readFileSync(process.argv[1], "utf8");
+const start = html.indexOf('let sessionId = params.get("game") || "";');
+const end = html.indexOf("// Bursts", start);
+assert.notEqual(start, -1, "session state not found");
+assert.notEqual(end, -1, "loadTheatre boundary not found");
+
+const requests = [];
+const pending = [];
+const rendered = [];
+const context = vm.createContext({
+  encodeURIComponent,
+  params: { get: name => name === "game" ? "session-a" : null },
+  fetch: (url, options = {}) => new Promise(resolve => {
+    requests.push({ url, options });
+    pending.push(resolve);
+  }),
+  captureRender: (_id, data) => { rendered.push(data.turn); },
+  captureFlash: () => {},
+});
+
+vm.runInContext(html.slice(start, end), context);
+vm.runInContext("renderResources = captureRender; flashLive = captureFlash", context);
+
+const response = (etag, turn) => ({
+  ok: true,
+  status: 200,
+  headers: { get: name => name.toLowerCase() === "etag" ? etag : null },
+  json: async () => ({ turn, forces: [], stockpiles: [] }),
+});
+
+(async () => {
+  const first = vm.runInContext("loadTheatre()", context);
+  await new Promise(setImmediate);
+  assert.equal(requests.length, 1);
+
+  const duringFirstA = vm.runInContext("loadTheatre()", context);
+  const duringFirstB = vm.runInContext("loadTheatre()", context);
+  await new Promise(setImmediate);
+  assert.equal(requests.length, 1, "busy calls must not start parallel fetches");
+
+  pending.shift()(response('"etag-1"', 1));
+  await new Promise(setImmediate);
+  assert.equal(requests.length, 2, "busy calls must guarantee one trailing fetch");
+
+  const duringTrailingA = vm.runInContext("loadTheatre()", context);
+  const duringTrailingB = vm.runInContext("loadTheatre()", context);
+  await new Promise(setImmediate);
+  assert.equal(requests.length, 2, "calls during the trailing fetch must coalesce");
+
+  pending.shift()(response('"etag-2"', 2));
+  await new Promise(setImmediate);
+  assert.equal(requests.length, 3, "calls during a trailing fetch must not be dropped");
+
+  pending.shift()(response('"etag-3"', 3));
+  await Promise.all([first, duringFirstA, duringFirstB, duringTrailingA, duringTrailingB]);
+
+  assert.deepEqual(rendered, [1, 2, 3]);
+  assert.equal(vm.runInContext('theatreEtags.get("session-a")', context), '"etag-3"');
+  assert.equal(requests.length, 3);
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
+"""
+
+    result = subprocess.run(
+        ["node", "-e", script, str(GLOBE)],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_globe_revalidates_after_every_stream_open_with_handlers_installed():
+    script = r"""
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+
+const html = fs.readFileSync(process.argv[1], "utf8");
+const start = html.indexOf('let sessionId = params.get("game") || "";');
+const end = html.indexOf("async function attach(id)", start);
+assert.notEqual(start, -1, "session state not found");
+assert.notEqual(end, -1, "session feed boundary not found");
+
+const requests = [];
+const openRegistration = [];
+let latestSource = null;
+
+class FakeEventSource {
+  constructor(url) {
+    this.url = url;
+    this.listeners = {};
+    latestSource = this;
+  }
+  addEventListener(name, handler) { this.listeners[name] = handler; }
+  close() {}
+  set onopen(handler) {
+    openRegistration.push(Object.keys(this.listeners).sort());
+    this.openHandler = handler;
+  }
+}
+
+const context = vm.createContext({
+  encodeURIComponent,
+  EventSource: FakeEventSource,
+  params: { get: name => name === "game" ? "session-a" : null },
+  fetch: async (url, options = {}) => {
+    requests.push({ url, options });
+    return { ok: false, status: 304 };
+  },
+  setTimeout,
+  clearTimeout,
+  captureRender: () => {},
+  captureFlash: () => {},
+});
+
+vm.runInContext(html.slice(start, end), context);
+vm.runInContext("renderResources = captureRender; flashLive = captureFlash", context);
+
+(async () => {
+  vm.runInContext("connectStream()", context);
+  assert.deepEqual(openRegistration, [[
+    "adjudication", "diplomacy", "ending", "inject_fired", "intel", "llm_call",
+    "parse_health", "state_update", "system", "transcript",
+  ]], "open handler must be installed after all stream handlers");
+
+  latestSource.openHandler();
+  await new Promise(setImmediate);
+  assert.equal(requests.length, 1, "initial open must revalidate the snapshot");
+
+  latestSource.openHandler();
+  await new Promise(setImmediate);
+  assert.equal(requests.length, 2, "EventSource reconnect must revalidate again");
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
