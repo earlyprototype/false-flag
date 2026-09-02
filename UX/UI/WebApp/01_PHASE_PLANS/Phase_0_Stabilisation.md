@@ -1,4 +1,11 @@
 # Phase 0: Stabilisation
+
+> **HISTORICAL / SUPERSEDED**
+>
+> This file preserves the original Phase 0 planning record; its statuses and
+> estimates are not current. See the canonical [PLAN.md](../../../../PLAN.md)
+> and the [live API contract](../03_TECHNICAL_SPECS/API_Contracts.md).
+
 **Status:** CURRENT PHASE  
 **Goal:** No crashes, predictable API contracts, CLI remains untouched  
 **Estimated Duration:** 1-2 weeks  
@@ -296,5 +303,4 @@ Each section has granular tasks with clear acceptance criteria.
 ---
 
 **Next Phase:** [Phase_1_Decision_Parity.md](Phase_1_Decision_Parity.md)
-
 

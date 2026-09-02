@@ -444,6 +444,8 @@ def test_restored_turn_six_session_exposes_the_live_mandatory_call(client):
 
 def test_dataflow_page_serves_the_operable_schema(client):
     """GET /dataflow returns the self-contained live data-flow view."""
+    import re
+
     response = client.get("/dataflow")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
@@ -454,6 +456,8 @@ def test_dataflow_page_serves_the_operable_schema(client):
     assert "/prompts/" in body
     for mode_name in ("classic", "immersive", "emergent"):
         assert mode_name in body
+    assert not re.findall(r'anchor:"[^"]*\.py:\d+', body), \
+        "dataflow anchors must use stable path::symbol references"
 
 
 def test_facilitator_pages_describe_themselves_and_reset(client):

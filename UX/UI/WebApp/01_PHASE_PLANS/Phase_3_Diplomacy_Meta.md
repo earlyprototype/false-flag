@@ -1,4 +1,11 @@
 # Phase 3: Diplomacy & Meta-Game
+
+> **HISTORICAL / SUPERSEDED**
+>
+> This file preserves the original Phase 3 planning record; its statuses and
+> estimates are not current. See the canonical [PLAN.md](../../../../PLAN.md)
+> and the [live API contract](../03_TECHNICAL_SPECS/API_Contracts.md).
+
 **Status:** PENDING (blocked by Phase 2)  
 **Goal:** Full parity for diplomatic encounters, save/load, settings  
 **Estimated Duration:** 3-4 weeks  
@@ -632,5 +639,4 @@ Meta-game features transform the prototype into a complete game. Save/load enabl
 
 **Previous Phase:** [Phase_2_Deep_State_Intel.md](Phase_2_Deep_State_Intel.md)  
 **Next Phase:** [Phase_4_Visual_Convergence.md](Phase_4_Visual_Convergence.md)
-
 

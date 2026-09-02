@@ -1,4 +1,11 @@
 # Phase 2: Deep State & Intel
+
+> **HISTORICAL / SUPERSEDED**
+>
+> This file preserves the original Phase 2 planning record; its statuses and
+> estimates are not current. See the canonical [PLAN.md](../../../../PLAN.md)
+> and the [live API contract](../03_TECHNICAL_SPECS/API_Contracts.md).
+
 **Status:** PENDING (blocked by Phase 1)  
 **Goal:** Surface diagnostic data (vibes, trust, flags, intel)  
 **Estimated Duration:** 2-3 weeks  
@@ -508,5 +515,4 @@ Deep state visibility transforms the game from "what happened?" to "why did it h
 
 **Previous Phase:** [Phase_1_Decision_Parity.md](Phase_1_Decision_Parity.md)  
 **Next Phase:** [Phase_3_Diplomacy_Meta.md](Phase_3_Diplomacy_Meta.md)
-
 
