@@ -146,6 +146,35 @@ def test_unavailable_pushback_is_visible_but_not_a_pending_objector(monkeypatch)
         "Test decision", ["Attorney General"])
 
 
+def test_interpret_decision_returns_parsed_fields_and_preserves_raw(monkeypatch):
+    import engine.game_manager as game_manager_module
+
+    raw = (
+        "INTERPRETATION: Sustain maritime patrols and consult NATO.\n"
+        "FORCES INVOLVED: P-8 patrols, Type 23 frigates\n"
+        "RESOURCES CONSUMED: aviation fuel, sonobuoys\n"
+        "TIMELINE: Within six hours\n"
+        "FEASIBILITY: Feasible at current readiness"
+    )
+    decision_lines = ["Prime Minister's Decision: Test decision",
+                      f"Interpretation: {raw}"]
+    monkeypatch.setattr(
+        game_manager_module,
+        "run_turn_decision",
+        lambda *args, **kwargs: (raw, [], [], decision_lines),
+    )
+
+    gm = make_manager()
+    preview = gm.interpret_decision("Test decision")
+
+    assert preview["forces_involved"] == ["P-8 patrols", "Type 23 frigates"]
+    assert preview["resources_consumed"] == ["aviation fuel", "sonobuoys"]
+    assert preview["timeline"] == "Within six hours"
+    assert preview["feasibility"] == "Feasible at current readiness"
+    assert gm._pending_preview["interpretation"] == raw
+    assert preview["raw_transcript"] == decision_lines
+
+
 def test_briefing_passes_turn_filename_and_stochastic_flag(monkeypatch):
     import engine.game_manager as game_manager_module
 

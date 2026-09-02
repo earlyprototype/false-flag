@@ -12,6 +12,8 @@ those two techniques so every parser reads the same dialect.
 import re
 from typing import Optional, Sequence
 
+from llm.parse_health import record_residue
+
 # Decoration characters found around labels and values: markdown emphasis,
 # backticks, quotes, brackets, blockquote/heading markers, and list bullets.
 _DECORATION_CHARS = (
@@ -86,6 +88,81 @@ def extract_label(line: str, label: str) -> Optional[str]:
     if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
         value = value[1:-1].strip()
     return value
+
+
+def _parse_list_field(value: str) -> list[str]:
+    """Split one labelled list value, normalising the model's none sentinels."""
+    if strip_decoration(value).rstrip(".").casefold() in {
+            "", "none", "none specified"}:
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()][:5]
+
+
+def parse_interpretation(interpretation: Optional[str]) -> dict:
+    """Parse a decision-interpretation reply into tolerant, JSON-safe fields."""
+    sections = {
+        "summary": "",
+        "forces": [],
+        "resources": [],
+        "timeline": "",
+        "feasibility": "",
+        "concerns": "",
+    }
+    current_section = None
+    feasibility_text = ""
+    residue = []
+
+    for line in (interpretation or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+
+        interp = extract_label(line, "INTERPRETATION")
+        forces = extract_label(line, "FORCES INVOLVED")
+        resources = extract_label(line, "RESOURCES CONSUMED")
+        timeline = extract_label(line, "TIMELINE")
+        feasibility = extract_label(line, "FEASIBILITY")
+
+        if interp is not None:
+            sections["summary"] = interp
+            current_section = "summary"
+        elif forces is not None:
+            sections["forces"] = _parse_list_field(forces)
+            current_section = "forces"
+        elif resources is not None:
+            sections["resources"] = _parse_list_field(resources)
+            current_section = "resources"
+        elif timeline is not None:
+            sections["timeline"] = timeline
+            current_section = "timeline"
+        elif feasibility is not None:
+            feasibility_text = feasibility
+            current_section = "feasibility"
+        elif current_section == "summary":
+            sections["summary"] = f"{sections['summary']} {line}".strip()
+        elif current_section == "feasibility":
+            feasibility_text = f"{feasibility_text} {line}".strip()
+        elif current_section in {"forces", "resources"}:
+            item = line.lstrip("*-• ")
+            if current_section == "forces" and ":" in item:
+                item = item.split(":", 1)[0]
+            for value in _parse_list_field(item):
+                if len(sections[current_section]) < 5:
+                    sections[current_section].append(value)
+        elif current_section == "timeline" and not sections["timeline"]:
+            sections["timeline"] = line
+        else:
+            residue.append(line)
+
+    sections["feasibility"] = feasibility_text
+    if ("impossible" in feasibility_text.lower()
+            or "requires clarification" in feasibility_text.lower()):
+        sections["concerns"] = feasibility_text
+
+    if residue:
+        record_residue("decision_interpretation", len(residue), residue[0][:60])
+
+    return sections
 
 
 def find_signed_int(text: str) -> Optional[int]:

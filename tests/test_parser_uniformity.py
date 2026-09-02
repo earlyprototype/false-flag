@@ -352,8 +352,39 @@ def test_feasibility_wrapped_clause_is_captured():
         "FEASIBILITY: Requires\n"
         "clarification on the rules of engagement.\n"
     )
+    assert parsed.get("feasibility") == \
+        "Requires clarification on the rules of engagement."
     assert parsed["concerns"] == \
         "Requires clarification on the rules of engagement."
+
+
+def test_interpretation_resources_are_parsed_as_a_list():
+    parsed = parse_interpretation_simple(
+        "INTERPRETATION: Sustain maritime patrols.\n"
+        "FORCES INVOLVED: P-8 patrols\n"
+        "RESOURCES CONSUMED: aviation fuel, sonobuoys\n"
+        "TIMELINE: Within six hours\n"
+        "FEASIBILITY: Feasible at current readiness\n"
+    )
+    assert parsed.get("resources") == ["aviation fuel", "sonobuoys"]
+
+
+@pytest.mark.parametrize("sentinel", ["None", "None specified"])
+def test_interpretation_list_sentinels_are_empty(sentinel):
+    parsed = parse_interpretation_simple(
+        f"FORCES INVOLVED: {sentinel}\n"
+        f"RESOURCES CONSUMED: {sentinel}\n"
+    )
+    assert parsed["forces"] == []
+    assert parsed.get("resources") == []
+
+
+def test_malformed_interpretation_has_empty_field_fallbacks():
+    parsed = parse_interpretation_simple("Unlabelled model reply")
+    assert parsed["forces"] == []
+    assert parsed.get("resources") == []
+    assert parsed["timeline"] == ""
+    assert parsed.get("feasibility") == ""
 
 
 # --- P3/P4: situation summary + character responses record fallbacks ---------

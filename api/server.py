@@ -330,9 +330,11 @@ class InterpretationResponse(BaseModel):
     interpretation: str
     critical_concerns: List[CriticalConcern]
     pushback: List[AdvisorPushback]
-    forces_involved: List[str] = []
-    timeline: str = "Immediate"
-    raw_transcript: List[str] = []
+    forces_involved: List[str]
+    resources_consumed: List[str]
+    timeline: str
+    feasibility: str
+    raw_transcript: List[str]
 
 
 class DiplomaticCallRequest(BaseModel):
@@ -1124,6 +1126,10 @@ async def interpret_decision(request: InterpretDecisionRequest):
             interpretation=result["interpretation"],
             critical_concerns=result["critical_concerns"],
             pushback=result["pushback"],
+            forces_involved=result["forces_involved"],
+            resources_consumed=result["resources_consumed"],
+            timeline=result["timeline"],
+            feasibility=result["feasibility"],
             raw_transcript=result["raw_transcript"]
         )
     except Exception as e:
@@ -1133,14 +1139,6 @@ async def interpret_decision(request: InterpretDecisionRequest):
         # If it's a validation error, it might be helpful to see it
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
     
-    return InterpretationResponse(
-        interpretation=result["interpretation"],
-        critical_concerns=result["critical_concerns"],
-        pushback=result["pushback"],
-        raw_transcript=result["raw_transcript"]
-    )
-
-
 @app.post("/game/decision/commit")
 async def commit_decision(request: CommitDecisionRequest):
     """Step 2: Commit to a decision and run adjudication."""

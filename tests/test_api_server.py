@@ -126,8 +126,8 @@ def test_briefing_refused_while_mandatory_call_is_live(client):
     assert decided.status_code == 409
 
 
-def test_interpret_decision_returns_each_advisor_pushback(client, monkeypatch):
-    """The HTTP preview must not drop the engine's per-advisor results."""
+def test_interpret_decision_returns_each_parsed_field(client, monkeypatch):
+    """The HTTP preview must return the engine's complete parsed result."""
     from api import server
 
     created = _new_game(client)
@@ -141,6 +141,10 @@ def test_interpret_decision_returns_each_advisor_pushback(client, monkeypatch):
         "interpretation": "A test interpretation.",
         "critical_concerns": [],
         "pushback": pushback,
+        "forces_involved": ["P-8 patrols"],
+        "resources_consumed": ["aviation fuel"],
+        "timeline": "Within six hours",
+        "feasibility": "Feasible at current readiness",
         "raw_transcript": [],
     })
 
@@ -150,7 +154,16 @@ def test_interpret_decision_returns_each_advisor_pushback(client, monkeypatch):
     })
 
     assert response.status_code == 200
-    assert response.json()["pushback"] == pushback
+    assert response.json() == {
+        "interpretation": "A test interpretation.",
+        "critical_concerns": [],
+        "pushback": pushback,
+        "forces_involved": ["P-8 patrols"],
+        "resources_consumed": ["aviation fuel"],
+        "timeline": "Within six hours",
+        "feasibility": "Feasible at current readiness",
+        "raw_transcript": [],
+    }
 
 
 def test_direct_commit_returns_each_advisor_pushback(client, monkeypatch):

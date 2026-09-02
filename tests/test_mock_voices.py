@@ -783,7 +783,7 @@ def test_mock_interpretation_is_honest_when_no_force_is_tasked():
         RNG,
     )
 
-    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+    assert parse_interpretation_simple(response)["forces"] == []
 
 
 def test_mock_interpretation_keeps_a_multiline_force_package():
@@ -858,7 +858,7 @@ def test_mock_interpretation_does_not_task_a_negated_force():
         RNG,
     )
 
-    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+    assert parse_interpretation_simple(response)["forces"] == []
 
 
 def test_mock_interpretation_excludes_a_negated_directive_after_a_comma():
@@ -901,7 +901,7 @@ def test_mock_interpretation_rejects_directives_without_named_assets(action):
         RNG,
     )
 
-    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+    assert parse_interpretation_simple(response)["forces"] == []
 
 
 def test_mock_interpretation_accepts_an_authorised_named_asset():
@@ -970,7 +970,7 @@ def test_mock_interpretation_rejects_negation_inside_a_tasking_object(action):
         RNG,
     )
 
-    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+    assert parse_interpretation_simple(response)["forces"] == []
 
 
 @pytest.mark.parametrize("action", [
@@ -985,7 +985,7 @@ def test_mock_interpretation_rejects_emphatic_negated_directives(action):
         RNG,
     )
 
-    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+    assert parse_interpretation_simple(response)["forces"] == []
 
 
 @pytest.mark.parametrize(("action", "expected"), [
@@ -1059,7 +1059,7 @@ def test_mock_interpretation_does_not_treat_task_force_as_a_tasking_verb():
         RNG,
     )
 
-    assert parse_interpretation_simple(response)["forces"] == ["None specified"]
+    assert parse_interpretation_simple(response)["forces"] == []
 
 
 def test_mock_interpretation_ends_a_force_directive_at_a_newline():
