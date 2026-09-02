@@ -1187,9 +1187,12 @@ def _extract_tasked_forces(action: str) -> str:
         r"never|no|refuse to|without|avoid)"
     )
     action = re.sub(
-        rf"\b(?P<negated>{negation}),\s*under any circumstances,\s*"
+        rf"(?P<boundary>^|[;.!?]\s*|"
+        rf",\s*(?:and|but)\s+(?:(?:instead|then)\s+)?|,\s*|"
+        rf"\s+(?:and|but)\s+(?:(?:instead|then)\s+)?)"
+        rf"(?P<negated>{negation})\s*,[^,;.!?]*,\s*"
         rf"(?P<verb>{tasking_verb})\b",
-        r"\g<negated> \g<verb>",
+        r"\g<boundary>\g<negated> \g<verb>",
         action,
         flags=re.IGNORECASE,
     )

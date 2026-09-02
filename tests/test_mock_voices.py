@@ -849,6 +849,18 @@ def test_mock_interpretation_keeps_coordinated_force_directives():
         "Type 45 destroyers", "Typhoons"]
 
 
+def test_mock_interpretation_keeps_a_directive_after_incidental_negation():
+    driver = MockDeterministicDriver()
+    action = "Ready or not, if necessary, deploy the carrier."
+
+    response = driver.generate_text(
+        f'Interpret this action. THE PRIME MINISTER HAS DECIDED: "{action}"\n',
+        RNG,
+    )
+
+    assert parse_interpretation_simple(response)["forces"] == ["the carrier"]
+
+
 def test_mock_interpretation_does_not_task_a_negated_force():
     driver = MockDeterministicDriver()
     action = "Do not deploy the carrier; consult NATO allies."
@@ -976,6 +988,10 @@ def test_mock_interpretation_rejects_negation_inside_a_tasking_object(action):
 @pytest.mark.parametrize("action", [
     "Do not, under any circumstances, deploy the carrier.",
     "Never, under any circumstances, launch the SSBNs.",
+    "Do not, for any reason, deploy the carrier.",
+    "Do not, I repeat, deploy the carrier.",
+    "Never, ever, launch the SSBNs.",
+    "Do not, unless attacked, deploy the carrier.",
 ])
 def test_mock_interpretation_rejects_emphatic_negated_directives(action):
     driver = MockDeterministicDriver()
