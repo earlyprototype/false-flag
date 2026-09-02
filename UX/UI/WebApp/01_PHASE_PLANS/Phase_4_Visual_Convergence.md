@@ -1,4 +1,11 @@
 # Phase 4: Visual Convergence & Polish
+
+> **HISTORICAL / SUPERSEDED**
+>
+> This file preserves the original Phase 4 planning record; its statuses and
+> estimates are not current. See the canonical [PLAN.md](../../../../PLAN.md)
+> and the [live API contract](../03_TECHNICAL_SPECS/API_Contracts.md).
+
 **Status:** PENDING (blocked by Phase 3)  
 **Goal:** SCUMM aesthetic fully realised, CLI Dashboard complete  
 **Estimated Duration:** 3-4 weeks  
@@ -659,5 +666,4 @@ Phase 4 is about craftsmanship. Earlier phases built features; this phase makes 
 
 **Previous Phase:** [Phase_3_Diplomacy_Meta.md](Phase_3_Diplomacy_Meta.md)  
 **Completion:** This is the final phase before production release
-
 
