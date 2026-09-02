@@ -10,12 +10,16 @@ is proved.
 
 ## How an API surface attaches
 
-1. A client creates or restores an API game session.
+1. A client creates an API game session. A caller that asks to facilitate
+   receives a separate, opaque capability. Restored sessions currently have
+   public-view access only.
 2. The globe accepts `?game=<session id>`; the dashboard and dataflow view
    accept a pasted session ID.
 3. The shipped globe fetches its current snapshot from
    `GET /game/{id}/theatre`.
-4. Each page opens `GET /stream/{id}` for change events.
+4. Player and globe pages open `GET /stream/{id}` for change events. The
+   facilitator dashboard and dataflow operator use
+   `GET /stream/{id}/facilitator`, which receives a path-scoped stream cookie.
 
 There is no list-sessions endpoint; `/health` reports only a count.
 
@@ -32,8 +36,10 @@ stamped with layer, turn, elapsed time and sequence. Current event families
 include transcript, system, state update, diplomacy, intelligence, ending,
 inject, adjudication, parse health and LLM-call records.
 
-REFEREE-layer data is filtered server-side. It must never be sent to an
-ordinary player and remains protected under multi-subscriber delivery.
+REFEREE-layer data is filtered server-side per connection. Public events reach
+every subscriber; REFEREE events reach only a connection presenting the
+session's facilitator capability. The session ID alone never grants that
+authority.
 
 ## Current delivery model
 
@@ -45,6 +51,14 @@ can attach. `stream_ready` is emitted only after subscriber registration and
 triggers the globe's reconnect snapshot. Subscriber queues are removed on
 disconnect.
 
+The dashboard keeps its control capability in tab-scoped `sessionStorage` and
+sends it in the `X-Facilitator-Capability` header on session controls. Session
+creation also sets the same value in an HttpOnly, SameSite cookie scoped only
+to `/stream/{id}/facilitator`; this lets a separately opened dataflow operator
+view use native `EventSource` without exposing the bearer in an access-log URL.
+Without that cookie the operator path receives the public stream. The globe
+uses the public path, so the browser never sends the cookie to it.
+
 `event_seq` orders delivery; `turn` and `t_plus_s` record emission. A worker
 event may therefore carry an earlier T+ than a lower-sequence event published
 directly on the loop. Subscriber queues and the no-subscriber backlog remain
@@ -53,18 +67,21 @@ after attach or reconnect.
 
 The shipped consumers are:
 
-- `/dashboard` — observability and controls.
-- `/dataflow` — DTDL/dataflow view.
-- `/globe` — situation globe.
+- `/dashboard` — capability-bearing facilitator observability and controls.
+- `/dataflow` — DTDL/dataflow operator view, public without a capability.
+- `/globe` — public situation globe.
 
-The dashboard and globe may now observe the same API session concurrently.
+The dashboard, dataflow view and globe may now observe the same API session
+concurrently with permissions decided for each connection.
 
 ## Remaining Slice 1 work
 
 Slice 1, **Multi-client Session Streaming**, is defined in
 [`PLAN.md`](../../PLAN.md#1--multi-client-session-streaming). The fan-out and
 two-subscriber regression and the v1 player-safe theatre snapshot are complete.
-The shared API player proof, per-viewer permissions and authentication remain.
+The shared API player proof and deployment authentication remain. The local
+capability separates viewers within one API session; it is not an account or
+login system.
 
 SSE remains a change-notification path. The snapshot—not queue history—is what
 restores a reconnecting display.
@@ -77,4 +94,6 @@ restores a reconnecting display.
   setup.
 - [`tests/test_api_server.py`](../../tests/test_api_server.py), theatre endpoint
   and Situation Globe contract checks.
+- [`tests/test_dashboard_api.py`](../../tests/test_dashboard_api.py),
+  request-scoped stream filtering and facilitator-control checks.
 - [Canonical Slice 1](../../PLAN.md#1--multi-client-session-streaming).

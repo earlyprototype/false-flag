@@ -41,7 +41,7 @@ clickable flowchart of the whole engine.
 |---|---|
 | **Immersive / Classic / Emergent** | Picks a game type. Boxes and lines the chosen type never uses go grey. |
 | **Mystery** checkbox | Adds the hidden-narrative boxes to the diagram when ticked. |
-| **Session box + Attach** | Paste in an existing game's session ID to watch it live instead of starting a new one. |
+| **Session box + Attach** | Paste in an existing game's session ID to watch it live instead of starting a new one. It uses the browser's session-scoped operator stream capability when one exists; otherwise it is a public view. |
 | **Start live demo / Stop** | Runs a real automated game through the diagram so you can watch it live. |
 | **All → mock** | Switches every AI call to the free fake responder first — click this before "Start live demo" to explore for free. |
 | **Clear overrides** | Removes every model/routing override, back to defaults. It does **not** touch edited prompts — reset those one at a time with "Reset to default" in the box's own panel. |
@@ -86,9 +86,12 @@ driving the story underneath, and the controls to intervene.
 | **Prompt hot-edit** | Pick any AI call family and rewrite the instructions it's given, without touching code. |
 | **Twin model** | The same industry-standard mapping as the engine map's ◇ DTDL mode, but as a live table: current values, and the full list of matched concepts. |
 
-Start a session with **New facilitator session**, or watch a running one by
-pasting its session ID into **Attach**. **Start demo campaign** runs a free
-mock game through the whole page so you can see every panel move.
+Start a session with **New facilitated game**, or watch a running one by
+pasting its session ID into **Attach**. Creating one issues a separate
+facilitator capability kept in this browser tab. Attaching by session ID alone
+is a public view unless that tab already holds the capability. **Start demo
+campaign** runs a free mock game through the whole page so you can see every
+panel move.
 
 ---
 

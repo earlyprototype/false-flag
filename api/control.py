@@ -11,7 +11,7 @@ the session table lazily to avoid an import cycle.
 
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from models.layers import Layer, layer_for_channel
@@ -138,7 +138,9 @@ class ManualInjectRequest(BaseModel):
 
 
 @router.post("/game/{session_id}/inject")
-async def fire_manual_inject(session_id: str, request: ManualInjectRequest):
+async def fire_manual_inject(
+        session_id: str, request: ManualInjectRequest,
+        http_request: Request):
     """Fire a facilitator-authored inject into a running session (EXCON).
 
     Delivery goes through GameManager.deliver_inject - the same primitives
@@ -147,18 +149,11 @@ async def fire_manual_inject(session_id: str, request: ManualInjectRequest):
     appears in the stream ledger like any other inject, on the layer its
     channel names.
     """
-    from api.server import _session_or_404
+    from api.server import _require_facilitator, _session_or_404
     import time as _time
 
     session = _session_or_404(session_id)
-    # EXCON lever: only sessions created WITH the facilitator flag accept
-    # injects. A player session's id must not be enough to rewrite its
-    # world (the flag is fixed at create time - see NewGameRequest).
-    if not session.facilitator:
-        raise HTTPException(
-            status_code=403,
-            detail="Inject console targets facilitator sessions only; "
-                   "this session was created without the facilitator flag.")
+    _require_facilitator(session, http_request)
 
     description = request.content
     if request.target:

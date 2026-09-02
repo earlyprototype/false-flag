@@ -270,7 +270,7 @@ const NODES = [
   desc:"LLM-authored stochastic injects once the scripted MSEL runs out."},
  {id:"console", x:24, y:226, w:156, h:46, kind:"store", label:"INJECT CONSOLE",
   sub:"facilitator EXCON", anchor:"api/control.py::fire_manual_inject",
-  desc:"Facilitator-authored injects fired into a live session over POST /game/{session_id}/inject. Facilitator sessions only."},
+  desc:"Facilitator-authored injects fired into a live session over POST /game/{session_id}/inject. The control request must present that session's facilitator capability."},
  {id:"player", x:24, y:330, w:156, h:180, kind:"surface", label:"PLAYER (PM)",
   sub:"questions · decisions\ncalls · intel pulls", anchor:"api/server.py::post_discussion · api/server.py::interpret_decision · api/server.py::commit_decision · api/server.py::reply_diplomatic_call · api/server.py::get_intel_detail",
   desc:"Every player input enters the engine through four verbs: ask the cabinet, decide, answer the phone, pull intelligence."},
@@ -342,13 +342,13 @@ const NODES = [
   desc:"Every event is stamped with a data layer here — at the bus, never inside the engine. Six layers: SITREP, INTEL, DIPLOMATIC, DOMESTIC, CABINET, REFEREE."},
  {id:"reffilter", x:950, y:830, w:150, h:54, kind:"engine", label:"REFEREE FILTER",
   sub:"server-side", anchor:"api/server.py::_stream_filter",
-  desc:"REFEREE-layer events (raw effects, verdicts, llm_call records, parse health) are dropped from player streams. Only facilitator sessions receive them."},
- {id:"streamfac", x:1270, y:760, w:150, h:50, kind:"surface", label:"FACILITATOR /stream",
+  desc:"REFEREE-layer events (raw effects, verdicts, llm_call records, parse health) are dropped unless that individual stream presents the facilitator capability."},
+ {id:"streamfac", x:1270, y:760, w:150, h:50, kind:"surface", label:"CAPABLE /stream",
   anchor:"api/server.py::stream_game_events",
-  desc:"All six layers. This page and the dashboard listen here."},
- {id:"streamply", x:1270, y:846, w:150, h:50, kind:"surface", label:"PLAYER /stream",
+  desc:"All six layers. The dashboard and an authorised operator dataflow view listen here."},
+ {id:"streamply", x:1270, y:846, w:150, h:50, kind:"surface", label:"PUBLIC /stream",
   anchor:"api/server.py::stream_game_events",
-  desc:"Five layers; REFEREE filtered server-side."},
+  desc:"Five layers; REFEREE filtered server-side for the player, globe and a dataflow view without a capability."},
  {id:"viewraw", x:1450, y:760, w:110, h:44, kind:"surface", label:"RAW METRICS", m:["classic"],
   anchor:"models/narrative_state.py::NarrativeState.display_for_mode",
   desc:"Classic: the traditional wargame readout — real numbers."},
@@ -419,7 +419,7 @@ const NODE_BY_ID = Object.fromEntries(NODES.map(n => [n.id, n]));
 const CTX_NODE = Object.fromEntries(NODES.filter(n => n.ctx).map(n => [n.ctx, n.id]));
 
 let mode = "immersive", mystery = false, selected = null;
-let sessionId = null, es = null;
+let sessionId = null, es = null, facilitatorCapability = null;
 let routingRows = {};      // ctx -> row from GET /routing
 let editableFams = null;   // Set of hot-editable prompt families
 const callCounts = {};     // ctx -> count
@@ -713,7 +713,7 @@ const WALKTHROUGH = [
   x:"Pulling intelligence renders the hidden metrics as noisy in-fiction sensor reads — SIGINT, cable traffic, media monitoring. Deterministic: no model call.",
   n:["intel"], e:[["player","intel"],["metrics","intel"],["intel","bus"]]},
  {t:"One bus, two streams",
-  x:"Every event is layer-tagged at the bus. The REFEREE filter strips the hidden layer server-side: facilitator sessions get all six layers, player sessions get five.",
+  x:"Every event is layer-tagged at the bus. The REFEREE filter strips the hidden layer server-side: a connection with the facilitator capability gets all six layers; session-ID-only operator, player and globe connections get five.",
   n:["reffilter","streamfac","streamply"],
   e:[["bus","reffilter"],["reffilter","streamfac"],["reffilter","streamply"]]},
  {t:"Every model call passes one choke point",
@@ -1043,9 +1043,9 @@ function renderLive(n) {
   d1.innerHTML = `calls this session: <b>${count}</b>`;
   sec.appendChild(d1);
   const d2 = document.createElement("div"); d2.className = "kv";
-  d2.innerHTML = last
-    ? `last: <b>${last.model || "?"}</b> · ${last.provider} · ${last.latency_ms} ms` +
-      (last.fallback ? ` · <span style="color:var(--referee)">fallback</span>` : "")
+  d2.textContent = last
+    ? `last: ${last.model || "?"} · ${last.provider} · ${last.latency_ms} ms` +
+      (last.fallback ? " · fallback" : "")
     : "last: —";
   sec.appendChild(d2);
   box.appendChild(sec);
@@ -1059,10 +1059,10 @@ function renderRoute(n) {
   sec.innerHTML = "<h3>Reroute this call family</h3>";
   if (row) {
     const kv = document.createElement("div"); kv.className = "kv";
-    kv.innerHTML = `default tier <b>${row.default_tier}</b> → effective ` +
-      `<b>${row.effective_tier}</b> · <b>${row.effective_provider}</b> · ` +
-      `<b>${row.effective_model || "provider default"}</b>` +
-      (row.override ? ` <span style="color:var(--intel)">(override active)</span>` : "");
+    kv.textContent = `default tier ${row.default_tier} → effective ` +
+      `${row.effective_tier} · ${row.effective_provider} · ` +
+      `${row.effective_model || "provider default"}` +
+      (row.override ? " (override active)" : "");
     sec.appendChild(kv);
   }
   const mkRow = (labelText, control) => {
@@ -1209,16 +1209,30 @@ function pulse(domId) {
   const g = $(domId); if (!g) return;
   g.classList.remove("pulse"); void g.getBoundingClientRect(); g.classList.add("pulse");
 }
-function attach(sid) {
+function attach(sid, capability = null) {
   if (es) { es.close(); es = null; }
   // A new session starts from zero: drop the previous run's counters and
   // badges rather than counting on from them.
   clearRunState();
   renderAll();
   sessionId = sid;
-  $("sessBadge").textContent = sid ? "session " + sid.slice(0, 8) + "…" : "no session";
+  const storageKey = `false-flag:facilitator:${sid}`;
+  if (capability) sessionStorage.setItem(storageKey, capability);
+  facilitatorCapability = sid
+    ? capability || sessionStorage.getItem(storageKey)
+    : null;
+  $("sessBadge").textContent = sid
+    ? "session " + sid.slice(0, 8) + "… · " +
+      (facilitatorCapability ? "operator" : "public")
+    : "no session";
   if (!sid) return;
-  es = new EventSource("/stream/" + sid);
+  es = new EventSource(
+    "/stream/" + encodeURIComponent(sid) + "/facilitator");
+  es.addEventListener("stream_ready", ev => {
+    let d = {}; try { d = JSON.parse(ev.data); } catch {}
+    $("sessBadge").textContent = "session " + sid.slice(0, 8) + "… · " +
+      (d.viewer === "facilitator" ? "operator" : "public");
+  });
   es.addEventListener("llm_call", ev => {
     const d = JSON.parse(ev.data);
     const nodeId = CTX_NODE[d.family];
@@ -1271,14 +1285,20 @@ $("demoBtn").onclick = async () => {
     if (!r.ok) throw new Error((await r.json()).detail || r.status);
     const d = await r.json();
     $("sessInput").value = d.session_id;
-    attach(d.session_id);
+    attach(d.session_id, d.facilitator_capability);
     setStatus("live demo running (" + mode + (mystery ? " + mystery" : "") + ")");
   } catch (e) { setStatus("demo failed: " + e.message, true); }
 };
 $("stopBtn").onclick = async () => {
   if (!sessionId) return;
-  try { await fetch("/demo/" + sessionId + "/stop", {method: "POST"}); } catch {}
-  setStatus("stop requested");
+  try {
+    const headers = facilitatorCapability
+      ? {"X-Facilitator-Capability": facilitatorCapability} : {};
+    const r = await fetch("/demo/" + encodeURIComponent(sessionId) + "/stop",
+      {method: "POST", headers});
+    if (!r.ok) throw new Error((await r.json()).detail || r.status);
+    setStatus("stop requested");
+  } catch (e) { setStatus("stop failed: " + e.message, true); }
 };
 $("mockAllBtn").onclick = async () => {
   const ctxs = Object.keys(CTX_NODE);

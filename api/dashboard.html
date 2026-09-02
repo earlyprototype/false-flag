@@ -151,7 +151,7 @@
     <small>Watch a session live, and step in when you need to</small>
   </div>
   <div class="sess">
-    <button id="btnNew" class="primary" title="POST /game/new with facilitator:true">New facilitator session</button>
+    <button id="btnNew" class="primary" title="POST /game/new with facilitator:true">New facilitated game</button>
     <button id="btnDemo" title="POST /demo/start — drives a mock campaign headless">Start demo campaign</button>
     <button id="btnDemoStop" title="POST /demo/{id}/stop">Stop demo</button>
     <button id="btnResetView" title="Empty the ledger, the AI activity list and the charts — the display as it was before the last run">Reset view</button>
@@ -322,6 +322,7 @@
 const LAYERS = ["sitrep","intel","diplomatic","domestic","cabinet","referee"];
 const MAX_LEDGER = 400, MAX_CALLS = 80;
 let sessionId = null, source = null, facilitator = false;
+let facilitatorCapability = null;
 let mode = "immersive", mystery = false;
 const layerVisible = Object.fromEntries(LAYERS.map(l => [l, true]));
 // Metric history: {turn -> value} kept as ordered arrays.
@@ -333,9 +334,12 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g,
   c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 async function api(method, path, body) {
+  const headers = body ? {"Content-Type": "application/json"} : {};
+  if (facilitatorCapability)
+    headers["X-Facilitator-Capability"] = facilitatorCapability;
   const res = await fetch(path, {
     method,
-    headers: body ? {"Content-Type": "application/json"} : undefined,
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
@@ -367,8 +371,14 @@ function resetView() {
   renderDtdlLive();
 }
 
-function setSession(id, isFacilitator) {
-  sessionId = id; facilitator = !!isFacilitator;
+function setSession(id, capability = null) {
+  sessionId = id;
+  const storageKey = `false-flag:facilitator:${id}`;
+  if (capability) sessionStorage.setItem(storageKey, capability);
+  facilitatorCapability = id
+    ? capability || sessionStorage.getItem(storageKey)
+    : null;
+  facilitator = !!facilitatorCapability;
   $("sessionInput").value = id || "";
   $("sessionBadge").innerHTML = id
     ? `session <b>${esc(id.slice(0,8))}…</b> ${facilitator ? '<span class="facil">FACILITATOR</span>' : "player-view"}`
@@ -381,7 +391,9 @@ function setSession(id, isFacilitator) {
 function connectStream() {
   if (source) { source.close(); source = null; }
   if (!sessionId) return;
-  source = new EventSource(`/stream/${sessionId}`);
+  const streamPath = facilitatorCapability ? "/facilitator" : "";
+  source = new EventSource(
+    `/stream/${encodeURIComponent(sessionId)}${streamPath}`);
   const on = (name, fn) => source.addEventListener(name, e => {
     let d = {}; try { d = JSON.parse(e.data); } catch {}
     fn(d, name);
@@ -406,7 +418,7 @@ $("btnNew").onclick = async () => {
   try {
     const d = await api("POST", "/game/new",
       {facilitator: true, play_mode: mode, mystery_mode: mystery});
-    setSession(d.session_id, true);
+    setSession(d.session_id, d.facilitator_capability);
     seedFromState(d);
   } catch (e) { alert("New session failed: " + e.message); }
 };
@@ -415,9 +427,7 @@ $("btnAttach").onclick = async () => {
   if (!id) return;
   try {
     const d = await api("GET", `/game/${id}`);
-    // The server filters REFEREE for player sessions regardless; we cannot
-    // know the flag from here, so show what the stream proves.
-    setSession(id, true);
+    setSession(id);
     seedFromState(d);
   } catch (e) { alert("Attach failed: " + e.message); }
 };
@@ -425,7 +435,7 @@ $("btnDemo").onclick = async () => {
   try {
     const d = await api("POST", "/demo/start",
       {turns: 5, pace_s: 2.0, play_mode: mode, mystery_mode: mystery});
-    setSession(d.session_id, true);
+    setSession(d.session_id, d.facilitator_capability);
   } catch (e) { alert("Demo start failed: " + e.message); }
 };
 $("btnDemoStop").onclick = async () => {
