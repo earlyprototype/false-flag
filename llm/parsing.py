@@ -56,6 +56,9 @@ _FIELD_VALUE_LEAD_RE = re.compile(
     r"^\s*(?:(?:>+|#+)\s+)*"
     r"(?:(?:[*\-\u2022\u2013\u2014]|\d+[.)])\s+)?"
 )
+_FIELD_VALUE_QUALIFIER_CLOSE_RE = re.compile(
+    r"(?<=\S)(?P<marker>\*\*|__|[*_`])(?=\s+\()"
+)
 
 
 def strip_decoration(text: str) -> str:
@@ -114,6 +117,11 @@ def _strip_field_value_decoration(value: str) -> str:
     """Remove value wrapping without stripping semantic punctuation."""
     value = _FIELD_VALUE_LEAD_RE.sub("", value, count=1).strip()
     value = value.strip("*_`").strip()
+    qualifier_close = _FIELD_VALUE_QUALIFIER_CLOSE_RE.search(value)
+    if (qualifier_close is not None
+            and qualifier_close.group("marker")
+            not in value[:qualifier_close.start()]):
+        value = value[:qualifier_close.start()] + value[qualifier_close.end():]
     if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
         value = value[1:-1].strip()
     return value
