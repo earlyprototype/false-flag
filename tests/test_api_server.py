@@ -742,12 +742,64 @@ def test_theatre_snapshot_waits_for_session_lock(client):
     assert outcome["response"].status_code == 200
 
 
-def test_theatre_snapshot_lock_wait_runs_off_the_event_loop():
-    import inspect
+def test_locked_theatre_snapshot_does_not_block_other_requests(client):
+    import threading
 
     from api import server
 
-    assert not inspect.iscoroutinefunction(server.get_theatre_snapshot)
+    blocked = _new_game(client)
+    other = _new_game(client)
+    session = server.sessions[blocked["session_id"]]
+    real_lock = session.lock
+    lock_wait_started = threading.Event()
+    responses = {}
+
+    class ObservedLock:
+        def __enter__(self):
+            lock_wait_started.set()
+            real_lock.acquire()
+
+        def __exit__(self, *_args):
+            real_lock.release()
+
+    def get(name, path):
+        responses[name] = client.get(path)
+
+    session.lock = ObservedLock()
+    blocked_thread = threading.Thread(
+        target=get,
+        args=("blocked", f"/game/{blocked['session_id']}/theatre"),
+        daemon=True,
+    )
+    health_thread = threading.Thread(
+        target=get, args=("health", "/health"), daemon=True,
+    )
+    other_thread = threading.Thread(
+        target=get,
+        args=("other", f"/game/{other['session_id']}/theatre"),
+        daemon=True,
+    )
+
+    try:
+        with real_lock:
+            blocked_thread.start()
+            assert lock_wait_started.wait(1.0)
+            health_thread.start()
+            other_thread.start()
+            health_thread.join(1.0)
+            other_thread.join(1.0)
+            responsive = not health_thread.is_alive() and not other_thread.is_alive()
+    finally:
+        session.lock = real_lock
+
+    blocked_thread.join(5.0)
+    health_thread.join(5.0)
+    other_thread.join(5.0)
+
+    assert responsive, "one session's lock stalled unrelated HTTP requests"
+    assert responses["health"].status_code == 200
+    assert responses["other"].status_code == 200
+    assert responses["blocked"].status_code == 200
 
 
 def test_globe_page_serves_the_exercise_marked_situation_globe(client):
