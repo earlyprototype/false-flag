@@ -18,7 +18,7 @@ audit changes no production or test file.
 | Shell | Windows PowerShell `5.1.26100.9168` (`Desktop`) |
 | Console code page | `850` |
 | Python | CPython `3.12.10`, 64-bit |
-| Python executable | `C:\Users\Cspark\Desktop\AI\fogOfWar\.worktrees\false-flag-issue135\.venv\Scripts\python.exe` |
+| Python executable | `<worktree>\.venv\Scripts\python.exe` |
 | `config.py` | absent |
 | `WARGAME_LLM` | unset |
 | `PYTHONIOENCODING` | `utf-8`, as documented in `README.md` and `GEMINI.md` |
@@ -213,11 +213,11 @@ tested revision. The issue does not preserve the twelve test node IDs, so no
 claim can be made about which historical nodes disappeared; the current,
 enumerated result is four failures with one root cause.
 
-Smallest independent follow-up: one test-only issue titled **"Make Windows CLI
-subprocess captures explicitly UTF-8"**. Apply the established convention to
-the subprocess calls in `tests/test_cli_modes.py`: give the child a UTF-8
-environment and give `subprocess.run` `encoding="utf-8"`. Do not change
-production rendering to satisfy a test pipe.
+Smallest independent follow-up: [issue #155](https://github.com/earlyprototype/false-flag/issues/155),
+**"Make Windows CLI subprocess captures explicitly UTF-8"**. Apply the
+established convention to the subprocess calls in `tests/test_cli_modes.py`:
+give the child a UTF-8 environment and give `subprocess.run`
+`encoding="utf-8"`. Do not change production rendering to satisfy a test pipe.
 
 Documentation drift: `GEMINI.md` currently presents
 `PYTHONIOENCODING=utf-8` as sufficient for the Windows pytest command. It is
