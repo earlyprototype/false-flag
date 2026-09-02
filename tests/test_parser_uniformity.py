@@ -369,6 +369,27 @@ def test_interpretation_resources_are_parsed_as_a_list():
     assert parsed.get("resources") == ["aviation fuel", "sonobuoys"]
 
 
+def test_interpretation_list_values_strip_only_syntactic_wrapping():
+    parsed = parse_interpretation_simple(
+        "FORCES INVOLVED: **HMS Defender**, `P-8 Poseidon`, "
+        "\"-20 Squadron\", - 617 Squadron\n"
+        "RESOURCES CONSUMED: **aviation fuel (reserve)**, "
+        "`2.75-inch rockets`, 2) runway slots\n"
+    )
+
+    assert parsed["forces"] == [
+        "HMS Defender",
+        "P-8 Poseidon",
+        "-20 Squadron",
+        "617 Squadron",
+    ]
+    assert parsed["resources"] == [
+        "aviation fuel (reserve)",
+        "2.75-inch rockets",
+        "runway slots",
+    ]
+
+
 def test_interpretation_list_continuations_require_list_markers():
     parsed = parse_interpretation_simple(
         "FORCES INVOLVED: Type-45 destroyer\n"
