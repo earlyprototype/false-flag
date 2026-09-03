@@ -12,7 +12,7 @@ is proved.
 
 1. A client creates an API game session. A caller that asks to facilitate
    receives a separate, opaque capability. Restored sessions currently have
-   public-view access only.
+   player authority through the session ID, but no facilitator authority.
 2. The globe accepts `?game=<session id>`; the dashboard and dataflow view
    accept a pasted session ID.
 3. The shipped globe fetches its current snapshot from

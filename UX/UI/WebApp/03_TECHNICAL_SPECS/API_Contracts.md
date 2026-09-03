@@ -42,8 +42,8 @@ All body fields are optional:
 Defaults are the values shown above. `facilitator=true` may instead be supplied
 as a query parameter. It returns a separate facilitator capability; the caller
 must present that capability on each REFEREE stream or session-scoped
-facilitator control request. The session ID alone remains public-view
-authority.
+facilitator control request. The session ID grants player authority, is not
+authentication, and does not grant facilitator authority.
 
 Success is `200 OK`, not `201 Created`:
 

@@ -30,8 +30,8 @@ and [GAME_DESCRIPTION — Core Gameplay](../GAME_DESCRIPTION.md#core-gameplay).
 - A FastAPI session path with decision, diplomacy, save/load and SSE endpoints.
 - Independent per-subscriber SSE queues for one session's observers.
 - A per-session facilitator capability checked independently for each stream
-  and session-scoped control request; the session ID grants public-view access
-  only.
+  and session-scoped control request. The session ID grants player authority,
+  is not authentication, and does not grant facilitator authority.
 - A versioned, player-safe theatre snapshot with strong ETag revalidation; the
   globe restores from it and treats SSE as change notification.
 - An observability dashboard, dataflow/DTDL view and control surface.

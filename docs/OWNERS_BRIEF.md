@@ -28,10 +28,11 @@ updates from the first.
 The API session now gives every attached subscriber its own copy of each live
 event. Only the first subscriber receives the pre-connect backlog; the
 player-safe theatre snapshot now restores late and reconnecting globe displays.
-Session IDs provide public-view access only. A separate capability authorises
-the facilitator dashboard and operator dataflow view per stream and
-session-scoped control request; REFEREE events remain server-filtered from the
-player and globe. This local capability is not deployment authentication. The
+The session ID grants player authority, is not authentication, and does not
+grant facilitator authority. A separate capability authorises the facilitator
+dashboard and operator dataflow view per stream and session-scoped control
+request; REFEREE events remain server-filtered from the player and globe. This
+local capability is not deployment authentication. The
 terminal and static browser also remain separate engine instances. The build
 must prove the shared player path before claiming “one engine, many surfaces.”
 

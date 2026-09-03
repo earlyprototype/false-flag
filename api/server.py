@@ -297,7 +297,8 @@ class NewGameRequest(BaseModel):
     mystery_mode: bool = False
     player_name: str = "Prime Minister"
     # Asking to facilitate returns a separate capability for REFEREE streams
-    # and session-scoped controls. The session id remains public-view authority.
+    # and session-scoped controls. The session id grants player authority, is
+    # not authentication, and does not grant facilitator authority.
     # `?facilitator=true` also works as a curl convenience.
     facilitator: bool = False
 
