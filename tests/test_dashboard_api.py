@@ -1,7 +1,7 @@
 """API tests for the observability + control dashboard surface:
 
 - layer tagging at the event bus (GameSession.push_event)
-- server-side REFEREE filtering of /stream for non-facilitator sessions
+- server-side REFEREE filtering per /stream viewer
 - the llm_call relay (call_log listener -> session queue)
 - /routing, /prompts, /game/{id}/inject, /dashboard, /demo endpoints
 
@@ -62,6 +62,12 @@ def _new_game(client, facilitator=False):
     return response.json()
 
 
+def _facilitator_headers(created):
+    return {
+        "X-Facilitator-Capability": created["facilitator_capability"],
+    }
+
+
 def _drain_queue(session):
     """All queued SSE items (server-side shape, _layer still present)."""
     items = []
@@ -84,6 +90,34 @@ def _drain_llm_calls(session, minimum=1, deadline_s=5.0):
         if len(items) >= minimum or time.time() >= deadline:
             return items
         time.sleep(0.05)
+
+
+# --- facilitator capability -----------------------------------------------
+
+def test_facilitator_creation_issues_an_explicit_capability(client):
+    response = client.post("/game/new", json={"facilitator": True})
+    facilitator = response.json()
+    player_response = client.post("/game/new", json={})
+    player = player_response.json()
+
+    capability = facilitator.get("facilitator_capability")
+    assert isinstance(capability, str) and len(capability) >= 32
+    assert capability != facilitator["session_id"]
+    assert player.get("facilitator_capability") is None
+    assert response.cookies.get("false_flag_facilitator") == capability
+    cookie = response.headers["set-cookie"]
+    assert "HttpOnly" in cookie and "SameSite=strict" in cookie
+    assert f"Path=/stream/{facilitator['session_id']}/facilitator" in cookie
+    assert response.headers["cache-control"] == "no-store"
+    assert "set-cookie" not in player_response.headers
+
+
+def test_non_ascii_facilitator_capability_fails_closed():
+    from api import server
+
+    session = server.GameSession(
+        server.GameManager(), facilitator_capability="ascii-token")
+    assert server._has_facilitator_capability(session, "snowman-☃") is False
 
 
 # --- layer tagging at the bus ---------------------------------------------
@@ -225,11 +259,11 @@ def test_subscribers_receive_independent_copies_and_preconnect_events():
         [json.loads(item["data"])["event_seq"] for item in second_items]
     assert first_items[0] is not second_items[0]
 
-    assert server._stream_filter(first_items[0], facilitator=False) is None
+    assert server._stream_filter(first_items[0], include_referee=False) is None
     assert second_items[0]["_layer"] is Layer.REFEREE
-    assert server._stream_filter(first_items[1], facilitator=False)["event"] == \
+    assert server._stream_filter(first_items[1], include_referee=False)["event"] == \
         "state_update"
-    assert server._stream_filter(second_items[1], facilitator=False)["event"] == \
+    assert server._stream_filter(second_items[1], include_referee=False)["event"] == \
         "state_update"
 
 
@@ -243,6 +277,10 @@ def test_stream_ready_follows_registration_and_disconnect_unsubscribes():
     server.sessions[session_id] = session
 
     class DisconnectedRequest:
+        headers = {}
+        cookies = {}
+        query_params = {}
+
         async def is_disconnected(self):
             return True
 
@@ -251,7 +289,8 @@ def test_stream_ready_follows_registration_and_disconnect_unsubscribes():
             session_id, DisconnectedRequest())
         iterator = response.body_iterator
         ready = await iterator.__anext__()
-        assert ready == {"event": "stream_ready", "data": "{}"}
+        assert ready == {
+            "event": "stream_ready", "data": '{"viewer":"public"}'}
         assert len(session._subscribers) == 1
         with pytest.raises(StopAsyncIteration):
             await iterator.__anext__()
@@ -266,6 +305,72 @@ def test_stream_ready_follows_registration_and_disconnect_unsubscribes():
 
     replacement = session.subscribe()
     assert replacement.get_nowait()["event"] == "state_update"
+
+
+def test_one_session_filters_referee_per_stream_request():
+    """A shared session is public by default; only the capable viewer gets
+    its REFEREE event, while both viewers still get every public event."""
+    from api import server
+    from models.layers import Layer
+
+    capability = "facilitator-capability-for-stream-test"
+    session = server.GameSession(
+        server.GameManager(), facilitator_capability=capability)
+    session_id = "shared-stream-probe"
+    server.sessions[session_id] = session
+
+    class ConnectedRequest:
+        def __init__(self, query_capability=None, cookie_capability=None):
+            self.headers = {}
+            self.cookies = {}
+            if cookie_capability:
+                self.cookies["false_flag_facilitator"] = cookie_capability
+            self.query_params = {}
+            if query_capability:
+                self.query_params["facilitator_capability"] = query_capability
+
+        async def is_disconnected(self):
+            return False
+
+    async def observe():
+        public_response = await server.stream_game_events(
+            session_id, ConnectedRequest(query_capability=capability))
+        facilitator_response = await server.stream_game_events(
+            session_id, ConnectedRequest(cookie_capability=capability))
+        public = public_response.body_iterator
+        facilitator = facilitator_response.body_iterator
+
+        await public.__anext__()
+        await facilitator.__anext__()
+        await session.push_event(
+            "system", {"content": "public one"}, layer=Layer.SITREP)
+        await session.push_event(
+            "inject_fired", {"title": "private"}, layer=Layer.REFEREE)
+        await session.push_event(
+            "system", {"content": "public two"}, layer=Layer.SITREP)
+
+        try:
+            public_events = [await public.__anext__(), await public.__anext__()]
+            facilitator_events = [
+                await facilitator.__anext__(),
+                await facilitator.__anext__(),
+                await facilitator.__anext__(),
+            ]
+        except StopAsyncIteration:
+            pytest.fail("a shared stream stopped while filtering one viewer")
+        finally:
+            await public.aclose()
+            await facilitator.aclose()
+        return public_events, facilitator_events
+
+    try:
+        public_events, facilitator_events = asyncio.run(observe())
+    finally:
+        server.sessions.pop(session_id, None)
+
+    assert [item["event"] for item in public_events] == ["system", "system"]
+    assert [item["event"] for item in facilitator_events] == [
+        "system", "inject_fired", "system"]
 
 
 def test_threadsafe_events_keep_emission_time_and_loop_sequence(monkeypatch):
@@ -322,33 +427,30 @@ def test_stream_filter_drops_referee_for_players_only():
     from models.layers import Layer
 
     referee_item = {"event": "llm_call", "data": "{}", "_layer": Layer.REFEREE}
-    assert _stream_filter(dict(referee_item), facilitator=False) is None
-    passed = _stream_filter(dict(referee_item), facilitator=True)
+    assert _stream_filter(dict(referee_item), include_referee=False) is None
+    passed = _stream_filter(dict(referee_item), include_referee=True)
     assert passed == {"event": "llm_call", "data": "{}"}  # _layer stripped
 
     sitrep_item = {"event": "system", "data": "{}", "_layer": Layer.SITREP}
-    assert _stream_filter(dict(sitrep_item), facilitator=False) == \
+    assert _stream_filter(dict(sitrep_item), include_referee=False) == \
         {"event": "system", "data": "{}"}
 
     # Legacy/untagged items pass for everyone.
     untagged = {"event": "system", "data": "{}"}
-    assert _stream_filter(dict(untagged), facilitator=False) == untagged
-
-
-def test_facilitator_flag_is_per_session(client):
-    from api import server
-
-    player = _new_game(client)
-    facilitator = _new_game(client, facilitator=True)
-    assert server.sessions[player["session_id"]].facilitator is False
-    assert server.sessions[facilitator["session_id"]].facilitator is True
+    assert _stream_filter(dict(untagged), include_referee=False) == untagged
 
 
 def test_facilitator_query_param_works_too(client):
-    from api import server
     response = client.post("/game/new?facilitator=true", json={})
     assert response.status_code == 200
-    assert server.sessions[response.json()["session_id"]].facilitator is True
+    created = response.json()
+    assert isinstance(created.get("facilitator_capability"), str)
+    injected = client.post(
+        f"/game/{created['session_id']}/inject",
+        headers=_facilitator_headers(created),
+        json={"headline": "QUERY CAPABILITY", "content": "works"},
+    )
+    assert injected.status_code == 200
 
 
 # --- llm_call relay --------------------------------------------------------
@@ -559,7 +661,9 @@ def test_manual_inject_delivers_streams_and_applies_effects(client):
     manager = session.manager
     risk_before = manager.world.metrics.escalation_risk
 
-    response = client.post(f"/game/{session_id}/inject", json={
+    response = client.post(f"/game/{session_id}/inject", headers={
+        **_facilitator_headers(created),
+    }, json={
         "channel": "intelligence",
         "headline": "AUXILIARY ALTERS COURSE",
         "content": "The vessel has turned toward the cable corridor.",
@@ -596,24 +700,29 @@ def test_manual_inject_unknown_session_is_404(client):
     assert response.status_code == 404
 
 
-def test_manual_inject_requires_facilitator_session(client):
-    """The inject console is an EXCON lever: firing into a session created
-    WITHOUT the facilitator flag is refused (403) and delivers nothing.
-    (The facilitator-session 200 path is covered above.)"""
-    created = _new_game(client, facilitator=False)
+def test_manual_inject_requires_matching_facilitator_capability(client):
+    """A shared session id alone cannot authorize its EXCON lever."""
+    created = _new_game(client, facilitator=True)
     session_id = created["session_id"]
     from api import server
     manager = server.sessions[session_id].manager
     risk_before = manager.world.metrics.escalation_risk
     injects_before = list(manager.world.recent_injects)
 
-    response = client.post(f"/game/{session_id}/inject", json={
-        "channel": "briefing",
-        "headline": "NOT FOR PLAYERS",
+    payload = {
+        "channel": "briefing", "headline": "NOT FOR PLAYERS",
         "content": "This must never be delivered.",
         "effects": [{"metric": "escalation_risk", "delta": 10}],
-    })
-    assert response.status_code == 403
+    }
+    try:
+        bare = client.post(f"/game/{session_id}/inject", json=payload)
+        wrong = client.post(
+            f"/game/{session_id}/inject",
+            headers={"X-Facilitator-Capability": session_id}, json=payload)
+    except AttributeError:
+        pytest.fail("inject authority is still read from the whole session")
+    assert bare.status_code == 403
+    assert wrong.status_code == 403
 
     assert manager.world.metrics.escalation_risk == risk_before
     assert list(manager.world.recent_injects) == injects_before
@@ -632,7 +741,9 @@ def test_session_lock_serialises_inject_with_other_mutators(client):
     outcome = {}
 
     def fire():
-        outcome["response"] = client.post(f"/game/{session_id}/inject", json={
+        outcome["response"] = client.post(
+            f"/game/{session_id}/inject",
+            headers=_facilitator_headers(created), json={
             "channel": "briefing", "headline": "WAITS", "content": "held",
         })
 
@@ -655,9 +766,11 @@ def test_demo_start_runs_a_short_campaign(client):
     assert response.status_code == 200
     payload = response.json()
     session_id = payload["session_id"]
-    assert payload["facilitator"] is True
+    assert isinstance(payload.get("facilitator_capability"), str)
+    assert response.cookies.get("false_flag_facilitator") == \
+        payload["facilitator_capability"]
+    assert payload["stream"] == f"/stream/{session_id}/facilitator"
     assert session_id in server.sessions
-    assert server.sessions[session_id].facilitator is True
 
     # Mock-driven single turn: finishes fast; poll status.
     deadline = time.time() + 30
@@ -673,6 +786,23 @@ def test_demo_start_runs_a_short_campaign(client):
     manager = server.sessions[session_id].manager
     assert manager.world.turn >= 2, "demo did not adjudicate a turn"
     assert len(manager.transcript) > 0
+
+
+def test_demo_stop_requires_its_facilitator_capability(client):
+    started = client.post(
+        "/demo/start", json={"turns": 1, "pace_s": 0.0}).json()
+    session_id = started["session_id"]
+
+    try:
+        bare = client.post(f"/demo/{session_id}/stop")
+    except (AttributeError, TypeError):
+        pytest.fail("demo control still has no request-scoped capability")
+    allowed = client.post(
+        f"/demo/{session_id}/stop",
+        headers=_facilitator_headers(started))
+
+    assert bare.status_code == 403
+    assert allowed.status_code == 200
 
 
 def test_demo_status_unknown_session_is_404(client):

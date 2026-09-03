@@ -1,18 +1,19 @@
 """Headless demo campaign driver, so the dashboard can be watched unmanned.
 
-POST /demo/start creates a facilitator session and drives it from a daemon
-thread the way dev-scripts/play_campaign.py drives a campaign: briefing,
-answer any mandatory call, one cabinet question, interpret + commit a
-decision - pushing every event through the same tagged bus a human-driven
-session uses, at a readable pace. Run the server with WARGAME_LLM=mock for
-a free, deterministic demo; a real provider works too, just slower.
+POST /demo/start creates a session with a facilitator capability and drives it
+from a daemon thread the way dev-scripts/play_campaign.py drives a campaign:
+briefing, answer any mandatory call, one cabinet question, interpret + commit
+a decision - pushing every event through the same tagged bus a human-driven
+session uses, at a readable pace. Run the server with WARGAME_LLM=mock for a
+free, deterministic demo; a real provider works too, just slower.
 """
 
+import secrets
 import threading
 import time
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from models.layers import Layer
@@ -168,14 +169,16 @@ def _drive(run: DemoRun, session) -> None:
 
 
 @router.post("/demo/start")
-async def start_demo(request: DemoStartRequest) -> Dict[str, Any]:
-    """Create a facilitator session and drive a demo campaign through it.
+async def start_demo(
+        request: DemoStartRequest, response: Response) -> Dict[str, Any]:
+    """Create a demo with a facilitator capability and drive its campaign.
 
-    Returns the session_id to point the dashboard (or /stream) at.
+    Returns the session id and capability for its operator view and controls.
     """
     import uuid
     from engine.game_manager import GameManager
-    from api.server import GameSession, _register_session
+    from api.server import (
+        GameSession, _register_session, _set_facilitator_stream_cookie)
 
     session_id = str(uuid.uuid4())
     try:
@@ -190,8 +193,12 @@ async def start_demo(request: DemoStartRequest) -> Dict[str, Any]:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Demo session failed: {e}")
 
-    session = GameSession(manager, facilitator=True)
+    facilitator_capability = secrets.token_urlsafe(32)
+    session = GameSession(
+        manager, facilitator_capability=facilitator_capability)
     _register_session(session_id, session)
+    _set_facilitator_stream_cookie(
+        response, session_id, facilitator_capability)
 
     run = DemoRun(session_id, request.turns, request.pace_s)
     _runs[session_id] = run
@@ -202,18 +209,20 @@ async def start_demo(request: DemoStartRequest) -> Dict[str, Any]:
 
     return {
         "session_id": session_id,
-        "facilitator": True,
+        "facilitator_capability": facilitator_capability,
         "turns": request.turns,
         "pace_s": request.pace_s,
-        "stream": f"/stream/{session_id}",
+        "stream": f"/stream/{session_id}/facilitator",
     }
 
 
 @router.post("/demo/{session_id}/stop")
-async def stop_demo(session_id: str) -> Dict[str, Any]:
+async def stop_demo(session_id: str, request: Request) -> Dict[str, Any]:
     run = _runs.get(session_id)
     if run is None:
         raise HTTPException(status_code=404, detail="No demo run for that session")
+    from api.server import _require_facilitator, _session_or_404
+    _require_facilitator(_session_or_404(session_id), request)
     run.stop_requested = True
     return {"status": "stopping", "session_id": session_id}
 

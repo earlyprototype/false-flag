@@ -1,6 +1,6 @@
 # Current Build State
 
-Current as of 1 September 2026. Start here after
+Current as of 2 September 2026. Start here after
 [`PLAN.md`](../PLAN.md). Historical handovers are indexed separately in
 [`docs/handover/README.md`](handover/README.md).
 
@@ -29,6 +29,9 @@ and [GAME_DESCRIPTION — Core Gameplay](../GAME_DESCRIPTION.md#core-gameplay).
 - Terminal and static-browser playing surfaces.
 - A FastAPI session path with decision, diplomacy, save/load and SSE endpoints.
 - Independent per-subscriber SSE queues for one session's observers.
+- A per-session facilitator capability checked independently for each stream
+  and session-scoped control request. The session ID grants player authority,
+  is not authentication, and does not grant facilitator authority.
 - A versioned, player-safe theatre snapshot with strong ETag revalidation; the
   globe restores from it and treats SSE as change notification.
 - An observability dashboard, dataflow/DTDL view and control surface.
@@ -41,8 +44,9 @@ and [GAME_DESCRIPTION — Core Gameplay](../GAME_DESCRIPTION.md#core-gameplay).
 
 - The globe plots static UK resource locations; it has no authoritative moving
   red-force tracks.
-- The theatre snapshot is one common player-safe projection. Session IDs are
-  not authentication, and per-viewer permissions are not built.
+- The theatre snapshot is one common player-safe projection. The local bearer
+  capability separates facilitator and public viewers, but deployment
+  authentication and user accounts are not built.
 - The terminal CLI and static Pyodide browser each own their own engine session;
   they are not observers of a FastAPI session.
 - The checked-in `frontend/` source has API calls, but its package metadata is

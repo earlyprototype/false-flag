@@ -28,10 +28,13 @@ updates from the first.
 The API session now gives every attached subscriber its own copy of each live
 event. Only the first subscriber receives the pre-connect backlog; the
 player-safe theatre snapshot now restores late and reconnecting globe displays.
-Session IDs are not authentication, and per-viewer permissions remain open.
-The terminal and static browser also remain separate engine instances. The
-build must prove the shared player path before claiming “one engine, many
-surfaces.”
+The session ID grants player authority, is not authentication, and does not
+grant facilitator authority. A separate capability authorises the facilitator
+dashboard and operator dataflow view per stream and session-scoped control
+request; REFEREE events remain server-filtered from the player and globe. This
+local capability is not deployment authentication. The
+terminal and static browser also remain separate engine instances. The build
+must prove the shared player path before claiming “one engine, many surfaces.”
 
 ### Campaign geography
 
@@ -121,9 +124,9 @@ game; it is not the product.
 - The full game loop, adviser system, diplomacy, adjudication and save/load are
   built.
 - The Cesium globe is built and passed its projector test on 31 August 2026.
-- Per-subscriber live streaming and the reconnectable player-safe snapshot are
-  built. A shared API player, per-viewer permissions, moving tracks, live feeds
-  and the VR room are not built yet.
+- Per-subscriber live streaming, per-viewer facilitator capability and the
+  reconnectable player-safe snapshot are built. A shared API player, deployment
+  authentication, moving tracks, live feeds and the VR room are not built yet.
 
 Detailed status: [`BUILD_STATE.md`](BUILD_STATE.md).
 

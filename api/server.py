@@ -12,6 +12,7 @@ import sys
 import asyncio
 import hashlib
 import json
+import secrets
 import threading
 import time
 from typing import Dict, Optional, List, Any
@@ -50,15 +51,14 @@ class GameSession:
     """One running campaign plus its tagged event stream.
 
     Every event carries a data layer (models/layers.py) stamped here at the
-    bus - never inside the engine. ``facilitator`` sessions receive the
-    REFEREE layer over /stream; player sessions have it filtered
-    server-side (see stream_game_events), so the hidden-truth tag can never
-    reach a player browser.
+    bus - never inside the engine. REFEREE delivery is authorised per stream
+    request, so sharing this session never shares facilitator authority.
     """
 
-    def __init__(self, manager: GameManager, facilitator: bool = False):
+    def __init__(self, manager: GameManager,
+                 facilitator_capability: Optional[str] = None):
         self.manager = manager
-        self.facilitator = facilitator
+        self.facilitator_capability = facilitator_capability
         # Events emitted before the first EventSource attaches wait here.
         # Once subscribers exist, each receives its own copied queue item.
         self.event_queue: asyncio.Queue = asyncio.Queue()
@@ -157,6 +157,7 @@ class GameSession:
 
 # Map: session_id -> GameSession
 sessions: Dict[str, GameSession] = {}
+_FACILITATOR_STREAM_COOKIE = "false_flag_facilitator"
 
 # Every LLM call made while serving a session lands on that session's
 # stream as a REFEREE llm_call event (no prompt/reply bodies).
@@ -176,6 +177,19 @@ def _register_session(session_id: str, session: GameSession) -> None:
     sessions[session_id] = session
     llm_relay.register_session(session_id, session.push_event_threadsafe)
     llm_relay.bind(session_id)
+
+
+def _set_facilitator_stream_cookie(
+        response: Response, session_id: str, capability: str) -> None:
+    """Keep the stream bearer out of URLs and away from public surfaces."""
+    response.headers["Cache-Control"] = "no-store"
+    response.set_cookie(
+        _FACILITATOR_STREAM_COOKIE,
+        capability,
+        httponly=True,
+        samesite="strict",
+        path=f"/stream/{session_id}/facilitator",
+    )
 
 
 # --- Event mapping (pure) -------------------------------------------------
@@ -282,12 +296,10 @@ class NewGameRequest(BaseModel):
     # field the HTTP path could not start a mystery campaign at all.
     mystery_mode: bool = False
     player_name: str = "Prime Minister"
-    # Facilitator (EXCON) sessions receive REFEREE-layer events over
-    # /stream: raw adjudication effects, llm_call records, parse health.
-    # Player sessions (the default) have REFEREE filtered server-side.
-    # Set here at create time - there is deliberately no way to raise a
-    # live session to facilitator afterwards. `?facilitator=true` on the
-    # POST /game/new query string works too (curl convenience).
+    # Asking to facilitate returns a separate capability for REFEREE streams
+    # and session-scoped controls. The session id grants player authority, is
+    # not authentication, and does not grant facilitator authority.
+    # `?facilitator=true` also works as a curl convenience.
     facilitator: bool = False
 
 
@@ -398,6 +410,7 @@ class LLMConfigUpdateRequest(BaseModel):
 
 class SessionResponse(BaseModel):
     session_id: str
+    facilitator_capability: Optional[str] = None
     turn: int
     phase: str
     metrics: Dict[str, int]
@@ -503,11 +516,13 @@ async def health_check():
 
 
 @app.post("/game/new", response_model=SessionResponse)
-async def new_game(request: NewGameRequest, facilitator: bool = False):
+async def new_game(
+        request: NewGameRequest, response: Response,
+        facilitator: bool = False):
     """Initialize a new game session.
 
-    ``facilitator`` (body field or query param) opts the session's /stream
-    into the REFEREE layer - see NewGameRequest.
+    ``facilitator`` (body field or query param) asks for a separate capability
+    that the caller must present on each REFEREE stream or session control.
     """
     import uuid
     session_id = str(uuid.uuid4())
@@ -521,10 +536,18 @@ async def new_game(request: NewGameRequest, facilitator: bool = False):
         mystery_mode=request.mystery_mode
     )
 
-    # Store session
-    session = GameSession(manager,
-                          facilitator=request.facilitator or facilitator)
+    # The capability is returned only to a caller that explicitly asks to
+    # facilitate. The session id remains safe to share with players/globes.
+    facilitator_capability = (
+        secrets.token_urlsafe(32)
+        if request.facilitator or facilitator else None
+    )
+    session = GameSession(
+        manager, facilitator_capability=facilitator_capability)
     _register_session(session_id, session)
+    if facilitator_capability:
+        _set_facilitator_stream_cookie(
+            response, session_id, facilitator_capability)
 
     # Generate initial briefing
     pending_encounter = None
@@ -558,6 +581,7 @@ async def new_game(request: NewGameRequest, facilitator: bool = False):
     
     return SessionResponse(
         session_id=session_id,
+        facilitator_capability=facilitator_capability,
         turn=manager.world.turn,
         phase=manager.world.phase,
         metrics=manager.world.metrics.dict(),
@@ -907,35 +931,71 @@ async def update_llm_settings(request: LLMConfigUpdateRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def _stream_filter(item: Dict[str, Any], facilitator: bool) -> Optional[Dict[str, Any]]:
+def _presented_facilitator_capability(request: Request) -> Optional[str]:
+    """Read a control capability without treating the session id as one."""
+    return request.headers.get("x-facilitator-capability")
+
+
+def _presented_stream_capability(request: Request) -> Optional[str]:
+    """Read an explicit stream header or its path-scoped browser cookie."""
+    return (
+        request.headers.get("x-facilitator-capability")
+        or request.cookies.get(_FACILITATOR_STREAM_COOKIE)
+    )
+
+
+def _has_facilitator_capability(
+        session: GameSession, presented: Optional[str]) -> bool:
+    expected = session.facilitator_capability
+    return bool(
+        expected and presented and presented.isascii()
+        and secrets.compare_digest(expected, presented))
+
+
+def _require_facilitator(session: GameSession, request: Request) -> None:
+    if not _has_facilitator_capability(
+            session, _presented_facilitator_capability(request)):
+        raise HTTPException(
+            status_code=403, detail="Facilitator capability required")
+
+
+def _stream_filter(
+        item: Dict[str, Any], include_referee: bool) -> Optional[Dict[str, Any]]:
     """Strip the server-side layer key; drop REFEREE items for players.
 
     The REFEREE tag (raw effects, verdicts, llm_call records, parse health)
-    must never reach a player browser (DATA_LAYERS.md par. D); only a
-    session created with the facilitator flag receives it.
+    must never reach a player browser (DATA_LAYERS.md par. D). Permission is
+    decided for the individual stream request, never for the whole session.
     """
     layer = item.pop("_layer", None)
-    if layer is Layer.REFEREE and not facilitator:
+    if layer is Layer.REFEREE and not include_referee:
         return None
     return item
 
 
+@app.get("/stream/{session_id}/facilitator")
 @app.get("/stream/{session_id}")
 async def stream_game_events(session_id: str, request: Request):
     """SSE endpoint for streaming game events.
 
-    REFEREE-layer events are filtered server-side unless the session was
-    created with the facilitator flag - see _stream_filter.
+    REFEREE-layer events are filtered server-side unless this connection
+    presents the session's facilitator capability.
     """
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
     session = sessions[session_id]
+    include_referee = _has_facilitator_capability(
+        session, _presented_stream_capability(request))
 
     async def event_generator():
         subscriber_queue = session.subscribe()
         try:
-            yield {"event": "stream_ready", "data": "{}"}
+            viewer = "facilitator" if include_referee else "public"
+            yield {
+                "event": "stream_ready",
+                "data": json.dumps({"viewer": viewer}, separators=(",", ":")),
+            }
             while True:
                 # Check for disconnection
                 if await request.is_disconnected():
@@ -946,7 +1006,7 @@ async def stream_game_events(session_id: str, request: Request):
                 try:
                     event = await asyncio.wait_for(
                         subscriber_queue.get(), timeout=1.0)
-                    event = _stream_filter(event, session.facilitator)
+                    event = _stream_filter(event, include_referee)
                     if event is None:
                         continue  # server-side REFEREE filter
                     yield event
@@ -995,6 +1055,7 @@ async def run_turn_briefing_endpoint(session_id: str):
 
     return SessionResponse(
         session_id=session_id,
+        facilitator_capability=None,
         turn=manager.world.turn,
         phase=manager.world.phase,
         metrics=manager.world.metrics.dict(),
@@ -1381,8 +1442,8 @@ async def dashboard_page():
 
     Panels: layer-tagged event ledger, metric traces, llm_call feed,
     reroute matrix, inject console, prompt editor, demo driver. Create or
-    attach to a session from the page header; facilitator sessions show
-    the REFEREE layer.
+    attach to a session from the page header; connections presenting that
+    session's facilitator capability show the REFEREE layer.
     """
     if not _DASHBOARD_PATH.exists():
         raise HTTPException(status_code=500, detail="dashboard.html missing")

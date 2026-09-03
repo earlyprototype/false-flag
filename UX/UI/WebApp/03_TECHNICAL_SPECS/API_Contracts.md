@@ -40,14 +40,17 @@ All body fields are optional:
 ```
 
 Defaults are the values shown above. `facilitator=true` may instead be supplied
-as a query parameter. A facilitator session receives REFEREE-layer stream
-events; a live session cannot be promoted later.
+as a query parameter. It returns a separate facilitator capability; the caller
+must present that capability on each REFEREE stream or session-scoped
+facilitator control request. The session ID grants player authority, is not
+authentication, and does not grant facilitator authority.
 
 Success is `200 OK`, not `201 Created`:
 
 ```json
 {
   "session_id": "9903388b-1050-4d86-83ba-a75eab6a6f7b",
+  "facilitator_capability": null,
   "turn": 1,
   "phase": "discussion",
   "metrics": {
@@ -65,8 +68,12 @@ Success is `200 OK`, not `201 Created`:
 }
 ```
 
-`pending_encounter` is either `null` or an object containing `country`,
-`context`, and `title` when the briefing opens a mandatory call.
+`facilitator_capability` is `null` by default and an opaque string when
+`facilitator=true`. The latter response is `Cache-Control: no-store` and also
+sets an HttpOnly, SameSite cookie scoped to
+`/stream/{session_id}/facilitator`. `pending_encounter` is either `null` or an
+object containing `country`, `context`, and `title` when the briefing opens a
+mandatory call.
 
 ### GET `/game/{session_id}/resources`
 
@@ -319,8 +326,8 @@ what is committed.
 
 Both commit routes emit player-facing `transcript`, `system`, and
 `state_update` events. An `ending` event is emitted when applicable.
-Facilitator streams additionally receive REFEREE-layer `adjudication` and
-`parse_health` events.
+Streams presenting the matching facilitator capability additionally receive
+REFEREE-layer `adjudication` and `parse_health` events.
 
 The decision routes return `400` outside the `discussion` or `decision`
 phases and `409` while a required diplomatic call remains active.
@@ -626,19 +633,21 @@ general `{error, message, code}` response envelope.
 
 ### SSE stream
 
-Clients subscribe with `GET /stream/{session_id}`. Each emitted event has an
-SSE event name and JSON data. The server adds `layer`, `turn`, `t_plus_s`, and
-`event_seq` to object payloads:
+Public clients subscribe with `GET /stream/{session_id}`. Facilitator browsers
+use `GET /stream/{session_id}/facilitator`; API clients may instead send the
+matching `X-Facilitator-Capability` header. Each emitted event has an SSE event
+name and JSON data. The server adds `layer`, `turn`, `t_plus_s`, and `event_seq`
+to object payloads:
 
 ```text
 event: transcript
 data: {"type":"advisor","role":"National Security Advisor","content":"...","layer":"cabinet","turn":1,"t_plus_s":2.4,"event_seq":7}
 ```
 
-Player sessions never receive REFEREE-layer events. Event names include
-`transcript`, `diplomacy`, `intel`, `system`, `state_update`, and `ending`; facilitator
-sessions can additionally receive `llm_call`, `adjudication`, and
-`parse_health`.
+Session-ID-only streams never receive REFEREE-layer events. Event names include
+`transcript`, `diplomacy`, `intel`, `system`, `state_update`, and `ending`;
+streams presenting the matching header or path-scoped cookie can additionally
+receive `llm_call`, `adjudication`, and `parse_health`.
 
 ### Nulls and arrays
 
