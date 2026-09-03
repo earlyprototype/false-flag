@@ -1,6 +1,6 @@
 # Current Build State
 
-Current as of 2 September 2026. Start here after
+Current as of 3 September 2026. Start here after
 [`PLAN.md`](../PLAN.md). Historical handovers are indexed separately in
 [`docs/handover/README.md`](handover/README.md).
 
@@ -112,8 +112,8 @@ Sources:
 5. Consult [`XR_GLOBE_FEASIBILITY.md`](XR_GLOBE_FEASIBILITY.md) only for the
    technical evidence behind a decision; its dated analysis is not the current
    schedule.
-6. Read the Kanbanger board through the MCP resource. If it reports the outer
-   `fogOfWar` folder rather than `false-flag/_kanban.md`, restart with the
-   project-scoped MCP binding; do not create or hand-edit another board. Once
-   correctly bound, reconcile the old #127 architecture-decision task with the
-   selected WebXR route and closed GitHub issue.
+6. Read the Kanbanger board through the MCP resource. Its canonical workspace
+   is the outer `fogOfWar` folder, with `_kanban.md` and `.kanban.json` beside
+   the `false-flag` repository. If it reports another folder or a missing board,
+   stop and report the binding problem; do not create or hand-edit another
+   board.
