@@ -35,7 +35,7 @@ by dependencies and observable done tests.
 | Item | What it delivers | Status | Evidence |
 |---|---|---|---|
 | **Globe Display** | Read-only Cesium globe showing scenario resources | `DONE` — projector test passed 31 Aug 2026 | [Issue #94](https://github.com/earlyprototype/false-flag/issues/94) · [PR #95](https://github.com/earlyprototype/false-flag/pull/95) · [PR #104](https://github.com/earlyprototype/false-flag/pull/104) |
-| **1 · Multi-client Session Streaming** | One played campaign observed reliably by several surfaces | `IN PROGRESS` — subscriber fan-out and player-safe v1 snapshot complete | [Issue #139](https://github.com/earlyprototype/false-flag/issues/139) · [Issue #158](https://github.com/earlyprototype/false-flag/issues/158) · [PR #159](https://github.com/earlyprototype/false-flag/pull/159) |
+| **1 · Multi-client Session Streaming** | One played campaign observed reliably by several surfaces | `IN PROGRESS` — fan-out, player-safe v1 snapshot and per-viewer facilitator capability complete | [Issue #139](https://github.com/earlyprototype/false-flag/issues/139) · [Issue #158](https://github.com/earlyprototype/false-flag/issues/158) · [Issue #171](https://github.com/earlyprototype/false-flag/issues/171) · [PR #172](https://github.com/earlyprototype/false-flag/pull/172) |
 | **2 · Spatial Decision Loop** | Campaign forces move from authored state and validated player orders | `NOT STARTED` — movement design settled | [Issue #71](https://github.com/earlyprototype/false-flag/issues/71) |
 | **3 · Live Context Integration** | Real external context appears around, and may inform, the fictional exercise | `NOT STARTED` — boundary and live-first posture settled | [Issue #77](https://github.com/earlyprototype/false-flag/issues/77) |
 | **4 · Quest Ops-Room Display** | The existing game is present inside a WebXR operations room | `NOT STARTED` — build order settled; device availability open | [WebXR brief](docs/tech/WEBXR.md) · [Issue #75](https://github.com/earlyprototype/false-flag/issues/75) |
@@ -62,8 +62,8 @@ Current limits are explicit:
   red-force tracks.
 - An event refreshes the display but does not yet move a unit.
 - The v1 theatre snapshot restores current turn, phase and static player-visible
-  resources; per-viewer permissions and authoritative spatial tracks are not
-  yet built.
+  resources; play-mode-specific player projection and authoritative spatial
+  tracks are not yet built.
 - No external live feed or XR room exists yet.
 
 ## 1 · Multi-client Session Streaming
@@ -81,14 +81,18 @@ VR room.*
       call and cannot yet play a complete campaign.
 - [x] Replace the single destructive session queue with per-subscriber queues;
       copy each payload before audience filtering.
-- [ ] Scope theatre snapshots and view permissions to a game session.
+- [x] Scope facilitator stream and control permissions to each viewer within a
+      game session.
+- [ ] Apply play-mode-specific projection to every player-facing response and
+      snapshot.
 - [x] Publish a versioned theatre snapshot with an ETag; use SSE as change
       notification rather than as the only state store.
 - [ ] Prove the selected player uses the same API session observed by the
       dashboard and globe. Do not claim that the terminal CLI or static
       Pyodide build is attached until it actually is.
-- [ ] Keep REFEREE data server-filtered and require authentication before any
-      control surface leaves localhost.
+- [x] Keep REFEREE data server-filtered per viewer.
+- [ ] Require deployment authentication before any control surface leaves
+      localhost.
 - [x] Add a regression check in which two subscribers receive every event.
 - [ ] Add the `Theatre;1` and `TheatreAsset;1` DTDL sidecars without modifying
       the 13 published interfaces; re-run Microsoft's DTDL parser.
