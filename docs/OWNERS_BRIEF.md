@@ -32,7 +32,16 @@ The session ID grants player authority, is not authentication, and does not
 grant facilitator authority. A separate capability authorises the facilitator
 dashboard and operator dataflow view per stream and session-scoped control
 request; REFEREE events remain server-filtered from the player and globe. This
-local capability is not deployment authentication. The
+same server rule protects REST responses and live events: Classic keeps its
+intended gameplay numbers, while Immersive and Emergent receive qualitative
+situation vibes. Exact adviser trust, raw actor scores and structured Mystery
+truth remain facilitator-only, and the authoritative full-state endpoint now
+requires the capability. Mystery-flavoured dialogue is produced safely by
+giving the secret only to faction-roleplay prompts, never player-facing ones;
+those player-facing prompts also receive qualitative bands instead of exact
+metrics or trust, and no hidden Red strategy. Old numeric effect boxes are removed only from non-Classic
+public responses, leaving the campaign record and facilitator view intact.
+This local capability is not deployment authentication. The
 terminal and static browser also remain separate engine instances. The build
 must prove the shared player path before claiming “one engine, many surfaces.”
 
@@ -124,9 +133,10 @@ game; it is not the product.
 - The full game loop, adviser system, diplomacy, adjudication and save/load are
   built.
 - The Cesium globe is built and passed its projector test on 31 August 2026.
-- Per-subscriber live streaming, per-viewer facilitator capability and the
-  reconnectable player-safe snapshot are built. A shared API player, deployment
-  authentication, moving tracks, live feeds and the VR room are not built yet.
+- Per-subscriber live streaming, per-viewer facilitator capability, one
+  REST/SSE visibility rule and the reconnectable player-safe snapshot are
+  built. A shared API player, deployment authentication, moving tracks, live
+  feeds and the VR room are not built yet.
 
 Detailed status: [`BUILD_STATE.md`](BUILD_STATE.md).
 

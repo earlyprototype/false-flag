@@ -1,5 +1,10 @@
 # Handover: the engine's language-model layer
 
+> **Historical snapshot (6 August 2026).** The former "briefing audience"
+> security design described below is retired. Current code gives Mystery truth
+> only to faction-roleplay prompts; public-output prompts receive player-safe
+> qualitative context. See [`../docs/BUILD_STATE.md`](../docs/BUILD_STATE.md).
+
 This describes how FALSE FLAG talks to a language model as the system now stands, after the
 six-PR fix campaign (#41 to #46) that closed 45 of the 46 entries in `ENGINE-ROUTING-ISSUES.md`.
 It assumes no prior knowledge of the codebase and none of machine learning. The register beside
@@ -27,8 +32,8 @@ open with an identical briefing dossier, deliberately, so a provider's prefix ca
 work across them: 75.6 per cent of all prompt characters in a measured campaign were
 cache-matchable. The dossier now renders the metrics once instead of three times (ER-009), the
 omissions scan receives the structured interpretation of the decision it is auditing (ER-002),
-and in Mystery Mode the briefing audience gets judge-plausibility instructions instead of being
-told to deceive the player it advises (ER-021).
+At that time, Mystery Mode gave the briefing audience judge-plausibility
+instructions instead of telling it to deceive the player it advises (ER-021).
 
 **Three kinds decide what actually happens**: the action quality assessment, the state-actor
 simulation, and the diplomatic outcome assessment. These were the audit's biggest finding: they

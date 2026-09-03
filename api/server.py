@@ -10,6 +10,7 @@ Provides endpoints for:
 import os
 import sys
 import asyncio
+import copy
 import hashlib
 import json
 import secrets
@@ -27,7 +28,7 @@ from sse_starlette.sse import EventSourceResponse
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from models.world import WorldState
-from models.layers import Layer, layer_for_channel
+from models.layers import Layer, PLAYER_LAYERS, layer_for_channel
 from engine.game_manager import GameManager
 from api import llm_relay
 
@@ -45,6 +46,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def protect_session_responses(request: Request, call_next):
+    """Keep audience-dependent game responses out of HTTP caches."""
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/game/") and not path.endswith("/theatre"):
+        if "cache-control" not in response.headers:
+            response.headers["Cache-Control"] = "private, no-store"
+        vary = response.headers.get("Vary", "")
+        if "x-facilitator-capability" not in vary.lower():
+            response.headers["Vary"] = ", ".join(filter(None, [
+                vary, "X-Facilitator-Capability",
+            ]))
+    return response
 
 # Session Container
 class GameSession:
@@ -79,18 +96,27 @@ class GameSession:
         except RuntimeError:
             self._loop = None
 
+    def _viewer_vibes(self) -> List[Dict[str, str]]:
+        return [
+            {"name": vibe.name, "descriptor": vibe.descriptor}
+            for vibe in self.manager.narrative_state.get_situation_vibes()
+        ]
+
     def _make_item(self, event_type: str, data: Any,
                    layer: Optional[Layer], turn: Optional[int] = None,
-                   t_plus_s: Optional[float] = None) -> Dict[str, Any]:
+                   t_plus_s: Optional[float] = None,
+                   vibes: Optional[List[Dict[str, str]]] = None,
+                   ) -> Dict[str, Any]:
         """Assemble one SSE queue item: stamp layer, turn, T+ and sequence.
 
         ``_layer`` is server-side only (the stream filter pops it before
         yielding); the same layer value also travels inside the JSON data
         so clients can filter and colour without parsing conventions.
         """
-        layer = layer or Layer.SITREP
         payload = dict(data) if isinstance(data, dict) else {"value": data}
-        payload.setdefault("layer", layer.value)
+        payload.pop("layer", None)
+        if layer is not None:
+            payload["layer"] = layer.value
         payload.setdefault(
             "turn", self.manager.world.turn if turn is None else turn)
         payload.setdefault(
@@ -104,6 +130,7 @@ class GameSession:
             "event": event_type,
             "data": json.dumps(payload),
             "_layer": layer,
+            "_vibes": vibes if vibes is not None else self._viewer_vibes(),
         }
 
     async def push_event(self, event_type: str, data: Any,
@@ -116,21 +143,24 @@ class GameSession:
         """Push an event from a worker thread (LLM relay, demo driver)."""
         turn = self.manager.world.turn
         t_plus_s = round(time.time() - self.started_at, 3)
+        vibes = self._viewer_vibes()
         if self._loop is not None:
             self._loop.call_soon_threadsafe(
                 self._make_and_publish, event_type, data, layer,
-                turn, t_plus_s)
+                turn, t_plus_s, vibes)
         else:
             self._make_and_publish(
-                event_type, data, layer, turn, t_plus_s)
+                event_type, data, layer, turn, t_plus_s, vibes)
 
     def _make_and_publish(self, event_type: str, data: Any,
                           layer: Optional[Layer],
                           turn: Optional[int] = None,
-                          t_plus_s: Optional[float] = None) -> None:
+                          t_plus_s: Optional[float] = None,
+                          vibes: Optional[List[Dict[str, str]]] = None) -> None:
         """Assign sequence and publish as one loop-owned operation."""
         self._publish(self._make_item(
-            event_type, data, layer, turn=turn, t_plus_s=t_plus_s))
+            event_type, data, layer, turn=turn, t_plus_s=t_plus_s,
+            vibes=vibes))
 
     def subscribe(self) -> asyncio.Queue:
         """Return an independent queue for one SSE subscriber."""
@@ -192,6 +222,122 @@ def _set_facilitator_stream_cookie(
     )
 
 
+_PLAYER_PRIVATE_KEYS = frozenset({
+    "actor_system",
+    "dependencies",
+    "domestic_pressure",
+    "effects",
+    "hidden_agendas",
+    "hidden_metrics",
+    "previous_metrics",
+    "private_assessment",
+    "redlines",
+    "relationship_uk",
+    "secret_motive",
+    "threat_perception",
+    "true_motivations",
+    "trust_change",
+})
+_RAW_METRIC_KEYS = frozenset({
+    "alliance_cohesion",
+    "casualties_civ",
+    "casualties_mil",
+    "domestic_stability",
+    "escalation_risk",
+})
+
+
+def _project_for_viewer(
+        session: GameSession, payload: Any, *, facilitator: bool,
+        layer: Optional[Layer] = None, require_layer: bool = False,
+        vibes: Optional[List[Dict[str, str]]] = None):
+    """Return the one audience-safe view used by REST and SSE.
+
+    Structured Mystery/referee state never reaches public viewers. Classic
+    keeps intended gameplay numbers; Immersive and Emergent receive the
+    existing qualitative situation vibes instead.
+    """
+    if not facilitator and (
+            layer is Layer.REFEREE
+            or require_layer and layer not in PLAYER_LAYERS):
+        return None
+
+    if isinstance(payload, BaseModel):
+        payload = payload.model_dump()
+    if facilitator:
+        return copy.deepcopy(payload)
+
+    show_metrics = session.manager.play_mode == "classic"
+
+    def redact(value):
+        metric_hidden = False
+        if isinstance(value, BaseModel):
+            value = value.model_dump()
+        if isinstance(value, list):
+            cleaned = []
+            for item in value:
+                redacted, child_hidden = redact(item)
+                cleaned.append(redacted)
+                metric_hidden = metric_hidden or child_hidden
+            return cleaned, metric_hidden
+        if not isinstance(value, dict):
+            return value, False
+
+        cleaned = {}
+        for key, item in value.items():
+            if key in _PLAYER_PRIVATE_KEYS:
+                continue
+            if key == "narrative" and isinstance(item, dict):
+                continue
+            if key == "trust":
+                cleaned[key] = None
+                continue
+            if key == "raw" and isinstance(item, list):
+                item = [
+                    line for line in item
+                    if not (
+                        isinstance(line, str)
+                        and line.strip().startswith("Current Assessment:")
+                    )
+                ]
+            if (not show_metrics and key in {
+                    "transcript", "raw_transcript", "lines"}
+                    and isinstance(item, list)
+                    and all(isinstance(line, str) for line in item)):
+                from engine.utils import strip_effect_boxes
+                item = strip_effect_boxes(item)
+            if not show_metrics and (
+                    key == "metrics" or key == "cohesion_delta"
+                    or key == "intensity" or key in _RAW_METRIC_KEYS):
+                cleaned[key] = None
+                metric_hidden = True
+                continue
+            if not show_metrics and key == "debrief":
+                cleaned[key] = []
+                metric_hidden = True
+                continue
+            cleaned[key], child_hidden = redact(item)
+            metric_hidden = metric_hidden or child_hidden
+        return cleaned, metric_hidden
+
+    projected, metric_hidden = redact(payload)
+    if metric_hidden and isinstance(projected, dict):
+        projected.setdefault("vibes", vibes or [
+            {"name": vibe.name, "descriptor": vibe.descriptor}
+            for vibe in session.manager.narrative_state.get_situation_vibes()
+        ])
+    return projected
+
+
+def _project_rest(session: GameSession, request: Request, payload: Any):
+    return _project_for_viewer(
+        session,
+        payload,
+        facilitator=_has_facilitator_capability(
+            session, _presented_facilitator_capability(request)),
+    )
+
+
 # --- Event mapping (pure) -------------------------------------------------
 # The async endpoints and the demo driver's worker thread must emit the
 # same events for the same engine results; these mappers are the single
@@ -199,7 +345,7 @@ def _set_facilitator_stream_cookie(
 
 def briefing_events(inject: Dict[str, Any]):
     """Events for one turn briefing: the inject on its channel's layer
-    (DATA_LAYERS.md par. D - `channel` is the authoring-side tag), then the
+    (`channel` is the authoring-side tag in models/layers.py), then the
     ready prompt."""
     channel = inject.get("channel", "briefing")
     return [
@@ -218,9 +364,9 @@ def briefing_events(inject: Dict[str, Any]):
 
 def adjudication_events(result: Dict[str, Any], manager: GameManager):
     """Events for one adjudicated decision, layer-tagged per
-    DATA_LAYERS.md par. D: player-facing prose on SITREP, advisor
-    reactions on CABINET, cables on DIPLOMATIC, raw effects/verdicts and
-    parse health on REFEREE (server-filtered from player streams)."""
+    models/layers.py: player-facing prose on SITREP, advisor reactions on
+    CABINET, cables on DIPLOMATIC, raw effects/verdicts and parse health on
+    REFEREE (server-filtered from player streams)."""
     events = [
         ("transcript", {
             "type": "system",
@@ -277,7 +423,7 @@ def adjudication_events(result: Dict[str, Any], manager: GameManager):
     }, Layer.SITREP))
 
     # LLM system health after the heaviest call cluster of the turn
-    # (DATA_LAYERS.md par. D: facilitator feed).
+    # Facilitator feed; see docs/tech/SERVER_STREAMING.md.
     try:
         from llm.parse_health import snapshot
         events.append(("parse_health", snapshot(), Layer.REFEREE))
@@ -413,7 +559,8 @@ class SessionResponse(BaseModel):
     facilitator_capability: Optional[str] = None
     turn: int
     phase: str
-    metrics: Dict[str, int]
+    metrics: Optional[Dict[str, int]] = None
+    vibes: List[Dict[str, str]] = []
     advisors: List[Dict[str, str]] = []
     # A scripted mandatory diplomatic call left live by the briefing
     # (ER-033): {"country", "context", "title"}. The client answers it via
@@ -462,13 +609,13 @@ class DiplomaticContact(BaseModel):
 class VibesResponse(BaseModel):
     vibes: List[str]
     dominant: str
-    intensity: int
+    intensity: Optional[int] = None
 
 
 class AdvisorState(BaseModel):
     role: str
     name: str
-    trust: int
+    trust: Optional[int] = None
     relationship: str
     status: str
     notes: Optional[str] = None
@@ -579,41 +726,43 @@ async def new_game(
             "content": "FAILED TO LOAD BRIEFING DATA"
         }, layer=Layer.SITREP)
     
-    return SessionResponse(
-        session_id=session_id,
-        facilitator_capability=facilitator_capability,
-        turn=manager.world.turn,
-        phase=manager.world.phase,
-        metrics=manager.world.metrics.dict(),
-        pending_encounter=pending_encounter,
-        advisors=[
+    payload = {
+        "session_id": session_id,
+        "facilitator_capability": facilitator_capability,
+        "turn": manager.world.turn,
+        "phase": manager.world.phase,
+        "metrics": manager.world.metrics.dict(),
+        "pending_encounter": pending_encounter,
+        "advisors": [
             {"role": "NSA", "status": "online"},
             {"role": "CDS", "status": "online"},
             {"role": "Foreign Sec", "status": "online"},
             {"role": "Home Sec", "status": "online"},
             {"role": "Attorney General", "status": "online"}
-        ]
+        ],
+    }
+    return _project_for_viewer(
+        session, payload, facilitator=facilitator_capability is not None,
     )
 
 
 @app.get("/game/{session_id}/state")
-async def get_game_state(session_id: str):
-    """Get current world state."""
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    session = sessions[session_id]
-    return session.manager.world.dict()
+async def get_full_game_state(
+        session_id: str, request: Request, response: Response):
+    """Get facilitator-only authoritative world state."""
+    session = _session_or_404(session_id)
+    _require_facilitator(session, request)
+    response.headers["Cache-Control"] = "no-store"
+    return _project_for_viewer(
+        session, session.manager.world.dict(), facilitator=True)
 
 
 @app.get("/game/{session_id}")
-async def get_game_state(session_id: str):
-    """Get full game state for session resumption."""
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    manager = sessions[session_id].manager
-    return {
+async def get_game_state(session_id: str, request: Request):
+    """Get viewer-safe game state for session resumption."""
+    session = _session_or_404(session_id)
+    manager = session.manager
+    payload = {
         "session_id": session_id,
         "turn": manager.world.turn,
         "phase": manager.world.phase,
@@ -625,6 +774,7 @@ async def get_game_state(session_id: str):
         "transcript": manager.transcript,
         "active_call": _active_call_state(manager),
     }
+    return _project_rest(session, request, payload)
 
 
 def _active_call_state(manager) -> Optional[dict]:
@@ -641,13 +791,10 @@ def _active_call_state(manager) -> Optional[dict]:
 
 
 @app.get("/game/{session_id}/resources", response_model=ResourceSummary)
-async def get_resources(session_id: str):
+async def get_resources(session_id: str, request: Request):
     """Get game resources (forces and stockpiles)."""
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    session = sessions[session_id]
-    return session.manager.get_resources()
+    session = _session_or_404(session_id)
+    return _project_rest(session, request, session.manager.get_resources())
 
 
 @app.get("/game/{session_id}/theatre", response_model=TheatreSnapshot)
@@ -661,8 +808,10 @@ def get_theatre_snapshot(session_id: str, request: Request):
             phase=session.manager.world.phase,
             **session.manager.get_resources(),
         )
+        visible = _project_for_viewer(
+            session, snapshot.model_dump(), facilitator=False)
         body = json.dumps(
-            snapshot.model_dump(),
+            visible,
             ensure_ascii=False,
             separators=(",", ":"),
             sort_keys=True,
@@ -681,22 +830,20 @@ def get_theatre_snapshot(session_id: str, request: Request):
     "/game/{session_id}/diplomacy/contacts",
     response_model=List[DiplomaticContact]
 )
-async def get_diplomatic_contacts(session_id: str):
+async def get_diplomatic_contacts(session_id: str, request: Request):
     """Get available diplomatic contacts."""
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    session = sessions[session_id]
-    return session.manager.get_diplomatic_contacts()
+    session = _session_or_404(session_id)
+    return _project_rest(
+        session, request, session.manager.get_diplomatic_contacts())
 
 
 @app.get("/game/{session_id}/state/vibes", response_model=VibesResponse)
-async def get_situation_vibes(session_id: str):
+async def get_situation_vibes(session_id: str, request: Request):
     """Get narrative atmosphere/vibes."""
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+    session = _session_or_404(session_id)
     try:
-        return sessions[session_id].manager.get_situation_vibes()
+        return _project_rest(
+            session, request, session.manager.get_situation_vibes())
     except Exception as e:
         print(f"ERROR VIBES: {e}")
         import traceback; traceback.print_exc()
@@ -704,12 +851,13 @@ async def get_situation_vibes(session_id: str):
 
 
 @app.get("/game/{session_id}/state/advisors", response_model=AdvisorsResponse)
-async def get_advisors_state(session_id: str):
+async def get_advisors_state(session_id: str, request: Request):
     """Get advisor trust and status."""
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+    session = _session_or_404(session_id)
     try:
-        return {"advisors": sessions[session_id].manager.get_advisors_state()}
+        return _project_rest(session, request, {
+            "advisors": session.manager.get_advisors_state(),
+        })
     except Exception as e:
         print(f"ERROR ADVISORS: {e}")
         import traceback; traceback.print_exc()
@@ -717,12 +865,12 @@ async def get_advisors_state(session_id: str):
 
 
 @app.get("/game/{session_id}/state/flags", response_model=FlagsResponse)
-async def get_world_flags(session_id: str):
+async def get_world_flags(session_id: str, request: Request):
     """Get active world/crisis flags."""
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+    session = _session_or_404(session_id)
     try:
-        return sessions[session_id].manager.get_world_flags()
+        return _project_rest(
+            session, request, session.manager.get_world_flags())
     except Exception as e:
         print(f"ERROR FLAGS: {e}")
         import traceback; traceback.print_exc()
@@ -730,12 +878,13 @@ async def get_world_flags(session_id: str):
 
 
 @app.get("/game/{session_id}/intel", response_model=IntelListResponse)
-async def get_intel_list(session_id: str):
+async def get_intel_list(session_id: str, request: Request):
     """List available intelligence targets."""
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+    session = _session_or_404(session_id)
     try:
-        return {"available_actors": sessions[session_id].manager.get_intel_actors()}
+        return _project_rest(session, request, {
+            "available_actors": session.manager.get_intel_actors(),
+        })
     except Exception as e:
         print(f"ERROR INTEL LIST: {e}")
         import traceback; traceback.print_exc()
@@ -743,7 +892,8 @@ async def get_intel_list(session_id: str):
 
 
 @app.get("/game/{session_id}/intel/{actor_code}", response_model=IntelDetailResponse)
-async def get_intel_detail(session_id: str, actor_code: str):
+async def get_intel_detail(
+        session_id: str, actor_code: str, request: Request):
     """Get detailed intelligence assessment for an actor."""
     session = _session_or_404(session_id)
 
@@ -757,7 +907,7 @@ async def get_intel_detail(session_id: str, actor_code: str):
             "code": detail.get("code"),
             "confidence": detail.get("confidence"),
         }, layer=Layer.INTEL)
-        return detail
+        return _project_rest(session, request, detail)
     except HTTPException:
         raise
     except Exception as e:
@@ -767,21 +917,22 @@ async def get_intel_detail(session_id: str, actor_code: str):
 
 
 @app.post("/game/action/call", response_model=DiplomacyResponse)
-async def make_diplomatic_call(request: DiplomaticCallRequest):
+async def make_diplomatic_call(
+        payload: DiplomaticCallRequest, request: Request):
     """Initiate a diplomatic call."""
-    session = _session_or_404(request.session_id)
+    session = _session_or_404(payload.session_id)
 
     try:
         with session.lock:
-            result = session.manager.start_diplomacy(request.country_name)
+            result = session.manager.start_diplomacy(payload.country_name)
         # The red phone: mirror the call opening onto the DIPLOMATIC layer
         await session.push_event("diplomacy", {
             "type": "call_started",
-            "country": request.country_name,
+            "country": payload.country_name,
             "title": result.get("title"),
             "transcript": result.get("transcript", []),
         }, layer=Layer.DIPLOMATIC)
-        return result
+        return _project_rest(session, request, result)
     except HTTPException:
         raise
     except Exception as e:
@@ -791,15 +942,16 @@ async def make_diplomatic_call(request: DiplomaticCallRequest):
 
 
 @app.post("/game/action/diplomacy/reply", response_model=DiplomacyResponse)
-async def reply_diplomatic_call(request: DiplomacyReplyRequest):
+async def reply_diplomatic_call(
+        payload: DiplomacyReplyRequest, request: Request):
     """Reply to the active diplomatic call."""
-    session = _session_or_404(request.session_id)
+    session = _session_or_404(payload.session_id)
 
     try:
         with session.lock:
             mark = len(getattr(session.manager.active_encounter,
                                "transcript", []) or [])
-            result = session.manager.process_diplomacy(request.message)
+            result = session.manager.process_diplomacy(payload.message)
         # New exchange lines and (once the call ends) the outcome reading,
         # mirrored onto the DIPLOMATIC layer
         await session.push_event("diplomacy", {
@@ -808,7 +960,7 @@ async def reply_diplomatic_call(request: DiplomacyReplyRequest):
             "active": result.get("active"),
             "outcome": result.get("outcome"),
         }, layer=Layer.DIPLOMATIC)
-        return result
+        return _project_rest(session, request, result)
     except HTTPException:
         raise
     except Exception as e:
@@ -818,18 +970,16 @@ async def reply_diplomatic_call(request: DiplomacyReplyRequest):
 
 
 @app.post("/game/save", response_model=SaveResponse)
-async def save_game_endpoint(request: SaveGameRequest):
+async def save_game_endpoint(payload: SaveGameRequest, request: Request):
     """Save current game state."""
-    if request.session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
+    session = _session_or_404(payload.session_id)
     try:
-        path = sessions[request.session_id].manager.save_game(request.save_name)
-        return {
+        path = session.manager.save_game(payload.save_name)
+        return _project_rest(session, request, {
             "success": True,
             "save_path": path,
-            "timestamp": "now" 
-        }
+            "timestamp": "now",
+        })
     except Exception as e:
         print(f"ERROR SAVE: {e}")
         import traceback; traceback.print_exc()
@@ -837,18 +987,18 @@ async def save_game_endpoint(request: SaveGameRequest):
 
 
 @app.post("/game/load")
-async def load_game_endpoint(request: LoadGameRequest):
+async def load_game_endpoint(payload: LoadGameRequest):
     """Load game from file and create new session."""
     try:
         from engine.game_manager import GameManager
-        manager = GameManager.load_game(request.save_path)
+        manager = GameManager.load_game(payload.save_path)
         
         import uuid
         new_session_id = str(uuid.uuid4())
         new_session = GameSession(manager)
         _register_session(new_session_id, new_session)
         
-        return {
+        response = {
             "session_id": new_session_id,
             "turn": manager.world.turn,
             "phase": manager.world.phase,
@@ -856,6 +1006,8 @@ async def load_game_endpoint(request: LoadGameRequest):
             "transcript": manager.transcript,
             "active_call": _active_call_state(manager),
         }
+        return _project_for_viewer(
+            new_session, response, facilitator=False)
     except Exception as e:
         print(f"ERROR LOAD: {e}")
         import traceback; traceback.print_exc()
@@ -960,16 +1112,26 @@ def _require_facilitator(session: GameSession, request: Request) -> None:
 
 
 def _stream_filter(
-        item: Dict[str, Any], include_referee: bool) -> Optional[Dict[str, Any]]:
-    """Strip the server-side layer key; drop REFEREE items for players.
-
-    The REFEREE tag (raw effects, verdicts, llm_call records, parse health)
-    must never reach a player browser (DATA_LAYERS.md par. D). Permission is
-    decided for the individual stream request, never for the whole session.
-    """
+        item: Dict[str, Any], include_referee: bool,
+        session: GameSession) -> Optional[Dict[str, Any]]:
+    """Apply the shared viewer projection and strip the internal layer."""
     layer = item.pop("_layer", None)
-    if layer is Layer.REFEREE and not include_referee:
+    vibes = item.pop("_vibes", None)
+    try:
+        payload = json.loads(item["data"])
+    except (KeyError, TypeError, json.JSONDecodeError):
+        return item if include_referee else None
+    payload = _project_for_viewer(
+        session,
+        payload,
+        facilitator=include_referee,
+        layer=layer,
+        require_layer=True,
+        vibes=vibes,
+    )
+    if payload is None:
         return None
+    item["data"] = json.dumps(payload, separators=(",", ":"))
     return item
 
 
@@ -1006,7 +1168,7 @@ async def stream_game_events(session_id: str, request: Request):
                 try:
                     event = await asyncio.wait_for(
                         subscriber_queue.get(), timeout=1.0)
-                    event = _stream_filter(event, include_referee)
+                    event = _stream_filter(event, include_referee, session)
                     if event is None:
                         continue  # server-side REFEREE filter
                     yield event
@@ -1023,7 +1185,7 @@ async def stream_game_events(session_id: str, request: Request):
 
 
 @app.post("/game/{session_id}/briefing", response_model=SessionResponse)
-async def run_turn_briefing_endpoint(session_id: str):
+async def run_turn_briefing_endpoint(session_id: str, request: Request):
     """Run the current turn's briefing and return it (ER-022).
 
     POST /game/new runs turn one's briefing itself; this endpoint is how
@@ -1053,25 +1215,26 @@ async def run_turn_briefing_endpoint(session_id: str):
             "content": "FAILED TO LOAD BRIEFING DATA"
         }, layer=Layer.SITREP)
 
-    return SessionResponse(
-        session_id=session_id,
-        facilitator_capability=None,
-        turn=manager.world.turn,
-        phase=manager.world.phase,
-        metrics=manager.world.metrics.dict(),
-        pending_encounter=pending_encounter,
-        advisors=[
+    payload = {
+        "session_id": session_id,
+        "facilitator_capability": None,
+        "turn": manager.world.turn,
+        "phase": manager.world.phase,
+        "metrics": manager.world.metrics.dict(),
+        "pending_encounter": pending_encounter,
+        "advisors": [
             {"role": "NSA", "status": "online"},
             {"role": "CDS", "status": "online"},
             {"role": "Foreign Sec", "status": "online"},
             {"role": "Home Sec", "status": "online"},
             {"role": "Attorney General", "status": "online"}
-        ]
-    )
+        ],
+    }
+    return _project_rest(session, request, payload)
 
 
 @app.post("/game/{session_id}/briefing/ack")
-async def acknowledge_briefing(session_id: str):
+async def acknowledge_briefing(session_id: str, request: Request):
     """Acknowledge briefing and move to discussion phase."""
     session = _session_or_404(session_id)
     manager = session.manager
@@ -1079,20 +1242,21 @@ async def acknowledge_briefing(session_id: str):
     with session.lock:
         if manager.world.phase != "briefing":
             if manager.world.phase == "discussion":
-                return {"status": "success", "phase": "discussion"}
+                return _project_rest(
+                    session, request,
+                    {"status": "success", "phase": "discussion"})
             raise HTTPException(status_code=400,
                                 detail=f"Wrong phase: {manager.world.phase}")
 
-        # Advance phase
         manager.world.phase = "discussion"
 
-    # Push state update
     await session.push_event("state_update", {
         "phase": "discussion",
         "turn": manager.world.turn
     }, layer=Layer.SITREP)
 
-    return {"status": "success", "phase": "discussion"}
+    return _project_rest(
+        session, request, {"status": "success", "phase": "discussion"})
 
 
 # Speaker prefixes that mark a discussion transcript line as an advisor's.
@@ -1129,9 +1293,9 @@ def classify_discussion_line(line: str):
 
 
 @app.post("/game/discussion")
-async def post_discussion(request: DiscussionRequest):
+async def post_discussion(payload: DiscussionRequest, request: Request):
     """Ask advisors a question."""
-    session = _session_or_404(request.session_id)
+    session = _session_or_404(payload.session_id)
     manager = session.manager
 
     if manager.world.phase != "discussion":
@@ -1140,13 +1304,13 @@ async def post_discussion(request: DiscussionRequest):
     # Process question (blocking for now, could be async in future).
     # advisor == "all" asks the whole room: every advisor answers in role.
     with session.lock:
-        if (request.advisor or "").strip().lower() == "all":
-            responses = manager.process_question_all(request.question)
+        if (payload.advisor or "").strip().lower() == "all":
+            responses = manager.process_question_all(payload.question)
         else:
-            responses = manager.process_question(request.question)
+            responses = manager.process_question(payload.question)
 
-    # Push responses to stream. Advisor lines belong to the CABINET layer
-    # (DATA_LAYERS.md par. D); narrator/other lines stay on SITREP.
+    # Push responses to stream. Advisor lines belong to the CABINET layer;
+    # narrator/other lines stay on SITREP (models/layers.py).
     for line in responses:
         msg_type, role, content = classify_discussion_line(line)
         await session.push_event("transcript", {
@@ -1155,7 +1319,7 @@ async def post_discussion(request: DiscussionRequest):
             "content": content
         }, layer=Layer.CABINET if msg_type == "advisor" else Layer.SITREP)
 
-    return {"status": "processed"}
+    return _project_rest(session, request, {"status": "processed"})
 
 
 def _require_no_mandatory_call(manager: GameManager) -> None:
@@ -1176,12 +1340,12 @@ def _require_no_mandatory_call(manager: GameManager) -> None:
 
 
 @app.post("/game/decision", summary="[LEGACY] Commit to a decision (One-shot)")
-async def post_decision(request: DecisionRequest):
+async def post_decision(payload: DecisionRequest, request: Request):
     """Commit to a decision (Legacy endpoint).
     
     Use /game/decision/interpret and /game/decision/commit for the new 2-step flow.
     """
-    session = _session_or_404(request.session_id)
+    session = _session_or_404(payload.session_id)
     manager = session.manager
 
     if manager.world.phase not in ["discussion", "decision"]:
@@ -1191,21 +1355,22 @@ async def post_decision(request: DecisionRequest):
     with session.lock:
         manager.world.phase = "decision"
         # Process decision (legacy one-shot)
-        result = manager.resolve_decision(request.action_text)
+        result = manager.resolve_decision(payload.action_text)
 
     # ... (rest of response handling identical to commit)
     await _stream_adjudication_results(session, result)
     
-    return {
+    return _project_rest(session, request, {
         "status": "processed",
         "pushback": result.get("pushback") or [],
-    }
+    })
 
 
 @app.post("/game/decision/interpret", response_model=InterpretationResponse)
-async def interpret_decision(request: InterpretDecisionRequest):
+async def interpret_decision(
+        payload: InterpretDecisionRequest, request: Request):
     """Step 1: Interpret decision and get advisor feedback."""
-    session = _session_or_404(request.session_id)
+    session = _session_or_404(payload.session_id)
     manager = session.manager
 
     if manager.world.phase not in ["discussion", "decision"]:
@@ -1214,12 +1379,12 @@ async def interpret_decision(request: InterpretDecisionRequest):
 
     # Interpret without committing
     try:
-        print(f"DEBUG: calling manager.interpret_decision with '{request.action_text}'")
+        print(f"DEBUG: calling manager.interpret_decision with '{payload.action_text}'")
         with session.lock:
-            result = manager.interpret_decision(request.action_text)
+            result = manager.interpret_decision(payload.action_text)
         print(f"DEBUG: result keys: {result.keys()}")
 
-        return InterpretationResponse(
+        response = InterpretationResponse(
             interpretation=result["interpretation"],
             critical_concerns=result["critical_concerns"],
             pushback=result["pushback"],
@@ -1229,6 +1394,7 @@ async def interpret_decision(request: InterpretDecisionRequest):
             feasibility=result["feasibility"],
             raw_transcript=result["raw_transcript"]
         )
+        return _project_rest(session, request, response.model_dump())
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -1238,9 +1404,9 @@ async def interpret_decision(request: InterpretDecisionRequest):
 
 
 @app.post("/game/decision/commit")
-async def commit_decision(request: CommitDecisionRequest):
+async def commit_decision(payload: CommitDecisionRequest, request: Request):
     """Step 2: Commit to a decision and run adjudication."""
-    session = _session_or_404(request.session_id)
+    session = _session_or_404(payload.session_id)
     manager = session.manager
 
     # Allow 'discussion' phase too, as client might come straight from there if skipping interpret
@@ -1251,15 +1417,15 @@ async def commit_decision(request: CommitDecisionRequest):
     with session.lock:
         manager.world.phase = "decision"
         # Resolve decision
-        result = manager.resolve_decision(request.action_text)
+        result = manager.resolve_decision(payload.action_text)
 
     # Stream results
     await _stream_adjudication_results(session, result)
     
-    return {
+    return _project_rest(session, request, {
         "status": "processed",
         "pushback": result.get("pushback") or [],
-    }
+    })
 
 
 async def _stream_adjudication_results(session: GameSession, result: Dict[str, Any]):

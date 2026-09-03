@@ -41,12 +41,16 @@ def client():
     server.sessions.clear()
 
 
-def _new_game(client):
+def _new_game(
+        client, play_mode="immersive", facilitator=False,
+        mystery_mode=False):
     response = client.post("/game/new", json={
         "scenario_id": "war_game_2025",
         "variant": "standard",
         "difficulty": "standard",
-        "play_mode": "immersive",
+        "play_mode": play_mode,
+        "facilitator": facilitator,
+        "mystery_mode": mystery_mode,
     })
     assert response.status_code == 200
     return response.json()
@@ -86,7 +90,8 @@ def test_new_game_then_decide_then_next_turn_briefing(client):
     assert payload["session_id"] == session_id
     assert payload["turn"] == 2
     assert payload["phase"] == "discussion"
-    assert "escalation_risk" in payload["metrics"]
+    assert payload["metrics"] is None
+    assert payload["vibes"]
     # Turn 2 is scripted and has no mandatory call.
     assert payload["pending_encounter"] is None
 
@@ -308,7 +313,7 @@ def test_call_initiates_without_a_message_and_hangs_up_clean(client):
     assert hung_up.status_code == 200
     closed = hung_up.json()
     assert closed["active"] is False
-    assert closed["outcome"]["cohesion_delta"] == 0
+    assert closed["outcome"]["cohesion_delta"] is None
     assert manager.world.metrics.alliance_cohesion == cohesion_before
 
 
@@ -394,10 +399,11 @@ def test_load_returns_the_transcript_of_the_played_session(client, tmp_path):
     body = loaded.json()
 
     assert body["session_id"] != session_id  # a fresh session was minted
+    assert body["metrics"] is None
+    assert body["vibes"]
     assert isinstance(body["transcript"], list) and body["transcript"]
-    # The restored transcript is the played one, verbatim...
-    assert body["transcript"] == manager.transcript
-    # ...including the discussion exchange from the played turn.
+    assert not any("Effect: " in line for line in body["transcript"])
+    # The player-visible discussion survives removal of legacy metric boxes.
     assert any(question in line for line in body["transcript"])
     assert body["active_call"] is None
 
@@ -508,6 +514,82 @@ def test_new_game_mystery_mode_reaches_the_manager(client):
     plain = client.post("/game/new", json={"scenario_id": "war_game_2025"})
     plain_manager = server.sessions[plain.json()["session_id"]].manager
     assert plain_manager.mystery_mode is False
+
+
+@pytest.mark.parametrize(
+    ("play_mode", "shows_metrics"),
+    [("classic", True), ("immersive", False), ("emergent", False)],
+)
+def test_public_rest_projection_matches_play_mode(
+        client, play_mode, shows_metrics):
+    """Public REST keeps Classic gameplay numbers but hides referee state."""
+    from api import server
+
+    created = _new_game(client, play_mode=play_mode)
+    session_id = created["session_id"]
+    server.sessions[session_id].manager.transcript.append(
+        "Effect: escalation_risk +3 (→ 63)")
+
+    resumed = client.get(f"/game/{session_id}")
+    advisors = client.get(f"/game/{session_id}/state/advisors")
+    vibes = client.get(f"/game/{session_id}/state/vibes")
+    intel = client.get(f"/game/{session_id}/intel/RUS")
+
+    assert resumed.status_code == advisors.status_code == 200
+    assert vibes.status_code == intel.status_code == 200
+    assert resumed.headers["cache-control"] == "private, no-store"
+    assert "x-facilitator-capability" in resumed.headers["vary"].lower()
+    for payload in (created, resumed.json()):
+        if shows_metrics:
+            assert isinstance(payload["metrics"]["escalation_risk"], int)
+        else:
+            assert payload["metrics"] is None
+            assert payload["vibes"]
+    assert any("Effect: " in line for line in resumed.json()["transcript"]) \
+        is shows_metrics
+
+    # Trust and actor relationship scores are referee data in every mode.
+    assert all(advisor["trust"] is None
+               for advisor in resumed.json()["advisors"])
+    assert all(advisor["trust"] is None
+               for advisor in advisors.json()["advisors"])
+    assert isinstance(vibes.json()["intensity"], int) is shows_metrics
+    assert not any(
+        line.strip().startswith("Current Assessment:")
+        for line in intel.json()["assessment"]["raw"]
+    )
+
+
+@pytest.mark.parametrize("play_mode", ["classic", "immersive", "emergent"])
+def test_facilitator_rest_projection_preserves_full_state(client, play_mode):
+    created = _new_game(
+        client, play_mode=play_mode, facilitator=True, mystery_mode=True)
+    session_id = created["session_id"]
+    headers = {
+        "X-Facilitator-Capability": created["facilitator_capability"],
+    }
+
+    resumed = client.get(f"/game/{session_id}", headers=headers)
+    full_state = client.get(f"/game/{session_id}/state", headers=headers)
+
+    assert isinstance(created["metrics"]["escalation_risk"], int)
+    assert isinstance(resumed.json()["metrics"]["escalation_risk"], int)
+    assert resumed.headers["cache-control"] == "private, no-store"
+    assert "x-facilitator-capability" in resumed.headers["vary"].lower()
+    assert all(isinstance(advisor["trust"], int)
+               for advisor in resumed.json()["advisors"])
+    assert full_state.status_code == 200
+    assert full_state.json()["narrative"]["narrative_id"]
+    assert full_state.headers["cache-control"] == "no-store"
+
+
+def test_full_state_requires_the_matching_facilitator_capability(client):
+    created = _new_game(client, facilitator=True, mystery_mode=True)
+    url = f"/game/{created['session_id']}/state"
+
+    assert client.get(url).status_code == 403
+    assert client.get(
+        url, headers={"X-Facilitator-Capability": "wrong"}).status_code == 403
 
 
 def test_dtdl_serves_the_full_interface_set_and_covers_the_page_mapping(client):

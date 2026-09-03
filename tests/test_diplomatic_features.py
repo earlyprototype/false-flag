@@ -5,8 +5,8 @@ Covers the PR-2 register entries:
 - ER-012: stance lookup canonicalises country codes, so `USA` in the
   scenario data and `US` from the engine resolve to the same stance, and
   state actors are played from their own authored stance.
-- ER-021: the deceive-the-UK instruction block renders for roleplay
-  audiences only; briefing audiences get judge-don't-deceive instructions.
+- ER-021: the secret context renders for faction-roleplay audiences only;
+  player-facing briefing/adjudication prompts never receive it.
 - ER-033 / ER-041: the scripted mandatory call is left live for the player
   on headless front ends (pending, drivable, capped, premise attached,
   delta applied exactly once) instead of answering itself.
@@ -141,13 +141,50 @@ def test_shared_dossier_and_inject_context_are_secret_free():
 
     gm = GameManager(seed=11, mystery_mode=True)
     assert gm.world.narrative is not None, "arrangement: mystery truth drawn"
-    dossier = build_shared_context_prefix(["a line"], gm.world)
-    inject_ctx = get_stochastic_inject_context("summary", ["a line"], gm.world)
+    history = [
+        "Effect: escalation_risk +3 (→ 63)",
+        "A player-visible narrative line.",
+    ]
+    dossier = build_shared_context_prefix(history, gm.world)
+    inject_ctx = get_stochastic_inject_context("summary", history, gm.world)
 
     for context in (dossier, inject_ctx):
         assert "SECRET NARRATIVE CONTEXT" not in context
         assert "GLOBAL TRUTH" not in context
         assert gm.world.narrative.description[:40] not in context
+        assert f"{gm.world.metrics.escalation_risk}/100" not in context
+        assert f"{gm.world.metrics.domestic_stability}/100" not in context
+        assert f"{gm.world.metrics.alliance_cohesion}/100" not in context
+        assert "Effect: " not in context
+        assert "A player-visible narrative line." in context
+    assert "THREAT ASSESSMENT:" in inject_ctx
+
+
+def test_player_facing_inject_prompt_excludes_hidden_strategy():
+    from llm.prompts import build_inject_generation_prompt
+
+    gm = GameManager(seed=11)
+    prompt = build_inject_generation_prompt(
+        gm.world,
+        7,
+        {
+            "objectives": {"uk": "KEEP_PUBLIC_UK_OBJECTIVE"},
+            "red_objectives": {"secret": "NEVER_SHOW_RED_OBJECTIVE"},
+        },
+        {
+            "escalation_patterns": {
+                "russian_strategy": {"secret": "NEVER_SHOW_RUSSIAN_STRATEGY"},
+                "uk_constraints": {"public": "KEEP_UK_CONSTRAINT"},
+            },
+            "naval_scenarios": [{"id": "KEEP_SCENARIO_PATTERN"}],
+        },
+        ["TURN 6", "A visible event."],
+    )
+    assert "NEVER_SHOW_RED_OBJECTIVE" not in prompt
+    assert "NEVER_SHOW_RUSSIAN_STRATEGY" not in prompt
+    assert "KEEP_PUBLIC_UK_OBJECTIVE" in prompt
+    assert "KEEP_UK_CONSTRAINT" in prompt
+    assert "KEEP_SCENARIO_PATTERN" in prompt
 
 
 def test_diplomat_context_keeps_the_roleplay_block():

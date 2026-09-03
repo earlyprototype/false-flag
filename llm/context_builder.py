@@ -8,6 +8,7 @@ efficient, and secure context for each type of LLM agent in the simulation.
 import re
 from typing import List
 
+from engine.utils import strip_effect_boxes
 from llm.parse_health import record_miss
 from models.narrative_state import format_event_consequences
 from models.world import WorldState
@@ -410,7 +411,7 @@ def build_shared_context_prefix(transcript: FullTranscript,
     # defence: their output cannot reveal what they never saw. See
     # NarrativeConfig.to_llm_context for the segregation rule.
 
-    parts.append(render_transcript_block(transcript))
+    parts.append(render_transcript_block(strip_effect_boxes(list(transcript))))
     parts.append("")
 
     # Everything from here down changes every turn, which is why it is here
@@ -497,8 +498,10 @@ def get_stochastic_inject_context(summary: str, last_turn_transcript: List[str],
                                   world_state: WorldState,
                                   event_ledger=None) -> str:
     """
-    Returns a high-level summary, the last turn's transcript, and narrative secrets.
-    Used for creative story generation.
+    Return player-safe campaign history for creative story generation.
+
+    Mystery truth is deliberately absent because generated inject prose is
+    shown to the player verbatim.
 
     Args:
         event_ledger: Optional sequence of played events (PlayedEvent objects
@@ -511,9 +514,8 @@ def get_stochastic_inject_context(summary: str, last_turn_transcript: List[str],
     context_parts.append("=" * 60)
     context_parts.append(f"DYNAMIC INJECT GENERATION - TURN {world_state.turn}")
     context_parts.append("=" * 60)
-    context_parts.append(f"Escalation Risk: {world_state.metrics.escalation_risk}/100")
-    context_parts.append(f"Domestic Stability: {world_state.metrics.domestic_stability}/100")
-    context_parts.append(f"Alliance Cohesion: {world_state.metrics.alliance_cohesion}/100")
+    from llm.prompts import _state_band_lines
+    context_parts.extend(_state_band_lines(world_state)[:3])
     context_parts.append("")
     
     # The secret truth is deliberately ABSENT: generated inject text goes to
@@ -538,7 +540,7 @@ def get_stochastic_inject_context(summary: str, last_turn_transcript: List[str],
     context_parts.append("=" * 60)
     context_parts.append(f"LAST TURN (TURN {world_state.turn - 1}) - FOR CONTINUITY")
     context_parts.append("=" * 60)
-    context_parts.extend(last_turn_transcript)
+    context_parts.extend(strip_effect_boxes(list(last_turn_transcript)))
 
     return "\n".join(context_parts)
 

@@ -25,7 +25,8 @@ flowchart LR
 
   subgraph API["SESSION API"]
     SNAP["CURRENT V1 · Session theatre snapshot\nETag · reconnectable · player-safe"]
-    FAN["CURRENT · Subscriber fan-out\naudience filtering"]
+    FAN["CURRENT · Subscriber fan-out\nindependent event copies"]
+    VIEW["CURRENT · REST/SSE visibility rule\nfacilitator full · Classic numbers\nImmersive/Emergent vibes"]
   end
 
   subgraph SURFACES["THE SAME CAMPAIGN, OBSERVED"]
@@ -35,22 +36,26 @@ flowchart LR
   end
 
   PLAYER --> GM
-  GM --> SNAP
+  GM --> VIEW --> SNAP
   GM --> SPATIAL --> KIN --> SNAP
   KIN --> TRIP --> GM
-  GM --> FAN
+  GM --> FAN --> VIEW
   WX --> INGEST
   CIV --> INGEST
   INGEST -->|"after clock ruling · bounded facts only"| GM
   INGEST -->|"read-only live layers"| GLOBE
   SNAP --> GLOBE
   SNAP --> VR
-  FAN --> DASH
-  FAN --> GLOBE
-  FAN --> VR
+  VIEW --> DASH
+  VIEW --> GLOBE
+  VIEW --> VR
 ```
 
 The engine owns campaign state. External feeds and displays do not write it.
+The API applies one audience rule after engine work: structured Mystery and
+REFEREE state never reaches public surfaces, and the raw full-state route is
+facilitator-only. Mystery dialogue remains prompt-segregated upstream: only
+faction-roleplay prompts receive the hidden truth.
 Live facts may enter bounded adviser context under
 [issue #77](https://github.com/earlyprototype/false-flag/issues/77), but never
 write metrics, positions, orders or outcomes.
@@ -136,7 +141,7 @@ session and input contract stay the same. Technical basis:
 ```mermaid
 flowchart LR
   DONE["COMPLETED FOUNDATION\nGlobe Display"]
-  S1["1 · Multi-client Session Streaming\nindependent subscribers + snapshots"]
+  S1["1 · Multi-client Session Streaming\nsubscribers + visibility + snapshots"]
   S2["2 · Spatial Decision Loop\ntracks + movement + tripwires"]
   S3["3 · Live Context Integration\nweather + bounded civilian tracks"]
   S4["4 · Quest Ops-Room Display\nportable → measured → local/streamed"]

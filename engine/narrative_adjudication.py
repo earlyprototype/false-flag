@@ -2,8 +2,8 @@
 Narrative-Driven Adjudication System
 =====================================
 
-Uses hidden metrics to guide LLM character responses whilst
-presenting narrative consequences to player.
+Uses qualitative situation bands for player-facing LLM output while keeping
+exact metrics and trust inside the adjudication engine.
 """
 
 import logging
@@ -212,7 +212,7 @@ def assess_action_quality(
         return _heuristic_quality_assessment(action, narrative_state)
     
     # Build LLM prompt for quality assessment
-    context = narrative_state.to_llm_context()
+    context = narrative_state.to_player_context()
 
     prompt = f"""
 {context}
@@ -717,7 +717,7 @@ def build_character_response_prompt(
 ) -> str:
     """Build one advisor's reaction prompt (no call - see generate_group)."""
 
-    context = narrative_state.to_llm_context()
+    context = narrative_state.to_player_context()
 
     # Build tone guidance based on quality
     tone_guidance = {
@@ -736,7 +736,7 @@ PLAYER ACTION: {action}
 ACTION QUALITY: {quality}
 
 You are {character.name}.
-Your relationship with the PM: {character.relationship.upper()} (trust: {character.trust}/100)
+Your relationship with the PM: {character.relationship.upper()}
 Your current stance: {character.stance_summary}
 
 Respond to the PM's action with a tone that is {tone}.
@@ -812,7 +812,7 @@ def compute_situation_summary(
     Split out of update_situation_summary so the concurrent round in the
     decision pipeline (ER-023) can run the fold alongside the character
     reactions WITHOUT mutating ``narrative_state`` mid-round - the reaction
-    prompts render the (old) summary via to_llm_context(), so an in-round
+    prompts render the (old) summary via to_player_context(), so an in-round
     write would make their content depend on thread scheduling. The caller
     assigns the returned text after the round joins.
 
@@ -892,7 +892,7 @@ def update_situation_summary(
     Fold this turn into the rolling campaign synopsis (ER-010, ER-017).
 
     The summary is the primary end-of-turn display in emergent mode and feeds
-    to_llm_context() for every downstream prompt, so it must track the story
+    the context rendered for downstream prompts, so it must track the story
     rather than stay frozen at its initial value. It is written as a *fold*:
     the previous summary goes back into the prompt alongside this turn's
     event, the player's decision and the adjudicated outcome, so the synopsis

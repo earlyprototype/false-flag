@@ -14,6 +14,7 @@ from rich.markup import escape as rich_escape
 from cli import aesthetics as ae
 from cli.rich_ui import console, format_markdown, RICH_ENABLED
 from cli.theme import theme_manager, SYMBOLS
+from engine.utils import strip_effect_boxes as strip_effect_boxes
 from llm.parse_health import record_miss
 from llm.parsing import parse_interpretation
 
@@ -228,31 +229,6 @@ def display_decision_summary(action: str, interpretation: str, show_details: boo
             content.pop()
 
         console.print(Panel("\n".join(content), title="[bold]OPERATIONAL ORDER[/bold]", border_style="cyan"))
-
-
-def strip_effect_boxes(lines: list) -> list:
-    """Remove the numeric 'Effect: metric +N (-> value)' boxes from briefing lines.
-
-    Used by immersive/emergent modes, which promise vibes instead of raw numbers.
-    The boxes are three lines: a top border, the 'Effect: ...' content, and a
-    bottom border.
-    """
-    out = []
-    drop_bottom_border = False
-    for line in lines:
-        stripped = line.strip()
-        if "Effect: " in stripped:
-            # Drop the top border that preceded this content line
-            if out and out[-1].strip() and set(out[-1].strip()) <= set("┌─┐"):
-                out.pop()
-            drop_bottom_border = True
-            continue
-        if drop_bottom_border:
-            drop_bottom_border = False
-            if stripped and set(stripped) <= set("└─┘"):
-                continue
-        out.append(line)
-    return out
 
 
 def display_adjudication_results(

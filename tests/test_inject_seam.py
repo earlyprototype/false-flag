@@ -69,7 +69,7 @@ def test_deliver_inject_applies_effects_with_difficulty_scaling(manager):
     result = manager.deliver_inject(_inject(
         effects=[{"metric": "escalation_risk", "delta": 10}]))
     assert manager.world.metrics.escalation_risk == min(100, before + 5)
-    assert any("escalation_risk" in line for line in result["lines"])
+    assert any("Effect: " in line for line in result["lines"])
 
 
 def test_deliver_inject_syncs_hidden_metrics(manager):

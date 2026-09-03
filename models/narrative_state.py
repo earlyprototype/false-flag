@@ -308,15 +308,24 @@ class NarrativeState(BaseModel):
                 lines.append(f"  {consequences}")
         return "\n".join(lines)
 
-    def _llm_context(self, include_characters: bool) -> str:
+    def _llm_context(
+            self, include_characters: bool,
+            include_private_values: bool = True) -> str:
         """Shared body of to_llm_context / to_actor_context."""
         m = self.hidden_metrics
 
-        parts = [f"""Current Situation Metrics (hidden from player):
+        if include_private_values:
+            situation = f"""Current Situation Metrics (hidden from player):
 - Escalation Risk: {m.escalation_risk}/100 ({"CRITICAL" if m.escalation_risk >= 85 else "HIGH" if m.escalation_risk >= 70 else "MODERATE"})
 - Alliance Cohesion: {m.alliance_cohesion}/100 ({"STRONG" if m.alliance_cohesion >= 70 else "MODERATE" if m.alliance_cohesion >= 40 else "WEAK"})
 - Domestic Stability: {m.domestic_stability}/100 ({"STABLE" if m.domestic_stability >= 70 else "WAVERING" if m.domestic_stability >= 40 else "FRAGILE"})
-- Casualties: {m.casualties_mil} military, {m.casualties_civ} civilian"""]
+- Casualties: {m.casualties_mil} military, {m.casualties_civ} civilian"""
+        else:
+            situation = "Current Situation:\n" + "\n".join(
+                f"- {vibe.name}: {vibe.descriptor} ({vibe.trend})"
+                for vibe in self.get_situation_vibes())
+
+        parts = [situation]
 
         if self.situation_summary:
             parts.append(f"SITUATION SUMMARY:\n{self.situation_summary}")
@@ -333,7 +342,9 @@ class NarrativeState(BaseModel):
 
         if include_characters:
             parts.append("Character Relationships:\n" + "\n".join(
-                f"- {char.name}: {char.relationship.upper()} (trust: {char.trust}/100)"
+                f"- {char.name}: {char.relationship.upper()}" + (
+                    f" (trust: {char.trust}/100)"
+                    if include_private_values else "")
                 for char in self.characters.values()))
 
         return "\n\n".join(parts).strip()
@@ -357,6 +368,11 @@ class NarrativeState(BaseModel):
         reach a foreign government's reasoning (ER-014).
         """
         return self._llm_context(include_characters=False)
+
+    def to_player_context(self) -> str:
+        """Qualitative context for models whose output reaches the player."""
+        return self._llm_context(
+            include_characters=True, include_private_values=False)
     
     # === CHARACTER MANAGEMENT ===
     
@@ -606,6 +622,5 @@ def create_initial_narrative_state(
         game_time=game_time,
         play_mode=play_mode
     )
-
 
 

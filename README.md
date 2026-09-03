@@ -272,7 +272,9 @@ its own copy of each live event. Only the first subscriber receives events
 queued before any observer connects. The globe restores its current
 player-visible turn, phase and static order of battle from the versioned theatre
 snapshot, using SSE only as a change notification. Per-viewer permissions and
-the shared API player path remain open; the exact gaps are recorded in
+play-mode visibility are enforced by the server; the shared API player path
+remains open. Audience-specific game responses are not cacheable across
+viewers. The exact gaps are recorded in
 [BUILD_STATE.md](docs/BUILD_STATE.md#what-is-not-built).
 
 ### Documentation status

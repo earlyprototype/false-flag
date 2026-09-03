@@ -400,7 +400,6 @@ def build_inject_generation_prompt(
     )
     
     objectives = initial_conditions.get("objectives", {})
-    red_objectives = initial_conditions.get("red_objectives", {})
     
     # Include scenario library context if available
     library_context = ""
@@ -413,14 +412,13 @@ def build_inject_generation_prompt(
         potential = _drop_used_scenarios(potential, event_ledger)
         library_context = f"""
 Realistic scenario patterns (adapt based on player decisions):
-- Russian strategy: {scenario_library.get('escalation_patterns', {}).get('russian_strategy', {})}
 - UK constraints: {scenario_library.get('escalation_patterns', {}).get('uk_constraints', {})}
 - Potential scenarios: {potential}
 
 Use these as inspiration, NOT rigid scripts. Adapt based on player's previous actions.
 """
     
-    # Use the new context builder for narrative-aware story generation.
+    # Use the visible campaign context for player-facing story generation.
     # Any non-empty transcript gets the LAST TURN continuity window — a
     # compact early turn still contains the event the next inject must
     # build on. Only the LLM summary is reserved for longer histories.
@@ -445,7 +443,7 @@ Use these as inspiration, NOT rigid scripts. Adapt based on player's previous ac
         last_turn_transcript = get_last_turn_slice(
             transcript, max_lines=MAX_INJECT_CONTINUITY_LINES)
 
-        # Get full context with narrative secrets
+        # Player-facing story context deliberately excludes Mystery truth.
         story_context = get_stochastic_inject_context(
             summary, last_turn_transcript, world, event_ledger=event_ledger)
     else:
@@ -476,17 +474,15 @@ Use these as inspiration, NOT rigid scripts. Adapt based on player's previous ac
 UK objectives:
 {objectives.get('uk', {})}
 
-Russian objectives (hidden from player):
-{red_objectives}
 {library_context}
 
 Generate a plausible next event that:
 1. Escalates or develops the crisis naturally based on player's previous decisions
-2. Aligns with Russian objectives AND the narrative truth (if provided above)
+2. Aligns with UK objectives and the established campaign history
 3. Challenges the UK player with new information or threats
 4. Is consistent with the current world state and conversation history
 5. Responds logically to the player's recent actions (e.g., if they invoked Article 4, Russia might test NATO resolve further)
-6. Subtly advances the hidden narrative (e.g., if China is manipulating Russia, show subtle signs of Chinese involvement)
+6. Develops uncertainty through clues already established in the visible campaign
 7. Is written as a UK intelligence product: British English throughout, plain prose only - no markdown headings, no **bold**, no bullet markers{continuity_rule}
 
 Format your inject as YAML:

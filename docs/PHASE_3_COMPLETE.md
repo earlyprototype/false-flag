@@ -2,6 +2,8 @@
 
 > **Historical feature milestone.** Verify current behaviour and open defects
 > against [`BUILD_STATE.md`](BUILD_STATE.md), tests and GitHub issues.
+> Its player-facing secret-injection design is retired: Mystery truth now reaches
+> faction-roleplay prompts only, never prompts that produce public prose.
 
 ## Executive Summary
 
@@ -249,4 +251,3 @@ The Dynamic Narrative System is **production-ready**. All three implementation p
 *Implementation completed: [Current Date]*
 *Total lines of code: ~500 lines across 8 files*
 *Integration points: 5 (advisors, diplomats, injects, adjudication, decision interpretation)*
-

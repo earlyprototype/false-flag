@@ -1,7 +1,8 @@
 """Intelligence briefing system for immersive narrative mode.
 
-Generates realistic intelligence reports from hidden metrics and actor states,
-allowing players to infer situation without seeing raw numbers.
+Generates intelligence reports from hidden metrics and actor states. The
+server visibility projector removes the detailed actor relationship score from
+public API responses; the engine retains it for facilitator/internal use.
 """
 
 from typing import List

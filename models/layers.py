@@ -1,10 +1,10 @@
 """The six data layers every surface filters the event stream by.
 
-One enum, one tag (DATA_LAYERS.md par. D): events are tagged at the bus
-(api/server.py push_event), never inside the engine. ``channel`` is already
-the authoring-side tag on injects (scripted episodes and the generator
-alike); layer_for_channel canonicalises every channel value observed in the
-wild onto a layer.
+One enum, one tag: events are tagged at the bus (api/server.py push_event),
+never inside the engine. ``channel`` is already the authoring-side tag on
+injects (scripted episodes and the generator alike); layer_for_channel
+canonicalises every channel value observed in the wild onto a layer. The live
+contract is documented in docs/tech/SERVER_STREAMING.md.
 
 Leaf module: importable by engine, api and surfaces with no heavy imports.
 """
@@ -36,7 +36,7 @@ PLAYER_LAYERS = frozenset(
 #: media / military. The legacy display path also knew: intel / breaking.
 CHANNEL_LAYER_MAP = {
     # SITREP updates in place; emergency and flash_alert seize focus but are
-    # still the operating picture (DATA_LAYERS.md par. C2), as are military
+    # still the common operating picture, as are military
     # posture developments.
     "briefing": Layer.SITREP,
     "emergency": Layer.SITREP,

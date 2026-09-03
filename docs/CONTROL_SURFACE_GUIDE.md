@@ -89,9 +89,13 @@ driving the story underneath, and the controls to intervene.
 Start a session with **New facilitated game**, or watch a running one by
 pasting its session ID into **Attach**. Creating one issues a separate
 facilitator capability kept in this browser tab. Attaching by session ID alone
-is a public view unless that tab already holds the capability. **Start demo
-campaign** runs a free mock game through the whole page so you can see every
-panel move.
+is a public view unless that tab already holds the capability. Public views
+receive the campaign's player-safe projection: Classic gameplay numbers remain,
+while Immersive and Emergent use qualitative situation vibes. Hidden Mystery
+state, exact adviser trust, raw actor scores and referee events stay on the
+capability-bearing facilitator view. The server prevents these audience-specific
+responses from being cached across viewers. **Start demo campaign** runs a free mock
+game through the whole page so you can see every panel move.
 
 ---
 

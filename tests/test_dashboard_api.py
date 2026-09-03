@@ -259,11 +259,16 @@ def test_subscribers_receive_independent_copies_and_preconnect_events():
         [json.loads(item["data"])["event_seq"] for item in second_items]
     assert first_items[0] is not second_items[0]
 
-    assert server._stream_filter(first_items[0], include_referee=False) is None
+    assert server._stream_filter(
+        first_items[0], include_referee=False, session=session) is None
     assert second_items[0]["_layer"] is Layer.REFEREE
-    assert server._stream_filter(first_items[1], include_referee=False)["event"] == \
+    assert server._stream_filter(
+        first_items[1], include_referee=False,
+        session=session)["event"] == \
         "state_update"
-    assert server._stream_filter(second_items[1], include_referee=False)["event"] == \
+    assert server._stream_filter(
+        second_items[1], include_referee=False,
+        session=session)["event"] == \
         "state_update"
 
 
@@ -342,8 +347,10 @@ def test_one_session_filters_referee_per_stream_request():
 
         await public.__anext__()
         await facilitator.__anext__()
-        await session.push_event(
-            "system", {"content": "public one"}, layer=Layer.SITREP)
+        await session.push_event("state_update", {
+            "phase": "discussion",
+            "metrics": session.manager.world.metrics.dict(),
+        }, layer=Layer.SITREP)
         await session.push_event(
             "inject_fired", {"title": "private"}, layer=Layer.REFEREE)
         await session.push_event(
@@ -368,9 +375,15 @@ def test_one_session_filters_referee_per_stream_request():
     finally:
         server.sessions.pop(session_id, None)
 
-    assert [item["event"] for item in public_events] == ["system", "system"]
+    assert [item["event"] for item in public_events] == [
+        "state_update", "system"]
     assert [item["event"] for item in facilitator_events] == [
-        "system", "inject_fired", "system"]
+        "state_update", "inject_fired", "system"]
+    public_state = json.loads(public_events[0]["data"])
+    facilitator_state = json.loads(facilitator_events[0]["data"])
+    assert public_state["metrics"] is None
+    assert public_state["vibes"]
+    assert isinstance(facilitator_state["metrics"]["escalation_risk"], int)
 
 
 def test_threadsafe_events_keep_emission_time_and_loop_sequence(monkeypatch):
@@ -423,21 +436,119 @@ def test_threadsafe_events_keep_emission_time_and_loop_sequence(monkeypatch):
 
 
 def test_stream_filter_drops_referee_for_players_only():
-    from api.server import _stream_filter
+    from api.server import GameSession, _stream_filter
+    from engine.game_manager import GameManager
     from models.layers import Layer
 
+    session = GameSession(GameManager())
     referee_item = {"event": "llm_call", "data": "{}", "_layer": Layer.REFEREE}
-    assert _stream_filter(dict(referee_item), include_referee=False) is None
-    passed = _stream_filter(dict(referee_item), include_referee=True)
+    assert _stream_filter(
+        dict(referee_item), include_referee=False, session=session) is None
+    passed = _stream_filter(
+        dict(referee_item), include_referee=True, session=session)
     assert passed == {"event": "llm_call", "data": "{}"}  # _layer stripped
 
     sitrep_item = {"event": "system", "data": "{}", "_layer": Layer.SITREP}
-    assert _stream_filter(dict(sitrep_item), include_referee=False) == \
+    assert _stream_filter(
+        dict(sitrep_item), include_referee=False, session=session) == \
         {"event": "system", "data": "{}"}
 
-    # Legacy/untagged items pass for everyone.
+    # Untagged items fail closed for public viewers.
     untagged = {"event": "system", "data": "{}"}
-    assert _stream_filter(dict(untagged), include_referee=False) == untagged
+    assert _stream_filter(
+        dict(untagged), include_referee=False, session=session) is None
+
+    omitted = session._make_item("system", {"content": "private"}, None)
+    assert _stream_filter(
+        dict(omitted), include_referee=False, session=session) is None
+    assert _stream_filter(
+        dict(omitted), include_referee=True, session=session) is not None
+
+
+def test_queued_events_keep_their_emission_time_vibes():
+    from api import server
+    from models.layers import Layer
+
+    session = server.GameSession(server.GameManager(play_mode="immersive"))
+    session.manager.narrative_state.hidden_metrics.escalation_risk = 10
+    first = session._make_item("state_update", {
+        "metrics": session.manager.narrative_state.hidden_metrics.dict(),
+    }, Layer.SITREP)
+    session.manager.narrative_state.hidden_metrics.escalation_risk = 90
+    second = session._make_item("state_update", {
+        "metrics": session.manager.narrative_state.hidden_metrics.dict(),
+    }, Layer.SITREP)
+
+    first_data = json.loads(server._stream_filter(
+        first, include_referee=False, session=session)["data"])
+    second_data = json.loads(server._stream_filter(
+        second, include_referee=False, session=session)["data"])
+    assert first_data["vibes"][0]["descriptor"] == "MINIMAL"
+    assert second_data["vibes"][0]["descriptor"] == "CRITICAL"
+
+
+def test_projector_normalises_models_and_removes_nested_actor_secrets():
+    from api import server
+
+    session = server.GameSession(server.GameManager(
+        play_mode="classic", mystery_mode=True))
+    projected = server._project_for_viewer(
+        session, session.manager.world, facilitator=False)
+    assert isinstance(projected, dict)
+    assert "narrative" not in projected
+    assert "actor_system" not in projected
+
+    nested = server._project_for_viewer(session, {
+        "actor": {
+            "official_position": "public",
+            "domestic_pressure": 82,
+            "relationship_uk": 17,
+            "trust_change": -9,
+        },
+    }, facilitator=False)
+    assert nested == {"actor": {"official_position": "public"}}
+
+
+@pytest.mark.parametrize(
+    ("play_mode", "shows_metrics"),
+    [("classic", True), ("immersive", False), ("emergent", False)],
+)
+def test_stream_projection_matches_play_mode_and_removes_private_state(
+        play_mode, shows_metrics):
+    from api import server
+    from models.layers import Layer
+
+    session = server.GameSession(server.GameManager(
+        play_mode=play_mode, mystery_mode=True))
+    raw = session._make_item("state_update", {
+        "metrics": session.manager.world.metrics.dict(),
+        "advisors": [{"relationship": "allied", "trust": 77}],
+        "outcome": {"assessment": "SOLID", "cohesion_delta": -4},
+        "debrief": ["Escalation Risk: 63/100 (change: +3)"],
+        "narrative": session.manager.world.narrative.dict(),
+    }, Layer.SITREP)
+
+    public = server._stream_filter(
+        dict(raw), include_referee=False, session=session)
+    facilitator = server._stream_filter(
+        dict(raw), include_referee=True, session=session)
+    public_data = json.loads(public["data"])
+    facilitator_data = json.loads(facilitator["data"])
+
+    assert public_data["advisors"][0]["trust"] is None
+    assert "narrative" not in public_data
+    if shows_metrics:
+        assert isinstance(public_data["metrics"]["escalation_risk"], int)
+        assert public_data["outcome"]["cohesion_delta"] == -4
+        assert public_data["debrief"]
+    else:
+        assert public_data["metrics"] is None
+        assert public_data["vibes"]
+        assert public_data["outcome"]["cohesion_delta"] is None
+        assert public_data["debrief"] == []
+
+    assert facilitator_data["advisors"][0]["trust"] == 77
+    assert facilitator_data["narrative"]["narrative_id"]
 
 
 def test_facilitator_query_param_works_too(client):

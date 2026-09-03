@@ -32,6 +32,17 @@ and [GAME_DESCRIPTION — Core Gameplay](../GAME_DESCRIPTION.md#core-gameplay).
 - A per-session facilitator capability checked independently for each stream
   and session-scoped control request. The session ID grants player authority,
   is not authentication, and does not grant facilitator authority.
+- One server-side visibility projector for session REST responses and SSE:
+  Classic keeps intended gameplay numbers; Immersive and Emergent receive
+  qualitative vibes; public viewers never receive structured Mystery state,
+  exact adviser trust, raw actor scores or REFEREE events. For non-Classic
+  viewers it also removes legacy numeric effect boxes from the projected
+  transcript without changing the stored or facilitator transcript.
+- Models whose prose reaches players receive qualitative bands and relationship
+  words, never exact metrics, trust, Mystery truth, or hidden Red strategy.
+- Audience-dependent `/game/` responses are `private, no-store` and vary on the
+  facilitator capability. The common player-safe theatre ETag remains cacheable.
+- The authoritative `GET /game/{id}/state` route is facilitator-only.
 - A versioned, player-safe theatre snapshot with strong ETag revalidation; the
   globe restores from it and treats SSE as change notification.
 - An observability dashboard, dataflow/DTDL view and control surface.
@@ -53,6 +64,9 @@ and [GAME_DESCRIPTION — Core Gameplay](../GAME_DESCRIPTION.md#core-gameplay).
   absent, so the documented Next.js start commands do not work from this tree.
   It also omits the later-turn `POST /game/{session_id}/briefing` call required
   for injects, effects and mandatory encounters after turn one.
+- `GET /game/saves` is registered, but the earlier dynamic
+  `GET /game/{session_id}` route currently captures that path and returns a
+  missing-session 404. Save and load by explicit path still work.
 - No authoritative track model, kinematics module or validated movement-order
   path exists.
 - No external live-data adapter exists.
@@ -75,8 +89,11 @@ These gaps are ordered and tested in [`PLAN.md`](../PLAN.md).
 - The player experiences the live/fictional boundary spatially through the
   exercise zone and fog, not through literal explanatory labels. Spectator and
   recording surfaces retain diegetic `EXERCISE` marking.
-- REFEREE data is filtered server-side. Routing, prompt-edit and future movement
-  controls must not leave localhost without authentication.
+- The same server projector governs REST and SSE. REFEREE and untagged stream
+  events fail closed for public viewers. Mystery prose is protected upstream by
+  prompt segregation: only faction-roleplay prompts receive the hidden truth.
+  Routing, prompt-edit and future movement controls must not leave localhost
+  without deployment authentication.
 - Every `models/world.py` change requires rebuilding `docs/game.zip`.
 - Stable derived randomness uses `crc32`, never Python's process-salted
   `hash()`.

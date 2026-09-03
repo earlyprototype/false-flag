@@ -3,6 +3,9 @@
 > **Historical feature-status snapshot.** The design explanation remains useful,
 > but completion and next-step claims are not maintained. See
 > [`BUILD_STATE.md`](BUILD_STATE.md).
+> Claims below that player-facing inject or adviser prompts receive Mystery
+> secrets are retired. Current code gives those secrets only to faction-roleplay
+> prompts; public-output prompts receive player-safe context.
 
 ## Overview
 
@@ -191,4 +194,3 @@ The Dynamic Narrative System is now **fully integrated** and operational. All th
 - ✅ Phase 3: LLM integration across all agent types
 
 **The game is now ready for playtesting with multiple narrative paths!**
-

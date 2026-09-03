@@ -36,6 +36,25 @@ def delta_is_good(metric: str, delta: int) -> Optional[bool]:
     return (delta > 0) == rise_is_good
 
 
+def strip_effect_boxes(lines: list) -> list:
+    """Remove numeric effect boxes without changing the source transcript."""
+    out = []
+    drop_bottom_border = False
+    for line in lines:
+        stripped = line.strip()
+        if "Effect: " in stripped:
+            if out and out[-1].strip() and set(out[-1].strip()) <= set("┌─┐"):
+                out.pop()
+            drop_bottom_border = True
+            continue
+        if drop_bottom_border:
+            drop_bottom_border = False
+            if stripped and set(stripped) <= set("└─┘"):
+                continue
+        out.append(line)
+    return out
+
+
 def clamp(value: int, low: int = 0, high: int = 100) -> int:
     if value < low:
         return low
@@ -55,5 +74,4 @@ def clamp_metrics(metrics: Metrics, minimum: int = 0, maximum: int = 100) -> Met
     metrics.casualties_civ = clamp_non_negative(metrics.casualties_civ)
     metrics.casualties_mil = clamp_non_negative(metrics.casualties_mil)
     return metrics
-
 

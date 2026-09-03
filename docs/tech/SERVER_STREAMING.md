@@ -21,6 +21,23 @@ is proved.
    facilitator dashboard and dataflow operator use
    `GET /stream/{id}/facilitator`, which receives a path-scoped stream cookie.
 
+Session-bearing REST responses and decoded stream events pass through the same
+server visibility projector. A valid facilitator capability receives the full
+payload. Public Classic viewers retain intended gameplay metrics and numeric
+effects; public Immersive and Emergent viewers receive qualitative situation
+vibes instead. Exact adviser trust, raw actor scores and structured Mystery
+state are never public. `GET /game/{id}/state` is the authoritative raw state
+and requires the facilitator capability. Player-facing model prompts follow the
+same boundary: qualitative bands and relationship words replace exact metrics
+and trust, while Mystery truth reaches faction-roleplay prompts only. Hidden
+Red objectives and private scenario strategy do not enter public inject prompts.
+
+Public non-Classic projection removes legacy numeric effect-box lines from its
+copy of transcript fields. Stored transcripts and facilitator responses remain
+unchanged. Audience-dependent `/game/` responses use `private, no-store` and
+`Vary: X-Facilitator-Capability`; the common player-safe theatre snapshot keeps
+its separate ETag policy.
+
 There is no list-sessions endpoint; `/health` reports only a count.
 
 The v1 theatre body contains `schema_version`, `session_id`, `turn`, `phase`,
@@ -36,10 +53,13 @@ stamped with layer, turn, elapsed time and sequence. Current event families
 include transcript, system, state update, diplomacy, intelligence, ending,
 inject, adjudication, parse health and LLM-call records.
 
-REFEREE-layer data is filtered server-side per connection. Public events reach
-every subscriber; REFEREE events reach only a connection presenting the
-session's facilitator capability. The session ID alone never grants that
-authority.
+REFEREE-layer data is filtered server-side per connection. Untagged events also
+fail closed for public viewers. Other public events are projected for the
+session's play mode before delivery; REFEREE events and unprojected payloads
+reach only a connection presenting the session's facilitator capability. The
+session ID alone never grants that authority. Qualitative vibes are stamped at
+event emission, so a delayed subscriber does not receive present-time vibes on
+an older event.
 
 ## Current delivery model
 
@@ -78,10 +98,10 @@ concurrently with permissions decided for each connection.
 
 Slice 1, **Multi-client Session Streaming**, is defined in
 [`PLAN.md`](../../PLAN.md#1--multi-client-session-streaming). The fan-out and
-two-subscriber regression and the v1 player-safe theatre snapshot are complete.
-The shared API player proof and deployment authentication remain. The local
-capability separates viewers within one API session; it is not an account or
-login system.
+two-subscriber regression, the shared REST/SSE visibility projector and the v1
+player-safe theatre snapshot are complete. The shared API player proof and
+deployment authentication remain. The local capability separates viewers
+within one API session; it is not an account or login system.
 
 SSE remains a change-notification path. The snapshot—not queue history—is what
 restores a reconnecting display.
@@ -89,7 +109,7 @@ restores a reconnecting display.
 ## Evidence
 
 - [`api/server.py`](../../api/server.py), sections `GameSession`,
-  `push_event`, `_stream_filter` and `stream_game_events`.
+  `_project_for_viewer`, `_stream_filter` and `stream_game_events`.
 - [`api/globe.html`](../../api/globe.html), session snapshot and `EventSource`
   setup.
 - [`tests/test_api_server.py`](../../tests/test_api_server.py), theatre endpoint

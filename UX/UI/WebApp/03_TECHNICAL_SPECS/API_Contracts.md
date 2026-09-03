@@ -5,13 +5,44 @@ request models, and declared response models. This file is a curated WebApp
 guide; it must not override the generated schema. For handlers without a
 declared response model, the handler return value is authoritative.
 
-**Current status:** Every endpoint documented below is implemented on `main`.
+**Current status:** Every endpoint documented below is registered on `main`.
 The phase headings are historical delivery groupings, not implementation
-statuses. Proposed endpoints belong in the active roadmap until they exist in
+statuses. The known `/game/saves` route-order defect is called out below.
+Proposed endpoints belong in the active roadmap until they exist in
 `/openapi.json`.
 
 Examples show representative shapes. Scenario content, identifiers, metrics,
 transcripts, model names, and filesystem paths vary at runtime.
+
+---
+
+## Viewer visibility
+
+One server projector governs every session-bearing REST response and decoded
+SSE event:
+
+- A matching `X-Facilitator-Capability` receives the full payload.
+- Public Classic receives intended numerical gameplay metrics and effects.
+- Public Immersive and Emergent receive qualitative situation vibes instead of
+  raw strategic metrics, deltas or ending figures.
+- Exact adviser trust, raw actor relationship scores, structured Mystery state
+  and REFEREE events are never public. Mystery-flavoured public dialogue is
+  protected upstream by prompt segregation: only faction-roleplay prompts
+  receive the hidden truth.
+- The session ID grants player authority only. Untagged stream events fail
+  closed for public viewers.
+
+Operational numbers such as turn, sequence, elapsed time, resource quantities
+and authored timelines remain visible in every play mode.
+Player-facing quality/adviser prompts receive qualitative bands and relationship
+words rather than exact metrics or trust; public inject prompts also exclude
+Mystery truth and hidden Red strategy. Non-Classic public projection removes
+legacy numeric effect boxes from transcript fields; it does not alter stored
+transcripts, facilitator data, or Mystery prose.
+
+All audience-dependent `/game/` responses use `Cache-Control: private, no-store`
+and `Vary: X-Facilitator-Capability`. `GET /game/{id}/theatre` is deliberately
+different: it is one common public representation with its own ETag policy.
 
 ---
 
@@ -53,13 +84,12 @@ Success is `200 OK`, not `201 Created`:
   "facilitator_capability": null,
   "turn": 1,
   "phase": "discussion",
-  "metrics": {
-    "escalation_risk": 63,
-    "domestic_stability": 49,
-    "alliance_cohesion": 40,
-    "casualties_civ": 0,
-    "casualties_mil": 2
-  },
+  "metrics": null,
+  "vibes": [
+    {"name": "Crisis Intensity", "descriptor": "ELEVATED"},
+    {"name": "Allied Unity", "descriptor": "WAVERING"},
+    {"name": "Domestic Support", "descriptor": "WAVERING"}
+  ],
   "advisors": [
     {"role": "NSA", "status": "online"},
     {"role": "CDS", "status": "online"}
@@ -73,7 +103,27 @@ Success is `200 OK`, not `201 Created`:
 sets an HttpOnly, SameSite cookie scoped to
 `/stream/{session_id}/facilitator`. `pending_encounter` is either `null` or an
 object containing `country`, `context`, and `title` when the briefing opens a
-mandatory call.
+mandatory call. The example is the default Immersive public view. Classic and
+capability-bearing facilitator responses contain the metrics object; Classic
+has an empty `vibes` array.
+
+### GET `/game/{session_id}`
+
+Returns the viewer-safe resume payload: `session_id`, turn, phase, projected
+metrics/vibes, adviser states, transcript and any active mandatory call. Public
+adviser objects keep relationship words but serialize `trust` as `null`; a
+matching facilitator capability receives the exact trust values.
+
+**Status:** IMPLEMENTED
+
+### GET `/game/{session_id}/state`
+
+Returns the authoritative `WorldState`, including raw metrics, structured
+Mystery truth and actor state. This is facilitator-only: the matching
+`X-Facilitator-Capability` is required, otherwise the response is `403`. A
+successful response carries `Cache-Control: no-store`.
+
+**Status:** IMPLEMENTED — FACILITATOR ONLY
 
 ### GET `/game/{session_id}/resources`
 
@@ -176,7 +226,8 @@ Sends a message to the active diplomatic call.
 The response has the same `transcript`, `active`, nullable `title`, and
 nullable `outcome` fields as call creation. It emits a `diplomacy` SSE event
 with `type: "call_turn"`. When the call ends, `active` is `false` and
-`outcome` contains `assessment` and integer `cohesion_delta`.
+`outcome` contains `assessment`. `cohesion_delta` is an integer for Classic or
+a matching facilitator and `null` for public Immersive/Emergent viewers.
 
 ### POST `/game/discussion`
 
@@ -324,8 +375,11 @@ what is committed.
 }
 ```
 
-Both commit routes emit player-facing `transcript`, `system`, and
-`state_update` events. An `ending` event is emitted when applicable.
+Both commit routes emit projected player-facing `transcript`, `system`, and
+`state_update` events. Public Classic state updates retain metrics; public
+Immersive/Emergent updates carry `metrics: null` and qualitative `vibes`. An
+`ending` event is emitted when applicable, with numerical debrief lines removed
+from public Immersive/Emergent streams.
 Streams presenting the matching facilitator capability additionally receive
 REFEREE-layer `adjudication` and `parse_health` events.
 
@@ -350,11 +404,12 @@ All endpoints in this section are implemented.
     "Domestic Support: WAVERING"
   ],
   "dominant": "ELEVATED",
-  "intensity": 6
+  "intensity": null
 }
 ```
 
-`intensity` is clamped to the integer range 1-10.
+`intensity` is `null` for public Immersive/Emergent viewers. It is clamped to
+the integer range 1-10 for Classic or a matching facilitator.
 
 ### GET `/game/{session_id}/state/advisors`
 
@@ -366,7 +421,7 @@ All endpoints in this section are implemented.
     {
       "role": "uk_nsa",
       "name": "National Security Advisor",
-      "trust": 85,
+      "trust": null,
       "relationship": "allied",
       "status": "active",
       "notes": "Coordinates intelligence."
@@ -375,8 +430,9 @@ All endpoints in this section are implemented.
 }
 ```
 
-`role`, `name`, integer `trust`, `relationship`, and `status` are required;
-`notes` is nullable.
+`role`, `name`, `trust`, `relationship`, and `status` are present; `notes` is
+nullable. Public responses always serialize exact `trust` as `null`; a matching
+facilitator receives its integer value.
 
 ### GET `/game/{session_id}/state/flags`
 
@@ -442,7 +498,6 @@ string on this list response.
       "═══════════════════════════════════════════════════════════════════════════════",
       "",
       "Relationship Trend: STABLE →",
-      "Current Assessment: 10/100",
       "",
       "Recent Indicators:",
       "• Minimal diplomatic engagement",
@@ -461,14 +516,16 @@ string on this list response.
 
 The current assessment object has a `raw` list of display lines; it does not
 expose the older invented `military_posture`, `political_intent`, or
-`likely_next_moves` structure. `last_updated` is the integer game turn on this
-detail response.
+`likely_next_moves` structure. Public responses omit the engine's exact actor
+relationship score; a matching facilitator receives it. `last_updated` is the
+integer game turn on this detail response.
 
 ---
 
 ## Historical Phase 3 grouping: persistence and settings
 
-All endpoints in this section are implemented.
+All endpoints in this section are registered; the save-list route-order defect
+is called out below.
 
 ### POST `/game/save`
 
@@ -510,24 +567,25 @@ Loads a save into a new session identifier.
   "session_id": "bb47b99c-eb31-49cb-9f22-ae7a84bf67cd",
   "turn": 5,
   "phase": "discussion",
-  "metrics": {
-    "escalation_risk": 60,
-    "domestic_stability": 50,
-    "alliance_cohesion": 40,
-    "casualties_civ": 0,
-    "casualties_mil": 2
-  },
+  "metrics": null,
+  "vibes": [
+    {"name": "Crisis Intensity", "descriptor": "ELEVATED"},
+    {"name": "Allied Unity", "descriptor": "WAVERING"},
+    {"name": "Domestic Support", "descriptor": "WAVERING"}
+  ],
   "transcript": [],
   "active_call": null
 }
 ```
 
 `active_call` is either `null` or an object containing `country`, `title`,
-`required`, and `transcript`.
+`required`, and `transcript`. Loaded sessions do not mint facilitator
+authority, so an Immersive/Emergent save returns the public projection shown
+above; a Classic save retains its metrics.
 
 ### GET `/game/saves`
 
-**Status:** IMPLEMENTED
+**Status:** REGISTERED BUT CURRENTLY UNREACHABLE
 
 ```json
 {
@@ -543,7 +601,10 @@ Loads a save into a new session identifier.
 }
 ```
 
-The `saves` array may be empty.
+The `saves` array may be empty. Current route order places
+`GET /game/{session_id}` first, so `/game/saves` is interpreted as session ID
+`saves` and returns `404 Session not found`. This is a known routing defect, not
+a working listing contract.
 
 ### GET `/scenarios`
 
@@ -616,6 +677,8 @@ applied.
 - Successful routes documented here return `200 OK`.
 - `400 Bad Request` is used for invalid game phase or action state.
 - `404 Not Found` is used for an unknown session.
+- `403 Forbidden` is used when a facilitator-only route receives no matching
+  capability.
 - `409 Conflict` is used when a required diplomatic call blocks a decision.
 - FastAPI request validation returns `422 Unprocessable Entity`.
 - Handler failures return `500 Internal Server Error`.
@@ -644,10 +707,11 @@ event: transcript
 data: {"type":"advisor","role":"National Security Advisor","content":"...","layer":"cabinet","turn":1,"t_plus_s":2.4,"event_seq":7}
 ```
 
-Session-ID-only streams never receive REFEREE-layer events. Event names include
-`transcript`, `diplomacy`, `intel`, `system`, `state_update`, and `ending`;
-streams presenting the matching header or path-scoped cookie can additionally
-receive `llm_call`, `adjudication`, and `parse_health`.
+Session-ID-only streams never receive REFEREE-layer or untagged events. Event
+names include `transcript`, `diplomacy`, `intel`, `system`, `state_update`, and
+`ending`; their JSON data follows the same mode projection as REST. Streams
+presenting the matching header or path-scoped cookie can additionally receive
+the unprojected `llm_call`, `adjudication`, and `parse_health` events.
 
 ### Nulls and arrays
 

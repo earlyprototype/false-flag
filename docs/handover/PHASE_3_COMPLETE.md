@@ -1,5 +1,9 @@
 # Phase 3 Complete: Dynamic Narrative System Fully Operational
 
+> **Historical design.** Its player-facing secret-injection design is retired:
+> Mystery truth now reaches faction-roleplay prompts only, never prompts that
+> produce public prose. See [`../BUILD_STATE.md`](../BUILD_STATE.md).
+
 > **Historical November 2025 milestone snapshot.** It is not the current build
 > status. See [BUILD_STATE.md](../BUILD_STATE.md).
 
@@ -249,4 +253,3 @@ The Dynamic Narrative System is **production-ready**. All three implementation p
 *Implementation completed: [Current Date]*
 *Total lines of code: ~500 lines across 8 files*
 *Integration points: 5 (advisors, diplomats, injects, adjudication, decision interpretation)*
-
