@@ -1216,6 +1216,7 @@ function attach(sid, capability = null) {
   clearRunState();
   renderAll();
   sessionId = sid;
+  if (sid) history.replaceState(null, "", "?game=" + encodeURIComponent(sid));
   const storageKey = `false-flag:facilitator:${sid}`;
   if (capability) sessionStorage.setItem(storageKey, capability);
   facilitatorCapability = sid
@@ -1261,6 +1262,14 @@ function attach(sid, capability = null) {
   es.onerror = () => setStatus("stream lost — session gone or server down", true);
   es.onopen = () => setStatus("");
 }
+
+function restoreSessionFromUrl() {
+  const id = new URLSearchParams(location.search).get("game");
+  if (!id) return;
+  $("sessInput").value = id;
+  attach(id);
+}
+
 function setStatus(t, isErr) {
   const s = $("status"); s.textContent = t; s.className = isErr ? "err" : "";
 }
@@ -1381,6 +1390,7 @@ $("resetViewBtn").onclick = resetView;
 loadLayout();
 renderAll();
 refreshRouting();
+restoreSessionFromUrl();
 setInterval(refreshRouting, 15000);
 </script>
 </body>

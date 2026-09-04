@@ -86,11 +86,16 @@ const end = html.indexOf("function connectStream()", start);
 assert.notEqual(start, -1, "session setter not found");
 
 const values = new Map();
+let rememberedUrl = null;
 const elements = {
   sessionInput: { value: "" },
   sessionBadge: { innerHTML: "" },
 };
 const context = vm.createContext({
+  URLSearchParams,
+  encodeURIComponent,
+  location: {search: ""},
+  history: {replaceState: (_state, _title, url) => { rememberedUrl = url; }},
   sessionStorage: {
     getItem: key => values.get(key) || null,
     setItem: (key, value) => values.set(key, value),
@@ -107,6 +112,7 @@ vm.runInContext(`
 vm.runInContext(html.slice(start, end), context);
 
 vm.runInContext('setSession("shared-session", "secret")', context);
+assert.equal(rememberedUrl, "?game=shared-session");
 assert.equal(
   values.get("false-flag:facilitator:shared-session"), "secret");
 assert.equal(vm.runInContext("facilitatorCapability", context), "secret");
@@ -134,6 +140,7 @@ const end = html.indexOf("function setStatus", start);
 assert.notEqual(start, -1, "dataflow attach function not found");
 
 let latestSource = null;
+let rememberedUrl = null;
 class FakeEventSource {
   constructor(url) { this.url = url; this.listeners = {}; latestSource = this; }
   addEventListener(name, listener) { this.listeners[name] = listener; }
@@ -144,6 +151,9 @@ const elements = {
   turnBadge: { textContent: "" },
 };
 const context = vm.createContext({
+  URLSearchParams,
+  location: {search: ""},
+  history: {replaceState: (_state, _title, url) => { rememberedUrl = url; }},
   encodeURIComponent,
   EventSource: FakeEventSource,
   sessionStorage: {getItem: () => null, setItem() {}},
@@ -160,6 +170,7 @@ vm.runInContext(`
 vm.runInContext(html.slice(start, end), context);
 
 vm.runInContext('attach("shared session")', context);
+assert.equal(rememberedUrl, "?game=shared%20session");
 assert.equal(
   latestSource.url,
   "/stream/shared%20session/facilitator"
@@ -171,6 +182,76 @@ vm.runInContext('attach("public session")', context);
 assert.equal(latestSource.url, "/stream/public%20session/facilitator");
 latestSource.listeners.stream_ready({data: '{"viewer":"public"}'});
 assert.match(elements.sessBadge.textContent, /public/);
+''', DATAFLOW)
+
+
+def test_supporting_pages_restore_the_game_query_on_boot():
+    dashboard_html = DASHBOARD.read_text(encoding="utf-8")
+    dataflow_html = DATAFLOW.read_text(encoding="utf-8")
+    assert dashboard_html.index("restoreSessionFromUrl();") > dashboard_html.index("boot */")
+    assert dataflow_html.index("restoreSessionFromUrl();") > dataflow_html.index("loadLayout();")
+
+    _run_node(r'''
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+
+const html = fs.readFileSync(process.argv[1], "utf8");
+const start = html.indexOf("async function restoreSessionFromUrl()");
+const end = html.indexOf("/* ----------------------------------------------------------------- ledger", start);
+assert.notEqual(start, -1, "dashboard URL restore function not found");
+
+let requested = null;
+let attached = null;
+let seeded = null;
+const elements = {sessionInput: {value: ""}, sessionBadge: {textContent: ""}};
+const context = vm.createContext({
+  URLSearchParams,
+  encodeURIComponent,
+  location: {search: "?game=shared%20session"},
+  $: id => elements[id],
+  api: async (method, path) => {
+    requested = {method, path};
+    return {turn: 2, metrics: {escalation_risk: 51}};
+  },
+  setSession: id => { attached = id; },
+  seedFromState: state => { seeded = state; },
+});
+vm.runInContext(html.slice(start, end), context);
+
+(async () => {
+  await vm.runInContext("restoreSessionFromUrl()", context);
+  assert.deepEqual(requested, {method: "GET", path: "/game/shared%20session"});
+  assert.equal(attached, "shared session");
+  assert.equal(seeded.turn, 2);
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
+''')
+
+    _run_node(r'''
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+
+const html = fs.readFileSync(process.argv[1], "utf8");
+const start = html.indexOf("function restoreSessionFromUrl()");
+const end = html.indexOf("function setStatus", start);
+assert.notEqual(start, -1, "dataflow URL restore function not found");
+
+let attached = null;
+const elements = {sessInput: {value: ""}};
+const context = vm.createContext({
+  URLSearchParams,
+  location: {search: "?game=shared%20session"},
+  $: id => elements[id],
+  attach: id => { attached = id; },
+});
+vm.runInContext(html.slice(start, end), context);
+vm.runInContext("restoreSessionFromUrl()", context);
+assert.equal(elements.sessInput.value, "shared session");
+assert.equal(attached, "shared session");
 ''', DATAFLOW)
 
 
