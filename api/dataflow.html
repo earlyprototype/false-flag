@@ -1209,7 +1209,14 @@ function pulse(domId) {
   const g = $(domId); if (!g) return;
   g.classList.remove("pulse"); void g.getBoundingClientRect(); g.classList.add("pulse");
 }
-function attach(sid, capability = null) {
+function updateSessionUrl(id) {
+  const params = new URLSearchParams(location.search);
+  if (id) params.set("game", id); else params.delete("game");
+  const query = params.toString();
+  history.replaceState(null, "",
+    location.pathname + (query ? "?" + query : "") + location.hash);
+}
+function attach(sid, capability = null, restoring = false) {
   if (es) { es.close(); es = null; }
   // A new session starts from zero: drop the previous run's counters and
   // badges rather than counting on from them.
@@ -1226,12 +1233,16 @@ function attach(sid, capability = null) {
       (facilitatorCapability ? "operator" : "public")
     : "no session";
   if (!sid) return;
+  let streamReady = false;
+  let missingCheckStarted = false;
   es = new EventSource(
     "/stream/" + encodeURIComponent(sid) + "/facilitator");
+  const attachedSource = es;
   es.addEventListener("stream_ready", ev => {
     let d = {}; try { d = JSON.parse(ev.data); } catch {}
-    if (sessionId !== sid) return;
-    history.replaceState(null, "", "?game=" + encodeURIComponent(sid));
+    if (sessionId !== sid || es !== attachedSource) return;
+    streamReady = true;
+    updateSessionUrl(sid);
     $("sessBadge").textContent = "session " + sid.slice(0, 8) + "… · " +
       (d.viewer === "facilitator" ? "operator" : "public");
   });
@@ -1260,7 +1271,20 @@ function attach(sid, capability = null) {
       renderDtdl(NODE_BY_ID[selected]);
     pulse("node-bus");
   });
-  es.onerror = () => setStatus("stream lost — session gone or server down", true);
+  es.onerror = () => {
+    if (sessionId !== sid || es !== attachedSource) return;
+    if (restoring && !streamReady && !missingCheckStarted) {
+      missingCheckStarted = true;
+      fetch("/game/" + encodeURIComponent(sid))
+        .then(response => {
+          if (response.status === 404 && sessionId === sid &&
+              es === attachedSource && !streamReady)
+            updateSessionUrl(null);
+        })
+        .catch(() => {});
+    }
+    setStatus("stream lost — session gone or server down", true);
+  };
   es.onopen = () => setStatus("");
 }
 
@@ -1268,7 +1292,7 @@ function restoreSessionFromUrl() {
   const id = new URLSearchParams(location.search).get("game");
   if (!id) return;
   $("sessInput").value = id;
-  attach(id);
+  attach(id, null, true);
 }
 
 function setStatus(t, isErr) {

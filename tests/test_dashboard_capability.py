@@ -81,7 +81,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 
 const html = fs.readFileSync(process.argv[1], "utf8");
-const start = html.indexOf("function setSession(");
+const start = html.indexOf("function updateSessionUrl(");
 const end = html.indexOf("function connectStream()", start);
 assert.notEqual(start, -1, "session setter not found");
 
@@ -94,7 +94,7 @@ const elements = {
 const context = vm.createContext({
   URLSearchParams,
   encodeURIComponent,
-  location: {search: ""},
+  location: {pathname: "/dashboard", search: "?ionToken=abc", hash: "#view"},
   history: {replaceState: (_state, _title, url) => { rememberedUrl = url; }},
   sessionStorage: {
     getItem: key => values.get(key) || null,
@@ -112,7 +112,7 @@ vm.runInContext(`
 vm.runInContext(html.slice(start, end), context);
 
 vm.runInContext('setSession("shared-session", "secret")', context);
-assert.equal(rememberedUrl, "?game=shared-session");
+assert.equal(rememberedUrl, "/dashboard?ionToken=abc&game=shared-session#view");
 assert.equal(
   values.get("false-flag:facilitator:shared-session"), "secret");
 assert.equal(vm.runInContext("facilitatorCapability", context), "secret");
@@ -135,7 +135,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 
 const html = fs.readFileSync(process.argv[1], "utf8");
-const start = html.indexOf("function attach(");
+const start = html.indexOf("function updateSessionUrl(");
 const end = html.indexOf("function setStatus", start);
 assert.notEqual(start, -1, "dataflow attach function not found");
 
@@ -152,7 +152,7 @@ const elements = {
 };
 const context = vm.createContext({
   URLSearchParams,
-  location: {search: ""},
+  location: {pathname: "/dataflow", search: "?ionToken=abc", hash: "#view"},
   history: {replaceState: (_state, _title, url) => { rememberedUrl = url; }},
   encodeURIComponent,
   EventSource: FakeEventSource,
@@ -160,7 +160,7 @@ const context = vm.createContext({
   $: id => elements[id],
   clearRunState() {}, renderAll() {}, pulse() {}, renderLive() {},
   renderDtdl() {}, NODE_BY_ID: {}, CTX_NODE: {}, callCounts: {},
-  lastCall: {}, selected: null, dtdlOn: false, DTDL_MAP: {},
+  lastCall: {}, selected: null, dtdlOn: false, DTDL_MAP: {}, setStatus() {},
 });
 vm.runInContext(`
   let sessionId = null;
@@ -176,15 +176,147 @@ assert.equal(
   "/stream/shared%20session/facilitator"
 );
 latestSource.listeners.stream_ready({data: '{"viewer":"facilitator"}'});
-assert.equal(rememberedUrl, "?game=shared%20session");
+assert.equal(rememberedUrl, "/dataflow?ionToken=abc&game=shared+session#view");
 assert.match(elements.sessBadge.textContent, /operator/);
 
 vm.runInContext('attach("public session")', context);
-assert.equal(rememberedUrl, "?game=shared%20session");
+assert.equal(rememberedUrl, "/dataflow?ionToken=abc&game=shared+session#view");
 assert.equal(latestSource.url, "/stream/public%20session/facilitator");
+latestSource.onerror();
+assert.equal(rememberedUrl, "/dataflow?ionToken=abc&game=shared+session#view");
 latestSource.listeners.stream_ready({data: '{"viewer":"public"}'});
-assert.equal(rememberedUrl, "?game=public%20session");
+assert.equal(rememberedUrl, "/dataflow?ionToken=abc&game=public+session#view");
 assert.match(elements.sessBadge.textContent, /public/);
+''', DATAFLOW)
+
+
+def test_supporting_pages_clear_only_confirmed_missing_sessions():
+    _run_node(r'''
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+
+const html = fs.readFileSync(process.argv[1], "utf8");
+const apiStart = html.indexOf("async function api(");
+const apiEnd = html.indexOf("function setStatus", apiStart);
+const urlStart = html.indexOf("function updateSessionUrl(");
+const sessionStart = html.indexOf("function setSession(", urlStart);
+const restoreStart = html.indexOf("async function restoreSessionFromUrl()");
+const restoreEnd = html.indexOf("/* ----------------------------------------------------------------- ledger", restoreStart);
+
+function harness(status) {
+  const urls = [];
+  const elements = {sessionInput: {value: ""}, sessionBadge: {textContent: ""}};
+  const context = vm.createContext({
+    URLSearchParams,
+    location: {
+      pathname: "/dashboard",
+      search: "?ionToken=abc&game=saved",
+      hash: "#view",
+    },
+    history: {replaceState: (_state, _title, url) => urls.push(url)},
+    $: id => elements[id],
+    fetch: async () => ({
+      ok: false, status, statusText: "Unavailable",
+      text: async () => status === 404 ? '{"detail":"Session not found"}' : "",
+    }),
+    setSession() {}, seedFromState() {},
+  });
+  vm.runInContext(
+    "let sessionRequestVersion = 0; let facilitatorCapability = null;",
+    context,
+  );
+  vm.runInContext(html.slice(apiStart, apiEnd), context);
+  vm.runInContext(html.slice(urlStart, sessionStart), context);
+  vm.runInContext(html.slice(restoreStart, restoreEnd), context);
+  return {context, urls, elements};
+}
+
+(async () => {
+  let h = harness(404);
+  await vm.runInContext("restoreSessionFromUrl()", h.context);
+  assert.deepEqual(h.urls, ["/dashboard?ionToken=abc#view"]);
+  assert.match(h.elements.sessionBadge.textContent, /attach failed/);
+
+  h = harness(503);
+  await vm.runInContext("restoreSessionFromUrl()", h.context);
+  assert.deepEqual(h.urls, []);
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
+''')
+
+    _run_node(r'''
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+
+const html = fs.readFileSync(process.argv[1], "utf8");
+const start = html.indexOf("function updateSessionUrl(");
+const end = html.indexOf("function setStatus", start);
+
+function harness(probe) {
+  const urls = [];
+  let latestSource = null;
+  class FakeEventSource {
+    constructor() { this.listeners = {}; latestSource = this; }
+    addEventListener(name, listener) { this.listeners[name] = listener; }
+    close() {}
+  }
+  const elements = {
+    sessInput: {value: ""}, sessBadge: {textContent: ""}, turnBadge: {textContent: ""},
+  };
+  const context = vm.createContext({
+    URLSearchParams,
+    location: {
+      pathname: "/dataflow",
+      search: "?ionToken=abc&game=saved",
+      hash: "#view",
+    },
+    history: {replaceState: (_state, _title, url) => urls.push(url)},
+    encodeURIComponent,
+    EventSource: FakeEventSource,
+    fetch: () => typeof probe === "function"
+      ? probe() : Promise.resolve({status: probe}),
+    sessionStorage: {getItem: () => null, setItem() {}},
+    $: id => elements[id],
+    clearRunState() {}, renderAll() {}, pulse() {}, renderLive() {}, renderDtdl() {},
+    NODE_BY_ID: {}, CTX_NODE: {}, callCounts: {}, lastCall: {}, selected: null,
+    dtdlOn: false, DTDL_MAP: {}, setStatus() {},
+  });
+  vm.runInContext(
+    "let sessionId = null; let es = null; let facilitatorCapability = null;",
+    context,
+  );
+  vm.runInContext(html.slice(start, end), context);
+  vm.runInContext("restoreSessionFromUrl()", context);
+  return {context, source: () => latestSource, urls};
+}
+
+(async () => {
+  let h = harness(404);
+  h.source().onerror();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(h.urls, ["/dataflow?ionToken=abc#view"]);
+
+  h = harness(503);
+  h.source().onerror();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(h.urls, []);
+
+  let resolveProbe;
+  h = harness(() => new Promise(resolve => { resolveProbe = resolve; }));
+  h.source().onerror();
+  vm.runInContext('attach("saved")', h.context);
+  h.source().listeners.stream_ready({data: '{"viewer":"public"}'});
+  resolveProbe({status: 404});
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(h.urls, ["/dataflow?ionToken=abc&game=saved#view"]);
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
 ''', DATAFLOW)
 
 

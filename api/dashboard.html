@@ -159,8 +159,8 @@
     <button id="btnAttach">Attach</button>
     <span id="sessionBadge">no session</span>
   </div>
-  <div class="group" role="group" aria-label="Game type">
-    <span class="lbl">Game type</span>
+  <div class="group" role="group" aria-label="Next game type">
+    <span class="lbl">Next game type</span>
     <button class="seg on" data-mode="immersive">Immersive</button>
     <button class="seg" data-mode="classic">Classic</button>
     <button class="seg" data-mode="emergent">Emergent</button>
@@ -346,7 +346,11 @@ async function api(method, path, body) {
   const text = await res.text();
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = {raw: text}; }
-  if (!res.ok) throw new Error((data && (data.detail || data.raw)) || res.statusText);
+  if (!res.ok) {
+    const error = new Error((data && (data.detail || data.raw)) || res.statusText);
+    error.status = res.status;
+    throw error;
+  }
   return data;
 }
 function setStatus(id, msg, ok) {
@@ -372,9 +376,17 @@ function resetView() {
   renderDtdlLive();
 }
 
+function updateSessionUrl(id) {
+  const params = new URLSearchParams(location.search);
+  if (id) params.set("game", id); else params.delete("game");
+  const query = params.toString();
+  history.replaceState(null, "",
+    location.pathname + (query ? "?" + query : "") + location.hash);
+}
+
 function setSession(id, capability = null) {
   sessionId = id;
-  if (id) history.replaceState(null, "", `?game=${encodeURIComponent(id)}`);
+  if (id) updateSessionUrl(id);
   const storageKey = `false-flag:facilitator:${id}`;
   if (capability) sessionStorage.setItem(storageKey, capability);
   facilitatorCapability = id
@@ -476,6 +488,7 @@ async function restoreSessionFromUrl() {
     seedFromState(state);
   } catch (error) {
     if (requestVersion !== sessionRequestVersion) return;
+    if (error.status === 404) updateSessionUrl(null);
     $("sessionBadge").textContent = `attach failed: ${error.message}`;
   }
 }
