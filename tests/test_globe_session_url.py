@@ -15,7 +15,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 
 const html = fs.readFileSync(process.argv[1], "utf8");
-const start = html.indexOf("async function attach(id)");
+const start = html.indexOf("function updateSessionUrl(");
 const end = html.indexOf('$("sessionInput").addEventListener', start);
 assert.notEqual(start, -1, "attach function not found");
 assert.notEqual(end, -1, "attach handler boundary not found");
@@ -25,14 +25,20 @@ const elements = {
   sessionBadge: { textContent: "session good-ses…" },
   btnAttach: {},
 };
-let currentUrl = "?game=good-session";
+let currentUrl = "/globe?game=good-session&ionToken=token#view";
 let historyCalls = 0;
 let renderCalls = 0;
 let connectCalls = 0;
 let requestedUrl = null;
 
 const context = vm.createContext({
+  URLSearchParams,
   encodeURIComponent,
+  location: {
+    pathname: "/globe",
+    search: "?game=good-session&ionToken=token",
+    hash: "#view",
+  },
   fetch: async url => {
     requestedUrl = url;
     return { ok: false, status: 404 };
@@ -66,7 +72,7 @@ vm.runInContext('$("btnAttach").onclick()', context);
 
 setImmediate(() => {
   const state = vm.runInContext("({ sessionId, sourceClosed: source.closed })", context);
-  assert.equal(currentUrl, "?game=good-session");
+  assert.equal(currentUrl, "/globe?game=good-session&ionToken=token#view");
   assert.equal(historyCalls, 0);
   assert.equal(state.sessionId, "good-session");
   assert.equal(state.sourceClosed, false);
@@ -84,17 +90,16 @@ setImmediate(() => {
       json: async () => ({}),
     };
   };
-  currentUrl = "?game=good-session&ionToken=token#view";
   historyCalls = 0;
-  vm.runInContext('attach("good-session")', context);
+  vm.runInContext('attach("new-session")', context);
 
   setImmediate(() => {
-    assert.equal(currentUrl, "?game=good-session&ionToken=token#view");
-    assert.equal(historyCalls, 0);
-    assert.equal(requestedUrl, "/game/good-session/theatre");
+    assert.equal(currentUrl, "/globe?game=new-session&ionToken=token#view");
+    assert.equal(historyCalls, 1);
+    assert.equal(requestedUrl, "/game/new-session/theatre");
     assert.equal(renderCalls, 1);
     assert.equal(connectCalls, 1);
-    assert.equal(vm.runInContext('theatreEtags.get("good-session")', context), '"good-etag"');
+    assert.equal(vm.runInContext('theatreEtags.get("new-session")', context), '"good-etag"');
   });
 });
 """
