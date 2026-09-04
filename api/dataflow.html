@@ -1222,8 +1222,9 @@ function attach(sid, capability = null, restoring = false) {
   // badges rather than counting on from them.
   clearRunState();
   renderAll();
+  // A delayed detach must preserve an unsubmitted replacement session ID.
+  if (sid || $("sessInput").value === sessionId) $("sessInput").value = sid || "";
   sessionId = sid;
-  $("sessInput").value = sid || "";
   const storageKey = `false-flag:facilitator:${sid}`;
   if (capability) sessionStorage.setItem(storageKey, capability);
   facilitatorCapability = sid
@@ -1236,6 +1237,7 @@ function attach(sid, capability = null, restoring = false) {
   if (!sid) return;
   let streamReady = false;
   let missingCheckStarted = false;
+  let missingCheckAttempts = 0;
   es = new EventSource(
     "/stream/" + encodeURIComponent(sid) + "/facilitator");
   const attachedSource = es;
@@ -1274,10 +1276,11 @@ function attach(sid, capability = null, restoring = false) {
   });
   es.onerror = () => {
     if (sessionId !== sid || es !== attachedSource) return;
-    if (restoring && !streamReady && !missingCheckStarted) {
+    if (restoring && !streamReady && !missingCheckStarted && missingCheckAttempts < 5) {
       // Only a confirmed 404 proves the remembered session is gone. An
-      // inconclusive probe resets so a later reconnect failure can try again.
+      // inconclusive probe can retry up to five times; SSE keeps reconnecting.
       missingCheckStarted = true;
+      missingCheckAttempts += 1;
       fetch("/game/" + encodeURIComponent(sid))
         .then(response => {
           if (sessionId !== sid || es !== attachedSource || streamReady) return;

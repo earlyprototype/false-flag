@@ -318,6 +318,25 @@ function harness(probe) {
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(h.urls, ["/dataflow?ionToken=abc#view"]);
 
+  for (const result of [200, 503, new Error("network down")]) {
+    let probes = 0;
+    h = harness(() => {
+      probes += 1;
+      return result instanceof Error
+        ? Promise.reject(result) : Promise.resolve({status: result});
+    });
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      h.source().onerror();
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    assert.equal(probes, 5, "persistent stream failure must stop existence probes");
+    assert.deepEqual(h.urls, [], "inconclusive probes must keep the saved URL");
+    assert.equal(vm.runInContext("sessionId", h.context), "saved");
+    h.source().listeners.stream_ready({data: '{"viewer":"public"}'});
+    assert.match(h.elements.sessBadge.textContent, /public/);
+    assert.deepEqual(h.urls, ["/dataflow?ionToken=abc&game=saved#view"]);
+  }
+
   let resolveProbe;
   h = harness(() => new Promise(resolve => { resolveProbe = resolve; }));
   h.source().onerror();
@@ -326,6 +345,16 @@ function harness(probe) {
   resolveProbe({status: 404});
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(h.urls, ["/dataflow?ionToken=abc&game=saved#view"]);
+
+  h = harness(() => new Promise(resolve => { resolveProbe = resolve; }));
+  h.source().onerror();
+  h.elements.sessInput.value = "replacement session draft";
+  resolveProbe({status: 404});
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(vm.runInContext("sessionId", h.context), null);
+  assert.deepEqual(h.urls, ["/dataflow?ionToken=abc#view"]);
+  assert.equal(h.elements.sessInput.value, "replacement session draft",
+    "a delayed 404 must preserve an unsubmitted replacement ID");
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
