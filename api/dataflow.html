@@ -1216,7 +1216,6 @@ function attach(sid, capability = null) {
   clearRunState();
   renderAll();
   sessionId = sid;
-  if (sid) history.replaceState(null, "", "?game=" + encodeURIComponent(sid));
   const storageKey = `false-flag:facilitator:${sid}`;
   if (capability) sessionStorage.setItem(storageKey, capability);
   facilitatorCapability = sid
@@ -1231,6 +1230,8 @@ function attach(sid, capability = null) {
     "/stream/" + encodeURIComponent(sid) + "/facilitator");
   es.addEventListener("stream_ready", ev => {
     let d = {}; try { d = JSON.parse(ev.data); } catch {}
+    if (sessionId !== sid) return;
+    history.replaceState(null, "", "?game=" + encodeURIComponent(sid));
     $("sessBadge").textContent = "session " + sid.slice(0, 8) + "… · " +
       (d.viewer === "facilitator" ? "operator" : "public");
   });

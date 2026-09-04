@@ -323,6 +323,7 @@ const LAYERS = ["sitrep","intel","diplomatic","domestic","cabinet","referee"];
 const MAX_LEDGER = 400, MAX_CALLS = 80;
 let sessionId = null, source = null, facilitator = false;
 let facilitatorCapability = null;
+let sessionRequestVersion = 0;
 let mode = "immersive", mystery = false;
 const layerVisible = Object.fromEntries(LAYERS.map(l => [l, true]));
 // Metric history: {turn -> value} kept as ordered arrays.
@@ -416,28 +417,43 @@ function connectStream() {
 }
 
 $("btnNew").onclick = async () => {
+  const requestVersion = ++sessionRequestVersion;
   try {
     const d = await api("POST", "/game/new",
       {facilitator: true, play_mode: mode, mystery_mode: mystery});
+    if (requestVersion !== sessionRequestVersion) return;
     setSession(d.session_id, d.facilitator_capability);
     seedFromState(d);
-  } catch (e) { alert("New session failed: " + e.message); }
+  } catch (e) {
+    if (requestVersion === sessionRequestVersion)
+      alert("New session failed: " + e.message);
+  }
 };
 $("btnAttach").onclick = async () => {
   const id = $("sessionInput").value.trim();
   if (!id) return;
+  const requestVersion = ++sessionRequestVersion;
   try {
     const d = await api("GET", `/game/${id}`);
+    if (requestVersion !== sessionRequestVersion) return;
     setSession(id);
     seedFromState(d);
-  } catch (e) { alert("Attach failed: " + e.message); }
+  } catch (e) {
+    if (requestVersion === sessionRequestVersion)
+      alert("Attach failed: " + e.message);
+  }
 };
 $("btnDemo").onclick = async () => {
+  const requestVersion = ++sessionRequestVersion;
   try {
     const d = await api("POST", "/demo/start",
       {turns: 5, pace_s: 2.0, play_mode: mode, mystery_mode: mystery});
+    if (requestVersion !== sessionRequestVersion) return;
     setSession(d.session_id, d.facilitator_capability);
-  } catch (e) { alert("Demo start failed: " + e.message); }
+  } catch (e) {
+    if (requestVersion === sessionRequestVersion)
+      alert("Demo start failed: " + e.message);
+  }
 };
 $("btnDemoStop").onclick = async () => {
   if (!sessionId) return;
@@ -451,12 +467,15 @@ function seedFromState(d) {
 async function restoreSessionFromUrl() {
   const id = new URLSearchParams(location.search).get("game");
   if (!id) return;
+  const requestVersion = sessionRequestVersion;
   $("sessionInput").value = id;
   try {
     const state = await api("GET", `/game/${encodeURIComponent(id)}`);
+    if (requestVersion !== sessionRequestVersion) return;
     setSession(id);
     seedFromState(state);
   } catch (error) {
+    if (requestVersion !== sessionRequestVersion) return;
     $("sessionBadge").textContent = `attach failed: ${error.message}`;
   }
 }
@@ -552,9 +571,12 @@ function recordMetrics(d) {
   for (const key of Object.keys(series)) {
     if (!(key in d.metrics)) continue;
     const arr = series[key];
-    const last = arr[arr.length - 1];
-    if (last && last.turn === turn) last.v = d.metrics[key];
-    else arr.push({turn, v: d.metrics[key]});
+    const point = arr.find(item => item.turn === turn);
+    if (point) point.v = d.metrics[key];
+    else {
+      arr.push({turn, v: d.metrics[key]});
+      arr.sort((a, b) => a.turn - b.turn);
+    }
   }
   drawCharts();
 }

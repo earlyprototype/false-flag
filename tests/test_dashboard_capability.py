@@ -170,19 +170,130 @@ vm.runInContext(`
 vm.runInContext(html.slice(start, end), context);
 
 vm.runInContext('attach("shared session")', context);
-assert.equal(rememberedUrl, "?game=shared%20session");
+assert.equal(rememberedUrl, null, "unverified session must not replace the URL");
 assert.equal(
   latestSource.url,
   "/stream/shared%20session/facilitator"
 );
 latestSource.listeners.stream_ready({data: '{"viewer":"facilitator"}'});
+assert.equal(rememberedUrl, "?game=shared%20session");
 assert.match(elements.sessBadge.textContent, /operator/);
 
 vm.runInContext('attach("public session")', context);
+assert.equal(rememberedUrl, "?game=shared%20session");
 assert.equal(latestSource.url, "/stream/public%20session/facilitator");
 latestSource.listeners.stream_ready({data: '{"viewer":"public"}'});
+assert.equal(rememberedUrl, "?game=public%20session");
 assert.match(elements.sessBadge.textContent, /public/);
 ''', DATAFLOW)
+
+
+def test_dashboard_restore_cannot_override_a_newer_attach_attempt():
+    _run_node(r'''
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+
+const html = fs.readFileSync(process.argv[1], "utf8");
+const start = html.indexOf('$("btnNew").onclick');
+const end = html.indexOf("/* ----------------------------------------------------------------- ledger", start);
+assert.notEqual(start, -1, "dashboard session handlers not found");
+
+function harness() {
+  const pending = new Map();
+  const attached = [];
+  const elements = {
+    btnNew: {}, btnAttach: {}, btnDemo: {}, btnDemoStop: {}, btnResetView: {},
+    sessionInput: {value: ""}, sessionBadge: {textContent: ""},
+  };
+  let context;
+  context = vm.createContext({
+    URLSearchParams,
+    encodeURIComponent,
+    location: {search: "?game=old-session"},
+    $: id => elements[id],
+    api: (_method, path) => new Promise((resolve, reject) => {
+      pending.set(path, {resolve, reject});
+    }),
+    setSession: id => {
+      attached.push(id);
+      vm.runInContext(`sessionId = ${JSON.stringify(id)}`, context);
+    },
+    seedFromState() {}, resetView() {}, alert() {},
+  });
+  vm.runInContext(`
+    let sessionId = null;
+    let sessionRequestVersion = 0;
+    let mode = "immersive";
+    let mystery = false;
+  `, context);
+  vm.runInContext(html.slice(start, end), context);
+  return {pending, attached, elements, context};
+}
+
+function startRestoreThenAttach(h) {
+  const restore = vm.runInContext("restoreSessionFromUrl()", h.context);
+  h.elements.sessionInput.value = "new-session";
+  const attach = vm.runInContext('$("btnAttach").onclick()', h.context);
+  return {restore, attach};
+}
+
+(async () => {
+  let h = harness();
+  let {restore, attach} = startRestoreThenAttach(h);
+  h.pending.get("/game/old-session").resolve({turn: 2, metrics: {}});
+  await restore;
+  assert.deepEqual(h.attached, [], "old restore must not win after Attach starts");
+  h.pending.get("/game/new-session").resolve({turn: 1, metrics: {}});
+  await attach;
+  assert.deepEqual(h.attached, ["new-session"]);
+
+  h = harness();
+  ({restore, attach} = startRestoreThenAttach(h));
+  h.pending.get("/game/old-session").reject(new Error("old session missing"));
+  await restore;
+  assert.doesNotMatch(h.elements.sessionBadge.textContent, /attach failed/);
+  h.pending.get("/game/new-session").resolve({turn: 1, metrics: {}});
+  await attach;
+  assert.deepEqual(h.attached, ["new-session"]);
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
+''')
+
+
+def test_dashboard_keeps_metric_history_ordered_by_turn():
+    _run_node(r'''
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+
+const html = fs.readFileSync(process.argv[1], "utf8");
+const start = html.indexOf("function recordMetrics(");
+const end = html.indexOf("function drawCharts(", start);
+assert.notEqual(start, -1, "metric recorder not found");
+
+const context = vm.createContext({
+  series: {escalation_risk: []},
+  drawCharts() {},
+});
+vm.runInContext(html.slice(start, end), context);
+vm.runInContext(`
+  recordMetrics({turn: 3, metrics: {escalation_risk: 30}});
+  recordMetrics({turn: 1, metrics: {escalation_risk: 10}});
+  recordMetrics({turn: 2, metrics: {escalation_risk: 20}});
+  recordMetrics({turn: 2, metrics: {escalation_risk: 21}});
+`, context);
+
+const points = JSON.parse(vm.runInContext(
+  "JSON.stringify(series.escalation_risk)", context));
+assert.deepEqual(points, [
+  {turn: 1, v: 10},
+  {turn: 2, v: 21},
+  {turn: 3, v: 30},
+]);
+''')
 
 
 def test_supporting_pages_restore_the_game_query_on_boot():
@@ -217,6 +328,7 @@ const context = vm.createContext({
   setSession: id => { attached = id; },
   seedFromState: state => { seeded = state; },
 });
+vm.runInContext("let sessionId = null; let sessionRequestVersion = 0;", context);
 vm.runInContext(html.slice(start, end), context);
 
 (async () => {
