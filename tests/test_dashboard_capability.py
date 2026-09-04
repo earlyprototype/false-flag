@@ -147,6 +147,7 @@ class FakeEventSource {
   close() {}
 }
 const elements = {
+  sessInput: { value: "" },
   sessBadge: { textContent: "" },
   turnBadge: { textContent: "" },
 };
@@ -291,7 +292,7 @@ function harness(probe) {
   );
   vm.runInContext(html.slice(start, end), context);
   vm.runInContext("restoreSessionFromUrl()", context);
-  return {context, source: () => latestSource, urls};
+  return {context, source: () => latestSource, urls, elements};
 }
 
 (async () => {
@@ -299,11 +300,23 @@ function harness(probe) {
   h.source().onerror();
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(h.urls, ["/dataflow?ionToken=abc#view"]);
+  assert.equal(vm.runInContext("sessionId", h.context), null);
+  assert.equal(h.elements.sessInput.value, "");
+  assert.equal(h.elements.sessBadge.textContent, "no session");
 
   h = harness(503);
   h.source().onerror();
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(h.urls, []);
+
+  const probeResults = [503, 404];
+  h = harness(() => Promise.resolve({status: probeResults.shift()}));
+  h.source().onerror();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(h.urls, []);
+  h.source().onerror();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(h.urls, ["/dataflow?ionToken=abc#view"]);
 
   let resolveProbe;
   h = harness(() => new Promise(resolve => { resolveProbe = resolve; }));
@@ -327,6 +340,8 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 
 const html = fs.readFileSync(process.argv[1], "utf8");
+const urlStart = html.indexOf("function updateSessionUrl(");
+const sessionStart = html.indexOf("function setSession(", urlStart);
 const start = html.indexOf('$("btnNew").onclick');
 const end = html.indexOf("/* ----------------------------------------------------------------- ledger", start);
 assert.notEqual(start, -1, "dashboard session handlers not found");
@@ -334,6 +349,7 @@ assert.notEqual(start, -1, "dashboard session handlers not found");
 function harness() {
   const pending = new Map();
   const attached = [];
+  const urls = [];
   const elements = {
     btnNew: {}, btnAttach: {}, btnDemo: {}, btnDemoStop: {}, btnResetView: {},
     sessionInput: {value: ""}, sessionBadge: {textContent: ""},
@@ -342,7 +358,8 @@ function harness() {
   context = vm.createContext({
     URLSearchParams,
     encodeURIComponent,
-    location: {search: "?game=old-session"},
+    location: {pathname: "/dashboard", search: "?game=old-session", hash: ""},
+    history: {replaceState: (_state, _title, url) => urls.push(url)},
     $: id => elements[id],
     api: (_method, path) => new Promise((resolve, reject) => {
       pending.set(path, {resolve, reject});
@@ -359,8 +376,9 @@ function harness() {
     let mode = "immersive";
     let mystery = false;
   `, context);
+  vm.runInContext(html.slice(urlStart, sessionStart), context);
   vm.runInContext(html.slice(start, end), context);
-  return {pending, attached, elements, context};
+  return {pending, attached, elements, context, urls};
 }
 
 function startRestoreThenAttach(h) {
@@ -382,8 +400,11 @@ function startRestoreThenAttach(h) {
 
   h = harness();
   ({restore, attach} = startRestoreThenAttach(h));
-  h.pending.get("/game/old-session").reject(new Error("old session missing"));
+  const missing = new Error("old session missing");
+  missing.status = 404;
+  h.pending.get("/game/old-session").reject(missing);
   await restore;
+  assert.deepEqual(h.urls, [], "stale 404 must not clear the newer session URL");
   assert.doesNotMatch(h.elements.sessionBadge.textContent, /attach failed/);
   h.pending.get("/game/new-session").resolve({turn: 1, metrics: {}});
   await attach;

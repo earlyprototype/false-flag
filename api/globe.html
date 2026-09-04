@@ -552,6 +552,14 @@ function connectStream() {
   source.onerror = () => { /* EventSource auto-reconnects */ };
 }
 
+function updateSessionUrl(id) {
+  const params = new URLSearchParams(location.search);
+  if (id) params.set("game", id); else params.delete("game");
+  const query = params.toString();
+  history.replaceState(null, "",
+    location.pathname + (query ? "?" + query : "") + location.hash);
+}
+
 async function attach(id) {
   const token = ++attachSeq;  // a newer attach supersedes this one
   $("sessionInput").value = id;
@@ -562,7 +570,7 @@ async function attach(id) {
     if (token !== attachSeq) return;  // lost the race to a later attach
     const etag = res.headers.get("ETag");
     renderTheatre(id, data);
-    if (id !== sessionId) history.replaceState(null, "", `?game=${encodeURIComponent(id)}`);
+    if (id !== sessionId) updateSessionUrl(id);
     if (source) { source.close(); source = null; }  // prior session's stream ends only on success
     sessionId = id;
     $("sessionBadge").textContent = `session ${id.slice(0, 8)}…`;

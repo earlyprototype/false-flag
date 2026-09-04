@@ -1223,6 +1223,7 @@ function attach(sid, capability = null, restoring = false) {
   clearRunState();
   renderAll();
   sessionId = sid;
+  $("sessInput").value = sid || "";
   const storageKey = `false-flag:facilitator:${sid}`;
   if (capability) sessionStorage.setItem(storageKey, capability);
   facilitatorCapability = sid
@@ -1274,14 +1275,24 @@ function attach(sid, capability = null, restoring = false) {
   es.onerror = () => {
     if (sessionId !== sid || es !== attachedSource) return;
     if (restoring && !streamReady && !missingCheckStarted) {
+      // Only a confirmed 404 proves the remembered session is gone. An
+      // inconclusive probe resets so a later reconnect failure can try again.
       missingCheckStarted = true;
       fetch("/game/" + encodeURIComponent(sid))
         .then(response => {
-          if (response.status === 404 && sessionId === sid &&
-              es === attachedSource && !streamReady)
+          if (sessionId !== sid || es !== attachedSource || streamReady) return;
+          if (response.status === 404) {
             updateSessionUrl(null);
+            attach(null);
+            setStatus("session gone", true);
+            return;
+          }
+          missingCheckStarted = false;
         })
-        .catch(() => {});
+        .catch(() => {
+          if (sessionId === sid && es === attachedSource && !streamReady)
+            missingCheckStarted = false;
+        });
     }
     setStatus("stream lost — session gone or server down", true);
   };
