@@ -13,8 +13,8 @@ is proved.
 1. A client creates an API game session. A caller that asks to facilitate
    receives a separate, opaque capability. Restored sessions currently have
    player authority through the session ID, but no facilitator authority.
-2. The globe accepts `?game=<session id>`; the dashboard and dataflow view
-   accept a pasted session ID.
+2. The globe, dashboard and dataflow view accept `?game=<session id>`; the
+   dashboard and dataflow view also accept a pasted session ID.
 3. The shipped globe fetches its current snapshot from
    `GET /game/{id}/theatre`.
 4. Player and globe pages open `GET /stream/{id}` for change events. The

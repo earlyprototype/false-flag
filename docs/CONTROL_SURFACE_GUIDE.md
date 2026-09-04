@@ -60,7 +60,7 @@ diagram to your own taste — your layout is remembered on this browser.
 
 ---
 
-## `/dashboard` — the facilitator's control room
+## `/dashboard` — the campaign operator view
 
 This is the operator view beside the player's campaign. It is one
 continuously-updating page: what's happening right now, the numbers driving the
