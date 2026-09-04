@@ -27,6 +27,6 @@ historical strategy material.
 
 ## Current references
 
-- [Canonical Quest slice](../../PLAN.md#4--quest-ops-room-display)
+- [Canonical XR Ops Room stream](../../PLAN.md#xr-ops-room)
 - [WebXR room brief](WEBXR.md)
 - [Voice-production issue #78](https://github.com/earlyprototype/false-flag/issues/78)

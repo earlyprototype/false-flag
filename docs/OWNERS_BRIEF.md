@@ -11,6 +11,10 @@ questions five cabinet advisers, handles diplomatic pressure, makes a
 free-form decision, receives pushback, and lives with the adjudicated
 consequences over multiple turns.
 
+One person plays that campaign. Classic, Immersive and Emergent change how it
+is presented; Mystery optionally gives the relevant foreign actors a hidden
+truth to play from. None of those choices creates another person.
+
 The new work does not replace that experience. It makes the same campaign
 spatial, connected to bounded live context, and present inside a VR operations
 room.
@@ -21,9 +25,9 @@ Source: [README — What Happens in a Session](../README.md#what-happens-in-a-se
 
 ### A shared live campaign
 
-The player, dashboard, globe and VR room observe one game session. Each screen
-gets its own copy of permitted events, so opening a second display cannot steal
-updates from the first.
+The player's supporting dashboard, dataflow view, globe and future VR room
+observe one game session. Each connected surface gets its own event delivery,
+so opening a second display cannot steal updates from the first.
 
 The API session now gives every attached subscriber its own copy of each live
 event. Only the first subscriber receives the pre-connect backlog; the
@@ -31,7 +35,7 @@ player-safe theatre snapshot now restores late and reconnecting globe displays.
 The session ID grants player authority, is not authentication, and does not
 grant facilitator authority. A separate capability authorises the facilitator
 dashboard and operator dataflow view per stream and session-scoped control
-request; REFEREE events remain server-filtered from the player and globe. This
+request; REFEREE events remain protected from ordinary game surfaces. This
 local capability is not deployment authentication. The
 terminal and static browser also remain separate engine instances. The build
 must prove the shared player path before claiming “one engine, many surfaces.”
@@ -94,11 +98,12 @@ technical source: [WebXR Layers specification](https://immersive-web.github.io/l
 
 | Slice | Value added | Assessment |
 |---|---|---|
-| Multi-client Session Streaming | Makes the played campaign, globe, dashboard and VR room agree instead of silently stealing events from one another. | Correct first dependency. First select and complete one API-backed player; streaming alone cannot prove this slice. Do not build two players. |
+| Core Game Integrity | Keeps the existing campaign, three presentations and optional Mystery authoritative while surrounding surfaces change. | A guardrail on every task. A display fault does not justify changing judgement, prompts or story behaviour. |
+| Shared Campaign & Surfaces | Makes the played campaign, globe, dashboard, dataflow and VR room agree instead of silently stealing events from one another. | Correct first dependency. First load the existing dashboard and dataflow together; then select and complete one API-backed player. Do not build two players. |
 | Spatial Decision Loop | Turns the globe into gameplay: decisions move forces and geography can create later consequences. | Highest direct game value. The bounded-order and deterministic-coordinate route protects the simulation from model invention. |
-| Live Context Integration | Makes the fictional crisis feel situated in the present world and gives advisers grounded environmental context. | Valuable only with a hard boundary. Weather first is the useful low-risk proof; civilian flights wait for provider permission. |
-| Quest Ops-Room Display | Makes the existing cabinet game spatially present without creating a second game. | Correct route. Build the portable screen, measure the real headset, then choose the rendering path from evidence. |
-| Demonstration Reliability and Submission | Proves the complete game survives presentation conditions and makes the Challenge contribution legible. | Essential throughout the build, not a final polish phase. The authentic turn remains the test. |
+| Live Context | Makes the fictional crisis feel situated in the present world and gives advisers grounded environmental context. | Valuable only with a hard boundary. Weather first is the useful low-risk proof; civilian flights wait for provider permission. |
+| XR Ops Room | Makes the existing cabinet game spatially present without creating a second game. | Correct route. Build the portable screen, measure the real headset, then choose the rendering path from evidence. |
+| Delivery reliability | Keeps each stream launchable, observable and recoverable. | Cross-cutting support, not a sixth product stream or a late polish phase. |
 
 Overall, this route adds value because every slice strengthens the existing
 decision loop. If a proposed task cannot improve that loop, make it more
@@ -124,9 +129,14 @@ game; it is not the product.
 - The full game loop, adviser system, diplomacy, adjudication and save/load are
   built.
 - The Cesium globe is built and passed its projector test on 31 August 2026.
-- Per-subscriber live streaming, per-viewer facilitator capability and the
+- Per-subscriber live streaming, session-scoped facilitator capability and the
   reconnectable player-safe snapshot are built. A shared API player, deployment
   authentication, moving tracks, live feeds and the VR room are not built yet.
+
+The first supporting-surface proof passed on 4 September 2026: the dashboard
+and dataflow view joined one campaign, received live updates and restored the
+same session after reload. Selecting and completing one API-backed player is
+still open.
 
 Detailed status: [`BUILD_STATE.md`](BUILD_STATE.md).
 

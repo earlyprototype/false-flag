@@ -32,7 +32,7 @@ turns, so later injects, effects and mandatory encounters would be skipped.
   observer pages.
 
 Current integration work is defined by
-[`PLAN.md` — Multi-client Session Streaming](../PLAN.md#1--multi-client-session-streaming)
+[`PLAN.md` — Shared Campaign & Surfaces](../PLAN.md#shared-campaign--surfaces)
 and documented in
 [`docs/tech/SERVER_STREAMING.md`](../docs/tech/SERVER_STREAMING.md).
 

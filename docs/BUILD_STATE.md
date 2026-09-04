@@ -1,6 +1,6 @@
 # Current Build State
 
-Current as of 3 September 2026. Start here after
+Current as of 4 September 2026. Start here after
 [`PLAN.md`](../PLAN.md). Historical handovers are indexed separately in
 [`docs/handover/README.md`](handover/README.md).
 
@@ -10,6 +10,11 @@ FALSE FLAG is the AI wargame. The existing campaign loop—briefing, five-advise
 discussion, diplomacy, free-form decision, pushback, adjudication and
 consequences—is the product. The Situation Globe, live external context and VR
 operations room extend that same game.
+
+One person plays the Prime Minister. Classic, Immersive and Emergent are
+presentation choices for that campaign. Mystery is an optional hidden-story
+layer. The dashboard, dataflow view and globe are supporting surfaces, not
+separate players.
 
 Evidence: [README — What Happens in a Session](../README.md#what-happens-in-a-session)
 and [GAME_DESCRIPTION — Core Gameplay](../GAME_DESCRIPTION.md#core-gameplay).
@@ -28,10 +33,10 @@ and [GAME_DESCRIPTION — Core Gameplay](../GAME_DESCRIPTION.md#core-gameplay).
   endings and save/load.
 - Terminal and static-browser playing surfaces.
 - A FastAPI session path with decision, diplomacy, save/load and SSE endpoints.
-- Independent per-subscriber SSE queues for one session's observers.
-- A per-session facilitator capability checked independently for each stream
-  and session-scoped control request. The session ID grants player authority,
-  is not authentication, and does not grant facilitator authority.
+- Independent per-subscriber SSE queues for one session's connected surfaces.
+- A per-session facilitator capability checked on each stream and
+  session-scoped control request. The session ID grants player authority, is
+  not authentication, and does not grant facilitator authority.
 - A versioned, player-safe theatre snapshot with strong ETag revalidation; the
   globe restores from it and treats SSE as change notification.
 - An observability dashboard, dataflow/DTDL view and control surface.
@@ -44,8 +49,8 @@ and [GAME_DESCRIPTION — Core Gameplay](../GAME_DESCRIPTION.md#core-gameplay).
 
 - The globe plots static UK resource locations; it has no authoritative moving
   red-force tracks.
-- The theatre snapshot is one common player-safe projection. The local bearer
-  capability separates facilitator and public viewers, but deployment
+- The theatre snapshot is one common public snapshot. The local bearer
+  capability protects facilitator controls and REFEREE data, but deployment
   authentication and user accounts are not built.
 - The terminal CLI and static Pyodide browser each own their own engine session;
   they are not observers of a FastAPI session.
@@ -83,23 +88,16 @@ These gaps are ordered and tested in [`PLAN.md`](../PLAN.md).
 - Live-feed fixtures are for automated tests only. Runtime source failure is
   visible; the application does not silently substitute fake live data.
 
-## Current external facts
+## Current focus
 
-- Challenge submission is due 13 September 2026 at 14:00 Irish time.
-- The IMR regional demonstration is 14 September; the official pitch format is
-  seven minutes plus three minutes of questions.
-- Teams must contain 4–9 members including one team leader; current registration
-  compliance has not been recorded in this repository.
-- Unless an organiser maps FALSE FLAG to an official statement, it needs
-  mentor approval as an alternative Challenge entry. That approval and the
-  catalogue's wildcard evidence are not yet recorded.
-- The existing game predates the challenge period. Submission material must
-  distinguish it from work completed during 28 August–13 September.
+The first Shared Campaign proof passed on 4 September 2026. With the mock
+provider, the existing dashboard started one campaign and the dataflow view
+joined the same session. Both received live updates and restored the same
+session after reload. Live-event history is not replayed after reload.
 
-Sources:
-[official Participant Playbook](https://docs.google.com/document/d/1bYT1itRT6h0YU4i8uGbEUK78dJYa6z561qSe6tjSkNs/edit?usp=sharing),
-[official Challenge Catalogue](https://docs.google.com/document/d/1D2rQhMPmqIFsCMyi_QPxVJCQQQYZ_phuHkdfz69UoX8/edit?usp=sharing), and
-[AICC event page](https://www.aicc.co/events/2026/september-2026/techireland-national-ai-challenge-2026).
+The next decision is which existing API-backed player to complete. The
+checked-in Next source is not currently runnable and must not silently become
+the product merely because it exists.
 
 ## Resume order
 

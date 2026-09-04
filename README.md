@@ -267,11 +267,11 @@ false-flag/
 ```
 
 The terminal and static browser each own their own engine session. FastAPI
-observer pages share API-created sessions, and every attached subscriber gets
-its own copy of each live event. Only the first subscriber receives events
-queued before any observer connects. The globe restores its current
+supporting pages share API-created sessions, and every attached connection gets
+its own copy of each live event. Only the first connection receives events
+queued before any surface connects. The globe restores its current
 player-visible turn, phase and static order of battle from the versioned theatre
-snapshot, using SSE only as a change notification. Per-viewer permissions and
+snapshot, using SSE only as a change notification. Per-connection permissions and
 the shared API player path remain open; the exact gaps are recorded in
 [BUILD_STATE.md](docs/BUILD_STATE.md#what-is-not-built).
 
@@ -308,7 +308,7 @@ New here? **[Read the plain-English guide](docs/CONTROL_SURFACE_GUIDE.md)** firs
 what each page is for and how to use it, no jargon. What follows is the
 quick technical reference.
 
-A FastAPI server exposes the engine for facilitators and observers. Install the
+A FastAPI server exposes the campaign and its supporting surfaces. Install the
 pinned core and API dependency sets together:
 
 ```bash

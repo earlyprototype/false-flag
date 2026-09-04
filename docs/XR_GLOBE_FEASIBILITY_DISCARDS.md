@@ -135,7 +135,7 @@ Raw output: `audits/2026-08-28-xr-feasibility/workflow2_full_output.json`. Most 
 
 **G4 · Capped advisory spawned entities — `DEFERRED v2`.** CARTOGRAPHER's one keeper gameplay idea: the world simulator may spawn max 8 TTL'd, `origin='simulated'`, never-metric-bearing color entities (a shadowing trawler, an unexplained contact) so the world can grow texture without opening the coordinate-hallucination door.
 
-**G5 · FORCES INVOLVED advisory pre-highlight — `CUT` (small, free signal).** The interpretation call already *requests* a FORCES INVOLVED label and the reply is returned unparsed (`game_manager.py` returns `forces_involved: []` as a literal placeholder). Parsing it against the unit registry gives an advisory pre-highlight of tasked units in the order flow — free signal from an existing call.
+**G5 · FORCES INVOLVED advisory pre-highlight — `HISTORICAL; PARSING NOW BUILT`.** The original claim that the reply was returned unparsed is stale. PR #156 added structured interpretation fields, including `forces_involved`. A future spatial loop may use that parsed signal, but the unit registry and movement-order path described here are still not built.
 
 **G6 · FORCE_POSTURE label on actor replies — `CUT` (flavour-only third channel).** Optional posture label on the RUS actor's reply, parsed default-none — never load-bearing since actor selection caps at 3 and RUS isn't guaranteed present.
 

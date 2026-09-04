@@ -74,10 +74,10 @@ The shipped consumers are:
 The dashboard, dataflow view and globe may now observe the same API session
 concurrently with permissions decided for each connection.
 
-## Remaining Slice 1 work
+## Remaining Shared Campaign work
 
-Slice 1, **Multi-client Session Streaming**, is defined in
-[`PLAN.md`](../../PLAN.md#1--multi-client-session-streaming). The fan-out and
+The **Shared Campaign & Surfaces** stream is defined in
+[`PLAN.md`](../../PLAN.md#shared-campaign--surfaces). The fan-out and
 two-subscriber regression and the v1 player-safe theatre snapshot are complete.
 The shared API player proof and deployment authentication remain. The local
 capability separates viewers within one API session; it is not an account or
@@ -96,4 +96,4 @@ restores a reconnecting display.
   and Situation Globe contract checks.
 - [`tests/test_dashboard_api.py`](../../tests/test_dashboard_api.py),
   request-scoped stream filtering and facilitator-control checks.
-- [Canonical Slice 1](../../PLAN.md#1--multi-client-session-streaming).
+- [Canonical Shared Campaign stream](../../PLAN.md#shared-campaign--surfaces).

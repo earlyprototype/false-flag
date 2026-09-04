@@ -21,3 +21,14 @@ do not create a separate board here.
 stop and report a binding problem. Do not call `setup_project` or
 `kanbanger init`: the outer workspace already has one canonical board.
 <!-- kanbanger:end -->
+
+## Recovery orchestration
+
+- Read `PLAN.md` for the locked product streams and current dependency.
+- Do not invoke the early-prototype `/worktime`, `/chosetime` or `/clocktime`
+  lifecycle in this workspace. Its Stop/close behaviour is incompatible with
+  the canonical board and human REVIEW gate.
+- Use Kanbanger through its MCP-backed worker. AI work may move only to REVIEW;
+  only the human owner approves DONE. Do not sync unless the owner asks.
+- Use one isolated branch or worktree and one focused observable proof per
+  implementation task. Broad test counts are not acceptance evidence.

@@ -1,4 +1,4 @@
-# Situation Globe and Ops Room — Build Plan
+# FALSE FLAG — Product Build Plan
 
 **This is the canonical implementation plan.** It describes what is built, what
 comes next, and the observable test that completes each slice. Supporting
@@ -11,6 +11,11 @@ FALSE FLAG remains the AI wargame described in the
 multi-turn crisis in which the player questions five cabinet advisers, handles
 diplomatic pressure, makes a free-form decision, receives pushback, and lives
 with the adjudicated consequences.
+
+One person plays the Prime Minister. Classic, Immersive and Emergent are three
+presentations of that same campaign. Mystery is an optional hidden-story layer,
+not another player or mode. The dashboard, dataflow view, globe and future XR
+room are supporting surfaces around the campaign.
 
 The Situation Globe, live context and VR operations room deepen that same
 campaign. They are not a replacement game, a generic agent demonstration, or
@@ -26,24 +31,38 @@ The end-to-end acceptance path is one authentic turn:
 6. Campaign consequences update the same session, globe and VR room.
 7. The next turn continues from the resulting state.
 
-[Owner ruling, 1 September 2026](https://github.com/earlyprototype/false-flag/issues/136#issuecomment-5499898594):
-implementation estimates do not decide scope or cut features. Work is sequenced
-by dependencies and observable done tests.
+## Locked streams
+
+1. **Core Game Integrity** — preserve the intended game loop, presentation
+   modes, Mystery, advisers, diplomacy, adjudication and save/load behaviour.
+2. **Shared Campaign & Surfaces** — make one API campaign load consistently in
+   the chosen player and its supporting dashboard, dataflow and globe views.
+3. **Spatial Decision Loop** — turn authored geography and validated player
+   orders into visible campaign consequences.
+4. **Live Context** — add bounded real-world context without letting it write
+   campaign state.
+5. **XR Ops Room** — place that same campaign in a measured, accessible WebXR
+   room.
+
+Delivery reliability supports every stream. It is not a separate product or a
+catch-all feature lane. Shared Campaign & Surfaces is the next dependency gate;
+Spatial, Live Context and XR work may separate after that contract is proved.
 
 ## Current status
 
 | Item | What it delivers | Status | Evidence |
 |---|---|---|---|
+| **Core Game Integrity** | The existing one-player campaign, modes and Mystery remain authoritative | `ACTIVE GUARDRAIL` | [Game description](GAME_DESCRIPTION.md#one-player-three-presentation-modes) |
 | **Globe Display** | Read-only Cesium globe showing scenario resources | `DONE` — projector test passed 31 Aug 2026 | [Issue #94](https://github.com/earlyprototype/false-flag/issues/94) · [PR #95](https://github.com/earlyprototype/false-flag/pull/95) · [PR #104](https://github.com/earlyprototype/false-flag/pull/104) |
-| **1 · Multi-client Session Streaming** | One played campaign observed reliably by several surfaces | `IN PROGRESS` — fan-out, player-safe v1 snapshot and per-viewer facilitator capability complete | [Issue #139](https://github.com/earlyprototype/false-flag/issues/139) · [Issue #158](https://github.com/earlyprototype/false-flag/issues/158) · [Issue #171](https://github.com/earlyprototype/false-flag/issues/171) · [PR #172](https://github.com/earlyprototype/false-flag/pull/172) |
-| **2 · Spatial Decision Loop** | Campaign forces move from authored state and validated player orders | `NOT STARTED` — movement design settled | [Issue #71](https://github.com/earlyprototype/false-flag/issues/71) |
-| **3 · Live Context Integration** | Real external context appears around, and may inform, the fictional exercise | `NOT STARTED` — boundary and live-first posture settled | [Issue #77](https://github.com/earlyprototype/false-flag/issues/77) |
-| **4 · Quest Ops-Room Display** | The existing game is present inside a WebXR operations room | `NOT STARTED` — build order settled; device availability open | [WebXR brief](docs/tech/WEBXR.md) · [Issue #75](https://github.com/earlyprototype/false-flag/issues/75) |
-| **5 · Demonstration Reliability and Submission** | The authentic game turn can be launched, shown, recovered and submitted | `NOT STARTED`; reliability work runs throughout | — |
+| **Shared Campaign & Surfaces** | One played campaign loads reliably across its player and supporting surfaces | `IN PROGRESS` — dashboard plus dataflow share and restore one session; the API player remains open | [Issue #139](https://github.com/earlyprototype/false-flag/issues/139) · [Issue #158](https://github.com/earlyprototype/false-flag/issues/158) · [Issue #171](https://github.com/earlyprototype/false-flag/issues/171) · [PR #172](https://github.com/earlyprototype/false-flag/pull/172) |
+| **Spatial Decision Loop** | Campaign forces move from authored state and validated player orders | `NOT STARTED` — movement design settled | [Issue #71](https://github.com/earlyprototype/false-flag/issues/71) |
+| **Live Context** | Real external context appears around, and may inform, the fictional exercise | `NOT STARTED` — boundary and live-first posture settled | [Issue #77](https://github.com/earlyprototype/false-flag/issues/77) |
+| **XR Ops Room** | The existing game is present inside a WebXR operations room | `NOT STARTED` — build order settled; device availability open | [WebXR brief](docs/tech/WEBXR.md) · [Issue #75](https://github.com/earlyprototype/false-flag/issues/75) |
 
-Slice 1 is the shared dependency. Once its session contract is stable, spatial,
-live-data and VR work may proceed independently; the numbers show integration
-order, not elapsed-time estimates.
+The dashboard/dataflow proof passed on 4 September 2026: both surfaces joined
+one campaign, received live updates and restored that session after reload.
+The next Shared Campaign decision is which existing player to complete against
+the API. Do not redesign the game to make a supporting surface easier to wire.
 
 ## Completed foundation — Globe Display
 
@@ -61,16 +80,28 @@ Current limits are explicit:
 - It plots UK forces at authored base locations; it does not yet show moving
   red-force tracks.
 - An event refreshes the display but does not yet move a unit.
-- The v1 theatre snapshot restores current turn, phase and static player-visible
-  resources; play-mode-specific player projection and authoritative spatial
-  tracks are not yet built.
+- The v1 theatre snapshot restores current turn, phase and static public
+  resources; the selected API player has not yet proved mode-consistent reload
+  behaviour, and authoritative spatial tracks are not yet built.
 - No external live feed or XR room exists yet.
 
-## 1 · Multi-client Session Streaming
+## Core Game Integrity
 
-*Technical descriptor: give every subscriber an independent event delivery
-path and expose session-scoped snapshots to the player, dashboard, globe and
-VR room.*
+This stream protects the product while the surrounding surfaces change.
+
+- Preserve one human player acting as Prime Minister.
+- Preserve the distinct Classic, Immersive and Emergent presentations.
+- Preserve Mystery as an optional hidden truth that shapes the relevant actor
+  and diplomatic behaviour without directly disclosing itself.
+- Reproduce a suspected defect on its real path before changing engine,
+  prompts or adjudication.
+- Use the smallest observable check that proves the touched behaviour. A large
+  passing test count is not acceptance evidence.
+
+## Shared Campaign & Surfaces
+
+*Technical descriptor: run one API campaign and let its player and supporting
+dashboard, dataflow, globe and future XR surfaces load the same session state.*
 
 ### Build
 
@@ -79,18 +110,22 @@ VR room.*
       The chosen client must run each later turn through
       `POST /game/{session_id}/briefing`; the current Next source omits that
       call and cannot yet play a complete campaign.
+- [x] Launch the existing dashboard and dataflow pages, start one campaign from
+      one surface, attach the other to its session ID, and prove both survive a
+      reload before changing their design.
 - [x] Replace the single destructive session queue with per-subscriber queues;
-      copy each payload before audience filtering.
-- [x] Scope facilitator stream and control permissions to each viewer within a
-      game session.
-- [ ] Apply play-mode-specific projection to every player-facing response and
-      snapshot.
+      copy each payload before per-surface filtering.
+- [x] Scope facilitator stream and control permissions to each connection
+      within a game session.
+- [ ] Make the selected player render its campaign's chosen presentation mode
+      consistently across new game, later turns, save/load and reconnect. Keep
+      presentation filtering out of engine judgement and Mystery behaviour.
 - [x] Publish a versioned theatre snapshot with an ETag; use SSE as change
       notification rather than as the only state store.
 - [ ] Prove the selected player uses the same API session observed by the
       dashboard and globe. Do not claim that the terminal CLI or static
       Pyodide build is attached until it actually is.
-- [x] Keep REFEREE data server-filtered per viewer.
+- [x] Keep REFEREE data server-filtered from ordinary game surfaces.
 - [ ] Require deployment authentication before any control surface leaves
       localhost.
 - [x] Add a regression check in which two subscribers receive every event.
@@ -99,11 +134,13 @@ VR room.*
 
 ### Done test
 
-A real API-played campaign, dashboard and globe share one session ID; two
-simultaneous subscribers each receive every permitted event; reconnecting from
-the snapshot restores the current display.
+A real API-played campaign, dashboard, dataflow and globe share one session ID;
+two simultaneous subscribers each receive every permitted event; reloading or
+reconnecting restores the current display. The one player retains the intended
+Classic, Immersive or Emergent presentation and Mystery still shapes the
+campaign when enabled.
 
-## 2 · Spatial Decision Loop
+## Spatial Decision Loop
 
 *Technical descriptor: persist unit tracks, advance authored routes with pure
 kinematics, and translate decision text into validated orders that visibly
@@ -145,7 +182,7 @@ authoritative positions. In a seeded hidden-track case, the facilitator sees
 the stored position while the player receives a bounded stale or noisy estimate
 that is visibly distinct from that position.
 
-## 3 · Live Context Integration
+## Live Context
 
 *Technical descriptor: ingest bounded real-world feeds into separate Cesium
 layers and adviser context without allowing external data to mutate game
@@ -188,7 +225,7 @@ correct temporal framing and game state remains unchanged. Live civilian
 tracks remain outside the exercise zone. Disconnecting either provider
 produces an explicit source-health failure rather than fabricated live data.
 
-## 4 · Quest Ops-Room Display
+## XR Ops Room
 
 *Technical descriptor: put the existing campaign surfaces into a portable
 three.js/WebXR room, measure the real headset, then select a local quad layer or
@@ -218,12 +255,13 @@ read the real cabinet exchange, and watch the same campaign consequence shown
 on the projector. The recorded measurements—not preference—identify the local
 quad-layer or streamed-source path.
 
-## 5 · Demonstration Reliability and Submission
+## Delivery reliability — cross-cutting
 
-*Technical descriptor: secure, rehearse, measure, recover and present one full
-FALSE FLAG turn using the real game path.*
+*Technical descriptor: keep the real game path reproducible, observable and
+recoverable as each stream changes it.*
 
-This work starts alongside Slice 1 and continues as the build changes.
+This work starts with Shared Campaign & Surfaces and continues as the build
+changes.
 
 ### Build
 
@@ -236,49 +274,19 @@ This work starts alongside Slice 1 and continues as the build changes.
 - [ ] Rehearse the real network path and a source-unavailable state.
 - [ ] Record a real run as hardware-failure contingency, clearly marked as an
       exercise recording.
-- [ ] Demonstrate the agent roles through the existing game: distinct advice,
+- [ ] Prove the agent roles through the existing game: distinct advice,
       disagreement, memory, pushback, human authority and adjudicated
       consequences.
-- [ ] Obtain and record mentor approval for FALSE FLAG as an alternative
-      Challenge entry unless an organiser maps it to an official statement;
-      evidence the real user, credible buyer or commissioner, current cost of
-      the problem and why an agentic approach is justified.
-- [ ] Capture named playtester or mentor feedback and retain sources for every
-      customer, competitor and commercial claim used in the presentation.
-- [ ] Support the challenge presentation with evidence of the game already
-      built and a clearly identified 28 Aug–13 Sep contribution; do not present
-      pre-existing work as new.
-- [ ] Prepare the editable presentation and demo link required by the official
-      participant playbook.
+- [ ] Keep documentation aligned with observed behaviour and correct stale
+      claims as soon as they are found.
+- [ ] Prefer one focused executable check or observable browser journey per
+      change. Run broad suites only when the owner explicitly asks for them.
 
 ### Done test
 
 The complete turn runs from the written sequence without operator invention;
-the recovery procedure works; the recording exists; and the editable deck plus
-demo link are ready for submission.
-
-## Challenge facts — external constraints, not scope estimates
-
-- Build period: 28 August–13 September 2026.
-- Final submission: 13 September 2026 at 14:00 Irish time.
-- Regional demonstration at Irish Manufacturing Research: 14 September 2026;
-  seven-minute presentation followed by three minutes of questions.
-- Theme: **AI & Agents: Strategy, Processes and Roles**.
-- Team eligibility: 4–9 members including one team leader. Confirm the
-  registered team still complies; the formation deadline has passed.
-- Judging covers the problem and customer, the working solution, commercial
-  focus, and effective and responsible use of AI.
-
-Theme fit is not entry approval. The playbook requires an official Challenge
-statement or a mentor-approved alternative; the catalogue requires a wildcard
-to identify a real user, buyer or commissioning body, current problem cost and
-why agentic AI is justified. Those are open compliance gates, not claims to
-invent for the deck.
-
-The official sources are the
-[2026 Participant Playbook](https://docs.google.com/document/d/1bYT1itRT6h0YU4i8uGbEUK78dJYa6z561qSe6tjSkNs/edit?usp=sharing),
-[2026 Challenge Catalogue](https://docs.google.com/document/d/1D2rQhMPmqIFsCMyi_QPxVJCQQQYZ_phuHkdfz69UoX8/edit?usp=sharing),
-and [AICC event page](https://www.aicc.co/events/2026/september-2026/techireland-national-ai-challenge-2026).
+the touched surface can be relaunched or reattached; source failures are
+visible; and the focused proof for the change is recorded.
 
 ## Technical references
 
