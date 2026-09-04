@@ -13,7 +13,7 @@ assign dates or create a competing sequence. Current build order:
 | Geo-file ownership | Scenario-authored geography stays with scenario data; engine-derived geography stays with technical data; the seam remains explicit. | [Issue #72](https://github.com/earlyprototype/false-flag/issues/72) |
 | Globe visual controls | The normal, CRT and FLIR views remain selectable rather than one being removed early. | [Issue #74](https://github.com/earlyprototype/false-flag/issues/74) |
 | Live/simulated boundary | Real feeds and game state are separate layers. Live facts may inform context, never state. The exercise zone and fog carry the boundary; runtime is live-first with no silent fixture fallback. | [Issue #77](https://github.com/earlyprototype/false-flag/issues/77) |
-| VR build route | Build the portable WebXR room/screen, measure it on the Quest, then use a local quad layer or streamed source according to the measurements. | [Owner ruling, 1 Sep 2026](https://github.com/earlyprototype/false-flag/issues/127#issuecomment-5498505180); [PLAN — Quest Ops-Room Display](../PLAN.md#4--quest-ops-room-display) |
+| VR build route | Build the portable WebXR room/screen, measure it on the Quest, then use a local quad layer or streamed source according to the measurements. | [Owner ruling, 1 Sep 2026](https://github.com/earlyprototype/false-flag/issues/127#issuecomment-5498505180); [PLAN — XR Ops Room](../PLAN.md#xr-ops-room) |
 | Planning estimates | Agent-generated duration estimates do not decide scope or cut features. Dependencies and observable done tests order the work. | [Owner ruling, 1 Sep 2026](https://github.com/earlyprototype/false-flag/issues/136#issuecomment-5499898594) |
 
 ## Open facts or selections
@@ -25,11 +25,9 @@ assign dates or create a competing sequence. Current build order:
 | Civilian-flight provider | Confirm that current terms permit the intended live demonstration and document attribution. | Weather lands first. No flight provider becomes required before this gate passes. |
 | Campaign clock versus live now | Owner choice required before live observations enter adviser prompts. | Rebase the campaign date, frame current conditions as a present-day exercise baseline, or keep the feed spectator-only; never present September 2026 weather as October 2025 fact. |
 | Save downgrade behaviour | Choose whether loading a new spatial save in an older build may lose spatial fields silently. | Newer-build save/load/resume must preserve spatial state regardless. |
-| Challenge entry, team and IP | Obtain written organiser guidance before submission. | Record 4–9-member eligibility; secure mentor approval unless FALSE FLAG is mapped to an official statement; evidence the wildcard user, buyer, current problem cost and agentic justification; clarify pre-existing-work and IP treatment. |
 
 ## References
 
 - [Current build plan](../PLAN.md)
 - [Current build state](BUILD_STATE.md)
 - [Full feasibility evidence](XR_GLOBE_FEASIBILITY.md)
-- [Official Participant Playbook](https://docs.google.com/document/d/1bYT1itRT6h0YU4i8uGbEUK78dJYa6z561qSe6tjSkNs/edit?usp=sharing)

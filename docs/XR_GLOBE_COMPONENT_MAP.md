@@ -25,10 +25,10 @@ flowchart LR
 
   subgraph API["SESSION API"]
     SNAP["CURRENT V1 · Session theatre snapshot\nETag · reconnectable · player-safe"]
-    FAN["CURRENT · Subscriber fan-out\naudience filtering"]
+    FAN["CURRENT · Subscriber fan-out\nper-surface filtering"]
   end
 
-  subgraph SURFACES["THE SAME CAMPAIGN, OBSERVED"]
+  subgraph SURFACES["SUPPORTING SURFACES AROUND THE SAME CAMPAIGN"]
     DASH["CURRENT · Dashboard\nsupporting evidence and control"]
     GLOBE["CURRENT FOUNDATION · Cesium globe\nstatic campaign resources"]
     VR["PLANNED · WebXR operations room\nglobe screen + adviser presence"]
@@ -131,30 +131,34 @@ The measurement chooses where the screen pixels are produced; the room, game
 session and input contract stay the same. Technical basis:
 [WebXR Layers specification](https://immersive-web.github.io/layers/).
 
-## 6 · Build slices
+## 6 · Build streams and dependency
 
 ```mermaid
 flowchart LR
+  CORE["CORE GAME INTEGRITY\none player · modes · Mystery"]
   DONE["COMPLETED FOUNDATION\nGlobe Display"]
-  S1["1 · Multi-client Session Streaming\nindependent subscribers + snapshots"]
-  S2["2 · Spatial Decision Loop\ntracks + movement + tripwires"]
-  S3["3 · Live Context Integration\nweather + bounded civilian tracks"]
-  S4["4 · Quest Ops-Room Display\nportable → measured → local/streamed"]
-  S5["5 · Demonstration Reliability\nauthentic turn + recovery + submission"]
+  SHARED["SHARED CAMPAIGN & SURFACES\nnext: dashboard + dataflow"]
+  SPATIAL["SPATIAL DECISION LOOP\ntracks + movement + tripwires"]
+  LIVE2["LIVE CONTEXT\nweather + bounded civilian tracks"]
+  XR["XR OPS ROOM\nportable → measured → local/streamed"]
+  REL["DELIVERY RELIABILITY\ncross-cutting support"]
 
-  DONE --> S1
-  S1 --> S2
-  S1 --> S3
-  S1 --> S4
-  S2 --> S5
-  S3 --> S5
-  S4 --> S5
+  CORE --> SHARED
+  DONE --> SHARED
+  SHARED --> SPATIAL
+  SHARED --> LIVE2
+  SHARED --> XR
+  REL -.-> SHARED
+  REL -.-> SPATIAL
+  REL -.-> LIVE2
+  REL -.-> XR
 ```
 
-Slice 1 is the common dependency. Spatial, live-data and VR work can then
-advance independently before they meet in the authentic-turn demonstration.
-Reliability work runs throughout, not as a late hardening phase. No
-agent-assigned duration or cut ladder is authoritative.
+Core Game Integrity constrains every change. Shared Campaign & Surfaces is the
+common dependency; its immediate proof is one dashboard and one dataflow view
+attached to the same campaign. Spatial, Live Context and XR can then advance
+independently. Delivery reliability runs throughout rather than becoming a
+sixth product stream.
 
 ## References
 

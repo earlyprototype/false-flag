@@ -1230,6 +1230,8 @@ function attach(sid, capability = null) {
     "/stream/" + encodeURIComponent(sid) + "/facilitator");
   es.addEventListener("stream_ready", ev => {
     let d = {}; try { d = JSON.parse(ev.data); } catch {}
+    if (sessionId !== sid) return;
+    history.replaceState(null, "", "?game=" + encodeURIComponent(sid));
     $("sessBadge").textContent = "session " + sid.slice(0, 8) + "… · " +
       (d.viewer === "facilitator" ? "operator" : "public");
   });
@@ -1261,6 +1263,14 @@ function attach(sid, capability = null) {
   es.onerror = () => setStatus("stream lost — session gone or server down", true);
   es.onopen = () => setStatus("");
 }
+
+function restoreSessionFromUrl() {
+  const id = new URLSearchParams(location.search).get("game");
+  if (!id) return;
+  $("sessInput").value = id;
+  attach(id);
+}
+
 function setStatus(t, isErr) {
   const s = $("status"); s.textContent = t; s.className = isErr ? "err" : "";
 }
@@ -1381,6 +1391,7 @@ $("resetViewBtn").onclick = resetView;
 loadLayout();
 renderAll();
 refreshRouting();
+restoreSessionFromUrl();
 setInterval(refreshRouting, 15000);
 </script>
 </body>

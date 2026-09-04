@@ -44,12 +44,12 @@ unproven.
    active.
 4. Test input latency and recovery after headset sleep or page reload.
 5. Record the result against the acceptance fields in
-   [`PLAN.md`](../../PLAN.md#4--quest-ops-room-display). That evidence chooses
+   [`PLAN.md`](../../PLAN.md#xr-ops-room). That evidence chooses
    the local quad-layer or streamed-source branch.
 
 ## References
 
-- [Canonical Quest slice](../../PLAN.md#4--quest-ops-room-display)
+- [Canonical XR Ops Room stream](../../PLAN.md#xr-ops-room)
 - [WebXR room brief](WEBXR.md)
 - [WebXR Layers specification](https://immersive-web.github.io/layers/)
 - [Meta Quest Browser overview](https://developers.meta.com/horizon/documentation/web/)

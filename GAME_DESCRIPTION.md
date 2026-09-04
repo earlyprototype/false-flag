@@ -16,6 +16,30 @@ You are the Prime Minister. NATO's commitment wavers. The public grows fearful. 
 
 ---
 
+## One Player, Three Presentation Modes
+
+One person plays the Prime Minister through one campaign. The game can present
+that campaign in three ways:
+
+- **Classic** shows the original numerical metrics and uses threshold-based
+  endings.
+- **Immersive** translates those metrics into situation vibes, trends and
+  active crises.
+- **Emergent** keeps the structure light and lets the campaign read mainly as
+  an unfolding narrative.
+
+These are presentations of the same game, not different people or audiences.
+
+**Mystery** is an optional layer on any presentation mode. At the start of a
+Mystery campaign the game selects a hidden truth about who is driving the
+crisis. That truth guides the relevant foreign actors and diplomatic behaviour
+without being stated directly to the player.
+
+The dashboard, dataflow view and Situation Globe are supporting surfaces around
+that same campaign. They do not create additional players or a second game.
+
+---
+
 ## Core Gameplay
 
 ### Turn-Based Structure
@@ -93,6 +117,10 @@ Your access to leaders vs. diplomats depends on **Alliance Cohesion**:
 
 ### 📊 **Core Metrics**
 
+These values are the campaign's underlying state. Classic shows them directly;
+Immersive turns them into qualitative signals; Emergent keeps them behind the
+narrative.
+
 Three key metrics guide your decision-making:
 
 1. **Escalation Risk (0-100)**
@@ -124,7 +152,7 @@ clamped to -10..+10, and is currently informational only.
 - Flags (e.g., `public_awareness`, `us_commitment`)
 - Force postures (e.g., readiness states, deployments)
 - Legacy named-location groupings in `spatial_state`; authoritative tracks and
-  movement orders are specified in [PLAN.md](PLAN.md#2--spatial-decision-loop)
+  movement orders are specified in [PLAN.md](PLAN.md#spatial-decision-loop)
 
 ### 🎲 **Hybrid Inject System**
 
@@ -275,7 +303,7 @@ data/scenarios/war_game_2025/
 - **Loss of Sovereignty**: UK forced into unacceptable compromises
 - **Catastrophic Casualties**: Military or civilian losses spiral
 
-### The Challenge:
+### The Central Tension:
 Every decision involves trade-offs:
 - Act aggressively → Escalation Risk ↑, perceived resolve ↑
 - Seek diplomacy → Escalation Risk ↓, Perceived weakness

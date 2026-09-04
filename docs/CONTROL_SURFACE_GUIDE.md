@@ -1,7 +1,8 @@
 # The live control surface — a plain-English guide
 
-Two web pages, one small server. Both look inside a running (or simulated)
-game. Install the supported dependency set, then start it:
+Two supporting web pages, one small server, and one campaign. Both look inside
+the same running (or simulated) game. Install the supported dependency set,
+then start it:
 
 ```bash
 pip install -r requirements.txt -r api/requirements.txt
@@ -10,13 +11,13 @@ python -m uvicorn api.server:app --port 8000
 
 - **`/dataflow`** — the engine's map. For understanding how the game is
   built, watching it run step by step, and tweaking AI behaviour.
-- **`/dashboard`** — the facilitator's control room. For running a live
-  session for other people and steering it while it happens.
+- **`/dashboard`** — the campaign's operator view. For watching and, when
+  deliberately authorised, steering the running session.
 
-Both are free to explore: click **All → mock** (dataflow) before starting
-a demo, or use **Start demo campaign** on the dashboard — this routes every
-AI call to a free, canned response generator instead of the real API, so
-nothing costs money or credit.
+The pages are free to open, but demos use the server's current model routing.
+To guarantee a no-cost run, set `WARGAME_LLM=mock` before starting the server,
+or click **All → mock** in dataflow before starting a demo. **Start demo
+campaign** on the dashboard does not change model routing by itself.
 
 ---
 
@@ -61,14 +62,15 @@ diagram to your own taste — your layout is remembered on this browser.
 
 ## `/dashboard` — the facilitator's control room
 
-This is what you'd have open while hosting a live game for someone else.
-One continuously-updating page: what's happening right now, the numbers
-driving the story underneath, and the controls to intervene.
+This is the operator view beside the player's campaign. It is one
+continuously-updating page: what's happening right now, the numbers driving the
+story underneath, and the controls to intervene.
 
 **Use it when you want to:**
-- Watch a session happen in real time while someone else plays
-- See the hidden numbers (war risk, public support, alliance trust,
-  casualties) that the player never sees directly
+- Watch the same campaign update in real time
+- See the underlying numbers (war risk, public support, alliance trust and
+  casualties). Classic intentionally shows its metrics; Immersive and Emergent
+  present the campaign differently.
 - Manually push a news event or crisis into a running game
 - Change an AI model or its instructions mid-session, the same as on
   the engine map
@@ -90,8 +92,8 @@ Start a session with **New facilitated game**, or watch a running one by
 pasting its session ID into **Attach**. Creating one issues a separate
 facilitator capability kept in this browser tab. Attaching by session ID alone
 is a public view unless that tab already holds the capability. **Start demo
-campaign** runs a free mock game through the whole page so you can see every
-panel move.
+campaign** runs an automated game through the whole page using the server's
+current model routing.
 
 ---
 
@@ -99,8 +101,10 @@ panel move.
 
 - **Exploring or tweaking the engine, or demoing the architecture** →
   `/dataflow`
-- **Running a real session for real players and want to watch or steer
-  it** → `/dashboard`
+- **Running the campaign and want its supporting operational view** →
+  `/dashboard`
 
-Nothing you do on either page is destructive — reroutes and prompt edits
-can always be cleared back to default, and nothing here touches game saves.
+Reroutes and prompt edits change the running server until they are cleared or
+the server restarts. Injects change the attached campaign. These controls do
+not rewrite existing save files, but they can change what happens in the live
+session.

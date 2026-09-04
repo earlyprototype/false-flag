@@ -85,7 +85,7 @@ branch.
 
 ## References
 
-- [Canonical VR slice](../../PLAN.md#4--quest-ops-room-display)
+- [Canonical XR Ops Room stream](../../PLAN.md#xr-ops-room)
 - [Full feasibility evidence, “VR: the ops room”](../XR_GLOBE_FEASIBILITY.md#6-vr-the-ops-room)
 - [Quest device brief](QUEST3.md)
 - [WebXR Layers specification](https://immersive-web.github.io/layers/)
