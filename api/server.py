@@ -1271,6 +1271,7 @@ async def _stream_adjudication_results(session: GameSession, result: Dict[str, A
 _DASHBOARD_PATH = Path(__file__).resolve().parent / "dashboard.html"
 _DATAFLOW_PATH = Path(__file__).resolve().parent / "dataflow.html"
 _GLOBE_PATH = Path(__file__).resolve().parent / "globe.html"
+_VR_PATH = Path(__file__).resolve().parent / "vr.html"
 _GLOBE_SHADER_PATH = Path(__file__).resolve().parent / "static" / "thermal.shader.js"
 
 
@@ -1424,6 +1425,14 @@ async def globe_page():
     if not _GLOBE_PATH.exists():
         raise HTTPException(status_code=500, detail="globe.html missing")
     return FileResponse(_GLOBE_PATH, media_type="text/html")
+
+
+@app.get("/vr")
+async def vr_page():
+    """Read-only WebXR room observing the campaign supplied in ?game=."""
+    if not _VR_PATH.exists():
+        raise HTTPException(status_code=500, detail="vr.html missing")
+    return FileResponse(_VR_PATH, media_type="text/html")
 
 
 @app.get("/static/thermal.shader.js")
