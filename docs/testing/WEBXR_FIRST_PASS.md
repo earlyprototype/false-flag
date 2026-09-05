@@ -12,12 +12,19 @@ Implementation commit: `9d7857d7ff8e41200672c52f130940f06a843f50` on
 `prototype/webxr-first-pass`. Production changes in this continuation are
 confined to `api/vr.html`; the server route is unchanged.
 
-The existing localhost process 64776 remained healthy and held campaign
-`12b6bb83-8f1d-4405-a79f-6ab16ca76f44`, ending at **turn 3 / discussion**.
-Check its identity, `/health` and public theatre endpoint before reusing it;
-a restart loses this in-memory campaign. No new campaign was created for this
-continuation. The live URL is
-`http://localhost:8001/vr?game=12b6bb83-8f1d-4405-a79f-6ab16ca76f44`.
+The desktop journey used campaign `12b6bb83-8f1d-4405-a79f-6ab16ca76f44`,
+ending at **turn 3 / discussion**. Its previous server process 64776 subsequently
+exited; that in-memory campaign is gone. The exit cause was not established.
+
+The replacement localhost preview is process **62388**, started from this
+worktree with `WARGAME_LLM=mock`. A separately created disposable campaign,
+`d6aa1145-0d11-430f-9522-f35b1d86b676`, loaded the globe and received a new public
+adviser exchange at **turn 1 / discussion**. Its current URL is:
+
+`http://localhost:8001/vr?game=d6aa1145-0d11-430f-9522-f35b1d86b676`
+
+Check process identity, `/health` and the public theatre endpoint before reusing
+it. A restart loses this campaign too; it does not restore the earlier ID.
 
 | Check | Observed result |
 |---|---|
@@ -36,6 +43,11 @@ Local artifacts in the ignored `dev-scripts/play-verify/` directory are
 `webxr-cesium-unavailable.png` and `webxr-cesium-requests.json`. They are not
 published in the PR. `webxr-server.log` is the historical 2D-pass capture; it
 did not update during this continuation and is not evidence for this journey.
+The replacement preview has `webxr-cesium-preview.png` and fresh
+`webxr-cesium-server.log` / `webxr-cesium-server-error.log` files in that same
+ignored directory. Its fresh access log records the two intentional driver
+POSTs (new and discussion); room requests are public theatre/stream GETs,
+including 200/304 revalidation, with no facilitator request.
 
 ## Cesium screen source
 
