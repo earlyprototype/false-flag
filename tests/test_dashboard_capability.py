@@ -326,6 +326,14 @@ async function flushRetryTimers(h) {
   assert.equal(h.elements.sessBadge.textContent, "no session");
 
   h = harness(404);
+  const statuses = [];
+  h.context.setStatus = (...args) => statuses.push(args);
+  h.context.clearRunState = () => { throw new Error("render unavailable"); };
+  h.source().onerror();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(statuses.at(-1), ["session check failed", true]);
+
+  h = harness(404);
   h.elements.sessInput.value = " saved ";
   h.source().onerror();
   await new Promise(resolve => setImmediate(resolve));

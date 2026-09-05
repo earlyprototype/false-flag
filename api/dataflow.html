@@ -1314,7 +1314,8 @@ function attach(sid, capability = null, restoring = false) {
             // Closure can arrive while this probe is pending; keep its final check.
             checkMissingSession();
           }
-        });
+        })
+        .catch(() => setStatus("session check failed", true));
     }
     setStatus("stream lost — session gone or server down", true);
   };
