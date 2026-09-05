@@ -87,6 +87,7 @@ assert.notEqual(start, -1, "session setter not found");
 
 const values = new Map();
 let rememberedUrl = null;
+const location = new URL("https://example.test/dashboard?ionToken=abc#view");
 const elements = {
   sessionInput: { value: "" },
   sessionBadge: { innerHTML: "" },
@@ -94,8 +95,11 @@ const elements = {
 const context = vm.createContext({
   URLSearchParams,
   encodeURIComponent,
-  location: {pathname: "/dashboard", search: "?ionToken=abc", hash: "#view"},
-  history: {replaceState: (_state, _title, url) => { rememberedUrl = url; }},
+  location,
+  history: {replaceState: (_state, _title, url) => {
+    rememberedUrl = url;
+    location.href = new URL(url, location).href;
+  }},
   sessionStorage: {
     getItem: key => values.get(key) || null,
     setItem: (key, value) => values.set(key, value),
@@ -141,6 +145,7 @@ assert.notEqual(start, -1, "dataflow attach function not found");
 
 let latestSource = null;
 let rememberedUrl = null;
+const location = new URL("https://example.test/dataflow?ionToken=abc#view");
 class FakeEventSource {
   constructor(url) { this.url = url; this.listeners = {}; latestSource = this; }
   addEventListener(name, listener) { this.listeners[name] = listener; }
@@ -153,8 +158,11 @@ const elements = {
 };
 const context = vm.createContext({
   URLSearchParams,
-  location: {pathname: "/dataflow", search: "?ionToken=abc", hash: "#view"},
-  history: {replaceState: (_state, _title, url) => { rememberedUrl = url; }},
+  location,
+  history: {replaceState: (_state, _title, url) => {
+    rememberedUrl = url;
+    location.href = new URL(url, location).href;
+  }},
   encodeURIComponent,
   EventSource: FakeEventSource,
   sessionStorage: {getItem: () => null, setItem() {}},
@@ -207,15 +215,15 @@ const restoreEnd = html.indexOf("/* --------------------------------------------
 
 function harness(status) {
   const urls = [];
+  const location = new URL("https://example.test/dashboard?ionToken=abc&game=saved#view");
   const elements = {sessionInput: {value: ""}, sessionBadge: {textContent: ""}};
   const context = vm.createContext({
     URLSearchParams,
-    location: {
-      pathname: "/dashboard",
-      search: "?ionToken=abc&game=saved",
-      hash: "#view",
-    },
-    history: {replaceState: (_state, _title, url) => urls.push(url)},
+    location,
+    history: {replaceState: (_state, _title, url) => {
+      urls.push(url);
+      location.href = new URL(url, location).href;
+    }},
     $: id => elements[id],
     fetch: async () => ({
       ok: false, status, statusText: "Unavailable",
@@ -257,8 +265,10 @@ const html = fs.readFileSync(process.argv[1], "utf8");
 const start = html.indexOf("function updateSessionUrl(");
 const end = html.indexOf("function setStatus", start);
 
-function harness(probe) {
+function harness(probe, savedId = "saved") {
   const urls = [];
+  const location = new URL("https://example.test/dataflow?ionToken=abc&game=saved#view");
+  location.searchParams.set("game", savedId);
   let latestSource = null;
   class FakeEventSource {
     constructor() { this.listeners = {}; latestSource = this; }
@@ -270,12 +280,11 @@ function harness(probe) {
   };
   const context = vm.createContext({
     URLSearchParams,
-    location: {
-      pathname: "/dataflow",
-      search: "?ionToken=abc&game=saved",
-      hash: "#view",
-    },
-    history: {replaceState: (_state, _title, url) => urls.push(url)},
+    location,
+    history: {replaceState: (_state, _title, url) => {
+      urls.push(url);
+      location.href = new URL(url, location).href;
+    }},
     encodeURIComponent,
     EventSource: FakeEventSource,
     fetch: () => typeof probe === "function"
@@ -303,6 +312,20 @@ function harness(probe) {
   assert.equal(vm.runInContext("sessionId", h.context), null);
   assert.equal(h.elements.sessInput.value, "");
   assert.equal(h.elements.sessBadge.textContent, "no session");
+
+  h = harness(404);
+  h.elements.sessInput.value = " saved ";
+  h.source().onerror();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.elements.sessInput.value, "",
+    "whitespace around the old ID does not make it a replacement draft");
+
+  h = harness(404, " saved ");
+  h.source().onerror();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.elements.sessInput.value, "",
+    "an unchanged whitespace-padded ID from the URL must clear on 404");
+  assert.deepEqual(h.urls, ["/dataflow?ionToken=abc#view"]);
 
   h = harness(503);
   h.source().onerror();
@@ -379,6 +402,7 @@ function harness() {
   const pending = new Map();
   const attached = [];
   const urls = [];
+  const location = new URL("https://example.test/dashboard?game=old-session");
   const elements = {
     btnNew: {}, btnAttach: {}, btnDemo: {}, btnDemoStop: {}, btnResetView: {},
     sessionInput: {value: ""}, sessionBadge: {textContent: ""},
@@ -387,8 +411,11 @@ function harness() {
   context = vm.createContext({
     URLSearchParams,
     encodeURIComponent,
-    location: {pathname: "/dashboard", search: "?game=old-session", hash: ""},
-    history: {replaceState: (_state, _title, url) => urls.push(url)},
+    location,
+    history: {replaceState: (_state, _title, url) => {
+      urls.push(url);
+      location.href = new URL(url, location).href;
+    }},
     $: id => elements[id],
     api: (_method, path) => new Promise((resolve, reject) => {
       pending.set(path, {resolve, reject});

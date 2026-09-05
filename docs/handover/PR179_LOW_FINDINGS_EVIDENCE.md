@@ -5,10 +5,10 @@ are addressed on `fix/179-low-findings`, based on `main` at `0c713a0`.
 
 | Finding | Result | Focused proof |
 |---|---|---|
-| Broken restored stream repeatedly probes session existence | At most five probes per restore; native SSE reconnection continues | Eight failures with HTTP 200, HTTP 503 or rejected fetch each produce five probes; later stream readiness still succeeds |
-| Delayed 404 discards an unsubmitted replacement ID | Detaching clears the old session and URL while retaining different input text | A pending 404 resolves after replacement text is entered; session clears and that text remains |
+| Broken restored stream repeatedly probes session existence | At most five probes per restore, without changing browser SSE retry behaviour | Eight failures with HTTP 200, HTTP 503 or rejected fetch each produce five probes; later stream readiness still succeeds |
+| Delayed 404 discards an unsubmitted replacement ID | Detaching clears the old session and URL while retaining different input text | A pending 404 preserves replacement text; surrounding spaces in the input or restored URL do not prevent the old ID clearing |
 | Globe failure tests lack browser globals and the URL helper | Both harnesses provide browser URL state; the attach-only slice includes the helper | Each failure case subsequently attaches successfully, reaching the real URL update path |
-| Globe location mock stays stale after URL changes | `replaceState` updates a real `URL` object in the harness | Two successful attaches preserve a changed token, added query parameter and changed hash |
+| Location mocks stay stale after URL changes | History-writing harnesses in the two focused test files update a real `URL` object | Two successful globe attaches preserve a changed token, added query parameter and changed hash |
 
 The production change is confined to `api/dataflow.html`. Globe behaviour,
 engine rules, player presentations, Mystery, DTDL and server contracts are
@@ -18,18 +18,19 @@ unchanged.
 
 ```powershell
 python -m pytest tests/test_dashboard_capability.py tests/test_globe_session_url.py -q
+node --check dev-scripts/verify_shared_session_recovery.cjs
 git diff --check
 ```
 
-The focused checks passed on 5 September 2026. Both new dataflow regressions
+The focused checks passed on 5 September 2026. The new dataflow regressions
 failed on their respective unfixed behaviours before passing with the changes.
-No broad suite was run.
+No broad local suite was run.
 
 ## Browser evidence
 
 Headless Chromium used the real FastAPI server at `127.0.0.1:8017` with
 `WARGAME_LLM=mock`. The dashboard created campaign
-`2f768ce6-05ef-47a0-bcc0-0a73227728b2`; dataflow and the keyless globe attached
+`221b92a9-d1da-4928-a082-09e9d5bfb3f8`; dataflow and the keyless globe attached
 through their normal controls.
 
 - Five-adviser discussion, decision interpretation and commitment advanced
@@ -44,10 +45,30 @@ through their normal controls.
   advanced that same campaign to turn three on every page. No JavaScript page
   errors were captured.
 
-The runnable browser journey, result JSON and three screenshots are retained
-in the outer workspace at `.claude/evidence/recovery-179-2026-09-05/`.
-The journey accepts an installed `playwright-core` path as its first argument
-and requires the local mock API server above.
+The [browser verification script](../../dev-scripts/verify_shared_session_recovery.cjs)
+checks that the local API and every runtime routing override use the mock
+provider before creating a campaign. With the project's Python dependencies,
+Node.js, Playwright and its Chromium browser installed, start the server from
+the repository root:
+
+```powershell
+$env:WARGAME_LLM = "mock"
+python -m uvicorn api.server:app --host 127.0.0.1 --port 8017 --no-access-log
+```
+
+In another terminal at the repository root, run:
+
+```powershell
+node dev-scripts/verify_shared_session_recovery.cjs
+```
+
+The first optional argument is an installed `playwright` or `playwright-core`
+module path when it is not locally resolvable. The second overrides the output
+directory. By default, the result JSON and three screenshots go to the ignored
+`dev-scripts/play-verify/shared-session-recovery/` directory. The script creates
+a campaign in the local server and requires internet access for the globe's
+map assets. The original capture is also retained in the outer workspace at
+`.claude/evidence/recovery-179-2026-09-05/`.
 
 ## Remaining acceptance limits
 

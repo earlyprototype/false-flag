@@ -1223,7 +1223,7 @@ function attach(sid, capability = null, restoring = false) {
   clearRunState();
   renderAll();
   // A delayed detach must preserve an unsubmitted replacement session ID.
-  if (sid || $("sessInput").value === sessionId) $("sessInput").value = sid || "";
+  if (sid || $("sessInput").value.trim() === (sessionId || "").trim()) $("sessInput").value = sid || "";
   sessionId = sid;
   const storageKey = `false-flag:facilitator:${sid}`;
   if (capability) sessionStorage.setItem(storageKey, capability);
@@ -1238,6 +1238,7 @@ function attach(sid, capability = null, restoring = false) {
   let streamReady = false;
   let missingCheckStarted = false;
   let missingCheckAttempts = 0;
+  const MAX_MISSING_CHECKS = 5;
   es = new EventSource(
     "/stream/" + encodeURIComponent(sid) + "/facilitator");
   const attachedSource = es;
@@ -1276,9 +1277,9 @@ function attach(sid, capability = null, restoring = false) {
   });
   es.onerror = () => {
     if (sessionId !== sid || es !== attachedSource) return;
-    if (restoring && !streamReady && !missingCheckStarted && missingCheckAttempts < 5) {
-      // Only a confirmed 404 proves the remembered session is gone. An
-      // inconclusive probe can retry up to five times; SSE keeps reconnecting.
+    if (restoring && !streamReady && !missingCheckStarted && missingCheckAttempts < MAX_MISSING_CHECKS) {
+      // Only a confirmed 404 proves the remembered session is gone. Bound
+      // inconclusive probes; leave reconnection to the browser.
       missingCheckStarted = true;
       missingCheckAttempts += 1;
       fetch("/game/" + encodeURIComponent(sid))

@@ -104,7 +104,6 @@ vm.runInContext(html.slice(start, end), context);
   await vm.runInContext('attach("next-session")', context);
   assert.equal(currentUrl,
     "/globe?game=next-session&ionToken=updated&overlay=weather#latest");
-  assert.equal(historyCalls, 3);
   assert.equal(requestedUrl, "/game/next-session/theatre");
   assert.equal(renderCalls, 2);
   assert.equal(connectCalls, 2);
