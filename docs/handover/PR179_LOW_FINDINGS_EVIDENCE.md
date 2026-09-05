@@ -27,6 +27,8 @@ git diff --check
 
 The focused checks passed on 5 September 2026. The new dataflow regressions
 failed on their respective unfixed behaviours before passing with the changes.
+An injected teardown exception also verifies that the session check reports
+its failure on the page and retains the error in the console.
 No broad local suite was run.
 
 ## Browser evidence
