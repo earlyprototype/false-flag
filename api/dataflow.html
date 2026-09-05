@@ -1239,7 +1239,9 @@ function attach(sid, capability = null, restoring = false) {
   let missingCheckStarted = false;
   let missingCheckAttempts = 0;
   let finalMissingCheckStarted = false;
+  let finalMissingCheckAttempts = 0;
   const MAX_RECONNECT_CHECKS = 5;
+  const MAX_FINAL_CHECKS = 3;
   es = new EventSource(
     "/stream/" + encodeURIComponent(sid) + "/facilitator");
   const attachedSource = es;
@@ -1279,13 +1281,14 @@ function attach(sid, capability = null, restoring = false) {
   es.onerror = () => {
     if (sessionId !== sid || es !== attachedSource) return;
     const streamClosed = attachedSource.readyState === EventSource.CLOSED;
-    if (((restoring && !streamReady) || (streamReady && streamClosed)) &&
+    if (((restoring && !streamReady) || streamClosed) &&
         !missingCheckStarted && !finalMissingCheckStarted &&
         (missingCheckAttempts < MAX_RECONNECT_CHECKS || streamClosed)) {
       // Only a confirmed 404 proves the session is gone. Allow five probes
-      // while reconnecting, plus one after the browser permanently closes it.
+      // while restoring, plus up to three after the browser closes the stream.
       missingCheckStarted = true;
       finalMissingCheckStarted = streamClosed;
+      if (streamClosed) finalMissingCheckAttempts += 1;
       missingCheckAttempts += 1;
       fetch("/game/" + encodeURIComponent(sid))
         .catch(() => null) // A network failure cannot confirm a missing session.
@@ -1294,14 +1297,23 @@ function attach(sid, capability = null, restoring = false) {
           missingCheckStarted = false;
           // Readiness invalidates an older probe, but not a later terminal check.
           if (response?.status === 404 && (!streamReady || streamClosed)) {
-            updateSessionUrl(null);
+            const unverifiedInput = !restoring && !streamReady ? $("sessInput").value : null;
+            if (new URLSearchParams(location.search).get("game") === sid) updateSessionUrl(null);
             attach(null);
+            if (unverifiedInput !== null) $("sessInput").value = unverifiedInput;
             setStatus("session gone", true);
             return;
           }
-          // Closure can arrive while this probe is pending; keep its final check.
-          if (!finalMissingCheckStarted && attachedSource.readyState === EventSource.CLOSED)
+          if (streamClosed && (!response || response.status >= 500) &&
+              finalMissingCheckAttempts < MAX_FINAL_CHECKS) {
+            setTimeout(() => {
+              finalMissingCheckStarted = false;
+              attachedSource.onerror();
+            }, 1000);
+          } else if (!finalMissingCheckStarted && attachedSource.readyState === EventSource.CLOSED) {
+            // Closure can arrive while this probe is pending; keep its final check.
             attachedSource.onerror();
+          }
         });
     }
     setStatus("stream lost — session gone or server down", true);

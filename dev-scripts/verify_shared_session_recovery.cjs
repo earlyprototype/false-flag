@@ -119,11 +119,16 @@ fs.mkdirSync(evidenceDir, { recursive: true });
     }
 
     const missingSessions = [];
-    for (const hadStreamReady of [false, true]) {
+    for (const { hadStreamReady, manual } of [
+      { hadStreamReady: false, manual: false },
+      { hadStreamReady: true, manual: false },
+      { hadStreamReady: false, manual: true },
+    ]) {
       const missing = await context.newPage();
       missing.on('pageerror', error => errors.push({ page: 'missing-session', message: error.message }));
-      const missingId = id + '-missing-' + hadStreamReady;
-      const result = { hadStreamReady, streamRequests: 0, existenceProbes: 0 };
+      const missingId = id + '-missing-' + hadStreamReady + '-' + manual;
+      const initialProbes = !hadStreamReady && !manual ? 5 : 0;
+      const result = { hadStreamReady, manual, streamRequests: 0, existenceProbes: 0 };
       await missing.route(base + '/stream/' + missingId + '/facilitator', route => {
         result.streamRequests += 1;
         if (result.streamRequests <= 5)
@@ -133,19 +138,28 @@ fs.mkdirSync(evidenceDir, { recursive: true });
       });
       await missing.route(base + '/game/' + missingId, route => {
         result.existenceProbes += 1;
-        return !hadStreamReady && result.existenceProbes <= 5 ? route.abort() : route.continue();
+        if (result.existenceProbes === initialProbes + 1)
+          return route.fulfill({ status: 503, body: 'temporarily unavailable' });
+        return result.existenceProbes <= initialProbes + 2 ? route.abort() : route.continue();
       });
-      await missing.goto(base + '/dataflow?proof=recovery&game=' + missingId + '#keep');
-      await missing.waitForFunction(() => sessionId === null && !new URL(location.href).searchParams.has('game'));
+      await missing.goto(base + '/dataflow?proof=recovery&game=' + (manual ? id : missingId) + '#keep');
+      if (manual) {
+        await missing.waitForFunction(() => es?.readyState === EventSource.OPEN);
+        await missing.locator('#sessInput').fill(missingId);
+        await missing.locator('#attachBtn').click();
+      }
+      await missing.waitForFunction(expectedGame => sessionId === null &&
+        new URL(location.href).searchParams.get('game') === expectedGame, manual ? id : null);
       assert.equal(result.streamRequests, 6);
-      assert.equal(result.existenceProbes, hadStreamReady ? 1 : 6);
-      assert.equal(await missing.locator('#sessInput').inputValue(), '');
+      assert.equal(result.existenceProbes, initialProbes + 3);
+      assert.equal(await missing.locator('#sessInput').inputValue(), manual ? missingId : '');
+      assert.equal(await missing.locator('#sessBadge').textContent(), 'no session');
       assert.equal(new URL(missing.url()).searchParams.get('proof'), 'recovery');
       assert.equal(new URL(missing.url()).hash, '#keep');
       missingSessions.push(result);
     }
     assert.deepEqual(errors, []);
-    console.log('Real API 404 cleared missing sessions both before and after stream readiness');
+    console.log('Terminal retries confirmed missing sessions; failed manual replacement preserved the working URL');
 
     const evidence = { sessionId: id, provider: routing.provider, reconnectFault: 'closed first SSE response; automatic retry reaches real API', afterTurn, restored, afterReconnect, streamRequests, missingSessions, pageErrors: errors };
     fs.writeFileSync(path.join(evidenceDir, 'browser-result.json'), JSON.stringify(evidence, null, 2) + '\n');

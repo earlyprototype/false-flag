@@ -147,7 +147,8 @@ let latestSource = null;
 let rememberedUrl = null;
 const location = new URL("https://example.test/dataflow?ionToken=abc#view");
 class FakeEventSource {
-  constructor(url) { this.url = url; this.listeners = {}; latestSource = this; }
+  static CLOSED = 2;
+  constructor(url) { this.readyState = 0; this.url = url; this.listeners = {}; latestSource = this; }
   addEventListener(name, listener) { this.listeners[name] = listener; }
   close() {}
 }
@@ -267,6 +268,7 @@ const end = html.indexOf("function setStatus", start);
 
 function harness(probe, savedId = "saved") {
   const urls = [];
+  const timers = [];
   const location = new URL("https://example.test/dataflow?ionToken=abc&game=saved#view");
   location.searchParams.set("game", savedId);
   let latestSource = null;
@@ -290,6 +292,7 @@ function harness(probe, savedId = "saved") {
     EventSource: FakeEventSource,
     fetch: () => typeof probe === "function"
       ? probe() : Promise.resolve({status: probe}),
+    setTimeout: callback => { timers.push(callback); },
     sessionStorage: {getItem: () => null, setItem() {}},
     $: id => elements[id],
     clearRunState() {}, renderAll() {}, pulse() {}, renderLive() {}, renderDtdl() {},
@@ -302,7 +305,15 @@ function harness(probe, savedId = "saved") {
   );
   vm.runInContext(html.slice(start, end), context);
   vm.runInContext("restoreSessionFromUrl()", context);
-  return {context, source: () => latestSource, urls, elements};
+  return {context, source: () => latestSource, urls, elements, timers};
+}
+
+async function flushRetryTimers(h) {
+  for (let retry = 0; retry < 3 && h.timers.length; retry += 1) {
+    h.timers.shift()();
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  assert.equal(h.timers.length, 0, "terminal retries must stop within the budget");
 }
 
 (async () => {
@@ -379,9 +390,35 @@ function harness(probe, savedId = "saved") {
       h.source().onerror();
       await new Promise(resolve => setImmediate(resolve));
     }
-    assert.equal(probes, 6, "a closed stream gets exactly one final existence probe");
+    await flushRetryTimers(h);
+    const retryable = finalResult instanceof Error || finalResult >= 500;
+    assert.equal(probes, retryable ? 8 : 6, "terminal checks must stay within their three-attempt budget");
     assert.equal(vm.runInContext("sessionId", h.context), finalResult === 404 ? null : "saved");
     assert.deepEqual(h.urls, finalResult === 404 ? ["/dataflow?ionToken=abc#view"] : []);
+  }
+
+  for (const transientResult of [503, new Error("terminal network blip")]) {
+    let probes = 0;
+    h = harness(() => {
+      probes += 1;
+      if (probes <= 5) return Promise.reject(new Error("server down"));
+      if (probes === 6) return transientResult instanceof Error
+        ? Promise.reject(transientResult) : Promise.resolve({status: transientResult});
+      return Promise.resolve({status: 404});
+    });
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      h.source().onerror();
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    h.source().readyState = 2;
+    h.source().onerror();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(h.timers.length, 1, "an inconclusive terminal check must schedule a retry");
+    await flushRetryTimers(h);
+    assert.equal(probes, 7);
+    assert.equal(vm.runInContext("sessionId", h.context), null);
+    assert.equal(h.elements.sessInput.value, "");
+    assert.deepEqual(h.urls, ["/dataflow?ionToken=abc#view"]);
   }
 
   for (const pendingResult of [503, new Error("last probe failed")]) {
@@ -421,6 +458,20 @@ function harness(probe, savedId = "saved") {
       "terminal session loss must clear a previously connected session");
     assert.equal(h.elements.sessInput.value, "");
     assert.equal(h.urls.at(-1), "/dataflow?ionToken=abc#view");
+  }
+
+  for (const manualId of ["saved", "missing-manual"]) {
+    h = harness(404);
+    vm.runInContext(`attach(${JSON.stringify(manualId)})`, h.context);
+    h.source().readyState = 2;
+    h.source().onerror();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(vm.runInContext("sessionId", h.context), null,
+      "a confirmed missing manual attachment must clear its session status");
+    assert.equal(h.elements.sessBadge.textContent, "no session");
+    assert.equal(h.elements.sessInput.value, manualId, "keep the typed ID available for correction");
+    assert.deepEqual(h.urls, manualId === "saved" ? ["/dataflow?ionToken=abc#view"] : [],
+      "a failed replacement must preserve the last working session URL");
   }
 
   let resolveProbe;
