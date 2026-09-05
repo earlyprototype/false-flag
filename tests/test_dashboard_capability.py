@@ -87,6 +87,7 @@ assert.notEqual(start, -1, "session setter not found");
 
 const values = new Map();
 let rememberedUrl = null;
+const location = new URL("https://example.test/dashboard?ionToken=abc#view");
 const elements = {
   sessionInput: { value: "" },
   sessionBadge: { innerHTML: "" },
@@ -94,8 +95,11 @@ const elements = {
 const context = vm.createContext({
   URLSearchParams,
   encodeURIComponent,
-  location: {pathname: "/dashboard", search: "?ionToken=abc", hash: "#view"},
-  history: {replaceState: (_state, _title, url) => { rememberedUrl = url; }},
+  location,
+  history: {replaceState: (_state, _title, url) => {
+    rememberedUrl = url;
+    location.href = new URL(url, location).href;
+  }},
   sessionStorage: {
     getItem: key => values.get(key) || null,
     setItem: (key, value) => values.set(key, value),
@@ -141,8 +145,10 @@ assert.notEqual(start, -1, "dataflow attach function not found");
 
 let latestSource = null;
 let rememberedUrl = null;
+const location = new URL("https://example.test/dataflow?ionToken=abc#view");
 class FakeEventSource {
-  constructor(url) { this.url = url; this.listeners = {}; latestSource = this; }
+  static CLOSED = 2;
+  constructor(url) { this.readyState = 0; this.url = url; this.listeners = {}; latestSource = this; }
   addEventListener(name, listener) { this.listeners[name] = listener; }
   close() {}
 }
@@ -153,8 +159,11 @@ const elements = {
 };
 const context = vm.createContext({
   URLSearchParams,
-  location: {pathname: "/dataflow", search: "?ionToken=abc", hash: "#view"},
-  history: {replaceState: (_state, _title, url) => { rememberedUrl = url; }},
+  location,
+  history: {replaceState: (_state, _title, url) => {
+    rememberedUrl = url;
+    location.href = new URL(url, location).href;
+  }},
   encodeURIComponent,
   EventSource: FakeEventSource,
   sessionStorage: {getItem: () => null, setItem() {}},
@@ -207,15 +216,15 @@ const restoreEnd = html.indexOf("/* --------------------------------------------
 
 function harness(status) {
   const urls = [];
+  const location = new URL("https://example.test/dashboard?ionToken=abc&game=saved#view");
   const elements = {sessionInput: {value: ""}, sessionBadge: {textContent: ""}};
   const context = vm.createContext({
     URLSearchParams,
-    location: {
-      pathname: "/dashboard",
-      search: "?ionToken=abc&game=saved",
-      hash: "#view",
-    },
-    history: {replaceState: (_state, _title, url) => urls.push(url)},
+    location,
+    history: {replaceState: (_state, _title, url) => {
+      urls.push(url);
+      location.href = new URL(url, location).href;
+    }},
     $: id => elements[id],
     fetch: async () => ({
       ok: false, status, statusText: "Unavailable",
@@ -257,29 +266,33 @@ const html = fs.readFileSync(process.argv[1], "utf8");
 const start = html.indexOf("function updateSessionUrl(");
 const end = html.indexOf("function setStatus", start);
 
-function harness(probe) {
+function harness(probe, savedId = "saved") {
   const urls = [];
+  const timers = [];
+  const location = new URL("https://example.test/dataflow?ionToken=abc&game=saved#view");
+  location.searchParams.set("game", savedId);
   let latestSource = null;
   class FakeEventSource {
-    constructor() { this.listeners = {}; latestSource = this; }
+    static CLOSED = 2;
+    constructor() { this.readyState = 0; this.listeners = {}; latestSource = this; }
     addEventListener(name, listener) { this.listeners[name] = listener; }
-    close() {}
+    close() { this.readyState = FakeEventSource.CLOSED; }
   }
   const elements = {
     sessInput: {value: ""}, sessBadge: {textContent: ""}, turnBadge: {textContent: ""},
   };
   const context = vm.createContext({
     URLSearchParams,
-    location: {
-      pathname: "/dataflow",
-      search: "?ionToken=abc&game=saved",
-      hash: "#view",
-    },
-    history: {replaceState: (_state, _title, url) => urls.push(url)},
+    location,
+    history: {replaceState: (_state, _title, url) => {
+      urls.push(url);
+      location.href = new URL(url, location).href;
+    }},
     encodeURIComponent,
     EventSource: FakeEventSource,
     fetch: () => typeof probe === "function"
       ? probe() : Promise.resolve({status: probe}),
+    setTimeout: callback => { timers.push(callback); },
     sessionStorage: {getItem: () => null, setItem() {}},
     $: id => elements[id],
     clearRunState() {}, renderAll() {}, pulse() {}, renderLive() {}, renderDtdl() {},
@@ -292,7 +305,15 @@ function harness(probe) {
   );
   vm.runInContext(html.slice(start, end), context);
   vm.runInContext("restoreSessionFromUrl()", context);
-  return {context, source: () => latestSource, urls, elements};
+  return {context, source: () => latestSource, urls, elements, timers};
+}
+
+async function flushRetryTimers(h) {
+  for (let retry = 0; retry < 3 && h.timers.length; retry += 1) {
+    h.timers.shift()();
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  assert.equal(h.timers.length, 0, "terminal retries must stop within the budget");
 }
 
 (async () => {
@@ -303,6 +324,20 @@ function harness(probe) {
   assert.equal(vm.runInContext("sessionId", h.context), null);
   assert.equal(h.elements.sessInput.value, "");
   assert.equal(h.elements.sessBadge.textContent, "no session");
+
+  h = harness(404);
+  h.elements.sessInput.value = " saved ";
+  h.source().onerror();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.elements.sessInput.value, "",
+    "whitespace around the old ID does not make it a replacement draft");
+
+  h = harness(404, " saved ");
+  h.source().onerror();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.elements.sessInput.value, "",
+    "an unchanged whitespace-padded ID from the URL must clear on 404");
+  assert.deepEqual(h.urls, ["/dataflow?ionToken=abc#view"]);
 
   h = harness(503);
   h.source().onerror();
@@ -318,7 +353,146 @@ function harness(probe) {
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(h.urls, ["/dataflow?ionToken=abc#view"]);
 
+  for (const result of [200, 503, new Error("network down")]) {
+    let probes = 0;
+    h = harness(() => {
+      probes += 1;
+      return result instanceof Error
+        ? Promise.reject(result) : Promise.resolve({status: result});
+    });
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      h.source().onerror();
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    assert.equal(probes, 5, "persistent stream failure must stop existence probes");
+    assert.deepEqual(h.urls, [], "inconclusive probes must keep the saved URL");
+    assert.equal(vm.runInContext("sessionId", h.context), "saved");
+    h.source().listeners.stream_ready({data: '{"viewer":"public"}'});
+    assert.match(h.elements.sessBadge.textContent, /public/);
+    assert.deepEqual(h.urls, ["/dataflow?ionToken=abc&game=saved#view"]);
+  }
+
+  for (const finalResult of [404, 200, 401, 403, 429, 503, new Error("still offline")]) {
+    let probes = 0;
+    h = harness(() => {
+      probes += 1;
+      if (probes <= 5) return Promise.reject(new Error("server down"));
+      return finalResult instanceof Error
+        ? Promise.reject(finalResult) : Promise.resolve({status: finalResult});
+    });
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      h.source().onerror();
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    assert.equal(probes, 5);
+    h.source().readyState = 2;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      h.source().onerror();
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    await flushRetryTimers(h);
+    const retryable = finalResult instanceof Error || (finalResult >= 400 && finalResult !== 404);
+    assert.equal(probes, retryable ? 8 : 6, "terminal checks must stay within their three-attempt budget");
+    assert.equal(vm.runInContext("sessionId", h.context), finalResult === 404 ? null : "saved");
+    assert.deepEqual(h.urls, finalResult === 404 ? ["/dataflow?ionToken=abc#view"] : []);
+  }
+
+  for (const transientResult of [401, 403, 429, 503, new Error("terminal network blip")]) {
+    let probes = 0;
+    h = harness(() => {
+      probes += 1;
+      if (probes <= 5) return Promise.reject(new Error("server down"));
+      if (probes === 6) return transientResult instanceof Error
+        ? Promise.reject(transientResult) : Promise.resolve({status: transientResult});
+      return Promise.resolve({status: 404});
+    });
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      h.source().onerror();
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    h.source().readyState = 2;
+    h.source().onerror();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(h.timers.length, 1, "an inconclusive terminal check must schedule a retry");
+    await flushRetryTimers(h);
+    assert.equal(probes, 7);
+    assert.equal(vm.runInContext("sessionId", h.context), null);
+    assert.equal(h.elements.sessInput.value, "");
+    assert.deepEqual(h.urls, ["/dataflow?ionToken=abc#view"]);
+  }
+
+  for (const pendingResult of [503, new Error("last probe failed")]) {
+    let finishPendingProbe;
+    let probes = 0;
+    h = harness(() => {
+      probes += 1;
+      if (probes < 5) return Promise.reject(new Error("server down"));
+      if (probes === 5) return new Promise((resolve, reject) => {
+        finishPendingProbe = () => pendingResult instanceof Error
+          ? reject(pendingResult) : resolve({status: pendingResult});
+      });
+      return Promise.resolve({status: 404});
+    });
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      h.source().onerror();
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    h.source().readyState = 2;
+    h.source().onerror();
+    assert.equal(probes, 5, "the final probe must not overlap a pending probe");
+    finishPendingProbe();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(probes, 6, "an inconclusive pending probe must not swallow the final check");
+    assert.equal(vm.runInContext("sessionId", h.context), null);
+    assert.deepEqual(h.urls, ["/dataflow?ionToken=abc#view"]);
+  }
+
+  for (const manualId of [null, "manual-session"]) {
+    h = harness(404);
+    if (manualId) vm.runInContext(`attach(${JSON.stringify(manualId)})`, h.context);
+    h.source().listeners.stream_ready({data: '{"viewer":"public"}'});
+    h.source().readyState = 2;
+    h.source().onerror();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(vm.runInContext("sessionId", h.context), null,
+      "terminal session loss must clear a previously connected session");
+    assert.equal(h.elements.sessInput.value, "");
+    assert.equal(h.urls.at(-1), "/dataflow?ionToken=abc#view");
+  }
+
+  for (const manualId of ["saved", "missing-manual"]) {
+    h = harness(404);
+    vm.runInContext(`attach(${JSON.stringify(manualId)})`, h.context);
+    h.source().readyState = 2;
+    h.source().onerror();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(vm.runInContext("sessionId", h.context), null,
+      "a confirmed missing manual attachment must clear its session status");
+    assert.equal(h.elements.sessBadge.textContent, "no session");
+    assert.equal(h.elements.sessInput.value, manualId, "keep the typed ID available for correction");
+    assert.deepEqual(h.urls, manualId === "saved" ? ["/dataflow?ionToken=abc#view"] : [],
+      "a failed replacement must preserve the last working session URL");
+  }
+
   let resolveProbe;
+  let postReadyProbes = 0;
+  h = harness(() => {
+    postReadyProbes += 1;
+    return postReadyProbes === 1
+      ? new Promise(resolve => { resolveProbe = resolve; }) : Promise.resolve({status: 200});
+  });
+  h.source().onerror();
+  h.source().listeners.stream_ready({data: '{"viewer":"public"}'});
+  h.source().readyState = 2;
+  h.source().onerror();
+  assert.equal(postReadyProbes, 1, "closure after readiness must still respect an in-flight probe");
+  resolveProbe({status: 404});
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(postReadyProbes, 2, "closure after readiness still needs its own final probe");
+  assert.equal(vm.runInContext("sessionId", h.context), "saved",
+    "a pre-readiness 404 must not override the newer final probe's HTTP 200");
+  assert.deepEqual(h.urls, ["/dataflow?ionToken=abc&game=saved#view"]);
+
   h = harness(() => new Promise(resolve => { resolveProbe = resolve; }));
   h.source().onerror();
   vm.runInContext('attach("saved")', h.context);
@@ -326,6 +500,16 @@ function harness(probe) {
   resolveProbe({status: 404});
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(h.urls, ["/dataflow?ionToken=abc&game=saved#view"]);
+
+  h = harness(() => new Promise(resolve => { resolveProbe = resolve; }));
+  h.source().onerror();
+  h.elements.sessInput.value = "replacement session draft";
+  resolveProbe({status: 404});
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(vm.runInContext("sessionId", h.context), null);
+  assert.deepEqual(h.urls, ["/dataflow?ionToken=abc#view"]);
+  assert.equal(h.elements.sessInput.value, "replacement session draft",
+    "a delayed 404 must preserve an unsubmitted replacement ID");
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
@@ -350,6 +534,7 @@ function harness() {
   const pending = new Map();
   const attached = [];
   const urls = [];
+  const location = new URL("https://example.test/dashboard?game=old-session");
   const elements = {
     btnNew: {}, btnAttach: {}, btnDemo: {}, btnDemoStop: {}, btnResetView: {},
     sessionInput: {value: ""}, sessionBadge: {textContent: ""},
@@ -358,8 +543,11 @@ function harness() {
   context = vm.createContext({
     URLSearchParams,
     encodeURIComponent,
-    location: {pathname: "/dashboard", search: "?game=old-session", hash: ""},
-    history: {replaceState: (_state, _title, url) => urls.push(url)},
+    location,
+    history: {replaceState: (_state, _title, url) => {
+      urls.push(url);
+      location.href = new URL(url, location).href;
+    }},
     $: id => elements[id],
     api: (_method, path) => new Promise((resolve, reject) => {
       pending.set(path, {resolve, reject});

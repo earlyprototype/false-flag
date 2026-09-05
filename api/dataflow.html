@@ -1222,8 +1222,9 @@ function attach(sid, capability = null, restoring = false) {
   // badges rather than counting on from them.
   clearRunState();
   renderAll();
+  // A delayed detach must preserve an unsubmitted replacement session ID.
+  if (sid || $("sessInput").value.trim() === (sessionId || "").trim()) $("sessInput").value = sid || "";
   sessionId = sid;
-  $("sessInput").value = sid || "";
   const storageKey = `false-flag:facilitator:${sid}`;
   if (capability) sessionStorage.setItem(storageKey, capability);
   facilitatorCapability = sid
@@ -1236,6 +1237,11 @@ function attach(sid, capability = null, restoring = false) {
   if (!sid) return;
   let streamReady = false;
   let missingCheckStarted = false;
+  let missingCheckAttempts = 0;
+  let finalMissingCheckStarted = false;
+  let finalMissingCheckAttempts = 0;
+  const MAX_RECONNECT_CHECKS = 5;
+  const MAX_FINAL_CHECKS = 3;
   es = new EventSource(
     "/stream/" + encodeURIComponent(sid) + "/facilitator");
   const attachedSource = es;
@@ -1272,26 +1278,42 @@ function attach(sid, capability = null, restoring = false) {
       renderDtdl(NODE_BY_ID[selected]);
     pulse("node-bus");
   });
-  es.onerror = () => {
+  es.onerror = function checkMissingSession() {
     if (sessionId !== sid || es !== attachedSource) return;
-    if (restoring && !streamReady && !missingCheckStarted) {
-      // Only a confirmed 404 proves the remembered session is gone. An
-      // inconclusive probe resets so a later reconnect failure can try again.
+    const streamClosed = attachedSource.readyState === EventSource.CLOSED;
+    if (((restoring && !streamReady) || streamClosed) &&
+        !missingCheckStarted && !finalMissingCheckStarted &&
+        (missingCheckAttempts < MAX_RECONNECT_CHECKS || streamClosed)) {
+      // Only a confirmed 404 proves the session is gone. Allow five probes
+      // while restoring, plus up to three after the browser closes the stream.
       missingCheckStarted = true;
+      finalMissingCheckStarted = streamClosed;
+      if (streamClosed) finalMissingCheckAttempts += 1;
+      missingCheckAttempts += 1;
       fetch("/game/" + encodeURIComponent(sid))
+        .catch(() => null) // A network failure cannot confirm a missing session.
         .then(response => {
-          if (sessionId !== sid || es !== attachedSource || streamReady) return;
-          if (response.status === 404) {
-            updateSessionUrl(null);
+          if (sessionId !== sid || es !== attachedSource) return;
+          missingCheckStarted = false;
+          // Readiness invalidates an older probe, but not a later terminal check.
+          if (response?.status === 404 && (!streamReady || streamClosed)) {
+            const unverifiedInput = !restoring && !streamReady ? $("sessInput").value : null;
+            if (new URLSearchParams(location.search).get("game") === sid) updateSessionUrl(null);
             attach(null);
+            if (unverifiedInput !== null) $("sessInput").value = unverifiedInput;
             setStatus("session gone", true);
             return;
           }
-          missingCheckStarted = false;
-        })
-        .catch(() => {
-          if (sessionId === sid && es === attachedSource && !streamReady)
-            missingCheckStarted = false;
+          if (streamClosed && (!response || response.status >= 400) &&
+              finalMissingCheckAttempts < MAX_FINAL_CHECKS) {
+            setTimeout(() => {
+              finalMissingCheckStarted = false;
+              checkMissingSession();
+            }, 1000);
+          } else if (!finalMissingCheckStarted && attachedSource.readyState === EventSource.CLOSED) {
+            // Closure can arrive while this probe is pending; keep its final check.
+            checkMissingSession();
+          }
         });
     }
     setStatus("stream lost — session gone or server down", true);
