@@ -1278,7 +1278,7 @@ function attach(sid, capability = null, restoring = false) {
       renderDtdl(NODE_BY_ID[selected]);
     pulse("node-bus");
   });
-  es.onerror = () => {
+  es.onerror = function checkMissingSession() {
     if (sessionId !== sid || es !== attachedSource) return;
     const streamClosed = attachedSource.readyState === EventSource.CLOSED;
     if (((restoring && !streamReady) || streamClosed) &&
@@ -1304,15 +1304,15 @@ function attach(sid, capability = null, restoring = false) {
             setStatus("session gone", true);
             return;
           }
-          if (streamClosed && (!response || response.status >= 500) &&
+          if (streamClosed && (!response || response.status >= 400) &&
               finalMissingCheckAttempts < MAX_FINAL_CHECKS) {
             setTimeout(() => {
               finalMissingCheckStarted = false;
-              attachedSource.onerror();
+              checkMissingSession();
             }, 1000);
           } else if (!finalMissingCheckStarted && attachedSource.readyState === EventSource.CLOSED) {
             // Closure can arrive while this probe is pending; keep its final check.
-            attachedSource.onerror();
+            checkMissingSession();
           }
         });
     }

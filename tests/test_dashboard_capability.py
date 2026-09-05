@@ -372,7 +372,7 @@ async function flushRetryTimers(h) {
     assert.deepEqual(h.urls, ["/dataflow?ionToken=abc&game=saved#view"]);
   }
 
-  for (const finalResult of [404, 200, 503, new Error("still offline")]) {
+  for (const finalResult of [404, 200, 401, 403, 429, 503, new Error("still offline")]) {
     let probes = 0;
     h = harness(() => {
       probes += 1;
@@ -391,13 +391,13 @@ async function flushRetryTimers(h) {
       await new Promise(resolve => setImmediate(resolve));
     }
     await flushRetryTimers(h);
-    const retryable = finalResult instanceof Error || finalResult >= 500;
+    const retryable = finalResult instanceof Error || (finalResult >= 400 && finalResult !== 404);
     assert.equal(probes, retryable ? 8 : 6, "terminal checks must stay within their three-attempt budget");
     assert.equal(vm.runInContext("sessionId", h.context), finalResult === 404 ? null : "saved");
     assert.deepEqual(h.urls, finalResult === 404 ? ["/dataflow?ionToken=abc#view"] : []);
   }
 
-  for (const transientResult of [503, new Error("terminal network blip")]) {
+  for (const transientResult of [401, 403, 429, 503, new Error("terminal network blip")]) {
     let probes = 0;
     h = harness(() => {
       probes += 1;

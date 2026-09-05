@@ -6,7 +6,7 @@ Separate terminal checks also address the [post-outage session-loss finding](htt
 
 | Finding | Result | Focused proof |
 |---|---|---|
-| Broken restored stream repeatedly probes session existence | At most five checks during restoration plus three terminal checks, with one-second delays after network failures or HTTP 5xx | Reconnecting failures stop at five; terminal retries stop at three, including when closure arrives during another probe |
+| Broken restored stream repeatedly probes session existence | At most five checks during restoration plus three terminal checks, with one-second delays after network failures or HTTP errors other than 404 | Reconnecting failures stop at five; terminal retries cover HTTP 401, 403, 429 and 503 and stop at three, including when closure arrives during another probe |
 | Delayed 404 discards an unsubmitted replacement ID | Detaching clears the old session and URL while retaining different input text | A pending 404 preserves replacement text; surrounding spaces in the input or restored URL do not prevent the old ID clearing |
 | Globe failure tests lack browser globals and the URL helper | Both harnesses provide browser URL state; the attach-only slice includes the helper | Each failure case subsequently attaches successfully, reaching the real URL update path |
 | Location mocks stay stale after URL changes | History-writing harnesses in the two focused test files update a real `URL` object | Two successful globe attaches preserve a changed token, added query parameter and changed hash |
