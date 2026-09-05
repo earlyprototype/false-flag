@@ -114,11 +114,40 @@ fs.mkdirSync(evidenceDir, { recursive: true });
     console.log('Reload and automatic retry after an interrupted SSE response retained the same session');
     const afterReconnect = await playTurn(true);
     assert.equal(afterReconnect.turn, 3);
-    assert.deepEqual(errors, []);
     for (const [name, page] of Object.entries(pages)) {
       await page.screenshot({ path: path.join(evidenceDir, name + '.png') });
     }
-    const evidence = { sessionId: id, provider: routing.provider, reconnectFault: 'closed first SSE response; automatic retry reaches real API', afterTurn, restored, afterReconnect, streamRequests, pageErrors: errors };
+
+    const missingSessions = [];
+    for (const hadStreamReady of [false, true]) {
+      const missing = await context.newPage();
+      missing.on('pageerror', error => errors.push({ page: 'missing-session', message: error.message }));
+      const missingId = id + '-missing-' + hadStreamReady;
+      const result = { hadStreamReady, streamRequests: 0, existenceProbes: 0 };
+      await missing.route(base + '/stream/' + missingId + '/facilitator', route => {
+        result.streamRequests += 1;
+        if (result.streamRequests <= 5)
+          return route.fulfill({ status: 200, contentType: 'text/event-stream',
+            body: hadStreamReady ? 'event: stream_ready\ndata: {"viewer":"public"}\n\n' : ': interrupted\n\n' });
+        return route.continue();
+      });
+      await missing.route(base + '/game/' + missingId, route => {
+        result.existenceProbes += 1;
+        return !hadStreamReady && result.existenceProbes <= 5 ? route.abort() : route.continue();
+      });
+      await missing.goto(base + '/dataflow?proof=recovery&game=' + missingId + '#keep');
+      await missing.waitForFunction(() => sessionId === null && !new URL(location.href).searchParams.has('game'));
+      assert.equal(result.streamRequests, 6);
+      assert.equal(result.existenceProbes, hadStreamReady ? 1 : 6);
+      assert.equal(await missing.locator('#sessInput').inputValue(), '');
+      assert.equal(new URL(missing.url()).searchParams.get('proof'), 'recovery');
+      assert.equal(new URL(missing.url()).hash, '#keep');
+      missingSessions.push(result);
+    }
+    assert.deepEqual(errors, []);
+    console.log('Real API 404 cleared missing sessions both before and after stream readiness');
+
+    const evidence = { sessionId: id, provider: routing.provider, reconnectFault: 'closed first SSE response; automatic retry reaches real API', afterTurn, restored, afterReconnect, streamRequests, missingSessions, pageErrors: errors };
     fs.writeFileSync(path.join(evidenceDir, 'browser-result.json'), JSON.stringify(evidence, null, 2) + '\n');
     console.log(JSON.stringify(evidence, null, 2));
   } finally {

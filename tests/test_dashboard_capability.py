@@ -271,9 +271,10 @@ function harness(probe, savedId = "saved") {
   location.searchParams.set("game", savedId);
   let latestSource = null;
   class FakeEventSource {
-    constructor() { this.listeners = {}; latestSource = this; }
+    static CLOSED = 2;
+    constructor() { this.readyState = 0; this.listeners = {}; latestSource = this; }
     addEventListener(name, listener) { this.listeners[name] = listener; }
-    close() {}
+    close() { this.readyState = FakeEventSource.CLOSED; }
   }
   const elements = {
     sessInput: {value: ""}, sessBadge: {textContent: ""}, turnBadge: {textContent: ""},
@@ -360,7 +361,87 @@ function harness(probe, savedId = "saved") {
     assert.deepEqual(h.urls, ["/dataflow?ionToken=abc&game=saved#view"]);
   }
 
+  for (const finalResult of [404, 200, 503, new Error("still offline")]) {
+    let probes = 0;
+    h = harness(() => {
+      probes += 1;
+      if (probes <= 5) return Promise.reject(new Error("server down"));
+      return finalResult instanceof Error
+        ? Promise.reject(finalResult) : Promise.resolve({status: finalResult});
+    });
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      h.source().onerror();
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    assert.equal(probes, 5);
+    h.source().readyState = 2;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      h.source().onerror();
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    assert.equal(probes, 6, "a closed stream gets exactly one final existence probe");
+    assert.equal(vm.runInContext("sessionId", h.context), finalResult === 404 ? null : "saved");
+    assert.deepEqual(h.urls, finalResult === 404 ? ["/dataflow?ionToken=abc#view"] : []);
+  }
+
+  for (const pendingResult of [503, new Error("last probe failed")]) {
+    let finishPendingProbe;
+    let probes = 0;
+    h = harness(() => {
+      probes += 1;
+      if (probes < 5) return Promise.reject(new Error("server down"));
+      if (probes === 5) return new Promise((resolve, reject) => {
+        finishPendingProbe = () => pendingResult instanceof Error
+          ? reject(pendingResult) : resolve({status: pendingResult});
+      });
+      return Promise.resolve({status: 404});
+    });
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      h.source().onerror();
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    h.source().readyState = 2;
+    h.source().onerror();
+    assert.equal(probes, 5, "the final probe must not overlap a pending probe");
+    finishPendingProbe();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(probes, 6, "an inconclusive pending probe must not swallow the final check");
+    assert.equal(vm.runInContext("sessionId", h.context), null);
+    assert.deepEqual(h.urls, ["/dataflow?ionToken=abc#view"]);
+  }
+
+  for (const manualId of [null, "manual-session"]) {
+    h = harness(404);
+    if (manualId) vm.runInContext(`attach(${JSON.stringify(manualId)})`, h.context);
+    h.source().listeners.stream_ready({data: '{"viewer":"public"}'});
+    h.source().readyState = 2;
+    h.source().onerror();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(vm.runInContext("sessionId", h.context), null,
+      "terminal session loss must clear a previously connected session");
+    assert.equal(h.elements.sessInput.value, "");
+    assert.equal(h.urls.at(-1), "/dataflow?ionToken=abc#view");
+  }
+
   let resolveProbe;
+  let postReadyProbes = 0;
+  h = harness(() => {
+    postReadyProbes += 1;
+    return postReadyProbes === 1
+      ? new Promise(resolve => { resolveProbe = resolve; }) : Promise.resolve({status: 200});
+  });
+  h.source().onerror();
+  h.source().listeners.stream_ready({data: '{"viewer":"public"}'});
+  h.source().readyState = 2;
+  h.source().onerror();
+  assert.equal(postReadyProbes, 1, "closure after readiness must still respect an in-flight probe");
+  resolveProbe({status: 404});
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(postReadyProbes, 2, "closure after readiness still needs its own final probe");
+  assert.equal(vm.runInContext("sessionId", h.context), "saved",
+    "a pre-readiness 404 must not override the newer final probe's HTTP 200");
+  assert.deepEqual(h.urls, ["/dataflow?ionToken=abc&game=saved#view"]);
+
   h = harness(() => new Promise(resolve => { resolveProbe = resolve; }));
   h.source().onerror();
   vm.runInContext('attach("saved")', h.context);

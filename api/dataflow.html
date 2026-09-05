@@ -1238,7 +1238,8 @@ function attach(sid, capability = null, restoring = false) {
   let streamReady = false;
   let missingCheckStarted = false;
   let missingCheckAttempts = 0;
-  const MAX_MISSING_CHECKS = 5;
+  let finalMissingCheckStarted = false;
+  const MAX_RECONNECT_CHECKS = 5;
   es = new EventSource(
     "/stream/" + encodeURIComponent(sid) + "/facilitator");
   const attachedSource = es;
@@ -1277,25 +1278,30 @@ function attach(sid, capability = null, restoring = false) {
   });
   es.onerror = () => {
     if (sessionId !== sid || es !== attachedSource) return;
-    if (restoring && !streamReady && !missingCheckStarted && missingCheckAttempts < MAX_MISSING_CHECKS) {
-      // Only a confirmed 404 proves the remembered session is gone. Bound
-      // inconclusive probes; leave reconnection to the browser.
+    const streamClosed = attachedSource.readyState === EventSource.CLOSED;
+    if (((restoring && !streamReady) || (streamReady && streamClosed)) &&
+        !missingCheckStarted && !finalMissingCheckStarted &&
+        (missingCheckAttempts < MAX_RECONNECT_CHECKS || streamClosed)) {
+      // Only a confirmed 404 proves the session is gone. Allow five probes
+      // while reconnecting, plus one after the browser permanently closes it.
       missingCheckStarted = true;
+      finalMissingCheckStarted = streamClosed;
       missingCheckAttempts += 1;
       fetch("/game/" + encodeURIComponent(sid))
+        .catch(() => null) // A network failure cannot confirm a missing session.
         .then(response => {
-          if (sessionId !== sid || es !== attachedSource || streamReady) return;
-          if (response.status === 404) {
+          if (sessionId !== sid || es !== attachedSource) return;
+          missingCheckStarted = false;
+          // Readiness invalidates an older probe, but not a later terminal check.
+          if (response?.status === 404 && (!streamReady || streamClosed)) {
             updateSessionUrl(null);
             attach(null);
             setStatus("session gone", true);
             return;
           }
-          missingCheckStarted = false;
-        })
-        .catch(() => {
-          if (sessionId === sid && es === attachedSource && !streamReady)
-            missingCheckStarted = false;
+          // Closure can arrive while this probe is pending; keep its final check.
+          if (!finalMissingCheckStarted && attachedSource.readyState === EventSource.CLOSED)
+            attachedSource.onerror();
         });
     }
     setStatus("stream lost — session gone or server down", true);
