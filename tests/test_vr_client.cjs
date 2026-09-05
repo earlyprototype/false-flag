@@ -3,10 +3,13 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
+const { spawnSync } = require("node:child_process");
 
 const html = fs.readFileSync(path.join(__dirname, "../api/vr.html"), "utf8");
 const script = html.match(/<script type="module">([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script, "The VR page must contain its client module");
+const syntax = spawnSync(process.execPath, ["--input-type=module", "--check"], { input: script, encoding: "utf8" });
+assert.equal(syntax.status, 0, syntax.stderr);
 const bootstrap = script.indexOf("\nif (validId) {");
 assert.ok(bootstrap > 0, "Stop before network and Three.js startup");
 
@@ -34,6 +37,7 @@ const context = vm.createContext({
     addEventListener() {}
   },
   window: { addEventListener() {} },
+  history: { replaceState() {} },
   setTimeout(callback) { timers.set(++timerId, callback); return timerId; },
   clearTimeout(id) { timers.delete(id); },
   setInterval() {}
@@ -73,4 +77,46 @@ assert.equal(timers.size, 0, "Blurred XR must stop paging");
 run("xrSession = null; armCaptionTimer();");
 assert.equal(timers.size, 0, "A hidden desktop page must stop paging after XR ends");
 
-console.log("VR client check passed: caption navigation and XR visibility.");
+// Keep the bounded copy of authored coordinates equal to the shipped globe.
+const globeHtml = fs.readFileSync(path.join(__dirname, "../api/globe.html"), "utf8");
+const gazetteer = globeHtml.match(/const GAZETTEER = (\{[\s\S]*?\n\});/)[1];
+assert.equal(run("JSON.stringify(GAZETTEER)"), vm.runInNewContext(`JSON.stringify(${gazetteer})`));
+assert.equal(run('placeFor("RAF-Marham").lat'), 52.65);
+assert.equal(run('placeFor("classified")'), null);
+assert.equal(run('placeFor("constructor")'), null, "Prototype names are not authored locations");
+
+run('xrSession = null; document.hidden = false; snapshot = {turn: 2, phase: "discussion", forces: []}; globeFrameData = snapshot;');
+assert.equal(run("showingGlobe()"), true);
+assert.equal(run("showingGlobe({...snapshot, turn: 3})"), false, "Old globe pixels must not accompany a new snapshot");
+run("selectGlobe(false)");
+assert.equal(run("showingGlobe()"), false);
+assert.equal(elements.get("view").dataset.screen, "board");
+assert.equal(run('params.get("game")'), "review", "Source selection must preserve the campaign ID");
+run("selectGlobe(true)");
+assert.equal(run("showingGlobe()"), true);
+
+run(`
+  const failedGlobe = { resize() {}, render() { throw new Error("WebGL copy failed"); }, destroy() { this.destroyed = true; } };
+  globe = failedGlobe; globeData = snapshot; renderGlobe(1000);
+`);
+assert.equal(run("failedGlobe.destroyed"), true);
+assert.equal(run("globe"), null);
+assert.equal(elements.get("view").dataset.screen, "board");
+assert.match(elements.get("globeStatus").textContent, /WebGL copy failed/);
+assert.equal(run("snapshot.turn"), 2, "A globe failure must retain the live campaign snapshot");
+run('addCaption({content: "Still connected after globe failure", event_seq: 5});');
+assert.equal(run("captions.at(-1).content"), "Still connected after globe failure");
+
+// Replace GPU plotting only: execute the actual render/timeout branch with a pending new snapshot.
+run(`
+  globeError = null; globeData = null; globeWaitStart = 1;
+  globe = { resize() {}, render() {}, destroy() {} };
+  plotGlobe = data => { globeData = data; globeFrameData = null; };
+  renderGlobe(20000);
+`);
+assert.equal(run("globeError"), null, "A new snapshot must receive its own frame timeout");
+run("renderGlobe(35001)");
+assert.match(run("globeError.message"), /15 seconds/);
+assert.equal(elements.get("view").dataset.screen, "board");
+
+console.log("VR client check passed: captions, XR visibility, globe source identity, fallback and timeout.");
