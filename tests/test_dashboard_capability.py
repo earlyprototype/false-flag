@@ -327,11 +327,16 @@ async function flushRetryTimers(h) {
 
   h = harness(404);
   const statuses = [];
+  const loggedErrors = [];
+  const teardownError = new Error("render unavailable");
   h.context.setStatus = (...args) => statuses.push(args);
-  h.context.clearRunState = () => { throw new Error("render unavailable"); };
+  h.context.console = {error: (...args) => loggedErrors.push(args)};
+  h.context.clearRunState = () => { throw teardownError; };
   h.source().onerror();
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(statuses.at(-1), ["session check failed", true]);
+  assert.deepEqual(loggedErrors, [["session check failed", teardownError]]);
+  assert.equal(loggedErrors[0][1], teardownError);
 
   h = harness(404);
   h.elements.sessInput.value = " saved ";
